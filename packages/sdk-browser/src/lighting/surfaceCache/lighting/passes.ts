@@ -4,7 +4,10 @@ import { dagReadGroupEntries, type DagReadTables } from '../../../geometry/dag/s
 import { skyLightReadBindEntries } from '../../../modules/sky/skyLight/read.ts'
 import { cloudShadowBindEntries } from '../../atmosphere/cloudShadowRead.ts'
 import type { SceneTrace } from '../../rays/sceneTrace/sceneTraceResources.ts'
-import { sceneTraceBindEntries } from '../../rays/sceneTrace/sceneTraceWgsl.ts'
+import {
+  sceneTraceGroupEntries,
+  sceneTraceGroupResources,
+} from '../../rays/sceneTrace/sceneTraceGroup.ts'
 import type { SurfaceHitResources } from '../hitWgsl.ts'
 import type { SurfaceAtlases } from '../atlases.ts'
 import { COMBINE_BINDINGS } from './combineWgsl.ts'
@@ -231,6 +234,9 @@ function fromLightTiles(
   e.pass.dispatchWorkgroupsIndirect(e.lightSlots.args, entry * LIGHT_TILE_ARGS_WORDS * 4)
 }
 
+/** The names of the scene trace's resources: the kernel copies them as it is asked, so one list serves every group. */
+const sceneNames: unknown[] = []
+
 /** The bind group of the scene trace's resources, in the group `where` of `kernel`. */
 function sceneGroup(
   kernel: Pick<Kernel<string>, 'group'>,
@@ -238,8 +244,8 @@ function sceneGroup(
   where: { readonly group: number; readonly first: number },
 ) {
   return kernel.group(
-    [sceneTrace.params, sceneTrace.nodes, sceneTrace.triangles, sceneTrace.table],
-    () => sceneTraceBindEntries(sceneTrace, where.first),
+    sceneTraceGroupResources(sceneTrace, sceneNames),
+    () => sceneTraceGroupEntries(sceneTrace, where.first),
     where.group,
   )
 }

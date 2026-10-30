@@ -5,6 +5,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   RAY_TRACING_FLAG_ALL_TRANSLUCENT,
+  RAY_TRACING_FLAG_SKY,
   RAY_TRACING_FLAG_TRANSLUCENT,
   RAY_TRACING_LEAF_COUNT_SHIFT,
   RAY_TRACING_LEAF_OFFSET_MASK,
@@ -58,8 +59,7 @@ test('it reads a node as five vec4u of the file: the links and metas, then the b
   // The corner and the exponents with the mask (words 0 to 3), the links and the metas (4 to 7),
   // the low x and y bytes (8 to 11), the low z and high x (12 to 15), the high y and z (16 to 19).
   assert.equal(RAY_TRACING_NODE_BYTES, 5 * 16)
-  assert.match(SCENE_TRACE_PROBE, /stNodes:array<vec4u>/)
-  assert.match(SCENE_TRACE_PROBE, /stTriangles:array<vec4u>/)
+  assert.match(SCENE_TRACE_PROBE, /stGeometry:array<vec4u>/)
   const constant = (name: string, value: number) =>
     assert.match(SCENE_TRACE_PROBE, new RegExp(`const ${name}:u32=${value}u;`))
   constant('ST_NODE_VECS', 5)
@@ -74,7 +74,7 @@ test('its bindings are those its layout entries describe, beside the cut’s tab
     .map((m) => [Number(m[1]), Number(m[2]), m[3]] as const)
     .filter(([group]) => group === PROBE_GROUP)
   const entries = sceneTraceLayoutEntries(PROBE_FIRST)
-  assert.equal(entries.length, 4)
+  assert.equal(entries.length, 3)
   assert.deepEqual(
     declared.slice(0, entries.length).map(([, binding]) => binding),
     entries.map(({ binding }) => binding),
@@ -82,7 +82,7 @@ test('its bindings are those its layout entries describe, beside the cut’s tab
   assert.equal(declared.length, entries.length + 1)
   assert.deepEqual(
     entries.map((entry) => entry.buffer?.type),
-    ['uniform', 'read-only-storage', 'read-only-storage', 'read-only-storage'],
+    ['uniform', 'read-only-storage', 'read-only-storage'],
   )
   // The cut's four record tables, in group 0 at the bindings the culling reads them at.
   assert.deepEqual(
@@ -96,16 +96,16 @@ test('its bindings are those its layout entries describe, beside the cut’s tab
   assert.ok(topLevelNames(SCENE_TRACE_PROBE).includes('treeMember'), 'the tree is declared')
 })
 
-test('its bind group entries name the four buffers at the layout entries’ bindings', () => {
-  const [params, nodes, triangles, table] = [{}, {}, {}, {}] as GPUBuffer[]
-  const entries = sceneTraceBindEntries({ params, nodes, triangles, table }, PROBE_FIRST)
+test('its bind group entries name the three buffers at the layout entries’ bindings', () => {
+  const [params, geometry, table] = [{}, {}, {}] as GPUBuffer[]
+  const entries = sceneTraceBindEntries({ params, geometry, table }, PROBE_FIRST)
   assert.deepEqual(
     entries.map(({ binding }) => binding),
     sceneTraceLayoutEntries(PROBE_FIRST).map(({ binding }) => binding),
   )
   assert.deepEqual(
     entries.map(({ resource }) => (resource as GPUBufferBinding).buffer),
-    [params, nodes, triangles, table],
+    [params, geometry, table],
   )
 })
 
@@ -148,13 +148,59 @@ test('a ray’s flags choose what it meets: the first hit, the front faces, the 
   // A mesh translucent whole is left out of every ray; a ray that asks it leaves the other translucent primitives out where the image tests the mesh sections' visibility, and meets them as opaque ones else.
   assert.match(
     SCENE_TRACE_PROBE,
-    /fn stSkipsTranslucent\(flags:u32\)->bool\{\n return \(\(flags&ST_ALL_TRANSLUCENT\)!=0u&&\(stRay\.flags&ST_MEET_TRANSLUCENT\)==0u\)\|\|\(\(stRay\.flags&ST_SKIP_TRANSLUCENT\)!=0u&&stParams\.skipsTranslucentSections!=0u&&\(flags&ST_TRANSLUCENT\)!=0u\);/,
+    /fn stSkipsTranslucent\(flags:u32\)->bool\{\n return \(\(flags&ST_ALL_TRANSLUCENT\)!=0u&&\(stRay\.flags&ST_MEET_TRANSLUCENT\)==0u\)\|\|\(\(stRay\.flags&ST_SKIP_TRANSLUCENT\)!=0u&&stParams\.skipsTranslucentSections!=0u&&\(flags&ST_TRANSLUCENT\)!=0u\)\|\|\(\(flags&ST_SKY\)!=0u&&\(stParams\.excludesSky!=0u\|\|\(stRay\.flags&ST_PATH_RAY\)!=0u\)&&\(stRay\.flags&ST_MEET_SKY\)==0u\);/,
   )
   assert.match(SCENE_TRACE_PROBE, /\n if\(stSkipsTranslucent\(flags\)\)\{return best;\}/)
   assert.match(
     SCENE_TRACE_PROBE,
     /\(stRay\.flags&ST_SHADOW\)!=0u&&\(entry\.mark&ST_CASTS_NO_SHADOW\)!=0u/,
   )
+})
+
+test('a sky primitive is left out of every ray but the path tracer’s camera ray while the project excludes the sky', () => {
+  const body = /fn stSkipsTranslucent\(flags:u32\)->bool\{\n return (.*);\n\}/.exec(
+    SCENE_TRACE_PROBE,
+  )?.[1]
+  assert.ok(body)
+  const constants = Object.fromEntries(
+    [...SCENE_TRACE_PROBE.matchAll(/const (ST_\w+):u32=(\d+)u;/g)].map(([, name, value]) => [
+      name,
+      Number(value),
+    ]),
+  )
+  assert.equal(constants.ST_SKY, RAY_TRACING_FLAG_SKY)
+  const run = new Function(
+    ...Object.keys(constants),
+    'stRay',
+    'stParams',
+    'flags',
+    `return ${body.replace(/(\d+)u\b/g, '$1')};`,
+  )
+  const skips = (flags: number, ray: number, excludesSky: boolean) =>
+    run(
+      ...Object.values(constants),
+      { flags: ray },
+      { skipsTranslucentSections: 1, excludesSky: excludesSky ? 1 : 0 },
+      flags,
+    )
+  assert.equal(skips(RAY_TRACING_FLAG_SKY, 0, true), true)
+  assert.equal(
+    skips(RAY_TRACING_FLAG_SKY, constants.ST_MEET_SKY, true),
+    false,
+    'a path tracer meets the sky',
+  )
+  assert.equal(skips(RAY_TRACING_FLAG_SKY, 0, false), false, 'the option off includes it')
+  assert.equal(
+    skips(RAY_TRACING_FLAG_SKY, constants.ST_PATH_RAY, false),
+    true,
+    'a path tracer ray that is not the camera’s goes through it, whatever the option',
+  )
+  assert.equal(
+    skips(RAY_TRACING_FLAG_SKY, constants.ST_PATH_RAY | constants.ST_MEET_SKY, false),
+    false,
+    'the camera’s ray meets it',
+  )
+  assert.equal(skips(0, 0, true), false)
 })
 
 test('a mesh translucent whole is skipped whatever the option, a translucent primitive of a mixed mesh is met as opaque only with it off', () => {
@@ -225,6 +271,21 @@ test('a ray’s flags also cull the back faces, skip the translucent primitives 
   assert.doesNotMatch(SCENE_TRACE_PROBE, /shadow&&\(flags&ST_TRANSLUCENT\)/)
 })
 
+test('the trace holds no accumulation of its own: it asks the program’s stAccumulates (default never) after the masks’ any-hit test and before the first hit of an any-hit ray ends it', () => {
+  assert.match(SCENE_TRACE_PROBE, /const ST_ACCUMULATE:u32=8192u;/)
+  assert.match(
+    SCENE_TRACE_PROBE,
+    /fn stAccumulates\(placement:u32,record:u32\)->bool\{return false;\}/,
+  )
+  assert.doesNotMatch(SCENE_TRACE_PROBE, /stVisibility/)
+  const triangle = SCENE_TRACE_PROBE.slice(
+    SCENE_TRACE_PROBE.indexOf('fn stTriangle'),
+    SCENE_TRACE_PROBE.indexOf('fn stBarycentric'),
+  )
+  assert.ok(triangle.indexOf('stMaskKeeps') < triangle.indexOf('stAccumulates'))
+  assert.ok(triangle.indexOf('stAccumulates') < triangle.indexOf('stDone=true'))
+})
+
 test('the parameters end with the two distances a ray that passes near hits by reads, in metres, the culling’s and the switch of the mesh sections’ visibility test', () => {
   const P = SCENE_TRACE_PARAMS
   assert.deepEqual(
@@ -265,10 +326,16 @@ test('a placement of the world DAG enters the world’s directory, which enters 
     /let cell=stTable\[dir\.cells\+tail\[ST_TAIL_CELL\]\];\n if\(\(cell&ST_CELL_DRAWN\)==0u\)\{return best;\}/,
   )
   assert.ok(actor.indexOf('ST_CELL_DRAWN') < actor.indexOf('ST_RECORD_NODES'))
-  assert.match(actor, /\(flags&ST_TWO_SIDED\)!=0u,\(cell&ST_OBJECT_MASK\)-1u,NO_INDEX\);/)
+  assert.match(
+    actor,
+    /\(flags&ST_TWO_SIDED\)!=0u,\(cell&ST_OBJECT_MASK\)-1u,NO_INDEX,stMasked\(dir\.placement,record,flags\)\);/,
+  )
   assert.match(actor, /nodes==0u\|\|stSkipsTranslucent\(flags\)/)
   // An ordinary placement's hit is told by the placement.
-  assert.match(SCENE_TRACE_PROBE, /entry\.mirrored,\(flags&ST_TWO_SIDED\)!=0u,w,cells\);/)
+  assert.match(
+    SCENE_TRACE_PROBE,
+    /entry\.mirrored,\(flags&ST_TWO_SIDED\)!=0u,w,cells,!world&&stMasked\(w,record,flags\)\);/,
+  )
 })
 
 test('the parameters name the directory and where the cells’ words lie', () => {

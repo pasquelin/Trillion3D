@@ -1,6 +1,12 @@
+import {
+  NO_SCENE_MASKS,
+  sceneMaskKey,
+  type SceneMaskPrograms,
+} from '../rays/sceneTrace/sceneMaskPrograms.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { strongIntegerHash } from '../sobolScramblingWgsl.ts'
 import { pixelToNdc, unprojectPoint } from '../../../../math/src/wgsl/projection.ts'
+import { SCENE_MASK_END, sceneMaskWgsl } from '../rays/sceneTrace/sceneMaskWgsl.ts'
 import { sceneHitCornersWgsl } from '../rays/sceneTrace/sceneHitCornersWgsl.ts'
 import { PT_HIT_KIND, PT_HIT_WGSL } from './hitRecordWgsl.ts'
 import { PT_T_MAX_WGSL } from './lightsWgsl.ts'
@@ -17,19 +23,26 @@ export const PT_PLACEMENT_WORDS = 6
 /** The class number of a hit no class shades: the path tracer's default surface stands in. */
 export const PT_NO_CLASS = 0xffffff
 
-/** The bindings of the scene trace's group in the trace stage, past the trace's four: the triangles' corners, the placements' surfaces and the hits written. */
-export const PT_TRACE_STAGE_BINDINGS = { corners: 4, placements: 5, hits: 6 } as const
+/** The bindings of the scene trace's group in the trace stage, past the trace's and the any-hit test's: the placements' surfaces and the hits written. */
+export const PT_TRACE_STAGE_BINDINGS = {
+  placements: SCENE_MASK_END,
+  hits: SCENE_MASK_END + 1,
+} as const
 
 /**
  * THE TRACE OF A BOUNCE (`ptTraceBounce(path, bounce, pixel, index)`): what a path's ray meets, written as the path's `PtHit` (`hitRecordWgsl.ts`) in `ptHits`, the surface's material left to the shade of the
  * hits. It draws the numbers the reference draws to choose among the hits of a run of translucent surfaces (so that the dimensions that follow stay where they are); the last bounce, with emissive
  * surfaces off, traces nothing and ends the path; where the air is traced the ray goes through it up to the nearest of the surface and the planet, through the clouds in the way too where they are traced (`clouds`, `ptVolumeTrack`), the throughput the walk begins with kept for the lamps' light of the volume (`PtPath.segment`, `pathTracingVolumeMISMode`); bounce 0 sends the camera's ray through the pixel point the path's jitter gives, ignoring the back faces of the surfaces as the raster does (the view of the kind of hit keeps them); every ray goes through the scene (`stTrace`, asking the barycentric
  * weights) and what it meets is given its attributes at the point (`stHitSurface`: texture coordinate, shading normal, vertex colour; the material is read at the finest of its textures, as the reference reads it with no derivative) and the surface its placement wears (`ptPlacements`, `PT_PLACEMENT_WORDS` a placement, its class by whether the triangle has attributes). A ray that meets
- * nothing escapes.
+ * nothing escapes. Only the camera's ray meets a sky mesh (`ST_MEET_SKY`): the rays of the later bounces and the shadow rays go through it, to the sky light and to the miss, so the sky is not counted twice; none follows `rayTracingExcludeSky` (`ST_PATH_RAY`).
  */
-export const PT_TRACE_BOUNCE_WGSL = (scene: { group: number; first: number }, clouds = false) =>
+export const PT_TRACE_BOUNCE_WGSL = (
+  scene: { group: number; first: number },
+  programs: SceneMaskPrograms = NO_SCENE_MASKS,
+  clouds = false,
+) =>
   wgslBlock(
-    `PT_TRACE_BOUNCE_WGSL(${scene.group},${scene.first}${clouds ? ',clouds' : ''})`,
+    `PT_TRACE_BOUNCE_WGSL(${scene.group},${scene.first},${sceneMaskKey(programs)}${clouds ? ',clouds' : ''})`,
     [
       PT_VIEW_WGSL,
       PT_ROUND_WGSL,
@@ -42,7 +55,8 @@ export const PT_TRACE_BOUNCE_WGSL = (scene: { group: number; first: number }, cl
       ...(clouds ? [PT_CLOUD_MARCH_WGSL] : []),
       pixelToNdc,
       unprojectPoint,
-      sceneHitCornersWgsl(scene, { binding: scene.first + PT_TRACE_STAGE_BINDINGS.corners }),
+      sceneHitCornersWgsl(scene),
+      sceneMaskWgsl(scene.group, scene.first, programs),
     ],
     `@group(${scene.group}) @binding(${scene.first + PT_TRACE_STAGE_BINDINGS.placements}) var<storage,read> ptPlacements:array<u32>;
 @group(${scene.group}) @binding(${scene.first + PT_TRACE_STAGE_BINDINGS.hits}) var<storage,read_write> ptHits:array<vec4u>;
@@ -84,7 +98,7 @@ fn ptTraceBounce(path:ptr<function,PtPath>,bounce:u32,pixel:vec2i,index:u32){
   (*path).direction=ptCameraRay(at);
   (*path).origin=ptCameraOrigin(at);
  }
- let hit=stTrace(StRay((*path).origin,(*path).direction,0.0,PT_T_MAX,select(ST_MEET_TRANSLUCENT,0u,ptSkipsTranslucent())|select(0u,ST_CULL_BACK,bounce==0u&&!ptKeepsBackFaces())|ST_BARYCENTRIC));
+ let hit=stTrace(StRay((*path).origin,(*path).direction,0.0,PT_T_MAX,select(ST_MEET_TRANSLUCENT,0u,ptSkipsTranslucent())|select(0u,ST_CULL_BACK,bounce==0u&&!ptKeepsBackFaces())|ST_PATH_RAY|select(0u,ST_MEET_SKY,bounce==0u)|ST_BARYCENTRIC));
  if(ptAirOn()){
   // The air: the planet is a surface to the rays that the air has scattered (and to the camera's where the setting says), and the ray goes through the air up to the nearest of it, the surface and the planet.
   let ray=ptAirRayOf((*path).origin,(*path).direction);

@@ -19,13 +19,22 @@ import { SURFACE_CACHE_LIGHTING_PASS } from '../../../diagnostic/stage/passLabel
 import type { CutTables } from '../../../geometry/dag/cut/cutReaders.ts'
 import type { DagReadTables } from '../../../geometry/dag/shader/bindings.ts'
 import type { WebgpuPagesRuntime } from '../../../frame/backend/runtime.ts'
+import type { LightAtlasFormat } from '../../../gpu/core/lightAtlasFormat.ts'
 import { LazyComputePass } from '../../../gpu/core/lazyComputePass.ts'
+import { oncePerDeviceKey } from '../../../gpu/core/oncePerDevice.ts'
 import { groupWidth } from '../../../gpu/dispatch/grid.ts'
 import { noiseViewOn } from '../../../gpu/noise/blueNoiseTextures.ts'
 import type { SkyLightReadSet } from '../../../modules/sky/skyLight/read.ts'
 import type { CloudShadowSet } from '../../atmosphere/cloudShadowRead.ts'
 import type { GlobalFieldRead } from '../../distanceField/view.ts'
 import { rayTracingOf } from '../../rays/sceneTrace/runtimeRays.ts'
+import { sceneMaskNone } from '../../rays/sceneTrace/sceneMaskNone.ts'
+import { createMaskHold, isPending, type MaskHold } from '../../rays/sceneTrace/sceneMaskHold.ts'
+import {
+  sceneMaskProgramsOf,
+  type SceneMaskPrograms,
+} from '../../rays/sceneTrace/sceneMaskPrograms.ts'
+import { NO_SCENE_CUTOUTS, sceneMaskOf, wornActors } from '../../rays/sceneTrace/sceneMaskWords.ts'
 import {
   ensureSceneTrace,
   sceneTraceWords,
@@ -202,6 +211,10 @@ export interface SurfaceLightingState {
   /** The counters of the light tiles of the scene's lights and the arguments of the dispatches over them, for as many light slots as its lights need. */
   lightSlots?: LightSlots
   sceneTrace?: SceneTrace
+  /** The graph programs the passes cut their rays by, and the passes whose kernels are ready for them: the runtime's, kept when the scene trace is made again or given back (`ensureSceneTrace`). */
+  readonly maskHold: MaskHold
+  /** Says a pass failed to compile for the graph masks (made once from the runtime, with the first image that settles the hold). */
+  holdReport?: (pass: string) => void
   /** The scene trace the last image made for the world probes' rays, none where it made none (`sceneRaysOf`). */
   rays?: SceneRays
   /** What evaluating the light functions the atlas holds no slot of keeps (`standaloneMask.ts`). */
@@ -228,6 +241,7 @@ export function createSurfaceLighting(): SurfaceLightingState {
     epoch: NaN,
     historyLost: true,
     directHeld: true,
+    maskHold: createMaskHold(),
     meshShadow: createMeshShadowState(),
     stochasticRead: 0,
     stochasticHistory: false,
@@ -372,6 +386,33 @@ const TRACED_REFUSED = "the device's limits leave no room for the traced rays' b
 const compiled = <K extends Record<string, { readonly ready: boolean }>>(kernels: K | undefined) =>
   kernels && Object.values(kernels).every((kernel) => kernel.ready) ? kernels : undefined
 
+/** The maker of the traced shadows' kernels over a set of graph programs, for the format of the masks: one function a device and a format, so that the hold keeps the same from image to image. */
+const shadowKernelsMaker = oncePerDeviceKey(
+  (device: GPUDevice, format: AtlasFormat) => (programs: SceneMaskPrograms) =>
+    tracedShadowKernels(device, format, programs),
+)
+
+/** The maker of the traced radiosity's kernels over a set of graph programs, for the format of the light. */
+const radiosityKernelsMaker = oncePerDeviceKey(
+  (device: GPUDevice, light: LightAtlasFormat) => (programs: SceneMaskPrograms) =>
+    tracedRadiosityKernels(device, light, programs),
+)
+
+const kernelsCompiled = (kernels: Record<string, { readonly ready: boolean }>) =>
+  !!compiled(kernels)
+const kernelsPending = (kernels: Record<string, { readonly pending: boolean }>) =>
+  Object.values(kernels).some(isPending)
+
+/** The kernels `make` makes over the programs `hold` holds for the pass `id` under `key`, where every one has compiled. */
+const heldKernels = <
+  K extends Record<string, { readonly ready: boolean; readonly pending: boolean }>,
+>(
+  hold: MaskHold,
+  id: string,
+  key: string,
+  make: (programs: SceneMaskPrograms) => K,
+) => compiled(hold.use(id, key, make, kernelsCompiled, kernelsPending)?.kernel)
+
 /** Which of the traced shadows and the traced radiosity the settings ask for. */
 function tracedWanted(settings: SurfaceCacheSettings, shape: LightingShape) {
   return {
@@ -399,6 +440,7 @@ function tracedAloneFits(
  * programs not compiled yet.
  */
 function tracedNeeds(
+  state: SurfaceLightingState,
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
   settings: SurfaceCacheSettings,
@@ -424,14 +466,34 @@ function tracedNeeds(
   const cut = selection?.cutTables()
   if (!cut) return { why: 'the cut has no tables yet', keep: true }
   // The programs compile off the frame, only those of what is traced, each feature on its own: until a feature's are ready its
-  // rays are the distance field's.
+  // rays are the distance field's. The kernels are made over the held set of graph programs (`sceneMaskHold.ts`), which a join of the graph
+  // replaces only when every pass that casts rays has its kernels ready for the new one.
+  const wanted = sceneMaskProgramsOf(rt.vis.rasters)
+  // Settled once an image, before the kernels ask the hold for the set it holds.
+  const { maskHold } = state
+  state.holdReport ??= (pass) =>
+    rt.diag.engineDiagnostic('scene-mask-hold', 'A pass failed to compile for the graph masks', {
+      pass,
+    })
+  maskHold.settle(wanted, rt.run.frame, state.holdReport)
   const traced = {
-    shadows: compiled(shadowsFit ? tracedShadowKernels(device, format) : undefined),
-    radiosity: compiled(radiosity ? tracedRadiosityKernels(device, shape.light) : undefined),
+    shadows: shadowsFit
+      ? heldKernels(maskHold, 'surface shadows', format, shadowKernelsMaker(device, format))
+      : undefined,
+    radiosity: radiosity
+      ? heldKernels(maskHold, 'radiosity', shape.light, radiosityKernelsMaker(device, shape.light))
+      : undefined,
   }
   if (!traced.shadows && !traced.radiosity && !probes)
     return { why: "the traced rays' programs are not compiled", keep: true }
-  return { file, cut, ...traced, lightTiles, placements, refused: shadows && !shadowsFit }
+  return {
+    file,
+    cut,
+    ...traced,
+    lightTiles,
+    placements,
+    refused: shadows && !shadowsFit,
+  }
 }
 
 /**
@@ -454,7 +516,7 @@ function tracedOf(
   probes: boolean,
   format: AtlasFormat,
 ): { traced?: TracedShadows; scene?: TracedScene; rays?: SceneRays } {
-  const needs = tracedNeeds(rt, device, settings, shape, probes, format)
+  const needs = tracedNeeds(state, rt, device, settings, shape, probes, format)
   if (needs.why !== undefined) {
     if (needs.refused) state.why = needs.why
     if (!needs.keep) releaseTraced(state)
@@ -467,12 +529,40 @@ function tracedOf(
     state.tracedBuffers = held.resources
     state.why = held.why ?? state.why
   } else releaseShadowBuffers(state)
-  const made = ensureSceneTrace(state.sceneTrace, device, file, placements, rt.run.gpuSelection)
+  const made = ensureSceneTrace(
+    state.sceneTrace,
+    device,
+    file,
+    placements,
+    rt.run.gpuSelection,
+    state.maskHold,
+  )
   const { sceneTrace } = made
   state.sceneTrace = sceneTrace
   state.why = made.why ?? state.why
   if (!sceneTrace) return {}
-  sceneTrace.syncPlacements(rt.layout.selectionRoots, rt.run.gpuSelection, cacheRootsOf(rt))
+  const { textures, mapsSampler } = rt.vis
+  // The any-hit test reads the atlas, the surfaces' records and the graph frame the rasters read, and cuts by the graph masks they hold.
+  // Until the atlas and the sampler are named it keeps the stand-ins, and no placement is marked masked: the placements and the parameters are written all the same.
+  const held = sceneTrace.maskReads
+  if (textures && mapsSampler) {
+    const table = rt.vis.materialTable.viewFor(device),
+      frame = rt.vis.graphFrame.bufferOn(device)
+    if (
+      held.color !== textures.color ||
+      held.sampler !== mapsSampler ||
+      held.table !== table ||
+      held.frame !== frame
+    )
+      sceneTrace.maskReads = { color: textures.color, sampler: mapsSampler, table, frame }
+  } else if (held !== sceneMaskNone(device)) sceneTrace.maskReads = sceneMaskNone(device)
+  sceneTrace.syncPlacements(
+    rt.layout.selectionRoots,
+    rt.run.gpuSelection,
+    cacheRootsOf(rt),
+    textures && mapsSampler ? sceneMaskOf(rt) : NO_SCENE_CUTOUTS,
+    wornActors(rt.context.worldRoots?.surfaces, file.actorRanks),
+  )
   sceneTrace.writeParams(
     traceViewOf(settings, eye, direction, cut.treeRoot, {
       scale: viewDistanceFactor(rt),
@@ -777,6 +867,7 @@ export function disposeSurfaceLighting(owner: { lighting?: SurfaceLightingState 
   releaseField(lighting)
   releaseStochastic(lighting)
   releaseMeshShadow(lighting.meshShadow)
+  lighting.maskHold.dispose()
   if (lighting.standalone) disposeStandaloneState(lighting.standalone)
   owner.lighting = undefined
 }

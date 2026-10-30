@@ -98,7 +98,8 @@ test('one chain: only the trace marches the field and samples a lobe; a forward 
     'override REFLECTION_LAYER:u32=0u;',
     'generateTexel(id,REFLECTION_LAYER);',
     'begun=traceScreenBegin(id,REFLECTION_LAYER);',
-    'let own=reflectingPixelAt(REFLECTION_LAYER,coord,surfaceFlagsAt(coord));',
+    // the scene stage reads of its pixel the ray's origin and its top lobe's normal alone (`reflectingPointAt`)
+    'let own=reflectingPointAt(REFLECTION_LAYER,coord);',
     'textureStore(resolvedOut,id,resolvePixel(vec2i(id),REFLECTION_LAYER));',
     'textureStore(historyOut,id,temporalPixel(vec2i(id),local.xy,REFLECTION_LAYER));',
     'let own=reflectingPixelAt(1u,coord,flags);',

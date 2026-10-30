@@ -148,7 +148,8 @@ test('the sky light that leaks onto what a ray met is added only where the rays 
     )
     assert.match(
       code,
-      /let leaks=\(cache\.flags&\(CACHE_FLAG_TRACED\|CACHE_FLAG_LEAK\)\)==\(CACHE_FLAG_TRACED\|CACHE_FLAG_LEAK\);/,
+      /fn cacheLeaks\(\)->bool\{return \(cache\.flags&\(CACHE_FLAG_TRACED\|CACHE_FLAG_LEAK\)\)==\(CACHE_FLAG_TRACED\|CACHE_FLAG_LEAK\);\}/,
     )
+    assert.match(code, /let leaks=cacheLeaks\(\);/)
   }
 })

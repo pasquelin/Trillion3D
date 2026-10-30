@@ -6,6 +6,7 @@ import type { ReflectionCensus } from '../census.ts'
 import type { ReflectionGrids } from '../grids.ts'
 import { surfaceHitEntries, type SurfaceHitResources } from '../../surfaceCache/hitWgsl.ts'
 import type { SceneRays } from '../../surfaceCache/lighting/surfaceLighting.ts'
+import type { LightProfileResources } from '../../lightProfile/profileBindings.ts'
 import { createHardwareTraceGroups } from './traceHardwareGroups.ts'
 import { rayFogBindEntries, type RayFogRead } from '../rayFog.ts'
 import {
@@ -34,6 +35,9 @@ export type TraceInputs = {
   vectors: GPUTextureView
   /** The blue noise the ray generation draws a ray's direction from (`noiseViewOn`: the engine's, a stand-in until it is made). */
   blue: GPUTextureView
+  /** The atlas of the light functions and the one of the light profiles the hit lighting's first pass reads (`litDirect`): the stand-ins while the scene has none. */
+  lightFunction: GPUTextureView
+  lightProfile: LightProfileResources
   /** The scene trace the image's lighting made for rays through the scene's triangles (`sceneRaysOf`), where the scene stage casts them: none otherwise. */
   rays?: SceneRays
 }

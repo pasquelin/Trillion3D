@@ -11,6 +11,7 @@ import {
   cacheFinalSide,
   cacheTempBytes,
   cacheTempExtent,
+  CACHE_LIT_MARKS_FORMAT,
   cacheTileCapacity,
   cacheTraceBytes,
   cacheTraceExtent,
@@ -150,22 +151,37 @@ export function createCacheTemp(device: GPUDevice, shape: CacheShape, temp: Cach
 /** The frame's atlases, made. */
 export type CacheTempStorage = ReturnType<typeof createCacheTemp>
 
-/** The trace atlas for `tiles` tiles: the rays of the trace through the scene's triangles, in the order of the tile list, their light stored in `light`. */
-export function createTraceAtlas(device: GPUDevice, tiles: number, light: LightAtlasFormat) {
+/** The trace atlas for `tiles` tiles: the rays of the trace through the scene's triangles, in the order of the tile list, their light stored in `light`; with `marked` the texture the trace marks its hits in, for the hit lighting, laid out as the atlas is. */
+export function createTraceAtlas(
+  device: GPUDevice,
+  tiles: number,
+  light: LightAtlasFormat,
+  marked = false,
+) {
   const texture = device.createTexture({
     label: 'Trillion3D radiance cache trace v1',
     size: cacheTraceExtent(tiles),
     format: radianceRawFormat(light),
     usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
   })
+  const marks = marked
+    ? device.createTexture({
+        label: 'Trillion3D radiance cache trace marks',
+        size: cacheTraceExtent(tiles),
+        format: CACHE_LIT_MARKS_FORMAT,
+        usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
+      })
+    : undefined
   // What the atlas holds: whole rows of tiles, so an update asking a few more tiles within the last row keeps it.
   const capacity = Math.max(1, ceilDiv(tiles, CACHE_TRACE_ATLAS_TILES)) * CACHE_TRACE_ATLAS_TILES
   return {
     tiles: capacity,
-    bytes: cacheTraceBytes(capacity, light),
+    bytes: cacheTraceBytes(capacity, light, marked),
     texture,
     view: texture.createView(),
-    destroy: () => texture.destroy(),
+    /** The view of the texture the hits are marked in, none where the atlas holds no hit lighting. */
+    marks: marks?.createView(),
+    destroy: () => (texture.destroy(), marks?.destroy()),
   }
 }
 

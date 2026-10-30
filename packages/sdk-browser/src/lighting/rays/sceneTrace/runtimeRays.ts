@@ -1,5 +1,6 @@
 import {
   RAY_TRACING_FLAG_MASKED,
+  RAY_TRACING_FLAG_SKY,
   RAY_TRACING_FLAG_TRANSLUCENT,
   RAY_TRACING_FLAG_TWO_SIDED,
 } from '../../../../../sdk-core/src/contracts/rayTracingAbi.ts'
@@ -29,17 +30,20 @@ interface TracedRoot {
       readonly side: string
       readonly alphaTest: number
       readonly transparent: boolean
+      readonly sky?: boolean
     }
   }
 }
 
-/** The flags a run-time primitive's record takes from the materials of the roots that place it: double-sided or masked where one is, translucent where all are. */
+/** The flags a run-time primitive's record takes from the materials of the roots that place it: double-sided or masked where one is, translucent where all are, a sky material where all wear one. */
 function flagsOf(wearing: readonly TracedRoot[]) {
   const surfaces = wearing.map((root) => root.worn?.surface)
   const any = (has: (surface: NonNullable<(typeof surfaces)[number]>) => boolean) =>
     surfaces.some((surface) => !!surface && has(surface))
   const translucent = surfaces.length > 0 && surfaces.every((surface) => surface?.transparent)
+  const sky = surfaces.length > 0 && surfaces.every((surface) => surface?.sky === true)
   return (
+    (sky ? RAY_TRACING_FLAG_SKY : 0) |
     (any((surface) => surface.side === 'double') ? RAY_TRACING_FLAG_TWO_SIDED : 0) |
     (any((surface) => surface.alphaTest > 0) ? RAY_TRACING_FLAG_MASKED : 0) |
     (translucent ? RAY_TRACING_FLAG_TRANSLUCENT : 0)

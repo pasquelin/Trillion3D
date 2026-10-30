@@ -1,3 +1,8 @@
+import {
+  heldMakerOf,
+  oncePerDeviceOverPrograms,
+  sceneMaskKey,
+} from '../../rays/sceneTrace/sceneMaskPrograms.ts'
 import { createCheckedShaderModule } from '../../../gpu/core/shaderModule.ts'
 import { buildComputeStage, startedComputeStages } from '../../../gpu/core/computeStages.ts'
 import type { LightAtlasFormat } from '../../../gpu/core/lightAtlasFormat.ts'
@@ -17,7 +22,7 @@ import { CACHE_TILES_PROGRAM } from './cacheTilesWgsl.ts'
 import { cacheSplatProgramOf, cacheTraceProgramOf, cacheTracedProgramOf } from './cacheTraceWgsl.ts'
 
 /** The entry the trace kernel of either way of casting the rays runs. */
-const TRACE_ENTRY = 'traceTiles'
+export const TRACE_ENTRY = 'traceTiles'
 
 /** One module of the cache's kernels: its layout, and a pipeline for each entry it asks (with the pipeline constants of its own; the
  *  dispatch width of the device, where the module holds a list — `listed` — and the device's is not WebGPU's guaranteed one). */
@@ -121,7 +126,8 @@ export async function createCacheKernels(device: GPUDevice, light: LightAtlasFor
 
 /**
  * A trace that casts rays through the scene's triangles, compiled off the frame and not waited for: its `layouts` (a group each, in the order
- * of the groups), the `entry` of `code` it runs, and its pipeline, read once `ready`.
+ * of the groups), the `entry` of `code` it runs, and its pipeline, read once `ready`. `hitLit` says it marks its hits for the hit lighting in the second
+ * texture of the trace atlas (`TraceAtlas.marks`): the group it is bound with names that texture, and no other kernel's does.
  */
 export function startedTracedKernel(
   device: GPUDevice,
@@ -129,6 +135,7 @@ export function startedTracedKernel(
   layouts: readonly GPUBindGroupLayout[],
   code: string,
   entry: string,
+  hitLit = false,
 ) {
   const stages = startedComputeStages(
     device,
@@ -140,8 +147,12 @@ export function startedTracedKernel(
   )
   return {
     layouts,
+    hitLit,
     get ready() {
       return stages.ready
+    },
+    get pending() {
+      return stages.pending
     },
     /** The compiled trace: read once `ready`. */
     pipeline: () => stages.pipelineOf(entry),
@@ -153,17 +164,21 @@ export function startedTracedKernel(
  * cache's final light is read in the same) when a scene has acceleration structures and the cache's rays are traced: compiled off the frame, not waited for by the cache's own
  * kernels — until it is `ready` the rays are marched through the field. Its layouts are the cache's own group with the cut's tables, and the scene trace's.
  */
-export const tracedCacheKernels = oncePerDeviceKey((device: GPUDevice, light: LightAtlasFormat) =>
-  startedTracedKernel(
-    device,
-    `Trillion3D CACHE_TRACED ${light}`,
-    cacheTracedLayouts(light).map((entries, at) =>
-      device.createBindGroupLayout({ label: `Trillion3D CACHE_TRACED group ${at}`, entries }),
+export const tracedCacheKernels = oncePerDeviceOverPrograms(
+  (device: GPUDevice, light: LightAtlasFormat, programs) =>
+    startedTracedKernel(
+      device,
+      `Trillion3D CACHE_TRACED ${light}|${sceneMaskKey(programs)}`,
+      cacheTracedLayouts(light).map((entries, at) =>
+        device.createBindGroupLayout({ label: `Trillion3D CACHE_TRACED group ${at}`, entries }),
+      ),
+      cacheTracedProgramOf(light, programs),
+      TRACE_ENTRY,
     ),
-    cacheTracedProgramOf(light),
-    TRACE_ENTRY,
-  ),
 )
+
+/** The maker of the traced trace for a device and a format, as the mask hold takes it (`maskHold.use`): one function each, not one an image. */
+export const tracedCacheMaker = heldMakerOf(tracedCacheKernels)
 
 /** The traced trace's kernels, made. */
 export type TracedCacheKernels = ReturnType<typeof tracedCacheKernels>

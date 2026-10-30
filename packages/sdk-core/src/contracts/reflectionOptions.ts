@@ -22,6 +22,11 @@ import {
   type SettingValues,
 } from './settingRules.ts'
 import {
+  HIT_LIGHTING_RULES,
+  hitLightingOf,
+  type HitLightingSettings,
+} from './hitLightingOptions.ts'
+import {
   TRACED_TRANSLUCENCY_RULES,
   type TracedTranslucencyValues,
 } from './tracedTranslucencyOptions.ts'
@@ -213,6 +218,7 @@ export const REFLECTION_RULES = /* @__PURE__ */ (() =>
     nonNegative('reflectionSkylightLeakingAverageAlbedo', 0.25),
     flag('reflectionStatistics', false),
     ...TRACED_TRANSLUCENCY_RULES,
+    ...HIT_LIGHTING_RULES,
   ] as const))()
 /** The field of one setting of the reflections. */
 export type ReflectionField = keyof typeof REFLECTION_RULES
@@ -241,6 +247,8 @@ export interface WaterFrontSettings {
 export interface ReflectionSettings {
   /** The traced translucency's settings, resolved (`tracedTranslucencyOptions.ts`). */
   traced: TracedTranslucencyValues
+  /** The hit lighting of the reflections' hits (`hitLightingOptions.ts`). */
+  hit: HitLightingSettings
   /** The level the settings were resolved at, and whether the view traces at all: false at `'off'`. */
   level: ReflectionLevel
   enabled: boolean
@@ -449,6 +457,7 @@ export function resolveReflections(
   const density = densityOf(values, knobs)
   return {
     traced: values,
+    hit: hitLightingOf(values),
     level,
     enabled,
     block: density.block,

@@ -1,3 +1,9 @@
+import { stagesPending, stagesReady } from '../../rays/sceneTrace/sceneMaskHold.ts'
+import {
+  heldMakerOf,
+  oncePerDeviceOverPrograms,
+  sceneMaskKey,
+} from '../../rays/sceneTrace/sceneMaskPrograms.ts'
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { ceilDiv } from '../../../../../math/src/scalar/integers.ts'
 import {
@@ -21,7 +27,7 @@ import { dagReadGroupEntries } from '../../../geometry/dag/shader/bindings.ts'
 import { createWebgpuBindIdentity } from '../../../gpu/bind/bindIdentity.ts'
 import { startedComputeStages } from '../../../gpu/core/computeStages.ts'
 import { computeTextureEntry } from '../../../gpu/core/computeBindings.ts'
-import { oncePerDevice, oncePerDeviceKey } from '../../../gpu/core/oncePerDevice.ts'
+import { oncePerDevice } from '../../../gpu/core/oncePerDevice.ts'
 import type { LightAtlasFormat } from '../../../gpu/core/lightAtlasFormat.ts'
 import { FULLSCREEN_VERTEX } from '../../../gpu/shader/fullscreenTriangle.ts'
 import { HDR_FORMAT } from '../../../scene/targetFormats.ts'
@@ -119,23 +125,26 @@ const composePipelines = oncePerDevice((device: GPUDevice) => {
   ] as const
 })
 
-/** The trace's kernel for the surface cache's final light in `light`, compiled off the frame and not waited for: the raster draws the surfaces until it is. */
-const traceKernel = oncePerDeviceKey((device: GPUDevice, light: LightAtlasFormat) => {
-  const label = `Trillion3D traced translucency trace ${light}`
-  const layouts = [
-    device.createBindGroupLayout({ label, entries: tracedTranslucencyEntries(light) }),
-    reflectionLayout(device),
-    device.createBindGroupLayout({ label, entries: tracedTranslucencySceneEntries() }),
-  ]
-  const stages = startedComputeStages(
-    device,
-    label,
-    device.createPipelineLayout({ bindGroupLayouts: layouts }),
-    device.createShaderModule({ label, code: tracedTranslucencyProgram(light) }),
-    [RTT_TRACE_ENTRY],
-  )
-  return { layouts, stages }
-})
+/** The trace's kernel for the surface cache's final light in `light`, over the graph masks `programs` its rays cut the surfaces by (the programs `maskHold.use` returns), compiled off the frame and not waited for: the raster draws the surfaces until it is. */
+const traceKernel = oncePerDeviceOverPrograms(
+  (device: GPUDevice, light: LightAtlasFormat, programs) => {
+    const label = `Trillion3D traced translucency trace ${light} ${sceneMaskKey(programs)}`
+    const layouts = [
+      device.createBindGroupLayout({ label, entries: tracedTranslucencyEntries(light) }),
+      reflectionLayout(device),
+      device.createBindGroupLayout({ label, entries: tracedTranslucencySceneEntries() }),
+    ]
+    const stages = startedComputeStages(
+      device,
+      label,
+      device.createPipelineLayout({ bindGroupLayouts: layouts }),
+      device.createShaderModule({ label, code: tracedTranslucencyProgram(light, programs) }),
+      [RTT_TRACE_ENTRY],
+    )
+    return { layouts, stages }
+  },
+)
+const traceMaker = heldMakerOf(traceKernel)
 
 /** The denoising's three kernels (the resolve, the temporal accumulation, the spatial filter), compiled off the frame, each over its own layout. */
 const denoiseKernels = oncePerDevice((device: GPUDevice) =>
@@ -279,7 +288,8 @@ function writeParams(
     (tracedRefractionOn(v) ? RTT_FLAG.refraction : 0) |
     (v.rayTracedTranslucencySampleTranslucentReflectionInReflections
       ? RTT_FLAG.sampleReflection
-      : 0)
+      : 0) |
+    (v.rayTracedTranslucencyForceOpaque ? RTT_FLAG.forceOpaque : 0)
   words.set([tracedPrimaryEventsOf(v), tracedSecondaryEventsOf(v), flags, 0], P.events)
   floats.set(
     [
@@ -324,15 +334,23 @@ export function encodeTracedTranslucency(
     !lightView ||
     !rays ||
     !gpu.hdrView ||
+    !vis.textures ||
+    !vis.mapsSampler ||
     reflection.front.drawn !== frontStamp(run.frame)
   )
     return false
   const light = surfaceCacheLightOf(rt, device)
-  const trace = traceKernel(device, light)
+  const trace = rays.sceneTrace.maskHold.use(
+    'translucency reflections',
+    light,
+    traceMaker(device, light),
+    stagesReady,
+    stagesPending,
+  )?.kernel
   const denoise = denoiseKernels(device)
   const compose = composePipelines(device)
   if (
-    !trace.stages.ready ||
+    !trace?.stages.ready ||
     !denoise.every(({ stages }) => stages.ready) ||
     !chainReady(...compose)
   )

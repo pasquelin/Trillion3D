@@ -3,7 +3,9 @@ import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
 import { wgslF32 } from '../../../../../math/src/wgsl/number.ts'
 import { dagReadLayoutEntries } from '../../../geometry/dag/shader/bindings.ts'
 import { blueNoiseWgsl } from '../../../gpu/noise/blueNoiseWgsl.ts'
-import { sceneTraceLayoutEntries, sceneTraceWgsl } from '../../rays/sceneTrace/sceneTraceWgsl.ts'
+import { NO_SCENE_MASKS, type SceneMaskPrograms } from '../../rays/sceneTrace/sceneMaskPrograms.ts'
+import { sceneMaskedLayoutEntries, sceneMaskWgsl } from '../../rays/sceneTrace/sceneMaskWgsl.ts'
+import { sceneTraceWgsl } from '../../rays/sceneTrace/sceneTraceWgsl.ts'
 import { spCommon, spParams } from './commonWgsl.ts'
 import { SP_BENT_WGSL } from './historyWgsl.ts'
 import { SP_OCCLUSION_CELLS, type OcclusionShape } from './occlusionWgsl.ts'
@@ -37,7 +39,7 @@ export const occlusionTrianglesEntries = (bentNormal: boolean) => [
 ]
 /** The layout of its scene trace group. */
 export const occlusionTrianglesSceneEntries = () =>
-  sceneTraceLayoutEntries(OCCLUSION_TRIANGLES_SCENE.first)
+  sceneMaskedLayoutEntries(OCCLUSION_TRIANGLES_SCENE.first)
 
 /**
  * THE SHORT-RANGE OCCLUSION CAST THROUGH THE SCENE'S TRIANGLES (`occlusionTriangles`, `screenProbeShortRangeAOHardwareRayTracing`), a thread a texel of the
@@ -81,12 +83,13 @@ fn ${OCCLUSION_TRIANGLES_ENTRY}(@builtin(global_invocation_id) id:vec3u){
  ${shape.bentNormal ? 'textureStore(occlusion,vec2i(id.xy),vec4u(spBentPack(stored),0u,0u,0u));' : 'textureStore(occlusion,vec2i(id.xy),vec4f(round(saturate(amount)*255.0)/255.0,0.0,0.0,0.0));'}
 }`
 
-/** The program of the pass over the occlusion's `shape`, `samples` of a probe's tile, casting `rays` rays a pixel. */
+/** The program of the pass over the occlusion's `shape`, `samples` of a probe's tile, casting `rays` rays a pixel that cut the surfaces by the graph masks `programs`. */
 export const occlusionTrianglesProgram = (
   shape: OcclusionShape,
   samples: readonly [number, number],
   rays: number,
   bias: number,
+  programs: SceneMaskPrograms = NO_SCENE_MASKS,
 ) =>
   wgslProgram(
     `${spParams(B.params)}
@@ -100,5 +103,6 @@ ${occlusionTrianglesKernel(shape, rays, bias)}`,
       SP_OCCLUSION_CELLS,
       ...(shape.bentNormal ? [SP_BENT_WGSL] : []),
       sceneTraceWgsl(OCCLUSION_TRIANGLES_SCENE.group, OCCLUSION_TRIANGLES_SCENE.first),
+      sceneMaskWgsl(OCCLUSION_TRIANGLES_SCENE.group, OCCLUSION_TRIANGLES_SCENE.first, programs),
     ],
   )

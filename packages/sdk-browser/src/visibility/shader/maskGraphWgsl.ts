@@ -154,15 +154,16 @@ ${cases}
 export function maskGraphWgsl(masks: MaskSet): WgslDecl {
   const sample = masks.sample!
   const footprint = masks.footprint ?? '1.0'
+  const { group, table } = masks.where ?? { group: 0, table: VIS_BINDINGS.material }
   const loaders = masks.programs.flatMap((program) => [
-    graphLoadWgsl(maskValues(program), VIS_BINDINGS.material),
+    graphLoadWgsl(maskValues(program), table, group),
     ...PIXEL_OUTPUTS.filter((output) => output.wired(program)).map((output) =>
       output.loader(program, sample),
     ),
   ])
   return wgslBlock(
     `maskGraphWgsl(${masksKey(masks)})`,
-    [graphFrameWgsl(masks.frame), ...loaders],
+    [graphFrameWgsl(masks.frame, group), ...loaders],
     `${masks.programs.map((program) => programFunction(program, footprint)).join('\n')}
 ${PIXEL_OUTPUTS.map((output) => valueFunction(output, masks.programs)).join('\n')}`,
   )

@@ -1,4 +1,5 @@
 import { REFLECTION_LEVEL_KNOBS } from '../contracts/reflectionLevels.ts'
+import { HIT_LIGHTING_MEANINGS } from './hitLightingMeanings.ts'
 import { TRACED_TRANSLUCENCY_MEANINGS } from './tracedTranslucencyMeanings.ts'
 import { REFLECTION_RULES, type ReflectionField } from '../contracts/reflectionOptions.ts'
 
@@ -82,4 +83,5 @@ export const REFLECTION_MEANINGS: Readonly<Record<ReflectionField, string>> =
     reflectionStatistics: `Whether the reflections count their rays — where each ended, the steps of each march — in counters read back a few images late and published with the frame's metrics (off by default: a diagnostic that costs atomic counts and a readback every image; off, the kernels are compiled without the counting). Read when the session opens.`,
     reflectionFrontLayer: `Whether the nearest transparent surface of a pixel — glass, water — is traced like an opaque one, its own rays, history and filter (off by default; the reference's high quality translucency reflections, a project setting): true traces it where the level allows it (high never, ultra and cinematic do), and the cinematic level traces it whatever this says. Off, a transparent surface reads what the screen and the world's probes hold, never a ray, which also leaves its front pass nothing to write but the covering depth.`,
     ...TRACED_TRANSLUCENCY_MEANINGS,
+    ...HIT_LIGHTING_MEANINGS,
   }))()

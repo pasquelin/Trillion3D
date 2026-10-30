@@ -2527,6 +2527,14 @@
       "message": "A material's sky extra is not usable, so the material is not a sky material.",
       "cause": "A material's `extras.sky` that is not a boolean; the extra is left unread and the report names the material",
       "action": "Give `extras.sky` true or false, or leave it out."
+    },
+    {
+      "id": "T3D-W236",
+      "code": "RAY_TRACING_TEXCOORD_OUT_OF_RANGE",
+      "level": "warn",
+      "message": "A masked material reads its base map at a texture set past the eighth, so the rays cut it by the first set.",
+      "cause": "The `texCoord` of the material's base colour texture (or of its `KHR_texture_transform`) is 8 or more, while a vertex carries at most the sets TEXCOORD_0 to TEXCOORD_7; the set is not carried, the report names the material and the model compiles",
+      "action": "Export the model again with the material's base colour texture on one of the sets 0 to 7."
     }
   ]
 }

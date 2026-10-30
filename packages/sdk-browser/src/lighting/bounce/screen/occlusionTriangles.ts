@@ -1,9 +1,16 @@
 import type { ScreenProbeSettings } from '../../../../../sdk-core/src/bounce/screenProbeOptions.ts'
+import { isPending, isReady } from '../../rays/sceneTrace/sceneMaskHold.ts'
 import type { WebgpuPagesRuntime } from '../../../frame/backend/runtime.ts'
 import { dagReadGroupEntries } from '../../../geometry/dag/shader/bindings.ts'
 import { createWebgpuBindIdentity } from '../../../gpu/bind/bindIdentity.ts'
 import { namedEntries } from '../../../gpu/core/computeBindings.ts'
 import { startedTracedKernel } from '../cache/cacheKernels.ts'
+import {
+  heldMakerOf,
+  oncePerDeviceOverPrograms,
+  sceneMaskKey,
+  type SceneMaskPrograms,
+} from '../../rays/sceneTrace/sceneMaskPrograms.ts'
 import { sceneTraceGroupBinder } from '../../rays/sceneTrace/sceneTraceGroup.ts'
 import { reflectionLayout } from '../../reflections/reflectionPipelines.ts'
 import { sceneRaysOf, type SceneRays } from '../../surfaceCache/lighting/surfaceLighting.ts'
@@ -18,44 +25,54 @@ import {
   occlusionTrianglesSceneEntries,
 } from './occlusionTrianglesWgsl.ts'
 
-/** The kernels made, by device and by what they are made for: the occlusion's shape, a probe's samples, the rays a pixel casts and the bias they start at. */
-const made = new WeakMap<GPUDevice, Map<string, ReturnType<typeof startedTracedKernel>>>()
+/** What the kernels of a device are made of, by key (`occlusionTrianglesOf`): kept by the first image to ask, since the key tells everything the kernel is made of; plain data, never the settings it came from. An entry goes when the hold forgets the pass that names it. */
+const shapes = new WeakMap<GPUDevice, Map<string, OcclusionTrianglesShape>>()
 
 /**
- * The kernel that casts the short-range occlusion through the scene's triangles (`occlusionTrianglesWgsl.ts`) for the occlusion of `settings`, compiled off the
- * frame on the first ask and not waited for: until it is `ready` the occlusion is the horizon search's (or the screen's rays'). Its layouts are its group 0 with
- * the cut's tables, the reflection group and the scene trace's.
+ * What tells apart the kernels made for the occlusion of `settings`, whatever the programs (`key`), and what the kernel is made of (`shape`, out of the settings, which a maker does not
+ * keep): both out of one reading of the settings.
  */
-function occlusionTrianglesKernel(device: GPUDevice, settings: ScreenProbeSettings) {
+function occlusionTrianglesOf(settings: ScreenProbeSettings) {
   const { occlusion, samples } = kernelShapeOf(settings)
   const rays = settings.occlusionTriangleRays,
     bias = settings.occlusionTriangleBias
-  const key = `${samples.join('x')}|${occlusion.downsample}|${occlusion.bentNormal}|${rays}|${bias}`
-  let byKey = made.get(device)
-  if (!byKey) made.set(device, (byKey = new Map()))
-  let kernel = byKey.get(key)
-  if (!kernel) {
-    const label = `Trillion3D screen probe occlusion TRIANGLES ${key}`
-    byKey.set(
-      key,
-      (kernel = startedTracedKernel(
-        device,
-        label,
-        [
-          device.createBindGroupLayout({
-            label,
-            entries: occlusionTrianglesEntries(occlusion.bentNormal),
-          }),
-          reflectionLayout(device),
-          device.createBindGroupLayout({ label, entries: occlusionTrianglesSceneEntries() }),
-        ],
-        occlusionTrianglesProgram(occlusion, samples, rays, bias),
-        OCCLUSION_TRIANGLES_ENTRY,
-      )),
-    )
+  return {
+    key: `${samples.join('x')}|${occlusion.downsample}|${occlusion.bentNormal}|${rays}|${bias}`,
+    shape: { occlusion, samples, rays, bias },
   }
-  return kernel
 }
+
+type OcclusionTrianglesShape = ReturnType<typeof occlusionTrianglesOf>['shape']
+
+/**
+ * The kernel that casts the short-range occlusion through the scene's triangles (`occlusionTrianglesWgsl.ts`) for the occlusion of `shape`, compiled off the
+ * frame on the first ask and not waited for: until it is `ready` the occlusion is the horizon search's (or the screen's rays'). Its layouts are its group 0 with
+ * the cut's tables, the reflection group and the scene trace's.
+ */
+const occlusionTrianglesKernel = oncePerDeviceOverPrograms(
+  (device: GPUDevice, key: string, programs: SceneMaskPrograms) => {
+    const { occlusion, samples, rays, bias } = shapes.get(device)!.get(key)!
+    const label = `Trillion3D screen probe occlusion TRIANGLES ${key}|${sceneMaskKey(programs)}`
+    return startedTracedKernel(
+      device,
+      label,
+      [
+        device.createBindGroupLayout({
+          label,
+          entries: occlusionTrianglesEntries(occlusion.bentNormal),
+        }),
+        reflectionLayout(device),
+        device.createBindGroupLayout({ label, entries: occlusionTrianglesSceneEntries() }),
+      ],
+      occlusionTrianglesProgram(occlusion, samples, rays, bias, programs),
+      OCCLUSION_TRIANGLES_ENTRY,
+    )
+  },
+)
+
+const occlusionTrianglesMaker = heldMakerOf(occlusionTrianglesKernel, (device, key) =>
+  shapes.get(device)?.delete(key),
+)
 
 /** The binder of the groups 0 and 2 of the kernel, over the image's surfaces and the scene trace of the image (`SceneRays`): each made again only where a resource it names moved. */
 export function occlusionTrianglesBinder(g: GroupParts) {
@@ -113,7 +130,17 @@ export function occlusionTrianglesStageOf(
   if (!settings.occlusionTriangles) return undefined
   const rays = sceneRaysOf(rt.surfaceCache?.lighting, rt.run.frame)
   if (!rays) return undefined
-  const kernel = occlusionTrianglesKernel(device, settings)
-  if (!kernel.ready) return undefined
+  const { key, shape } = occlusionTrianglesOf(settings)
+  let ofDevice = shapes.get(device)
+  if (!ofDevice) shapes.set(device, (ofDevice = new Map()))
+  if (!ofDevice.has(key)) ofDevice.set(key, shape)
+  const kernel = rays.sceneTrace.maskHold.use(
+    'screen occlusion',
+    key,
+    occlusionTrianglesMaker(device, key),
+    isReady,
+    isPending,
+  )?.kernel
+  if (!kernel?.ready) return undefined
   return { rays, pipeline: kernel.pipeline(), groups: bind(kernel.layouts, rays) }
 }

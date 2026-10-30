@@ -18,6 +18,7 @@ import {
 import {
   CACHE_FILTER_BINDINGS,
   CACHE_FIXUP_BINDINGS,
+  CACHE_LIT_BINDINGS,
   CACHE_SPLAT_BINDINGS,
   CACHE_TILES_BINDINGS,
   CACHE_TRACE_BINDINGS,
@@ -26,6 +27,7 @@ import {
   CACHE_TRACE_HIT,
   CACHE_TRACE_SKY_LIGHT,
 } from './cacheBindings.ts'
+import type { CacheHitLighting } from './cacheHitLit.ts'
 import type { CacheKernels, TracedCacheKernels } from './cacheKernels.ts'
 import {
   RADIANCE_CACHE_FLAGS,
@@ -55,6 +57,8 @@ export interface Queued {
   reads: SurfaceHitReads
   eye: ArrayLike<number>
   rays?: SceneRays
+  /** What the hit lighting of the rays needs where the settings light the probes' hits where they stand; `null` where the settings do not (decided), `undefined` where the image could not decide (no information: the cache keeps its state). */
+  hit?: CacheHitLighting | null
   /** The pre-exposure the maps' light is kept under: a change of it makes the maps again. */
   preExposure: number
   /** The block of probes the image's queue is laid in (`probeQueueShapeOf`), which the atlases of the frame follow, and whether the image is
@@ -232,6 +236,23 @@ export function cacheTraceBinder(device: GPUDevice, wiring: CacheWiring) {
   )
 }
 
+/** The entries of the own group of the trace through the scene's triangles: the texture the hits are marked in is named by the kernels that write it alone (`TracedCacheKernels.hitLit`), whatever atlas they are given. */
+export function cacheTracedEntries(
+  wiring: CacheWiring,
+  kernels: Pick<TracedCacheKernels, 'hitLit'>,
+  s: CacheStorage,
+  q: Queued,
+  rays: SceneRays,
+  atlas: TraceAtlas,
+): GPUBindGroupEntry[] {
+  return [
+    ...traceEntries(wiring, s, q, atlas.view),
+    ...dagReadGroupEntries(rays.views),
+    ...surfaceHitCardsEntries(CACHE_TRACED_HIT, q.reads.hit),
+    ...(kernels.hitLit ? [{ binding: CACHE_LIT_BINDINGS.marks, resource: atlas.marks! }] : []),
+  ]
+}
+
 /** The groups of the trace that casts its rays through the scene's triangles: its own over a storage, the trace atlas it writes and what an
  *  image queued, the scene trace's over the scene trace of the image — each made again only where a resource it names moved. */
 export function cacheTracedBinder(device: GPUDevice, wiring: CacheWiring) {
@@ -260,11 +281,7 @@ export function cacheTracedBinder(device: GPUDevice, wiring: CacheWiring) {
     },
     (kernels, s, q, rays, atlas) => ({
       layout: kernels.layouts[0],
-      entries: [
-        ...traceEntries(wiring, s, q, atlas.view),
-        ...dagReadGroupEntries(rays.views),
-        ...surfaceHitCardsEntries(CACHE_TRACED_HIT, q.reads.hit),
-      ],
+      entries: cacheTracedEntries(wiring, kernels, s, q, rays, atlas),
     }),
   )
   return (
@@ -290,6 +307,10 @@ export interface FrameShape {
   queue: CacheTemp
   traceTiles: number
   traced: boolean
+  /** The mode word the rays' hits are lit with where the hit lighting runs (`cacheHitLightWord`), else zero. */
+  lit: number
+  /** The exposure the hit lighting's lights are strengthened under (`CacheHitLighting.exposure`), 1 where none runs. */
+  litExposure: number
 }
 
 /** The words of the cache's parameters (`RADIANCE_CACHE_PARAMS`) for an image of `settings`, the eye at `eye`, the frame as `frame` says, and
@@ -313,6 +334,8 @@ export function writeCacheParams(
   words[P.mipmaps] = cache.mipmaps
   words[P.tempRow] = frame.queue.row
   words[P.traceTiles] = frame.traceTiles
+  words[P.lit] = frame.lit
+  floats[P.litExposure] = frame.litExposure
   words[P.level] = RADIANCE_CACHE_TILE_LEVELS[cache.tiles]
   floats[P.downsampleSq] = cache.downsampleSq
   floats[P.supersampleSq] = cache.supersampleSq

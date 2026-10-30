@@ -38,3 +38,16 @@ test('the radiance leaves the pass multiplied by the pre-exposure and held to th
   assert.match(code, /result\.radiance\*rtt\.limits\.z/)
   assert.match(code, /radiance\*=rtt\.limits\.y\/most/)
 })
+
+test('the share a surface leaves to a reflection ray is the reflections’ own, and a hit’s material is read by the one resolver, an HLOD actor’s own included', () => {
+  assert.ok(!code.includes('rttReflectionAlpha'))
+  assert.match(code, /reflectAlpha=reflectionTraceShare\(pathRoughness\*pathRoughness,0u\)/)
+  assert.equal(code.match(/fn reflectionTraceShare\(/g)?.length, 1)
+  assert.match(code, /s\.material=rttMaterialOf\(hit\.placement,hit\.record\);/)
+  assert.match(
+    code,
+    /fn rttMaterialOf\(placement:u32,record:u32\)->RttMaterial\{\s*let at=stMaterialWordOf\(placement,record\);/,
+  )
+  assert.equal(code.match(/fn stMaterialWordOf\(/g)?.length, 1)
+  assert.ok(!code.includes('rttMaterialFloat3'))
+})

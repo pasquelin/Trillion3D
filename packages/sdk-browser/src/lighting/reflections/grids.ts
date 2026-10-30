@@ -1,8 +1,11 @@
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { texelBytesOf } from '../../gpu/core/textureBytes.ts'
 import { REFLECTION_SIDE } from './constants.ts'
+import { LIT_BOUNCE_VECS } from './hitLighting/constants.ts'
 import { createList, listBytes, resetList } from '../../gpu/dispatch/list.ts'
 import { loadOnlyUsage } from '../../gpu/core/loadOnlyTarget.ts'
+import { retire } from '../../gpu/core/frameRetire.ts'
+import { foldWindow, type KeepingWindow } from '../../gpu/core/idleKeep.ts'
 
 /**
  * THE TEXTURES OF A SURFACE'S REFLECTIONS, sized on the targets' whole extent — the render
@@ -111,6 +114,78 @@ export const createKernelTexture = (
     usage: loadOnlyUsage(),
   })
 
+/** What the images of a keeping window asked of the hit lighting's state: the grid's extent and the vertices of a path. */
+interface LitAsk {
+  width: number
+  height: number
+  vertices: number
+}
+const NO_LIT_ASK: LitAsk = { width: 0, height: 0, vertices: 1 }
+const mostLitAsked = (a: LitAsk, b: LitAsk): LitAsk => ({
+  width: Math.max(a.width, b.width),
+  height: Math.max(a.height, b.height),
+  vertices: Math.max(a.vertices, b.vertices),
+})
+
+/** The words of a grid texel's record in the hits' buffer (`sceneTraceHardware.ts`): the found and whole bits with the steps of the walk, the distance, the normal (two 16-bit octahedral coordinates) and the object, and, where the hit lighting runs (`lit`), the key of the hit's material (`REFLECTION_HIT_MATERIAL_WORD`). */
+export const reflectionHitWords = (lit: boolean) => (lit ? 5 : 4)
+
+/** The words of a trace in the hit lighting's radiance buffer (`litWgsl.ts`): two `vec4u` for its first vertex, and for each vertex after it (`vertices`, the most a path holds: its reflection bounces over its refraction stretches) `LIT_BOUNCE_VECS` more. */
+const litRadianceWords = (vertices: number) => 8 + (vertices - 1) * LIT_BOUNCE_VECS * 4
+
+/** The texels of the grid along `pixels` pixels at the blocks of pixels `block` and `frontBlock` of the two surfaces along that axis: the grid's extent of the image (`ReflectionView.grid`), a block of pixels a texel, the finer of the two. */
+export const usedAxis = (pixels: number, block: number, frontBlock: number) =>
+  gridSide(pixels, Math.min(block, frontBlock))
+
+/** The bytes of the largest buffer the hit lighting binds for a grid of `grid` texels and paths of `vertices` vertices: the first pass's radiance (`litRadianceWords` words a trace), which the device must bind whole. */
+export const litBindingBytes = (grid: readonly [number, number], vertices = 1) =>
+  grid[0] * grid[1] * litRadianceWords(vertices) * 4
+
+/** Whether the hit lighting's buffers for a grid of `grid` texels and paths of `vertices` vertices fit one binding of `device`, the hits' records and the radiance both. */
+export const litFits = (device: GPUDevice, grid: readonly [number, number], vertices = 1) =>
+  Math.max(litBindingBytes(grid, vertices), grid[0] * grid[1] * reflectionHitWords(true) * 4) <=
+  Math.min(device.limits.maxStorageBufferBindingSize, device.limits.maxBufferSize)
+
+/** The hit lighting's buffers and texture for a grid of `size` texels, the grid the image uses (`ReflectionGrids.lit`): its parameters (the grid's width of the image, written by the stage every image), the list of the traces to
+ *  light and its sorted copy, the dispatch arguments, the first pass's radiance and the materials' texture the sort reads. */
+function createLitState(
+  device: GPUDevice,
+  label: string,
+  size: readonly number[],
+  vertices: number,
+) {
+  const texels = size[0]! * size[1]!
+  const buffer = (name: string, bytes: number, usage: number) =>
+    device.createBuffer({
+      label: `Trillion3D reflection hit lighting ${name} ${label}`,
+      size: bytes,
+      usage,
+    })
+  return {
+    params: buffer('parameters', 16, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST),
+    /** The count (padded to the entries' alignment of eight bytes), then a trace a pair of words. */
+    list: buffer('list', (2 + 2 * texels) * 4, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST),
+    sorted: buffer('sorted', 2 * texels * 4, GPUBufferUsage.STORAGE),
+    /** The sort's dispatch (words 0 to 2) and the passes' (3 to 5). */
+    args: buffer('arguments', 24, GPUBufferUsage.STORAGE | GPUBufferUsage.INDIRECT),
+    radiance: buffer('radiance', texels * litRadianceWords(vertices) * 4, GPUBufferUsage.STORAGE),
+    materials: device.createTexture({
+      label: `Trillion3D reflection hit lighting materials ${label}`,
+      size: [size[0]!, size[1]!],
+      format: 'r32uint',
+      usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
+    }),
+  }
+}
+const destroyLitState = (state: ReturnType<typeof createLitState>) => {
+  state.params.destroy()
+  state.list.destroy()
+  state.sorted.destroy()
+  state.args.destroy()
+  state.radiance.destroy()
+  state.materials.destroy()
+}
+
 /** A surface's textures and lists over targets of `pixels`, each written by one kernel and read by the
  *  next. `meshes` for the surface the meshes' fields stage traces (the opaque one): the list of its rays is made for it alone. */
 export function createReflectionGrids(
@@ -145,6 +220,26 @@ export function createReflectionGrids(
     /** The rays of `pending` the meshes' fields stage traces, the rank of each in it (`trace/meshes.ts`); only where `meshes`. */
     ...(meshes ? { meshRays: list('rays near the meshes', size[0] * size[1]) } : {}),
   }
+  // The triangles the scene stage's rays met, made by the stage that casts through the scene's triangles alone (`sceneTraceHardware.ts`).
+  let hitBuffer: { buffer: GPUBuffer; bytes: number } | undefined
+  let litState:
+    | {
+        state: ReturnType<typeof createLitState>
+        size: readonly [number, number]
+        vertices: number
+      }
+    | undefined
+  // The most the images of the window of keeping asked of the hit lighting's state (`keepLit`), and the image the window began at.
+  const asked: KeepingWindow<LitAsk> = { most: NO_LIT_ASK, since: 0 }
+  // The same for the hits' buffer: the bytes asked since the last `keepLit` (the image's), and the most the window asked.
+  let hitsAsked = 0
+  const hitsWindow: KeepingWindow<number> = { most: 0, since: 0 }
+  const retireLit = () => {
+    if (!litState) return
+    const old = litState.state
+    retire(device, { destroy: () => destroyLitState(old) })
+    litState = undefined
+  }
   return {
     textures,
     ...lists,
@@ -157,9 +252,70 @@ export function createReflectionGrids(
     rays: views[1],
     /** The history's turn about, `history[parity]`. */
     history: [views[2], views[3]] as const,
+    /** The buffer the scene stage through the scene's triangles keeps its hits in, a record of `words` words (`reflectionHitWords`) a texel of the grid `grid` the image uses (`usedAxis`): made at the first call and grown, the one it replaces retired, when a later image needs more. */
+    hits(words: number, grid: readonly [number, number]) {
+      const bytes = grid[0] * grid[1] * words * 4
+      hitsAsked = Math.max(hitsAsked, bytes)
+      if (hitBuffer && hitBuffer.bytes >= bytes) return hitBuffer.buffer
+      if (hitBuffer) retire(device, hitBuffer.buffer)
+      hitBuffer = {
+        bytes,
+        buffer: device.createBuffer({
+          label: `Trillion3D reflection hits ${label}`,
+          size: bytes,
+          usage: GPUBufferUsage.STORAGE,
+        }),
+      }
+      return hitBuffer.buffer
+    },
+    /** Tells the grids what image `frame` asks of the hit lighting's state (`lit`): the grid `grid` the image uses and its paths' `vertices`, or nothing where it does not run. When a window of `IDLE_KEEP_IMAGES` images has asked less than the state kept holds, the state is retired (made again at the size asked, by the next `lit`); the hits' buffer (`hits`) is kept by the same window, over the bytes the images asked of it. */
+    keepLit(frame: number, ask?: { grid: readonly [number, number]; vertices: number }) {
+      const hitsEnded = foldWindow(hitsWindow, frame, hitsAsked || undefined, Math.max, 0)
+      hitsAsked = 0
+      if (hitsEnded !== undefined && hitBuffer && hitBuffer.bytes > hitsEnded) {
+        retire(device, hitBuffer.buffer)
+        hitBuffer = undefined
+      }
+      const ended = foldWindow(
+        asked,
+        frame,
+        ask && { width: ask.grid[0], height: ask.grid[1], vertices: ask.vertices },
+        mostLitAsked,
+        NO_LIT_ASK,
+      )
+      if (
+        ended &&
+        litState &&
+        (litState.size[0] > ended.width ||
+          litState.size[1] > ended.height ||
+          litState.vertices > ended.vertices)
+      )
+        retireLit()
+    },
+    /** What the hit lighting (`hitLighting/`) keeps for this surface over the grid `grid` the image uses, made at the first call and made again, the one it replaces retired, when a later image needs more (it is let go when a window of images asks less, `keepLit`): the list of the traces to light and its sorted copy, the dispatch arguments, the first pass's radiance and the materials' texture the sort reads. */
+    lit(grid: readonly [number, number], vertices = 1) {
+      // What is kept serves the asked (grid, vertices) while it holds them; otherwise it is retired and made for the asked alone, which the image's fit check (`hitLightingFits`) has passed, so what is created is what was checked.
+      if (
+        litState &&
+        litState.size[0] >= grid[0] &&
+        litState.size[1] >= grid[1] &&
+        litState.vertices >= vertices
+      )
+        return litState.state
+      retireLit()
+      litState = {
+        state: createLitState(device, label, grid, vertices),
+        // Copied: the caller may hand a scratch tuple it writes again.
+        size: [grid[0], grid[1]],
+        vertices,
+      }
+      return litState.state
+    },
     destroy() {
       for (const texture of textures) texture.destroy()
       for (const made of Object.values(lists)) made.destroy()
+      hitBuffer?.buffer.destroy()
+      if (litState) destroyLitState(litState.state)
     },
   }
 }

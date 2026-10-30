@@ -7,11 +7,11 @@ import { shapeKey, shapeOf, tracedRaysFit, writeLightingParams } from './params.
 import { lightingImage, lightingSettings as settings } from './params.fixture.ts'
 import { WORD_LIGHT_FORMAT } from '../../../gpu/core/lightAtlasFormat.ts'
 
-test('the traced rays fit only where every buffer — the shadows’ masks and traces, the scene trace’s nodes, triangles and table — fits a binding and a buffer of the device', () => {
+test('the traced rays fit only where every buffer — the shadows’ masks and traces, the scene trace’s geometry and table — fits a binding and a buffer of the device', () => {
   const shape = shapeOf(settings, 4096, false, WORD_LIGHT_FORMAT)
   const lightTiles = shape.directTiles * shape.maxLights
   const roomy = { maxStorageBufferBindingSize: 2 ** 30, maxBufferSize: 2 ** 30 }
-  const scene = { nodes: 1000, triangles: 2000, table: 500 }
+  const scene = { geometry: 3000, table: 500 }
   assert.equal(tracedRaysFit(roomy, lightTiles, scene, 'grey'), true)
   // The traces are the largest buffer: one word for each texel of each light tile.
   const words = tracedShadowWords(lightTiles, 'grey')
@@ -34,11 +34,8 @@ test('the traced rays fit only where every buffer — the shadows’ masks and t
   )
   // Each of the scene trace's buffers decides alone, to the word.
   const full = bytes / 4
-  assert.equal(
-    tracedRaysFit(binding, lightTiles, { nodes: full, triangles: full, table: full }, 'grey'),
-    true,
-  )
-  for (const name of ['nodes', 'triangles', 'table'] as const)
+  assert.equal(tracedRaysFit(binding, lightTiles, { geometry: full, table: full }, 'grey'), true)
+  for (const name of ['geometry', 'table'] as const)
     assert.equal(
       tracedRaysFit(binding, lightTiles, { ...scene, [name]: full + 1 }, 'grey'),
       false,
@@ -52,7 +49,7 @@ test('the traced shadows’ sizes are one list: the buffers are made at it and t
     masks: 1600,
     traces: 1 + 64 * 100,
   })
-  const sceneSmall = { nodes: 1, triangles: 1, table: 1 }
+  const sceneSmall = { geometry: 1, table: 1 }
   const most = Math.max(...Object.values(tracedShadowWords(100, 'grey'))) * 4
   const limits = { maxStorageBufferBindingSize: most, maxBufferSize: most }
   assert.equal(tracedRaysFit(limits, 100, sceneSmall, 'grey'), true)
@@ -63,7 +60,7 @@ test('the traced shadows’ sizes are one list: the buffers are made at it and t
   // The radiosity traced alone: the scene trace's buffers decide, no shadow buffer being made.
   assert.equal(tracedRaysFit({ ...limits, maxBufferSize: 4 }, 0, sceneSmall, 'grey'), true)
   assert.equal(
-    tracedRaysFit({ ...limits, maxBufferSize: 4 }, 0, { ...sceneSmall, nodes: 2 }, 'grey'),
+    tracedRaysFit({ ...limits, maxBufferSize: 4 }, 0, { ...sceneSmall, geometry: 2 }, 'grey'),
     false,
   )
 })
@@ -88,7 +85,7 @@ test('the coloured atlas doubles the masks, two bytes a texel: 32 words a light 
   })
   assert.equal(tracedShadowWords(100, 'grey').masks, 1600)
   // The masks count in the fit of the buffers.
-  const sceneSmall = { nodes: 1, triangles: 1, table: 1 }
+  const sceneSmall = { geometry: 1, table: 1 }
   const most = Math.max(...Object.values(tracedShadowWords(100, 'colour'))) * 4
   const limits = { maxStorageBufferBindingSize: most, maxBufferSize: most }
   assert.equal(tracedRaysFit(limits, 100, sceneSmall, 'colour'), true)

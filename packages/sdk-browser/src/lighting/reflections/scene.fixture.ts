@@ -13,6 +13,8 @@ import {
   screenSlabInto,
 } from '../../visibility/hiz/gpu/screenSlab.ts'
 import { REFLECTION_CONSTANTS, REFLECTION_COUNTS } from './constants.ts'
+import { hitLightWord } from './hitLighting/constants.ts'
+import { hitLightFlags } from './viewWrite.ts'
 import { defaultReflections } from '../../../../sdk-core/src/contracts/reflectionOptions.ts'
 import type { Camera } from './boxes.fixture.ts'
 import { HIZ_DEPTH_LAYERS } from '../../visibility/hiz/gpu/pyramidTexture.ts'
@@ -116,6 +118,19 @@ export function viewOf(
       hardware: [trace.hardwareBias, trace.hardwareNormalBias, trace.hardwarePullbackBias, 0],
       firstPerson: [0, 0, 0, 0],
       firstPersonMinimum: trace.firstPersonMinimumHitDistance,
+      cache: [
+        trace.radianceCacheMinRoughness,
+        trace.radianceCacheMaxRoughness,
+        trace.radianceCacheFade,
+        trace.radianceCacheRadiusScale,
+      ],
+      cacheTrace: [
+        trace.radianceCacheMaxDistance,
+        trace.radianceCacheMinDistance,
+        trace.radianceCacheStochastic ? 1 : 0,
+        0,
+      ],
+      translucent: [0, 0, hitLightFlags(trace.hit), hitLightWord(trace.hit)],
     },
     view: {
       inverseViewProjection: new Mat([...inverse]),

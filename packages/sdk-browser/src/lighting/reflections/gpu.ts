@@ -95,6 +95,8 @@ function reflectionImageState() {
     forward: createProgramGroups(),
     /** The screen probes' scene stages' group (`reflectionSceneGroup`). */
     scene: createProgramGroups(),
+    /** The hit lighting's first pass's group (`reflectionHitGroup`). */
+    hit: createProgramGroups(),
     frame: {
       viewProjection: viewProj,
       eye: [0, 0, 0],
@@ -119,6 +121,8 @@ function reflectionImageCounters(depthView: GPUTextureView) {
     litFrame: NEVER_SEEN,
     /** The number of the engine's image the view (`ReflectionFrame`) was last staged at: the passes beside the traces read it only for that image. */
     stagedFrame: NEVER_SEEN,
+    /** What the image's trace asked of the hit lighting's state (`traceReflections`), folded once at the end of the image (`keepReflectionGrids`): one record the reflection keeps and fills in place, `set` false where the image traced nothing. */
+    litAsk: { set: false, grid: [0, 0] as [number, number], vertices: 0 },
     revision: undefined as number | undefined,
     /** The reflections' turn (`ReflectionView.temporal`), advanced every image
      *  (`stageReflectionImage`). */

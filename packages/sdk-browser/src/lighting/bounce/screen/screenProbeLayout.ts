@@ -308,7 +308,7 @@ export const SCREEN_PROBE_FLAGS = {
  * lighting's (`z`: the pixels' history test and the occlusion texel each reads) and, in `w`, the least lanes of a subgroup that must still be marching for the screen trace of a ray to go on (`screenProbeScreenTracesMinimumOccupancy`); `traced`, the numbers of the rays cast through the scene's triangles in
  * metres (`screenProbeHardwareRayTracingBias`, `…NormalBias`, `…HairBias`, then the pull-back bias); `tracedHit`, what a hit of
  * theirs is read with (the cards' depth bias and the nearest hit that lights anything, centimetres), the way a ray
- * avoids the geometry it starts on,  `gi`, the short-range global illumination's furthest reach as a share of the screen (`x`), its steps a slice (`y`), the most a sample adds (`z`, `screenProbeShortRangeGIMaxRayIntensity`) and the relative thickness its history test allows (`w`); `projection`, the depth scale of the projection (`x`: one under a perspective, a power of ten under an orthographic projection), which the short-range occlusion's stochastic rays scale their slope tolerance by; `previous`, the inverse of
+ * avoids the geometry it starts on, `lit`, the mode word of the hit lighting that lights those hits where it runs (`x`, `hitLightWord`: zero where the hits are lit from the cards) and, as a float, the exposure of the image its lights are strengthened under (`y`), `gi`, the short-range global illumination's furthest reach as a share of the screen (`x`), its steps a slice (`y`), the most a sample adds (`z`, `screenProbeShortRangeGIMaxRayIntensity`) and the relative thickness its history test allows (`w`); `projection`, the depth scale of the projection (`x`: one under a perspective, a power of ten under an orthographic projection), which the short-range occlusion's stochastic rays scale their slope tolerance by; `eyeXY`, `eyeZ`, the eye's three doubles in words (x and y, then z in the first two words of `eyeZ`) the poses of a hit's placement are taken at (`stHitVelocity`); `previous`, the inverse of
  * the view-projection the last lit image was drawn with.
  */
 export const SCREEN_PROBE_PARAMS = fieldLayout('ScreenProbeParams', [
@@ -330,6 +330,7 @@ export const SCREEN_PROBE_PARAMS = fieldLayout('ScreenProbeParams', [
   ['frames', 'vec4u'],
   ['traced', 'vec4f'],
   ['tracedHit', 'vec4f'],
+  ['lit', 'vec4u'],
   ['gi', 'vec4f'],
   ['projection', 'vec4f'],
   ['eyeXY', 'vec4u'],

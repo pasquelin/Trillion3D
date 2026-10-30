@@ -2,6 +2,7 @@ import type { BounceShape } from '../../../../../sdk-core/src/bounce/contracts.t
 import type { ScreenProbeSettings } from '../../../../../sdk-core/src/bounce/screenProbeOptions.ts'
 import { NO_PLACEMENT_BOXES } from '../../../geometry/dag/placement/placementBoxes.ts'
 import type { WebgpuPagesRuntime } from '../../../frame/backend/runtime.ts'
+import { bounceHitLightingFollowOf } from '../../../frame/render/bounceHitLighting.ts'
 import { skyLightReadOf } from '../../../frame/render/skyLightState.ts'
 import { cachedLightingPreExposureOf } from '../../../post/exposure/frame.ts'
 import type { SurfaceHitReads } from '../../surfaceCache/hitWgsl.ts'
@@ -85,7 +86,8 @@ export function encodeHeldProbes(
 ) {
   if (rt.bounce.historyLost) probes.discard()
   const exposure = cachedLightingPreExposureOf(rt)
-  probes.track(frame.viewpoint, exposure)
+  const followed = bounceHitLightingFollowOf(rt)
+  probes.track(frame.viewpoint, exposure, followed)
   probes.encode(
     encoder,
     frame.viewpoint,
@@ -95,5 +97,6 @@ export function encodeHeldProbes(
     surface,
     frame.rays,
     frame.forward,
+    followed,
   )
 }

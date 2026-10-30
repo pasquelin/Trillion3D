@@ -105,12 +105,17 @@ export const REFLECTION_SKYLIGHT_LEAK_WGSL = wgslBlock(
  *  (`reflectionHitSpread`). */
 const REFLECTION_RAY_SEEN_WGSL = `/** The point a ray's radiance is read from, the surface it leaves (\`reflectionSeenAt\`). */
 var<private> reflectionOrigin:vec3f;
+/** Whether the lit image held (reflectionHeld) wins the noise of the pixel: it agrees there and its weight reaches the noise. */
+fn reflectionHeldWins(held:vec4f,noise:f32)->bool{return held.w>0.0&&held.w>=noise;}
+/** What a surface shows given the light radiance the cache gave it and the lit image held where that wins (screen), computed once by the caller. */
+fn reflectionSeenFrom(radiance:vec3f,held:vec4f,screen:bool,at:vec3f,N:vec3f)->vec3f{
+ let lit=select(radiance,held.rgb,screen)+reflectionSkylightLeak(N);
+ return reflectionClampRay(select(reflectionFogged(lit,reflectionOrigin,at-reflectionOrigin),lit,screen));
+}
 fn reflectionSeenAt(radiance:vec3f,at:vec3f,N:vec3f,coord:vec2u)->vec3f{
  let noise=reflectionEdgeNoise(coord);
  let held=reflectionHeld(at,N,noise);
- let screen=held.w>0.0&&held.w>=noise;
- let lit=select(radiance,held.rgb,screen)+reflectionSkylightLeak(N);
- return reflectionClampRay(select(reflectionFogged(lit,reflectionOrigin,at-reflectionOrigin),lit,screen));
+ return reflectionSeenFrom(radiance,held,reflectionHeldWins(held,noise),at,N);
 }
 fn reflectionHitSpread(cone:f32)->f32{
  // A cone at or past a right angle spreads over the whole hemisphere: its tangent is held at the greatest f32 angle below a
@@ -130,7 +135,7 @@ fn reflectionHitSpread(cone:f32)->f32{
  * there within `ReflectionView.light.y` of its own, its face looking at the eye within the cosine `light.z` — and, as a
  * weight, the vignette (`screenEdgeVignette`) of the hit in this image and in the last, the smaller of the two (`reflectionHitVignette`): the chance the hit takes it; zero
  * elsewhere. `reflectionEdgeNoise`: the interleaved gradient noise of the pixel `coord` at the frame index modulo eight, which a hit's vignette must reach. `reflectionSkylightLeak`: the sky light's diffuse light at the normal `N` of what a ray reaches — the zero vector for a ray
- * that reaches the sky, whose zero normal gives the cube's constant term — that leaks onto it whatever hides it (`ReflectionView.leak`, none by default). `reflectionSeenAt`: what a surface
+ * that reaches the sky, whose zero normal gives the cube's constant term — that leaks onto it whatever hides it (`ReflectionView.leak`, none by default). `reflectionSeenAt` (`reflectionSeenFrom` where the caller holds the lit image already, as the scene stage does to mark the hits to light again): what a surface
  * the march met shows — the light the surface cache's final lighting gives it at `at`, its face `N`, and the leaking, fogged along the
  * ray from the surface it left (`reflectionOrigin`) — or the lit image where it agrees (`reflectionHeld`) when its weight beats the noise
  * of the pixel the ray is cast from (the weight is the chance it replaces the cache's light), which the screen already fogged and is

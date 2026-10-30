@@ -18,6 +18,10 @@ import {
 import type { MeshStageRun } from './meshStage.ts'
 import { TRACE_MESH_GROUP, TRACE_MESH_LIST } from './traceMeshWgsl.ts'
 import type { TracedSceneGroups } from './traceGroups.ts'
+import { resetProbeHitLighting } from './hitLitStage.ts'
+import type { LitListRun } from '../../reflections/hitLighting/listPasses.ts'
+import type { ProbeLitKernels } from './hitLitKernels.ts'
+import { encodeLitList } from '../../reflections/hitLighting/listPasses.ts'
 import { TRACE_TRACED_SCENE } from './traceTracedWgsl.ts'
 import type { OcclusionTrianglesStage } from './occlusionTriangles.ts'
 import { OCCLUSION_TRIANGLES_SCENE } from './occlusionTrianglesWgsl.ts'
@@ -36,6 +40,8 @@ export interface ScreenProbeRun {
   cache?: Pick<RadianceCache, 'encode' | 'clearLobes'>
   /** The scene stage that casts the rays through the scene's triangles, where this image has it (`tracedSceneOf`): none, the rays are marched. */
   traced?: TracedSceneGroups
+  /** The hit lighting of the probes' rays, where the stage above marks their hits to light where they stand (`probeHitLitOf`): dispatched after it. */
+  hitLit?: LitListRun<ProbeLitKernels>
   /** The short-range occlusion cast through the scene's triangles, where this image has it (`occlusionTrianglesStageOf`): it takes the place of the occlusion's pass of the horizon search. */
   occlusionTriangles?: OcclusionTrianglesStage
   /** The meshes' fields stage (`meshStageOf`), where this image traces them for the probes the scene stage marches through the global field: dispatched before it. */
@@ -145,6 +151,7 @@ function traceScene(pass: GPUComputePassEncoder, run: CastRun) {
     pass.setBindGroup(0, traced.groups[0])
     pass.setBindGroup(TRACE_TRACED_SCENE.group, traced.groups[1])
     pass.dispatchWorkgroupsIndirect(sceneRays, 0)
+    if (run.hitLit) encodeLitList(pass, run.hitLit, sceneRays)
     dispatchOver(pass, kernels.traceScene.pipelines.traceFar, groups.traceScene, sceneRays, 0)
   } else {
     if (meshes) traceMeshes(pass, run, meshes)
@@ -322,6 +329,7 @@ export function resetRayLists(
 export function encodeProbePlacement(encoder: GPUCommandEncoder, run: ScreenProbeRun) {
   const cast = castOf(run)
   resetRayLists(encoder, run.resources)
+  if (run.hitLit) resetProbeHitLighting(encoder, run.hitLit)
   const pass = beginPass(encoder, run)
   placeProbes(pass, cast)
   pass.end()

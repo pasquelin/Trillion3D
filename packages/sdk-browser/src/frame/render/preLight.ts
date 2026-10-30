@@ -2,6 +2,7 @@ import { ComputeRun } from '../../gpu/core/lazyComputePass.ts'
 import { encodeHeldVsmProjection } from '../../lighting/shadows/vsm/frame/vsmProject.ts'
 import {
   encodeDepthPyramid,
+  keepReflectionGrids,
   stageReflections,
   traceReflections,
 } from '../../lighting/reflections/frame.ts'
@@ -104,6 +105,8 @@ export function encodePreLight(
   const projection = compute.begin(encoder)
   encodeHeldVsmProjection(rt, projection)
   projection.end()
+  // The reflection grids' keeping windows fold every image, whether the view is lit or not and whether the trace, the screen's march or none ran.
+  keepReflectionGrids(rt)
 }
 
 /**

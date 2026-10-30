@@ -115,6 +115,7 @@ const RAY_CULLING_RULES = /* @__PURE__ */ (() =>
     nonNegative('rayTracingCullingAngle', 1),
     flag('rayTracingCullingUseMinDrawDistance', true),
     flag('rayTracingCullingUseDistanceToBox', true),
+    flag('rayTracingExcludeSky', true),
   ] as const))()
 
 /** The indirect light: the probes, their rays through the global field or the scene's triangles, their filter and their
@@ -276,7 +277,7 @@ const DEBUG_RULES = /* @__PURE__ */ (() =>
  * nearer than `surfaceCacheHardwareRayTracingSkipBackFaceHitDistance` (5) centimetres or a two-sided hit nearer than
  * `surfaceCacheHardwareRayTracingSkipTwoSidedHitDistance` (1), 2 passes such hits as it traverses, 3 takes 2 (the
  * traversal here is inline). Every ray through the scene's triangles — the screen probes', the radiance cache's, the reflections', the surface cache's — leaves out the
- * primitives flagged translucent while `surfaceCacheHardwareRayTracingMeshSectionVisibilityTest` (on) tests the visibility of the mesh sections; off, it meets those of a mesh that has an opaque primitive as opaque ones. A mesh all of whose primitives are translucent is left out of every such ray, whatever that option is. Each image leaves out of the scene the rays go through the placements it culls
+ * primitives flagged translucent while `surfaceCacheHardwareRayTracingMeshSectionVisibilityTest` (on) tests the visibility of the mesh sections; off, it meets those of a mesh that has an opaque primitive as opaque ones. A mesh all of whose primitives are translucent is left out of every such ray, whatever that option is. The primitives of a sky material (`sky`) are left out of them too while `rayTracingExcludeSky` (on) is on, the path tracer's rays excepted. Each image leaves out of the scene the rays go through the placements it culls
  * (`rayTracingCulling`, 3, from 0 to 3): 0 none, 1 those behind the camera that are far and small, 2 all that are both far and
  * small, 3 all that are far or small. A placement is far when its distance to the eye — to its box, or to its sphere where
  * `rayTracingCullingUseDistanceToBox` is off — exceeds `rayTracingCullingRadius` (30000) centimetres, and small when its

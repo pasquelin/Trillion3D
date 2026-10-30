@@ -2,6 +2,7 @@ import { buildComputeStages } from '../../../gpu/core/computeStages.ts'
 import type { LightAtlasFormat } from '../../../gpu/core/lightAtlasFormat.ts'
 import {
   REFLECTION_DENOISE_PASS,
+  REFLECTION_HIT_LIGHTING_PASS,
   REFLECTION_SCENE_PASS,
   REFLECTION_TRACE_PASS,
 } from '../../../diagnostic/stage/passLabels.ts'
@@ -13,6 +14,7 @@ import { classifyGroups } from '../tiles.ts'
 import type { MeshStageRun } from '../../bounce/screen/meshStage.ts'
 import { TRACE_MESH_GROUP, TRACE_MESH_LIST } from '../../bounce/screen/traceMeshWgsl.ts'
 import type { RadianceCacheStage } from '../radianceCache/stage.ts'
+import type { HitLightingRun } from '../hitLighting/stage.ts'
 import { REFLECTION_HARDWARE_SCENE } from './traceBindings.ts'
 import { hardwareTraceGroups } from './traceHardwareGroups.ts'
 import {
@@ -94,9 +96,13 @@ type TraceStages = Awaited<ReturnType<typeof createTraceStages>>
 /** The scene stage that casts its rays through the scene's triangles, compiled: its pipeline for the opaque surface (0) and the
  *  transparents' front one (1) (`hardwareReflectionKernels`, `../reflectionPipelines.ts`). */
 interface HardwareStage {
+  /** The trace of the rays through the triangles, then `pipeline` answers from what they met. */
+  hit(layer: number): GPUComputePipeline
   pipeline(layer: number): GPUComputePipeline
   /** The format of the surface cache's final light the stage is for (`lightAtlasFormat`). */
   readonly light: LightAtlasFormat
+  /** Whether the stage marks the hits to light again, the records of its hits being a word longer (`reflectionHitWords`). */
+  readonly lit: boolean
 }
 
 /** The trace's passes, each timed alone under its label: the clear of the unused tracing tiles, the ray generation and the screen stage (the
@@ -106,6 +112,7 @@ interface HardwareStage {
 const PASSES = [
   { label: REFLECTION_TRACE_PASS, kernels: ['clearTracing', 'generate', 'screen'] },
   { label: REFLECTION_SCENE_PASS, kernels: ['scene'] },
+  { label: REFLECTION_HIT_LIGHTING_PASS, kernels: [] },
   { label: REFLECTION_DENOISE_PASS, kernels: ['clear', 'resolve', 'temporal', 'bilateral'] },
 ] as const satisfies readonly { label: string; kernels: readonly (typeof KERNELS)[number][] }[]
 
@@ -181,7 +188,7 @@ function dispatchReflectionMeshes(
  * over the resolve tiles, and answered by the field over the clear ones. Every kernel after the
  * classification is dispatched indirectly: over a list of tiles, the scene stage over the rays missed.
  * `depthGroup` is the reflection group over the depth pyramid, `block` the blocks of pixels a grid texel
- * traces, across and down (the level's row), `frontBlock` the front layer's, `reconstruct` whether the opaque surface's and
+ * traces, across and down (the level's row), `frontBlock` the front layer's, `grid` the grid this image uses (`usedAxis` of them along each axis: what the buffers of the scene stage's hits and of the hit lighting are sized on), `reconstruct` whether the opaque surface's and
  * the front one's resolve reads the neighbours' rays. The clear of the unused tracing tiles runs only where a resolve reads
  * a texel of another tile: a surface reconstructing, or tracing for blocks larger than one pixel. With `hardware` and the scene
  * trace of the image (`inputs.rays`) the scene stage is the program that casts its rays through the scene's triangles
@@ -198,24 +205,32 @@ export function encodeReflectionTrace(
   size: readonly [number, number],
   block: readonly [number, number],
   frontBlock: readonly [number, number],
+  grid: readonly [number, number],
   reconstruct: readonly [boolean, boolean],
   front: boolean,
   hardware?: HardwareStage,
   meshes?: MeshStageRun,
   cache?: RadianceCacheStage,
+  lit?: HitLightingRun,
 ) {
   const groups = traceGroups(reflection, stages, stages.layouts, inputs)
   const traced =
     hardware && inputs.rays
       ? {
           stage: hardware,
-          groups: hardwareTraceGroups(reflection, inputs, inputs.rays, hardware.light),
+          groups: hardwareTraceGroups(reflection, inputs, inputs.rays, hardware.light, {
+            lit: hardware.lit,
+            grid,
+          }),
         }
       : undefined
   const parity = (reflection.trace.parity ^= 1)
   const sides = front ? BOTH : OPAQUE
   resetHeads(encoder, reflection, sides)
+  if (lit && traced) lit.reset(encoder, reflection, sides, grid)
   for (const { label, kernels } of PASSES) {
+    // The hit lighting pass exists only for an image that lights hits again.
+    if (label === REFLECTION_HIT_LIGHTING_PASS && !(lit && traced && inputs.rays)) continue
     const pass = encoder.beginComputePass({ label })
     // The depth pyramid's group, every kernel's: set once, kept across their pipelines.
     pass.setBindGroup(REFLECTION_GROUP, depthGroup)
@@ -227,6 +242,8 @@ export function encodeReflectionTrace(
         const [x, y] = classifyGroups(size, side === 'opaque' ? block : frontBlock, classifying)
         pass.dispatchWorkgroups(x, y)
       }
+      if (label === REFLECTION_HIT_LIGHTING_PASS && lit && traced && inputs.rays)
+        lit.encode(pass, reflection, inputs, inputs.rays, side, traced.groups, grid, depthGroup)
       for (const kernel of kernels) {
         if (kernel === 'clearTracing' && !readsNeighbours(side, block, frontBlock, reconstruct))
           continue
@@ -234,7 +251,13 @@ export function encodeReflectionTrace(
         if (kernel === 'scene' && side === 'opaque' && meshes)
           dispatchReflectionMeshes(pass, groups.opaque, parity, meshes, reflection.grids)
         if (kernel === 'scene' && traced) {
-          pass.setPipeline(traced.stage.pipeline(side === 'opaque' ? 0 : 1))
+          const layer = side === 'opaque' ? 0 : 1
+          // The trace of the rays, then the answer from the triangles they met (the second dispatch sees the first's writes).
+          pass.setPipeline(traced.stage.hit(layer))
+          pass.setBindGroup(0, traced.groups.hits[side])
+          pass.setBindGroup(REFLECTION_HARDWARE_SCENE.group, traced.groups.maskedScene)
+          pass.dispatchWorkgroupsIndirect(grids[LISTS[kernel]], 0)
+          pass.setPipeline(traced.stage.pipeline(layer))
           pass.setBindGroup(0, traced.groups[side])
           pass.setBindGroup(REFLECTION_HARDWARE_SCENE.group, traced.groups.scene)
           pass.dispatchWorkgroupsIndirect(grids[LISTS[kernel]], 0)

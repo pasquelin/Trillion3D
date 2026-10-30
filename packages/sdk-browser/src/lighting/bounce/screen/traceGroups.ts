@@ -7,6 +7,7 @@ import type { SceneRays } from '../../surfaceCache/lighting/surfaceLighting.ts'
 import { COMPOSITE_BINDINGS, CONVERT_BINDINGS } from './gatherWgsl.ts'
 import { FIXUP_BINDINGS, MIP_BINDINGS } from './gatherMipsWgsl.ts'
 import { buffers, groupOf, type GroupParts } from './groupParts.ts'
+import { hitLitBinder } from './hitLitStage.ts'
 import type { CastKernels, ScreenProbeKernels } from './kernels.ts'
 import { INTEGRATE_BINDINGS, TILE_BINDINGS } from './integratePassWgsl.ts'
 import { OCCLUSION_BINDINGS } from './occlusionWgsl.ts'
@@ -94,6 +95,7 @@ export function traceGroups(g: GroupParts, kernels: CastKernels) {
   const trace = { ray: r.ray, radiance: r.radiance, hit: r.hit }
   return {
     tracedScene: tracedSceneBinder(g),
+    hitLit: hitLitBinder(g),
     traceScreen: groupOf(device, kernels.traceScreen, [
       ...namedEntries(TRACE_SCREEN_BINDINGS.at, {
         ...common,

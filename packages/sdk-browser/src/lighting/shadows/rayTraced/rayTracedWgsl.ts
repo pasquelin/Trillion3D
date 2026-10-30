@@ -18,6 +18,8 @@ import { lightChannelsOf, lightTraits } from '../../direct/lightReachWgsl.ts'
 import { LIGHT_CAPSULE_WGSL } from '../../manyLightsSampled/lightTraceWgsl.ts'
 import { WORLD_AT_WGSL } from '../../deferred/worldAtWgsl.ts'
 import { PT_RANDOM_WGSL } from '../../pathTracing/randomWgsl.ts'
+import { NO_SCENE_MASKS, type SceneMaskPrograms } from '../../rays/sceneTrace/sceneMaskPrograms.ts'
+import { sceneMaskWgsl } from '../../rays/sceneTrace/sceneMaskWgsl.ts'
 import { sceneTraceWgsl } from '../../rays/sceneTrace/sceneTraceWgsl.ts'
 import { REFLECTION_CONSTANTS_WGSL } from '../../reflections/constantsWgsl.ts'
 import {
@@ -277,8 +279,8 @@ fn ${RAY_TRACED_ENTRY}(@builtin(global_invocation_id) gid:vec3u){
  }
 }`
 
-/** The program of the kernel: its own textures in group 0, the reflection group (the view and the depth pyramid) and the scene trace's group. */
-export const rayTracedProgram = () =>
+/** The program of the kernel: its own textures in group 0, the reflection group (the view and the depth pyramid) and the scene trace's group, whose rays cut the surfaces by the graph masks `programs`. */
+export const rayTracedProgram = (programs: SceneMaskPrograms = NO_SCENE_MASKS) =>
   wgslProgram(TRACE_WGSL, [
     PARAMS_WGSL,
     DIRECT_LIGHT_WGSL,
@@ -293,6 +295,7 @@ export const rayTracedProgram = () =>
     reflectionBindingsWgsl(REFLECTION_GROUP),
     reflectionLightViewWgsl(REFLECTION_GROUP),
     sceneTraceWgsl(RAY_TRACED_SCENE.group, RAY_TRACED_SCENE.first),
+    sceneMaskWgsl(RAY_TRACED_SCENE.group, RAY_TRACED_SCENE.first, programs),
   ])
 
 export const RAY_TRACED_MERGE_ENTRY = 'rayTracedMerge'

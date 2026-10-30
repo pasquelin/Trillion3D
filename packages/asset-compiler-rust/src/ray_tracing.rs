@@ -28,5 +28,5 @@ mod word;
 mod world;
 
 pub(crate) use stage::write_ray_tracing;
-pub(crate) use tree::{material_flags, primitive_tree, PrimitiveTree, Traced};
+pub(crate) use tree::{material_flags, primitive_tree, unreachable_sets, PrimitiveTree, Traced};
 pub(crate) use world::{world_trees, WorldGate, WorldTrees};

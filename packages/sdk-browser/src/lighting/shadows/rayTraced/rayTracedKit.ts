@@ -10,7 +10,7 @@ import {
   computeTextureEntry,
   computeUniformEntry,
 } from '../../../gpu/core/computeBindings.ts'
-import { askedComputeStage } from '../../../gpu/core/computeStages.ts'
+import { startedComputeStage } from '../../../gpu/core/computeStages.ts'
 import { perViewRuns } from '../../../gpu/core/encoderUniforms.ts'
 import { oncePerDevice } from '../../../gpu/core/oncePerDevice.ts'
 import { arrayView } from '../../../gpu/core/textureViews.ts'
@@ -18,7 +18,9 @@ import { viewKey } from '../../../frame/backend/state/viewKey.ts'
 import { groupFor } from '../../../gpu/bind/cachedGroup.ts'
 import { reflectionGroup, reflectionLightView } from '../../reflections/group.ts'
 import { reflectionLayout } from '../../reflections/reflectionPipelines.ts'
-import { hardwareTraceLayout } from '../../reflections/trace/traceBindings.ts'
+import { sceneMaskKey, type SceneMaskPrograms } from '../../rays/sceneTrace/sceneMaskPrograms.ts'
+import { isPending, isReady } from '../../rays/sceneTrace/sceneMaskHold.ts'
+import { sceneMaskedLayoutEntries } from '../../rays/sceneTrace/sceneMaskWgsl.ts'
 import { sceneTraceGroupBinder } from '../../rays/sceneTrace/sceneTraceGroup.ts'
 import type { SceneRays } from '../../surfaceCache/lighting/surfaceLighting.ts'
 import type { SelfShadowRect } from '../firstPerson/selfShadowWindow.ts'
@@ -38,7 +40,7 @@ const LIGHT_AT = 16
 const LOD_AT = LIGHT_AT + 4
 const PARAM_WORDS = LOD_AT + 4
 
-/** What the kernel is made of on a device: its group 0 layout, the stage (asked once, off the frame), the scene trace's binder. */
+/** What the kernel is made of on a device: its group 0 layout, the stage of each set of graph masks (started once, off the frame), the scene trace's binder. */
 const kitOf = oncePerDevice((device: GPUDevice) => {
   const layout = device.createBindGroupLayout({
     label: 'Trillion3D ray traced shadow',
@@ -53,7 +55,10 @@ const kitOf = oncePerDevice((device: GPUDevice) => {
       ...dagReadLayoutEntries(),
     ],
   })
-  const scene = hardwareTraceLayout(device)
+  const scene = device.createBindGroupLayout({
+    label: 'Trillion3D ray traced shadow scene trace',
+    entries: sceneMaskedLayoutEntries(RAY_TRACED_SCENE.first),
+  })
   // Bound for the hits where the run has none to write (nothing writes it then).
   const idle = device.createTexture({
     label: 'Trillion3D ray traced shadow idle hits',
@@ -62,6 +67,22 @@ const kitOf = oncePerDevice((device: GPUDevice) => {
     usage: GPUTextureUsage.STORAGE_BINDING,
   })
   const words = new ArrayBuffer(PARAM_WORDS * 4)
+  /** The stage of each set of graph masks the rays cut by (the programs `maskHold.use` returns), started once: two sessions of a device with different sets each find their own, none is started again at every call. No frame waits for a candidate: the one the image binds is asked by `get`. */
+  const stages = new WeakMap<SceneMaskPrograms, ReturnType<typeof startedComputeStage>>()
+  const stageOf = (programs: SceneMaskPrograms) => {
+    let stage = stages.get(programs)
+    if (!stage) {
+      stage = startedComputeStage(
+        device,
+        [layout, reflectionLayout(device), scene],
+        rayTracedProgram(programs),
+        RAY_TRACED_ENTRY,
+        `Trillion3D ray traced shadow ${sceneMaskKey(programs)}`,
+      )
+      stages.set(programs, stage)
+    }
+    return stage
+  }
   return {
     layout,
     idle: arrayView(idle),
@@ -71,7 +92,7 @@ const kitOf = oncePerDevice((device: GPUDevice) => {
     /** The typed views of `words`, every one of whose fields a run writes. */
     ints: new Uint32Array(words),
     floats: new Float32Array(words),
-    stage: undefined as ReturnType<typeof askedComputeStage> | undefined,
+    stageOf,
   }
 })
 
@@ -119,15 +140,10 @@ export function runRayTracedShadow(
   const surfaces = rt.gpu.surfaces
   if (!device || !hiz || !lightView || !lightBuffer || !rt.gpu.reflection || !surfaces) return false
   const kit = kitOf(device)
-  kit.stage ??= askedComputeStage(
-    device,
-    [kit.layout, reflectionLayout(device), kit.scene],
-    rayTracedProgram(),
-    RAY_TRACED_ENTRY,
-    'Trillion3D ray traced shadow',
-    (error) => rt.diag.engineDiagnostic('ray-traced-shadow', String(error), {}),
-  )
-  const pipeline = kit.stage.get()
+  // The stage over the graph programs the scene trace holds: until the one over a graph that joined is compiled, the held set keeps casting the rays (`sceneMaskHold.ts`). A compile the device refuses is said by the frame's entry (`takeRefusals`).
+  const pipeline = rays.sceneTrace.maskHold
+    .use('ray traced shadow', '', kit.stageOf, isReady, isPending)
+    ?.kernel.get()
   if (!pipeline) return false
   // Stamped only once the pipeline exists: a view that never got one has nothing to let go.
   tracedAt.set(viewKey(rt.gpu), rt.run.frame)

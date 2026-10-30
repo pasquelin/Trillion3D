@@ -1,10 +1,15 @@
+import {
+  heldMakerOf,
+  oncePerDeviceOverPrograms,
+  sceneMaskKey,
+} from '../rays/sceneTrace/sceneMaskPrograms.ts'
+import { isPending, isReady } from '../rays/sceneTrace/sceneMaskHold.ts'
 import type { TranslucencyGiValues } from '../../../../sdk-core/src/contracts/translucencyGiOptions.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { dagReadGroupEntries } from '../../geometry/dag/shader/bindings.ts'
 import { createWebgpuBindIdentity } from '../../gpu/bind/bindIdentity.ts'
 import { namedEntries } from '../../gpu/core/computeBindings.ts'
 import type { LightAtlasFormat } from '../../gpu/core/lightAtlasFormat.ts'
-import { oncePerDeviceKey } from '../../gpu/core/oncePerDevice.ts'
 import { startedTracedKernel } from '../bounce/cache/cacheKernels.ts'
 import { TRACE_TRACED_HIT, TRACE_TRACED_SCENE } from '../bounce/screen/traceTracedWgsl.ts'
 import { reflectionLayout } from '../reflections/reflectionPipelines.ts'
@@ -29,9 +34,10 @@ import { TRACE_GI_LIGHT } from './traceWgsl.ts'
  * leaves the volume as it is, the cones marched through the global distance field. Its layouts are its group 0 with the cut's tables, the reflection group
  * the cell's point is found with (the depth pyramid, the view) and the scene trace's.
  */
-const kernelsOfLight = oncePerDeviceKey((_device: GPUDevice, light: LightAtlasFormat) =>
-  oncePerDeviceKey((device: GPUDevice, format: GPUTextureFormat) => {
-    const label = `Trillion3D translucency GI TRIANGLES ${format} ${light}`
+const trianglesKernels = oncePerDeviceOverPrograms(
+  (device: GPUDevice, key: `${GPUTextureFormat} ${LightAtlasFormat}`, programs) => {
+    const [format, light] = key.split(' ') as [GPUTextureFormat, LightAtlasFormat]
+    const label = `Trillion3D translucency GI TRIANGLES ${format} ${light} ${sceneMaskKey(programs)}`
     return startedTracedKernel(
       device,
       label,
@@ -40,21 +46,15 @@ const kernelsOfLight = oncePerDeviceKey((_device: GPUDevice, light: LightAtlasFo
         reflectionLayout(device),
         device.createBindGroupLayout({ label, entries: traceGiTrianglesSceneEntries() }),
       ],
-      traceGiTrianglesProgram(format, light),
+      traceGiTrianglesProgram(format, light, programs),
       TRACE_GI_TRIANGLES_ENTRY,
     )
-  }),
+  },
 )
-
-/** The kernel on `device` for cones' light of `format` and a radiance cache stored in `light`: read once `ready`. */
-export const trianglesKernel = (
-  device: GPUDevice,
-  format: GPUTextureFormat,
-  light: LightAtlasFormat,
-) => kernelsOfLight(device, light)(device, format)
+const trianglesMaker = heldMakerOf(trianglesKernels)
 
 /** The kernel that casts the cones through the scene's triangles. */
-export type TrianglesKernel = ReturnType<typeof trianglesKernel>
+export type TrianglesKernel = ReturnType<typeof trianglesKernels>
 
 /** The binder of the groups 0 and 2 of the kernel: over the volume's resources, what the trace reads of the image and the scene trace of the image
  *  (`SceneRays`) — each made again only where a resource it names moved. */
@@ -135,8 +135,15 @@ export function trianglesStageOf(
   if (!v.translucencyGiTraceFromVolume || !v.translucencyGiHardwareRayTracing) return undefined
   const rays = sceneRaysOf(rt.surfaceCache?.lighting, rt.run.frame)
   if (!rays) return undefined
-  const kernel = trianglesKernel(device, format, light)
-  if (!kernel.ready) return undefined
+  const key = `${format} ${light}` as const
+  const kernel = rays.sceneTrace.maskHold.use(
+    'translucency gi',
+    key,
+    trianglesMaker(device, key),
+    isReady,
+    isPending,
+  )?.kernel
+  if (!kernel?.ready) return undefined
   held.triangles ??= trianglesBinder(device)
   return {
     rays,

@@ -1,3 +1,4 @@
+import { NO_SCENE_MASKS, type SceneMaskPrograms } from '../../rays/sceneTrace/sceneMaskPrograms.ts'
 import type { ScreenProbeSettings } from '../../../../../sdk-core/src/bounce/screenProbeOptions.ts'
 import { WORD_LIGHT_FORMAT, type LightAtlasFormat } from '../../../gpu/core/lightAtlasFormat.ts'
 import { buildComputeStages } from '../../../gpu/core/computeStages.ts'
@@ -506,15 +507,17 @@ export type TracedSceneKernel = ReturnType<typeof tracedSceneKernel>
 
 /**
  * THE TRACED SCENE STAGE'S KERNEL for the rays a side of a probe, the samples of a tile and the fog on the rays of `shape`, made when a scene has acceleration
- * structures (the store keeps it for its shape and device, `ScreenProbeStore.tracedFor`): compiled off the frame and not waited for by the
+ * structures (the store keeps it for its shape and device, `ScreenProbeStore.tracedMakerFor`): compiled off the frame and not waited for by the
  * kernels over the probes — until it is `ready` the rays are marched through the global distance field (`traceScene`), as they are where
- * the scene has none.
+ * the scene has none. With `hitLit` its hits on triangles are marked for the hit lighting's passes (`hitLitWgsl.ts`).
  */
 export function tracedSceneKernel(
   device: GPUDevice,
   shape: Pick<KernelShape, 'side' | 'samples' | 'heightFog' | 'light'>,
+  programs: SceneMaskPrograms = NO_SCENE_MASKS,
+  hitLit = false,
 ) {
-  const label = `Trillion3D SCREEN_PROBE_TRACED ${raysKey(shape)} ${shape.light}`
+  const label = `Trillion3D SCREEN_PROBE_TRACED ${raysKey(shape)} ${shape.light}${hitLit ? ' lit' : ''}`
   return startedTracedKernel(
     device,
     label,
@@ -526,7 +529,7 @@ export function tracedSceneKernel(
       reflectionSceneLayout(device),
       device.createBindGroupLayout({ label, entries: traceTracedSceneEntries() }),
     ],
-    traceTracedShader(shape.side, shape.samples, shape.heightFog, shape.light),
+    traceTracedShader(shape.side, shape.samples, shape.heightFog, shape.light, programs, hitLit),
     'traceTriangles',
   )
 }

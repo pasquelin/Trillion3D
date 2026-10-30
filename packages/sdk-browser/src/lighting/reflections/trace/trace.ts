@@ -1,4 +1,5 @@
 import { TOON_TABLES_NONE_WGSL } from '../../toon/tablesWgsl.ts'
+import { NO_SCENE_MASKS, type SceneMaskPrograms } from '../../rays/sceneTrace/sceneMaskPrograms.ts'
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { directLightWgsl } from '../../direct/lightWgsl.ts'
 import { LOBES_DECODE_WGSL, LOBES_LIGHTING_WGSL } from '../../direct/lobesWgsl.ts'
@@ -8,8 +9,12 @@ import { bitMask, bitWord, lowBits, makeFinite3 } from '../../../../../math/src/
 import {
   REFLECTION_LAYER_WGSL,
   REFLECTION_TILES_WGSL,
+  REFLECTION_HIT_BINDINGS,
+  REFLECTION_INDIRECT_BINDINGS,
   REFLECTION_TRACE_BINDINGS as B,
 } from './traceBindings.ts'
+import { LIT_DIRECT_WGSL, LIT_FINISH_WGSL } from '../hitLighting/litWgsl.ts'
+import type { HitLitMode } from '../hitLighting/constants.ts'
 import { REFLECTION_GRID_FORMAT } from '../grids.ts'
 import { blueNoiseWgsl } from '../../../gpu/noise/blueNoiseWgsl.ts'
 import { REFLECTION_TEXEL_WGSL } from '../texelWgsl.ts'
@@ -201,7 +206,7 @@ fn traceSceneRay(missed:vec2u){
  let g=vec2u(missed.x&0xffffu,missed.x>>16u);
  let texel=vec2i(g);
  let coord=vec2i(reflectionPickedPixel(g));
- let own=reflectingPixelAt(REFLECTION_LAYER,coord,surfaceFlagsAt(coord));
+ let own=reflectingPointAt(REFLECTION_LAYER,coord);
  // The ray the ray generation stored, read as the storage the screen stage reads it through.
  let stored=reflectionStoredRay(texel);
  let b=reflectionSceneStage(own.P,own.topN,stored.ray,bitcast<f32>(missed.y),g,stored.cone,stored.firstPerson);
@@ -217,6 +222,25 @@ fn traceScene(@builtin(global_invocation_id) thread:vec3u,@builtin(num_workgroup
  let at=flatIndex(thread,groups,${REFLECTION_SIDE * REFLECTION_SIDE}u);
  if(at<pendingIn.count){traceSceneRay(pendingIn.entries[at]);}
  ${statistics ? 'flushTally(lane);' : ''}
+}${
+  hardware
+    ? `
+/** The trace of the ray the screen missed, missed, through the scene's triangles (reflectionSceneHitStore): the triangle it meets kept at its texel for the kernel traceScene to answer from. */
+fn traceSceneHitRay(missed:vec2u){
+ let g=vec2u(missed.x&0xffffu,missed.x>>16u);
+ let texel=vec2i(g);
+ let coord=vec2i(reflectionPickedPixel(g));
+ let own=reflectingPointAt(REFLECTION_LAYER,coord);
+ let stored=reflectionStoredRay(texel);
+ reflectionSceneHitStore(own.P,own.topN,reflectionRayLobe(stored.ray).R,bitcast<f32>(missed.y),g,stored.firstPerson);
+}
+/** One thread a ray the screen missed, as traceScene: the trace of its ray. */
+@compute @workgroup_size(${REFLECTION_SIDE * REFLECTION_SIDE})
+fn traceSceneHit(@builtin(global_invocation_id) thread:vec3u,@builtin(num_workgroups) groups:vec3u){
+ let at=flatIndex(thread,groups,${REFLECTION_SIDE * REFLECTION_SIDE}u);
+ if(at<pendingIn.count){traceSceneHitRay(pendingIn.entries[at]);}
+}`
+    : ''
 }`
 
 /**
@@ -309,7 +333,7 @@ fn traceScene(@builtin(global_invocation_id) thread:vec3u,@builtin(num_workgroup
  *   pays it, still or moving.
  *
  * THE SCENE STAGE THROUGH THE SCENE'S TRIANGLES (`hardware`, with no counting): where the scene has acceleration structures
- * the scene stage is a program of its own, the kernel `traceScene` alone over the scene trace's version of the scene's answer
+ * the scene stage is a program of its own, two kernels over the scene trace's version of the scene's answer: `traceSceneHit` casts the rays and keeps the triangles they meet, `traceScene` answers from them
  * (`../sceneTraceHardware.ts`), which the field's version (`../sceneTrace.ts`) stands in for until it is compiled and where the scene has none.
  * The census counts the field's march alone: this program is made without the counting (`hardwareReflectionKernels`, its storage buffers being the eight a stage may hold).
  *
@@ -332,6 +356,8 @@ export const reflectionTraceShader = (
   lanes: MarchLanes = 'none',
   light: LightAtlasFormat = WORD_LIGHT_FORMAT,
   meshes?: SceneCompaction,
+  programs: SceneMaskPrograms = NO_SCENE_MASKS,
+  lit: HitLitMode = 'none',
 ) =>
   wgslProgram(
     [
@@ -344,6 +370,9 @@ export const reflectionTraceShader = (
       // The lights' struct its group declares: what a lobe's weight and a ray's fog read of them.
       directLightWgsl(),
       ...(hardware ? [makeFinite3] : []),
+      // The hit lighting's passes, in the programs that hold it alone: the first in the program of the trace, the second in the one that reads the cache's indirect light.
+      ...(hardware && lit === 'finish' ? [LIT_FINISH_WGSL] : []),
+      ...(hardware && lit === 'direct' ? [LIT_DIRECT_WGSL] : []),
       isFirstPerson,
       bitWord,
       bitMask,
@@ -356,7 +385,14 @@ export const reflectionTraceShader = (
       reflectionLightViewWgsl(REFLECTION_GROUP),
       reflectionStagesWgsl(
         REFLECTION_GROUP,
-        hardware ? reflectionSceneTraceHardwareWgsl(light) : reflectionSceneTraceWgsl(light),
+        hardware
+          ? reflectionSceneTraceHardwareWgsl(
+              light,
+              programs,
+              lit === 'finish' ? REFLECTION_INDIRECT_BINDINGS : REFLECTION_HIT_BINDINGS,
+              lit !== 'none',
+            )
+          : reflectionSceneTraceWgsl(light),
         hardware,
         lanes,
       ),

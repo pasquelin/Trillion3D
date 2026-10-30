@@ -119,6 +119,9 @@ const float = (x: Scalar) => Number(x)
 const int = (x: Scalar) => Math.trunc(Number(x))
 
 const numeric = (f: (...x: number[]) => number) => each((...x) => f(...x.map(n)))
+/** A float in [-1, 1] as a signed normalised 16-bit value, its bits. */
+const snorm16 = (x: number) => Math.round(Math.min(Math.max(x, -1), 1) * 32767) & 0xffff
+
 /** A float's 32 bits as an unsigned integer, and back: `bitcast`. */
 const toBits = each((x) => f32Bits(n(x)))
 const toFloat = each((x) => fromF32Bits(n(x)))
@@ -200,6 +203,12 @@ export const builtins = {
   unpack2x16float: (word: Value) => [
     fromHalf(n(word as Scalar) & 0xffff),
     fromHalf(n(word as Scalar) >>> 16),
+  ],
+  // Two signed normalised 16-bit values in one word, the first in the low bits, and back.
+  pack2x16snorm: (v: Value) => (snorm16(vec(v)[0]) | (snorm16(vec(v)[1]) << 16)) >>> 0,
+  unpack2x16snorm: (word: Value) => [
+    Math.max(((n(word as Scalar) << 16) >> 16) / 32767, -1),
+    Math.max((n(word as Scalar) >> 16) / 32767, -1),
   ],
   log: numeric(Math.log),
   log2: numeric(Math.log2),

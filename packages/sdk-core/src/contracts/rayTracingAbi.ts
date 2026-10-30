@@ -22,24 +22,36 @@ export const RAY_TRACING_FILE = 'rayTracing.bin'
 export const RAY_TRACING_MAGIC = 0x54523354
 /** Format of `rayTracing.bin` and of the manifest's `rayTracing` section
  *  (`asset-compiler-rust/src/ray_tracing/encode.rs` lays it out): the triangles name their corners
- *  in a table of the file's vertices (`RAY_TRACING_INDEXED_TRIANGLE_BYTES`). */
-export const RAY_TRACING_VERSION = 5
+ *  in a table of the file's vertices (`RAY_TRACING_INDEXED_TRIANGLE_BYTES`), a corner's attributes
+ *  are `RAY_TRACING_CORNER_BYTES`, and the primitives cut by a map at a texture set past the first
+ *  carry that set's coordinates in a table of their own (`RAY_TRACING_MASK_CORNER_BYTES`). */
+export const RAY_TRACING_VERSION = 7
+/** The format of the corner attributes without the table of the cutout's coordinates, which the engine still reads: a record names no
+ *  set (`RAY_TRACING_FLAG_MASK_SET`) and the head counts no cutout corners. */
+export const RAY_TRACING_ATTRIBUTE_VERSION = 5
+/** The format that gave every corner the coordinate of the second texture set (`RAY_TRACING_SECOND_SET_CORNER_BYTES` a corner), which the
+ *  engine still reads: the coordinates are the cutout's of the records flagged masked and attributed, read as the second set. */
+export const RAY_TRACING_SECOND_SET_VERSION = 6
+/** The bytes of a corner's attributes in the file of version `RAY_TRACING_SECOND_SET_VERSION`: the attributes
+ *  (`RAY_TRACING_CORNER_BYTES`) and the second set (two `f32`). */
+export const RAY_TRACING_SECOND_SET_CORNER_BYTES = 24
 /** The format before, which the engine still reads: each triangle holds its corners
  *  (`RAY_TRACING_TRIANGLE_BYTES`), and the file has no vertices. */
 export const RAY_TRACING_FLAT_VERSION = 3
 /** The bytes of the file's head: the magic, the version, the record count, the node count, the
  *  triangle count and the vertex count (six `u32`; a zero word in the flat format), then the count
  *  of corners the attribute table holds (three a triangle, or zero for a file without it) and a
- *  zero word. */
+ *  count of corners the cutout's table holds (three a triangle of the records that carry it). */
 export const RAY_TRACING_HEAD_BYTES = 32
 /** The bytes of a primitive's record: its compiled mesh and its number in the mesh (the two
  *  numbers a cluster root names its primitive by, `ClusterRoot.mesh` and `ClusterRoot.primitive`;
- *  both `RAY_TRACING_NO_PRIMITIVE` in the world's record),
+ *  the world's record has both `RAY_TRACING_NO_PRIMITIVE`, an HLOD actor's record only the mesh: its number is the rank of the material the actor wears),
  *  its flags (`RAY_TRACING_FLAG_*`), the error of its cut in metres (`f32`), the rank of its first
  *  node and how many it has, the rank of its first triangle and how many it has (four `u32`, ranks
  *  within the file's node and triangle tables), the low and the high corner of its box in metres
  *  (six `f32`), the HLOD cell of an actor's record (`RAY_TRACING_RECORD_AT.cell`; zero in the others)
- *  and a zero word. */
+ *  and the rank of its first triangle in the cutout's table (`RAY_TRACING_RECORD_AT.maskTriangle`; zero for a record
+ *  without the set of `RAY_TRACING_FLAG_MASK_SET`). */
 export const RAY_TRACING_RECORD_BYTES = 64
 /** The bytes of a node: the low corner of its box (three `f32`), the exponent of the scale its
  *  children's boxes are quantised at on each axis (three `i8`), the mask of its internal children
@@ -75,6 +87,10 @@ export const RAY_TRACING_INDEXED_TRIANGLE_BYTES = 24
 export const RAY_TRACING_CORNER_BYTES = 16
 /** The words of a corner's attributes, by name. */
 export const RAY_TRACING_CORNER_AT = { uvX: 0, uvY: 1, normal: 2, colour: 3 } as const
+/** The bytes of a corner's cutout coordinate: the texture coordinate of the set the primitive's alpha mask reads (two `f32`), for a mask whose
+ *  set is past the first. The table follows the corners' attributes, three for each triangle of the records whose flags name a set
+ *  (`RAY_TRACING_FLAG_MASK_SET`), in the triangles' order and the corners'; the record's `RAY_TRACING_RECORD_AT.maskTriangle` is its first triangle's rank in it. */
+export const RAY_TRACING_MASK_CORNER_BYTES = 8
 /** The words of a triangle after its nine corner floats, by name (`RAY_TRACING_TRIANGLE_BYTES`). */
 export const RAY_TRACING_TRIANGLE_AT = { cluster: 9, triangle: 10, tag: 11 } as const
 /** The children of a node: the slots of its metas and its masks, in no order the walk reads — it
@@ -100,6 +116,7 @@ export const RAY_TRACING_RECORD_AT = {
   boxMin: 8,
   boxMax: 11,
   cell: 14,
+  maskTriangle: 15,
 } as const
 /** The bit of a record's flags that says the primitive's material is double-sided. */
 export const RAY_TRACING_FLAG_TWO_SIDED = 1
@@ -129,9 +146,17 @@ export const RAY_TRACING_FLAG_ALL_TRANSLUCENT = 32
  *  corner's normal code is read only then, so that every direction, the pole's too, is a normal. */
 export const RAY_TRACING_FLAG_NORMALS = 64
 /** The bit of a record's flags that says its triangles carry the attributes of their corners
- *  (`RAY_TRACING_CORNER_BYTES`): a primitive the compiler cut from a DAG that carried them. The
- *  HLOD actors' records and the directory's have none. */
+ *  (`RAY_TRACING_CORNER_BYTES`): a primitive or an HLOD actor the compiler cut from a DAG that carried them. The
+ *  directory's has none. */
 export const RAY_TRACING_FLAG_ATTRIBUTES = 128
+/** The bits of a record's flags that name the texture set its alpha mask reads when it is past the first (1 to 7, from `RAY_TRACING_FLAG_MASK_SET_SHIFT`):
+ *  the compiler writes the set of the base map of a masked material, and its triangles' corners carry that set's coordinates in the cutout's table
+ *  (`RAY_TRACING_MASK_CORNER_BYTES`). Zero: the mask reads the first set, the corners' own coordinate. The world's record has none. */
+export const RAY_TRACING_FLAG_MASK_SET_SHIFT = 8
+export const RAY_TRACING_FLAG_MASK_SET = 7 << RAY_TRACING_FLAG_MASK_SET_SHIFT
+/** The bit of a record's flags that says the primitive's material is a sky material (`VisMaterial.sky`): it is left out of the rays that go through the scene's
+ *  triangles unless the project includes the sky (`rayTracingExcludeSky`, on by default) or the ray is a path tracer's camera ray (`ST_MEET_SKY`); the other rays of the path tracer (`ST_PATH_RAY`) never meet it. Above the mask set's bits. */
+export const RAY_TRACING_FLAG_SKY = 2048
 /** The compiled mesh and primitive number the world's records name: none. */
 export const RAY_TRACING_NO_PRIMITIVE = 0xffffffff
 /** The nodes a walk of any tree of the file holds on its stack at most: the compiler gives a tree no

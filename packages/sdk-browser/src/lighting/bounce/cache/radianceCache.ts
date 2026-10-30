@@ -1,8 +1,11 @@
 import type { SurfaceHitReads } from '../../surfaceCache/hitWgsl.ts'
+import type { SceneRays } from '../../surfaceCache/lighting/surfaceLighting.ts'
 import type { ScreenProbeSettings } from '../../../../../sdk-core/src/bounce/screenProbeOptions.ts'
 import { ledgerAdmitted } from '../../../gpu/core/deviceLedger.ts'
+import { refusalNow } from '../../../gpu/core/refusal.ts'
 import { retire } from '../../../gpu/core/frameRetire.ts'
 import {
+  dropMarks,
   dropTemp,
   dropTraceAtlas,
   tempFor,
@@ -10,6 +13,11 @@ import {
   type FrameAtlases,
 } from './frameAtlases.ts'
 import { resetList } from '../../../gpu/dispatch/list.ts'
+import {
+  encodeLitList,
+  type LitListResources,
+  type LitListRun,
+} from '../../reflections/hitLighting/listPasses.ts'
 import { BOUNCE_PASS } from '../../../diagnostic/stage/passLabels.ts'
 import { atlasLimitFailure } from '../limits.ts'
 import {
@@ -24,7 +32,30 @@ import {
   type Queued,
 } from './cacheGroups.ts'
 import { lightAtlasFormat, type LightAtlasFormat } from '../../../gpu/core/lightAtlasFormat.ts'
-import { createCacheKernels, tracedCacheKernels, type CacheKernels } from './cacheKernels.ts'
+import {
+  cacheHitLitBinder,
+  cacheLitWanted,
+  cacheLitWordOf,
+  cacheTraceSliceOf,
+  cacheLitKernelsOf,
+  cacheLitRefusalWaits,
+  cacheLitResourcesFor,
+  cacheLitTiles,
+  cacheTracedKernelOf,
+  type CacheHitLighting,
+} from './cacheHitLit.ts'
+import {
+  cacheLitKernelsStep,
+  followHitLit,
+  cacheLitUndecided,
+  litWordMoved,
+  refuseHitLit,
+  releaseHitLit,
+  traceLitOrCards,
+  type CacheLitHolder,
+} from './cacheLitState.ts'
+import type { CacheLitKernels } from './cacheHitLitKernels.ts'
+import { createCacheKernels, type CacheKernels, type TracedCacheKernels } from './cacheKernels.ts'
 import {
   RADIANCE_CACHE_PARAMS,
   RADIANCE_CACHE_PARAMS_BYTES,
@@ -55,11 +86,13 @@ const shapeOf = ({ cache }: ScreenProbeSettings, device: GPUDevice): CacheShape 
 })
 
 /** The trace of the tiles of an update: its pipeline and the bind groups it takes, from group 0; where the rays are cast through the scene's
- *  triangles, the group of the spread of the trace atlas into the raw atlas that follows it. */
+ *  triangles, the group of the spread of the trace atlas into the raw atlas that follows it, and, where their hits are lit where they stand,
+ *  the hit lighting that runs between the two (`lit`). */
 interface TraceDispatch {
   readonly pipeline: GPUComputePipeline
   readonly groups: readonly GPUBindGroup[]
   readonly splat?: GPUBindGroup
+  readonly lit?: LitListRun<CacheLitKernels>
 }
 
 /** The groups of the dispatches an update makes over the frame's atlases: the filter's and the fixup's. */
@@ -104,6 +137,7 @@ function dispatchUpdate(
     pass.setPipeline(trace.pipeline)
     trace.groups.forEach((group, at) => pass.setBindGroup(at, group))
     pass.dispatchWorkgroupsIndirect(tiles, 0)
+    if (trace.lit) encodeLitList(pass, trace.lit, tiles)
     if (trace.splat) {
       pass.setPipeline(kernels.splat.spreadTiles)
       pass.setBindGroup(0, trace.splat)
@@ -121,7 +155,7 @@ function dispatchUpdate(
 }
 
 /** What the radiance cache keeps between two images. */
-interface CacheState extends FrameAtlases {
+interface CacheState extends FrameAtlases, CacheLitHolder {
   /** The kernels made, by the format the maps' light is stored in: a format asked is compiled off the frame (`kernelsFor`). */
   readonly kernels: Map<LightAtlasFormat, CacheKernels>
   /** The formats whose kernels were asked of the device and are still compiling. */
@@ -130,6 +164,7 @@ interface CacheState extends FrameAtlases {
   readonly remade: () => void
   readonly traceGroup: ReturnType<typeof cacheTraceBinder>
   readonly tracedGroups: ReturnType<typeof cacheTracedBinder>
+  readonly litGroups: ReturnType<typeof cacheHitLitBinder>
   readonly splatGroup: ReturnType<typeof cacheSplatBinder>
   readonly filterGroup: ReturnType<typeof cacheFilterBinder>
   readonly fixupGroup: ReturnType<typeof cacheFixupBinder>
@@ -222,55 +257,79 @@ function ensure(state: CacheState, shape: CacheShape, remake = false) {
 function release(state: CacheState) {
   dropTemp(state)
   if (state.storage) giveBack(state.device, state.storage)
+  releaseHitLit(state)
+  state.litWord = undefined
+  state.litWanted = false
   state.storage = state.groups = state.pending = state.unavailable = state.refused = undefined
   state.missed = state.lobes = false
 }
 
 /** The maps follow `now`, and the pre-exposure their light is kept under: where it changed they are made again, the update queued
  *  under the old one dropped and a shape the budget refused asked again. */
-function follow(state: CacheState, now: ScreenProbeSettings, preExposure: number) {
+function follow(
+  state: CacheState,
+  now: ScreenProbeSettings,
+  preExposure: number,
+  hit: CacheHitLighting | null | undefined,
+) {
   const exposed = state.preExposure !== undefined && state.preExposure !== preExposure
   state.preExposure = preExposure
   state.settings = now
   if (!now.radianceCache) return release(state)
   if (exposed) state.pending = state.refused = undefined
   // The trace atlas is the rays cast through the scene's triangles': held only while the setting asks for them.
-  if (!now.values.screenProbeRadianceCacheHardwareRayTracing) dropTraceAtlas(state)
+  const castsThrough = !!now.values.screenProbeRadianceCacheHardwareRayTracing
+  if (!castsThrough) dropTraceAtlas(state)
+  // The one place that gives the hit lighting back: the cache no longer casts through the triangles, or (with the image's settings) they no longer light the hits where they stand — updates queued or not.
+  if (followHitLit(state, hit, castsThrough)) dropMarks(state)
   ensure(state, shapeOf(now, state.device), exposed)
 }
 
+/** What the hit lighting of an update runs on: its kernels, the image's settings and the admission of its lists (`cacheLitResourcesFor`), asked once the trace atlas is held, never before: a refused atlas makes no list. */
+interface HitLitInputs {
+  readonly kernels: CacheLitKernels
+  readonly hit: CacheHitLighting
+  readonly admit: () => LitListResources | undefined
+}
+
 /**
- * The trace of an update: through the scene's triangles where the settings ask for it (`screenProbeRadianceCacheHardwareRayTracing`)
- * and the image has the scene trace (`queued.rays`) and the program is compiled (not waited for: until it is, the rays are marched
- * through the global distance field, as they are where the scene has no acceleration structures). The rays cast through the triangles are
- * written to the trace atlas, which the spread then writes to the raw atlas by slot.
+ * The rays of an update cast through the scene's triangles (`traced`: the kernels that cast them, ready), written to the trace atlas, which the spread then writes to the raw atlas by slot; with `lit`, the hit lighting that runs between the two.
+ * None where the trace atlas the kernels need (with the marks texture for the ones that mark the hits) is refused: nothing is built then, and no atlas count moves for it.
  */
-function traceOf(
+export function tracedOf(
   state: CacheState,
   kernels: CacheKernels,
   storage: CacheStorage,
   queued: Queued,
-  settings: ScreenProbeSettings,
+  rays: SceneRays,
+  traced: TracedCacheKernels,
   traceTiles: number,
-): TraceDispatch {
-  const { rays } = queued
-  if (rays && settings.values.screenProbeRadianceCacheHardwareRayTracing) {
-    const traced = tracedCacheKernels(state.device, storage.shape.light)
-    if (traced.ready) {
-      const atlas = traceAtlasFor(state, traceTiles, storage.shape.light)
-      if (atlas)
-        return {
-          pipeline: traced.pipeline(),
-          groups: state.tracedGroups(traced, storage, queued, rays, atlas),
-          splat: state.splatGroup(kernels, storage, atlas),
-        }
-    }
-  }
+  lit?: HitLitInputs,
+): TraceDispatch | undefined {
+  // The marks texture follows the kernels the rays are cast by: only the ones that mark the hits write it, and a group naming it for any other is refused.
+  const atlas = traceAtlasFor(state, traceTiles, storage.shape.light, traced.hitLit)
+  if (!atlas) return undefined
+  // The lists come after the atlas: none refused the atlas by their budget, none made for an image that cannot trace. Refused, the held marks atlas serves the plain trace.
+  const resources = lit?.admit()
+  if (lit && !resources) return undefined
   return {
-    pipeline: kernels.trace.traceTiles,
-    groups: [state.traceGroup(kernels, storage, queued)],
+    pipeline: traced.pipeline(),
+    groups: state.tracedGroups(traced, storage, queued, rays, atlas),
+    splat: state.splatGroup(kernels, storage, atlas),
+    lit: lit && state.litGroups(lit.kernels, storage, queued, rays, lit.hit, atlas, resources!),
   }
 }
+
+/** The rays marched through the global distance field, as they are where the scene has no acceleration structures or the program is not compiled (not waited for). */
+const marchedOf = (
+  state: CacheState,
+  kernels: CacheKernels,
+  storage: CacheStorage,
+  queued: Queued,
+): TraceDispatch => ({
+  pipeline: kernels.trace.traceTiles,
+  groups: [state.traceGroup(kernels, storage, queued)],
+})
 
 /** The lobes the screen probes want light in set to nothing for the probes queued, before the screen probes add theirs; whether the update is pending
  *  and its tiles follow the lobes (`screenProbeRadianceCacheTraceTiles` automatic), that is, whether the screen probes are to add theirs. */
@@ -295,7 +354,28 @@ function encode(state: CacheState, pass: GPUComputePassEncoder) {
   const { storage, groups, settings } = state
   const kernels = storage && state.kernels.get(storage.shape.light)
   if (!queued || !storage || !kernels || !groups || !settings) return false
+  // The hits lit where they stand are listed a slice of the tile list at a time, as many tiles as their radiance fits in a storage binding.
+  const castsThrough = !!settings.values.screenProbeRadianceCacheHardwareRayTracing
+  const asked = cacheTraceTiles(storage.shape.resolution, queued.queue)
+  const listTiles = cacheLitTiles(state.device, asked)
+  const now = refusalNow()
+  // Asked every image the rays go through the triangles (on purpose, though it can delay a swap of masks: the warm fallback), even while the hit lighting's own kernels compile or trace them: the plain ones stay compiled and held, so that a fallback to the cards traces through the triangles at once.
+  const plain =
+    queued.rays && castsThrough
+      ? cacheTracedKernelOf(state.device, queued.rays, storage.shape.light)
+      : undefined
+  // The hit lighting is wanted while the settings ask the mode, even while a refusal waits: the plain trace then takes the lit one's slice, so that the marks atlas held serves it and no atlas is made again for the swap.
+  const wanted = cacheLitWanted(queued, castsThrough)
+  const waiting = cacheLitRefusalWaits(state.litRefusal, now)
+  // Asked every image the settings ask the mode, even while a refusal waits, so that the mask hold keeps its consumer through a long wait.
+  const kernelsAsked = cacheLitKernelsOf(state.device, queued, storage.shape.light, castsThrough)
+  // The probes are always updated: the cards light the rays until the kernels are ready (a refused compile is retried by the kernels themselves, the updates going on meanwhile).
+  const kernelsStep = cacheLitKernelsStep(state, kernelsAsked, waiting)
+  // One path for every refusal: the lists, the marks texture, the kernels. The lists are given back, the rays are lit from the cards and the maps traced anew once, and no marks texture is made.
+  if (kernelsStep === 'refused') refuseHitLit(state, listTiles, now)
+  const litKernels = kernelsStep === 'lit' ? kernelsAsked : undefined
   const temp = tempFor(state, storage, queued.queue)
+  // The update is not made: the maps are traced anew when one is (`missed`), and the word is settled by the trace that does run.
   if (!temp) {
     state.missed = true
     return false
@@ -304,13 +384,43 @@ function encode(state: CacheState, pass: GPUComputePassEncoder) {
     state.missed = false
     state.remade()
   }
-  const traceTiles = cacheTraceTiles(storage.shape.resolution, queued.queue)
-  const trace = traceOf(state, kernels, storage, queued, settings, traceTiles)
+  const lit: HitLitInputs | undefined =
+    litKernels && queued.hit
+      ? {
+          kernels: litKernels,
+          hit: queued.hit,
+          admit: () => (state.hitLit = cacheLitResourcesFor(state.device, state.hitLit, listTiles)),
+        }
+      : undefined
+  const traceTiles = cacheTraceSliceOf(wanted, listTiles, asked)
+  const rays = queued.rays
+  const through = (traced: TracedCacheKernels | undefined, on?: HitLitInputs) =>
+    rays && castsThrough && traced?.ready
+      ? tracedOf(state, kernels, storage, queued, rays, traced, traceTiles, on)
+      : undefined
+  // The marks texture or the lists refused: the rays are cast plain and lit from the cards (a later lit image makes the maps anew).
+  const { trace } = traceLitOrCards(
+    state,
+    listTiles,
+    now,
+    lit && (() => through(lit.kernels.traced, lit)),
+    () => through(plain) ?? marchedOf(state, kernels, storage, queued),
+    !!(rays && castsThrough && plain?.ready),
+  )
+  // The word is what actually lit the probes: the hit lighting's where the trace ran its lit path, the cards' (0) otherwise, whatever the settings or the kernels ask. The light the maps hold was made another way where it moves: every probe is traced anew.
+  const litWord = cacheLitWordOf(queued.hit, trace.lit !== undefined)
+  if (litWordMoved(state, litWord)) state.remade()
   writeCacheParams(
     settings,
     queued.eye,
     state.image,
-    { queue: queued.queue, traceTiles, traced: trace.splat !== undefined },
+    {
+      queue: queued.queue,
+      traceTiles,
+      traced: trace.splat !== undefined,
+      lit: litWord,
+      litExposure: queued.hit?.exposure ?? 1,
+    },
     queued.rays,
   )
   writeChanged(
@@ -359,7 +469,7 @@ export type AfterUpdate = (pass: GPUComputePassEncoder, parts: UpdateParts) => v
 /** Probes may have been queued for this image: the maps follow `now`, the tile list is emptied, the update is pending. */
 function queue(state: CacheState, now: ScreenProbeSettings, queued: Queued) {
   state.pending = undefined
-  follow(state, now, queued.preExposure)
+  follow(state, now, queued.preExposure, queued.hit)
   const s = state.storage
   if (!s) return
   resetList(state.device, s.tiles)
@@ -395,10 +505,16 @@ function newCacheState(
     before,
     traceGroup: cacheTraceBinder(device, wiring),
     tracedGroups: cacheTracedBinder(device, wiring),
+    litGroups: cacheHitLitBinder(device, wiring),
     splatGroup: cacheSplatBinder(device, wiring),
     filterGroup: cacheFilterBinder(device, wiring),
     fixupGroup: cacheFixupBinder(device, wiring),
     image: new ArrayBuffer(RADIANCE_CACHE_PARAMS_BYTES),
+    litWord: undefined,
+    litWanted: false,
+    hitLit: undefined,
+    litRefusal: undefined,
+    litRefusedSets: new WeakSet(),
     storage: undefined,
     temp: undefined,
     traceAtlas: undefined,
@@ -450,7 +566,8 @@ export function createRadianceCache(
       return state.storage
         ? cacheBytes(state.storage.shape, wiring.slots) +
             (state.temp?.bytes ?? 0) +
-            (state.traceAtlas?.bytes ?? 0)
+            (state.traceAtlas?.bytes ?? 0) +
+            (state.hitLit?.bytes ?? 0)
         : 0
     },
     /** Whether an update is pending: probes were queued and the image has not made them yet. */
@@ -461,10 +578,14 @@ export function createRadianceCache(
      *  series that is closed finds work again —, made again where their shape or that pre-exposure changed (none read meanwhile, as the series
      *  starts over), given back where no screen probe reads them (a level that casts none, or the switch off). It is called before the pool's
      *  pass of the image, so that the pass the series restarts in is the image's own and the table never names a map the update of the
-     *  image does not make. */
-    follow: (now: ScreenProbeSettings, preExposure: number) => follow(state, now, preExposure),
+     *  image does not make. `hit` is what the image gives the hit lighting (`null` where the settings do not light the hits: the hit lighting is given back, whether or not updates are queued; `undefined` where the image has no information: it is kept). */
+    follow: (now: ScreenProbeSettings, preExposure: number, hit?: CacheHitLighting | null) =>
+      follow(state, now, preExposure, hit),
     /** Probes may have been queued for this image: the maps follow `now`, the tile list is emptied, the update is pending. */
     queued: (now: ScreenProbeSettings, queued: Queued) => queue(state, now, queued),
+    /** Whether an image with this `hit` has no information while the last decided one wanted the hit lighting: the caller then leaves the whole update of the image (pool, clear, queue) for the next image, as a frozen cache does. */
+    undecided: (now: ScreenProbeSettings, hit: CacheHitLighting | null | undefined) =>
+      cacheLitUndecided(state, hit, !!now.values.screenProbeRadianceCacheHardwareRayTracing),
     /** The final maps and the sky's share set to black in `encoder`, before an update that traces every probe anew (`screenProbeRadianceCacheForceFullUpdate`). */
     clear(encoder: GPUCommandEncoder) {
       if (state.storage) clearCacheMaps(device, encoder, state.storage)

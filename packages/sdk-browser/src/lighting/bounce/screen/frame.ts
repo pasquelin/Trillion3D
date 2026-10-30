@@ -1,4 +1,5 @@
 import { meshStageOf, meshTraceSettingsOf, wantsMeshStage } from './meshStage.ts'
+import { isPending, isReady } from '../../rays/sceneTrace/sceneMaskHold.ts'
 import { imagesSinceChange } from '../../../frame/render/noiseFrame.ts'
 import { skyLightReadOf } from '../../../frame/render/skyLightState.ts'
 import { sameValues } from '../../../../../math/src/matrix/matrixElements.ts'
@@ -24,6 +25,9 @@ import { demandSurfaceCache, surfaceHitReads } from '../../surfaceCache/frame.ts
 import { sceneRaysOf, type SceneRays } from '../../surfaceCache/lighting/surfaceLighting.ts'
 import type { MarkProbes } from '../pool/pool.ts'
 import { lightingPhase } from '../../surfaceCache/lighting/phase.ts'
+import { bounceHitLightingOf } from '../../../frame/render/bounceHitLighting.ts'
+import { singleBounceLightWord } from '../../reflections/hitLighting/listPasses.ts'
+import { probeHitLitOf, releaseProbeHitLit } from './hitLitStage.ts'
 import { castsThroughTriangles, screenProbesCast, screenProbesCut } from './cast.ts'
 import { namedEntries } from '../../../gpu/core/computeBindings.ts'
 import { encodeOcclusionOnly } from './encode.ts'
@@ -271,6 +275,7 @@ function writeImageParameters(
   { history, screen, velocity }: PlacedProbes['read'],
   lobes: ReflectionSettings,
   rays: SceneRays | undefined,
+  hitLight = 0,
 ) {
   const { held } = reflection.lit
   const cacheViews = rt.bounce.probes?.cache.views
@@ -300,13 +305,15 @@ function writeImageParameters(
     eye: rt.run.gate.cam.eye,
     exactLight: settings.cache.light !== 'r11g11b10',
     rays,
+    hitLight,
+    exposure: reflection.frame.exposure ?? 1,
   })
 }
 
 /**
  * The scene stage that casts the rays the screen left through the scene's triangles, or none where this image marches them through the
  * global distance field: the level casts probes with scene traces and `screenProbeHardwareRayTracing` on, the lighting made the scene
- * trace for this image (`sceneRaysOf`) and the stage's program is compiled (`ScreenProbeStore.tracedFor`, not waited for). The scene trace it
+ * trace for this image (`sceneRaysOf`) and the stage's program is compiled (`ScreenProbeStore.tracedMakerFor`, not waited for). The scene trace it
  * answers with is the one the image's parameters are written for.
  */
 function tracedSceneOf(
@@ -316,13 +323,44 @@ function tracedSceneOf(
   settings: ScreenProbeSettings,
   groups: ScreenProbeGroups,
   light: LightAtlasFormat,
+  state: Pick<ScreenProbeView, 'resources' | 'hitLit'>,
 ) {
-  if (!castsThroughTriangles(settings.values)) return undefined
-  const rays = sceneRaysOf(rt.surfaceCache?.lighting, rt.run.frame)
+  const rays = castsThroughTriangles(settings.values)
+    ? sceneRaysOf(rt.surfaceCache?.lighting, rt.run.frame)
+    : undefined
   const previous = rt.run.gpuSelection?.previous
-  if (!rays || !previous) return undefined
-  const kernel = store.tracedFor(device, settings, light)
-  if (!kernel.ready) return undefined
+  // No hit lighting this image where the rays are marched or the scene has no trace to cast through: the view's lists are given back.
+  if (!rays || !previous) {
+    releaseProbeHitLit(state)
+    return undefined
+  }
+  // The rays' hits lit where they stand (`hardwareRayTracingLightingMode: 'hitLighting'`): the stage that marks them and the passes that light them, else the cards' light.
+  const lit = probeHitLitOf(
+    device,
+    state,
+    settings,
+    bounceHitLightingOf(rt),
+    rays,
+    light,
+    groups.cast.hitLit,
+  )
+  if (lit)
+    return {
+      rays,
+      hitLit: lit,
+      traced: {
+        pipeline: lit.kernels.traced.pipeline(),
+        groups: groups.cast.tracedScene(lit.kernels.traced.layouts, rays, previous),
+      },
+    }
+  const kernel = rays.sceneTrace.maskHold.use(
+    'screen bounce',
+    store.tracedKeyOf(settings, light),
+    store.tracedMakerFor(device, settings, light),
+    isReady,
+    isPending,
+  )?.kernel
+  if (!kernel?.ready) return undefined
   return {
     rays,
     traced: {
@@ -406,6 +444,7 @@ function runOf(
     settings,
     cache: rt.bounce.probes?.cache,
     traced: traced?.traced,
+    hitLit: traced?.hitLit,
     occlusionTriangles,
     meshes,
     stage: stageOf(rt, store, device, settings, kernels),
@@ -438,7 +477,8 @@ function placeProbes(
   const screen = reflection.frame.depthDrawn && held.valid
   const velocity = history && !!vectors
   const bound = groups(state.turn, inputsOf(rt, needed, store, vectors, kernels.features.light))
-  const traced = tracedSceneOf(rt, store, device, settings, bound, kernels.features.light)
+  const lobes = reflection.settings(rt.context, waterFrontOf(rt))
+  const traced = tracedSceneOf(rt, store, device, settings, bound, kernels.features.light, state)
   const meshes = meshesOf(
     rt,
     store,
@@ -458,8 +498,9 @@ function placeProbes(
     settings,
     reflection,
     read,
-    reflection.settings(rt.context, waterFrontOf(rt)),
+    lobes,
     traced?.rays,
+    traced?.hitLit ? singleBounceLightWord(lobes.hit) : 0,
   )
   const occlusionTriangles = occlusionTrianglesStageOf(
     rt,

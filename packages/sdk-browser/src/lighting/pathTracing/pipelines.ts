@@ -1,3 +1,9 @@
+import {
+  heldMakerOf,
+  oncePerDeviceOverPrograms,
+  sceneMaskKey,
+  type SceneMaskPrograms,
+} from '../rays/sceneTrace/sceneMaskPrograms.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import {
   COMPUTE,
@@ -17,8 +23,7 @@ import {
   preparedPipeline,
   type PreparedPipeline,
 } from '../deferred/fullscreen.ts'
-import { sceneHitCornersEntry } from '../rays/sceneTrace/sceneHitCornersWgsl.ts'
-import { sceneTraceLayoutEntries } from '../rays/sceneTrace/sceneTraceWgsl.ts'
+import { sceneMaskedLayoutEntries } from '../rays/sceneTrace/sceneMaskWgsl.ts'
 import {
   PT_ACCUMULATE_BINDINGS,
   PT_ACCUMULATE_ENTRIES,
@@ -153,7 +158,7 @@ export function finishLayoutEntries(clouds: boolean) {
       computeTextureEntry(B.skyPdf, 'unfilterable-float'),
     ],
     [
-      ...sceneTraceLayoutEntries(first),
+      ...sceneMaskedLayoutEntries(first),
       computeBufferEntry(first + PT_FINISH_BINDINGS.hits, 'read-only-storage'),
       computeBufferEntry(first + PT_FINISH_BINDINGS.materials, 'read-only-storage'),
     ],
@@ -161,7 +166,7 @@ export function finishLayoutEntries(clouds: boolean) {
 }
 
 /** The trace of the bounces' rays and the finish of each bounce: the layouts of their two groups, the first the paths' and the sky's and lights', the second the scene trace's and the hits'; with `clouds`, the first group also binds the clouds. */
-function traceStages(device: GPUDevice, clouds: boolean) {
+function traceStages(device: GPUDevice, programs: SceneMaskPrograms, clouds: boolean) {
   const B = PT_TRACE_BINDINGS
   const first = PT_TRACE_SCENE.first
   const paths = pathsEntries(clouds)
@@ -172,8 +177,7 @@ function traceStages(device: GPUDevice, clouds: boolean) {
   const trace1 = device.createBindGroupLayout({
     label: 'Trillion3D path tracer scene trace',
     entries: [
-      ...sceneTraceLayoutEntries(first),
-      sceneHitCornersEntry(first + PT_TRACE_STAGE_BINDINGS.corners),
+      ...sceneMaskedLayoutEntries(first),
       computeBufferEntry(first + PT_TRACE_STAGE_BINDINGS.placements, 'read-only-storage'),
       computeBufferEntry(first + PT_TRACE_STAGE_BINDINGS.hits, 'storage'),
     ],
@@ -188,12 +192,12 @@ function traceStages(device: GPUDevice, clouds: boolean) {
     entries: finish1Entries,
   })
   const traceModule = device.createShaderModule({
-    label: 'Trillion3D path tracer trace',
-    code: ptTraceProgram(clouds),
+    label: `Trillion3D path tracer trace ${sceneMaskKey(programs)}`,
+    code: ptTraceProgram(programs, clouds),
   })
   const finishModule = device.createShaderModule({
-    label: 'Trillion3D path tracer finish',
-    code: ptFinishProgram(clouds),
+    label: `Trillion3D path tracer finish ${sceneMaskKey(programs)}`,
+    code: ptFinishProgram(programs, clouds),
   })
   const trace = (entry: string) => compute(device, traceModule, [trace0, trace1], entry)
   return {
@@ -407,7 +411,7 @@ function displayStage(device: GPUDevice) {
   }
 }
 
-/** The stages that cast no ray, made once for the device whichever trace and finish it is given. */
+/** The stages that cast no ray, made once for the device whatever the graph masks the rays cut by. */
 const commonStagesOf = oncePerDevice((device: GPUDevice) => ({
   args: argsStage(device),
   accumulate: accumulateStages(device),
@@ -464,18 +468,18 @@ function pipelinesOf(
   }
 }
 
-/** The path tracer's pipelines on `device`: made once, each prepared off the frame. */
-export const pathTracingPipelinesOf = oncePerDevice((device: GPUDevice) =>
-  pipelinesOf(device, traceStages(device, false)),
+/**
+ * The path tracer's pipelines on `device`, each prepared off the frame: the stages that cast rays are made once for each set of graph masks `programs` the rays
+ * cut the surfaces by (the programs `maskHold.use` returns), the others once. With the key `clouds` the pipelines of the path tracer where the clouds are traced: the trace and the finish made over the clouds'
+ * bindings and code (`traceStages` with `clouds`), the rest those of `plain`. Made the first time the clouds are traced on a device and a set of graph masks; the cloudless trace and finish are not compiled for it.
+ */
+export const pathTracingPipelinesOver = oncePerDeviceOverPrograms(
+  (device: GPUDevice, key: 'plain' | 'clouds', programs): PathTracingPipelines =>
+    pipelinesOf(device, traceStages(device, programs, key === 'clouds')),
 )
 
-/**
- * The pipelines of the path tracer where the clouds are traced: the trace and the finish made over the clouds' bindings and code (`traceStages` with `clouds`), the rest those of
- * `pathTracingPipelinesOf`. Made the first time the clouds are traced on a device; the cloudless trace and finish are not compiled for it.
- */
-export const pathTracingCloudPipelinesOf = oncePerDevice((device: GPUDevice) =>
-  pipelinesOf(device, traceStages(device, true)),
-)
+/** The maker of the pipelines for a device and a key, as the mask hold takes it (`maskHold.use`): one function each, not one an image. */
+export const pathTracingMaker = heldMakerOf(pathTracingPipelinesOver)
 
 /** The stage that ends each bounce: the view of the payload where one is asked for (`isPayloadView`), the finish otherwise. The other is never asked, so never compiled. */
 export const finishStageOf = (pipelines: PathTracingPipelines, visualize: string) =>

@@ -96,7 +96,7 @@ export const CACHE_PDF_UNITS = 2147483647 / 100000
  * where the tiles follow them; `filterAngle`, the angle the filter weighs by; `eye`,
  * the eye's place; `traced`, what the rays cast through the scene's triangles are made with (`probeRayTracedWgsl.ts`): how far short
  * of the probes' reach they end, in metres, the depth bias the cards are read at their hits with and the distance under which a hit
- * brings no light, in centimetres.
+ * brings no light, in centimetres; `lit`, the word of the hit lighting's mode when the rays' hits are lit where they stand (`hitLightWord`), zero otherwise, and `litExposure`, the exposure of the image the update was queued in (its view's last, as the CPU knows it), which the lights' strength is read under.
  */
 export const RADIANCE_CACHE_PARAMS = fieldLayout('RadianceCacheParams', [
   ['resolution', 'u32'],
@@ -113,6 +113,8 @@ export const RADIANCE_CACHE_PARAMS = fieldLayout('RadianceCacheParams', [
   ['traced', 'vec3f'],
   ['leak', 'vec4f'],
   ['leakDistance', 'f32'],
+  ['lit', 'u32'],
+  ['litExposure', 'f32'],
 ] as const)
 /** Bytes of the cache's parameters. */
 export const RADIANCE_CACHE_PARAMS_BYTES = RADIANCE_CACHE_PARAMS.words * 4
@@ -204,9 +206,13 @@ export const cacheTempBytes = (shape: CacheShape, temp: CacheTemp) => {
   )
 }
 
-/** Bytes of the trace atlas for `tiles` tiles, its rays' light stored in `light`. */
-export const cacheTraceBytes = (tiles: number, light: LightAtlasFormat) =>
-  textureBytesOf({ size: cacheTraceExtent(tiles), format: radianceRawFormat(light) })!
+/** The format of the texture the radiance cache's trace marks its hits in (the hit lighting): the mark word (`cacheLitMark.ts`), the distance of the hit and the two words of the tile list's entry the ray was traced from, which tell the passes that light the hit its probe. */
+export const CACHE_LIT_MARKS_FORMAT = 'rgba32uint' as const
+
+/** Bytes of the trace atlas for `tiles` tiles, its rays' light stored in `light`; with `marked` the texture its hits are marked in (`CACHE_LIT_MARKS_FORMAT`) is held beside. */
+export const cacheTraceBytes = (tiles: number, light: LightAtlasFormat, marked = false) =>
+  textureBytesOf({ size: cacheTraceExtent(tiles), format: radianceRawFormat(light) })! +
+  (marked ? textureBytesOf({ size: cacheTraceExtent(tiles), format: CACHE_LIT_MARKS_FORMAT })! : 0)
 
 /** Bytes a cache of `slots` probes' maps of the shape `shape` holds: the atlases that last and the tile list (those of a frame, `cacheTempBytes`
  *  and `cacheTraceBytes`, come and go with the queue). */

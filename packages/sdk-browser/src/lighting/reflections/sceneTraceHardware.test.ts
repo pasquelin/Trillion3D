@@ -9,8 +9,12 @@ import type { Vec3 } from '../../../../math/src/vector/vectorTuple.ts'
 import { MISS, type Hit } from '../rays/sceneTrace/sceneTraceHit.fixture.ts'
 import { REFLECTION_FATES } from './censusWgsl.ts'
 import { REFLECTION_COUNTS } from './constants.ts'
+import { reflectionHitWords } from './grids.ts'
 import { WORD_LIGHT_FORMAT } from '../../gpu/core/lightAtlasFormat.ts'
 import { reflectionSceneTraceHardwareWgsl } from './sceneTraceHardware.ts'
+
+/** The grid the hits' buffer is laid over. */
+const GRID = [8, 8]
 
 const HIT: Hit = { ...MISS, hit: true, distance: 2.5, placement: 7, object: 9, normal: [0, 1, 0] }
 
@@ -48,6 +52,14 @@ function stage(
       cone: number,
       firstPerson: boolean,
     ) => { answer: { color: Vec3; hit: boolean; distance: number }; open: boolean }
+    reflectionSceneHitStore: (
+      P: Vec3,
+      N: Vec3,
+      R: Vec3,
+      begin: number,
+      coord: number[],
+      firstPerson: boolean,
+    ) => void
     reflectionLobeOf: (R: Vec3, alpha: number, lobe: number[]) => object
     reflectionDistantStart: (P: Vec3, R: Vec3, stop: number) => number
     testFate: () => number
@@ -56,9 +68,23 @@ function stage(
     `${wgslModule(reflectionSceneTraceHardwareWgsl(WORD_LIGHT_FORMAT))}
 fn testFate()->u32{return reflectionFate;}
 fn testWork()->u32{return reflectionWork;}`,
-    ['reflectionSceneTrace', 'reflectionLobeOf', 'reflectionDistantStart', 'testFate', 'testWork'],
+    [
+      'reflectionSceneTrace',
+      'reflectionSceneHitStore',
+      'reflectionLobeOf',
+      'reflectionDistantStart',
+      'testFate',
+      'testWork',
+    ],
     {
-      reflectionView: { hardware, march: [0, 0, 0, longest], scene: [0, 0, flags, 0] },
+      reflectionGridSize: () => GRID,
+      reflectionHits: new Array(GRID[0] * GRID[1] * reflectionHitWords(false)).fill(0),
+      reflectionView: {
+        hardware,
+        march: [0, 0, 0, longest],
+        scene: [0, 0, flags, 0],
+        translucent: [0, 0, 0, 0],
+      },
       reflectionDone: (bit: number) =>
         (flags & bit) !== 0 || bit === REFLECTION_COUNTS.REFLECTION_HI_RES_SURFACE,
       reflectionFar: () => longest,
@@ -74,11 +100,17 @@ fn testWork()->u32{return reflectionWork;}`,
       scPlacementMeshCards: (instance: number) => instance + 1000,
       scEvaluateMeshCards: (...args: unknown[]) => ((asked.cards = args), { radiance: light }),
       reflectionHitSpread: (cone: number) => cone,
-      reflectionSeenAt: (...args: unknown[]) => ((asked.seen = args), args[0]),
+      // The lit image is read once for the mark and for what the hit shows: here it never wins.
+      reflectionEdgeNoise: () => 0.5,
+      reflectionHeld: () => [0, 0, 0, 0],
+      reflectionHeldWins: () => false,
+      reflectionSeenFrom: (...args: unknown[]) => ((asked.seen = args), args[0]),
     },
   )
   const walk = (begin = 0, cone = 0.05, normal: Vec3 = [0, 1, 0], firstPerson = false) => {
     const lobe = run.reflectionLobeOf([1, 0, 0], 0, [0, 0, 0, 0])
+    // The trace keeps the triangle its ray meets at the texel, the answer reads it back (the two kernels of the stage).
+    run.reflectionSceneHitStore([11, 2, 3], normal, [1, 0, 0], begin, [5, 6], firstPerson)
     const out = run.reflectionSceneTrace([11, 2, 3], normal, lobe, begin, [5, 6], cone, firstPerson)
     return { ...out, fate: REFLECTION_FATES[run.testFate()], work: run.testWork() }
   }
@@ -156,6 +188,30 @@ test('a hit answers the light of the cards of its object at its point, over the 
   assert.deepEqual(normal, [0, 1, 0])
   assert.ok(Math.abs(radius - 0.02 * 250) < 1e-3, `${radius}`)
   assert.deepEqual([bias, hiRes, coord], [10, true, [5, 6]])
+})
+
+test('the record the trace keeps of a hit is four words, five where the hit lighting runs (the last the key of its material), and its normal comes back from two 16-bit octahedral coordinates, a slanted one as well', () => {
+  assert.equal(reflectionHitWords(false), 4)
+  assert.equal(reflectionHitWords(true), 5)
+  const slant: Vec3 = [0.6, 0.64, -0.48]
+  const walk = stage({ trace: { ...HIT, normal: slant } })
+  walk(0, 0.02)
+  const [, , normal] = walk.asked.cards as [number, Vec3, Vec3]
+  slant.forEach((c, k) => assert.ok(Math.abs(normal[k]! - c) < 1e-3, `${k}: ${normal[k]}`))
+})
+
+test('the lit image a hit may take is read once, for the mark of the hits to light again and for what the hit shows', () => {
+  const text = wgslModule(
+    reflectionSceneTraceHardwareWgsl(WORD_LIGHT_FORMAT, undefined, undefined, true),
+  )
+  const hit = text.slice(
+    text.indexOf('fn reflectionHardwareHit'),
+    text.indexOf('struct ReflectionSceneRay'),
+  )
+  assert.equal(hit.split('reflectionHeld(').length - 1, 1)
+  assert.equal(hit.split('reflectionEdgeNoise(').length - 1, 1)
+  assert.match(hit, /!light\.valid&&!screen/)
+  assert.match(hit, /reflectionSeenFrom\(light\.radiance,held,screen,at,hit\.normal\)/)
 })
 
 test('a hit no card lights is black, a hit all the same; a trace that stopped holding no hit is a black hit, one that held a hit gives the cards’ light', () => {

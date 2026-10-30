@@ -1,3 +1,4 @@
+import { madeForPrograms, type SceneMaskPrograms } from '../../rays/sceneTrace/sceneMaskPrograms.ts'
 import { hasSubgroups, hasSubgroupsOf, uniformSubgroupLanes } from '../../../gpu/core/subgroups.ts'
 import {
   MARCH_VIRTUAL_LANES,
@@ -100,13 +101,15 @@ export interface ScreenProbeStore {
     settings: ScreenProbeSettings,
     light: LightAtlasFormat,
   ): ScreenProbeKernels | undefined
-  /** The kernel that casts the scene stage of `settings` through the scene's triangles on `device`, compiled off the frame on the first ask:
-   *  read once `ready`. */
-  tracedFor(
+  /** The kernel that casts the scene stage of `settings` through the scene's triangles on `device`, compiled off the frame on the first ask and read once `ready`, as the mask hold takes it
+   *  (`maskHold.use`): the one function for the device, the settings' shape and the light, not one an image. */
+  tracedMakerFor(
     device: GPUDevice,
     settings: ScreenProbeSettings,
     light: LightAtlasFormat,
-  ): TracedSceneKernel
+  ): (programs: SceneMaskPrograms) => TracedSceneKernel
+  /** What tells apart the kernels `tracedMakerFor` makes for `settings` and `light`, whatever the programs. */
+  tracedKeyOf(settings: ScreenProbeSettings, light: LightAtlasFormat): string
   /** The kernel of the meshes' fields stage (`traceMeshes`) for the rays of `settings` on `device`, compiled off the frame on the first ask: read once `ready`. */
   meshesFor(
     device: GPUDevice,
@@ -145,7 +148,9 @@ function createKernelCaches() {
     sets: new Map<string, ScreenProbeKernels>(),
     /** The kernels that cast the scene stage through the scene's triangles, made for the device when a scene asks for them, by the rays a side of a probe, the samples of a tile and the fog on the rays
      *  they are made for: an option that does not change them leaves them be. */
-    traced: new Map<string, TracedSceneKernel>(),
+    traced: new Map<string, WeakMap<SceneMaskPrograms, TracedSceneKernel>>(),
+    /** The makers of the kernels above (`tracedMakerFor`), by the same key. */
+    tracedMakers: new Map<string, (programs: SceneMaskPrograms) => TracedSceneKernel>(),
     /** The kernels of the stages a pass of the frame adds, by the probes' shape and the stage's key. */
     stages: new Map<string, StartedScreenStage>(),
     /** The kernels of the meshes' fields stage, by the rays they are made for. */
@@ -154,6 +159,7 @@ function createKernelCaches() {
       caches.kernels.clear()
       caches.sets.clear()
       caches.traced.clear()
+      caches.tracedMakers.clear()
       caches.stages.clear()
       caches.meshStages.clear()
     },
@@ -211,16 +217,24 @@ function sceneKernels(
   own: (device: GPUDevice) => void,
   shapeOf: (wanted: ScreenProbeSettings) => ShapeOf,
   caches: ReturnType<typeof createKernelCaches>,
-): Pick<ScreenProbeStore, 'tracedFor' | 'meshesFor' | 'stageFor'> {
-  const { traced, meshStages, stages } = caches
+): Pick<ScreenProbeStore, 'tracedMakerFor' | 'tracedKeyOf' | 'meshesFor' | 'stageFor'> {
+  const { traced, tracedMakers, meshStages, stages } = caches
+  const tracedKeyOf = (wanted: ScreenProbeSettings, light: LightAtlasFormat) =>
+    `${shapeOf(wanted).tracedKey}|${light}`
   return {
-    tracedFor(device, wanted, light) {
+    tracedKeyOf,
+    tracedMakerFor(device, wanted, light) {
       own(device)
-      const { shape, tracedKey } = shapeOf(wanted)
-      const key = `${tracedKey}|${light}`
-      let kernel = traced.get(key)
-      if (!kernel) traced.set(key, (kernel = tracedSceneKernel(device, { ...shape, light })))
-      return kernel
+      const key = tracedKeyOf(wanted, light)
+      let maker = tracedMakers.get(key)
+      if (!maker) {
+        // The maker keeps the plain shape of the first settings to ask, never the settings: the key tells everything the kernel is made of.
+        const shape = { ...shapeOf(wanted).shape, light }
+        maker = (programs) =>
+          madeForPrograms(traced, key, programs, () => tracedSceneKernel(device, shape, programs))
+        tracedMakers.set(key, maker)
+      }
+      return maker
     },
     meshesFor(device, wanted, set) {
       own(device)

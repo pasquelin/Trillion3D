@@ -142,3 +142,30 @@ test('the world’s records name no primitive: the actors’, then the directory
   assert.throws(() => parseRayTracing(worldOf({ named: 1 })), /names the actor 1 of 1/)
   assert.throws(() => parseRayTracing(worldOf({ shown: 8 })), /names the cell 8, not its actor's/)
 })
+
+test('an actor’s number is the rank of the material it wears, which the file counts; the directory names no primitive', () => {
+  const R = RAY_TRACING_RECORD_AT
+  const wears =
+    (flags: number, primitive: number, cell = 0) =>
+    (view: DataView, at: number) => {
+      view.setUint32(at + R.mesh * 4, RAY_TRACING_NO_PRIMITIVE, true)
+      view.setUint32(at + R.primitive * 4, primitive, true)
+      view.setUint32(at + R.flags * 4, flags, true)
+      view.setUint32(at + R.cell * 4, cell, true)
+    }
+  const worldOf = (rank: number, directory = RAY_TRACING_NO_PRIMITIVE) => {
+    const bytes = twoRecords(
+      wears(RAY_TRACING_FLAG_WORLD, directory),
+      wears(RAY_TRACING_FLAG_ACTOR | RAY_TRACING_FLAG_TWO_SIDED, rank, 9),
+    )
+    const at = RAY_TRACING_HEAD_BYTES + 2 * RAY_TRACING_RECORD_BYTES + RAY_TRACING_NODE_BYTES
+    const view = new DataView(bytes.buffer)
+    view.setUint32(at + RAY_TRACING_TRIANGLE_BYTES + RAY_TRACING_TRIANGLE_AT.cluster * 4, 0, true)
+    view.setUint32(at + RAY_TRACING_TRIANGLE_BYTES + RAY_TRACING_TRIANGLE_AT.tag * 4, 9, true)
+    return bytes
+  }
+  assert.equal(parseRayTracing(worldOf(6)).actorRanks, 7, 'one past the rank it wears')
+  assert.equal(parseRayTracing(worldOf(RAY_TRACING_NO_PRIMITIVE)).actorRanks, 0)
+  assert.throws(() => parseRayTracing(worldOf(1 << 21)), /wears material/)
+  assert.throws(() => parseRayTracing(worldOf(6, 2)), /directory .* names a primitive/)
+})

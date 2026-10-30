@@ -1,3 +1,4 @@
+import { NO_SCENE_MASKS, type SceneMaskPrograms } from '../../rays/sceneTrace/sceneMaskPrograms.ts'
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { dagReadLayoutEntries } from '../../../geometry/dag/shader/bindings.ts'
@@ -8,7 +9,7 @@ import {
 } from '../../../gpu/core/computeBindings.ts'
 import { WORD_LIGHT_FORMAT, type LightAtlasFormat } from '../../../gpu/core/lightAtlasFormat.ts'
 import { sceneTraceAvoidWgsl } from '../../rays/sceneTrace/avoidWgsl.ts'
-import { sceneTraceLayoutEntries } from '../../rays/sceneTrace/sceneTraceWgsl.ts'
+import { sceneMaskedLayoutEntries } from '../../rays/sceneTrace/sceneMaskWgsl.ts'
 import { surfaceHitCardsLayoutEntries } from '../../surfaceCache/hitWgsl.ts'
 import { TRACE_TRACED_HIT, TRACE_TRACED_SCENE } from '../screen/traceTracedWgsl.ts'
 import { tracedHitLightWgsl } from '../tracedHitWgsl.ts'
@@ -30,7 +31,7 @@ export const reservoirTraceEntries = (light: LightAtlasFormat = WORD_LIGHT_FORMA
   ...surfaceHitCardsLayoutEntries(TRACE_TRACED_HIT, light),
 ]
 /** The layout of its scene trace group. */
-export const reservoirTraceSceneEntries = () => sceneTraceLayoutEntries(TRACE_TRACED_SCENE.first)
+export const reservoirTraceSceneEntries = () => sceneMaskedLayoutEntries(TRACE_TRACED_SCENE.first)
 
 /**
  * ONE RAY OF A RESERVOIR THROUGH THE SCENE'S TRIANGLES (`rsTrace`), the one text the first rays and the validation of the last image's share: the ray leaves the point moved off the surface along its
@@ -138,10 +139,13 @@ fn ${RESERVOIR_TRACE_ENTRY}(@builtin(global_invocation_id) id:vec3u){
 }`
 
 /** The program of the ray kernel, the cards read in the format `light`. */
-export const reservoirTraceProgram = (light: LightAtlasFormat = WORD_LIGHT_FORMAT) =>
+export const reservoirTraceProgram = (
+  light: LightAtlasFormat = WORD_LIGHT_FORMAT,
+  programs: SceneMaskPrograms = NO_SCENE_MASKS,
+) =>
   wgslProgram(TRACE_KERNEL_WGSL, [
     RESERVOIR_WGSL,
-    sceneTraceAvoidWgsl(TRACE_TRACED_SCENE.group, TRACE_TRACED_SCENE.first),
-    tracedHitLightWgsl(TRACE_TRACED_HIT, TRACE_TRACED_SCENE, light),
+    sceneTraceAvoidWgsl(TRACE_TRACED_SCENE.group, TRACE_TRACED_SCENE.first, programs),
+    tracedHitLightWgsl(TRACE_TRACED_HIT, TRACE_TRACED_SCENE, light, programs),
     TRACE_RAY_WGSL,
   ])

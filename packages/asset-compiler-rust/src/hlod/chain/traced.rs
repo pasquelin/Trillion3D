@@ -6,15 +6,17 @@ use super::builds::{Actor, Wears};
 use super::merge::WorldDag;
 use crate::compiler::primitive::drawn_blended;
 use crate::hlod::flatten::bake::publish::{coverage_of, wear_coverage};
+use crate::ray_tracing::abi::RAY_TRACING_FLAG_SKY;
 use crate::ray_tracing::{material_flags, world_trees, WorldGate, WorldTrees};
 use crate::Result;
 use serde_json::{json, Value};
+use trillion3d_page_codec::encode::Attribute;
 
 /// The flags of the material `wears` puts on an actor, as any primitive wearing it: a flattened
 /// material is the one published (`publish::flattened_material`), its alpha as its atlas's base image
 /// says (`wear_coverage`) and both faces drawn when the atlas does; a material of the scene,
-/// `materials`.
-pub(super) fn flags_of(wears: &Wears, materials: &[Value]) -> u32 {
+/// `materials`; either one wears the flag of a sky material (`sky`, by rank) when it is one.
+pub(super) fn flags_of(wears: &Wears, materials: &[Value], sky: &[bool]) -> u32 {
     let mut flattened;
     let material = match wears {
         Wears::Flattened {
@@ -28,7 +30,13 @@ pub(super) fn flags_of(wears: &Wears, materials: &[Value]) -> u32 {
         }
         Wears::Merged(rank) => rank.and_then(|rank| materials.get(rank as usize)),
     };
-    material_flags(material, drawn_blended(material))
+    let sky = match wears {
+        Wears::Flattened { sky, .. } => *sky,
+        Wears::Merged(rank) => {
+            rank.is_some_and(|rank| sky.get(rank as usize).copied().unwrap_or(false))
+        }
+    };
+    material_flags(material, drawn_blended(material)) | u32::from(sky) * RAY_TRACING_FLAG_SKY
 }
 
 /// The world's trees for ray tracing over `world`, whose actors `actors` wear materials of the
@@ -38,10 +46,10 @@ pub(super) fn flags_of(wears: &Wears, materials: &[Value]) -> u32 {
 pub(super) fn ray_tracing(
     world: &WorldDag,
     actors: &[Actor],
-    materials: &[Value],
+    (materials, sky): (&[Value], &[bool]),
 ) -> Result<Option<WorldTrees>> {
     let flags: Vec<u32> = (actors.iter())
-        .map(|actor| flags_of(&actor.wears, materials))
+        .map(|actor| flags_of(&actor.wears, materials, sky))
         .collect();
     let gates: Vec<Option<WorldGate>> = (0..world.clusters.len())
         .map(|slot| {
@@ -53,5 +61,6 @@ pub(super) fn ray_tracing(
             })
         })
         .collect();
-    world_trees(&world.decoded, &world.clusters, &gates)
+    let carried: Vec<&Attribute> = world.carried.iter().collect();
+    world_trees((&world.decoded, &carried), &world.clusters, &gates)
 }

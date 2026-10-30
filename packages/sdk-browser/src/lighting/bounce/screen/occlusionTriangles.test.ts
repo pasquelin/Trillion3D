@@ -8,6 +8,9 @@ import {
 import { resolveSettings } from '../../../../../sdk-core/src/contracts/settingRules.ts'
 import { kernelShapeOf } from './kernels.ts'
 import { occlusionTrianglesEntries, occlusionTrianglesProgram } from './occlusionTrianglesWgsl.ts'
+import { occlusionTrianglesStageOf } from './occlusionTriangles.ts'
+import { createMaskHold } from '../../rays/sceneTrace/sceneMaskHold.ts'
+import type { WebgpuPagesRuntime } from '../../../frame/backend/runtime.ts'
 
 const settingsOf = (options: Record<string, unknown>) =>
   resolveScreenProbes(resolveSettings(SCREEN_PROBE_RULES, options))
@@ -47,4 +50,18 @@ test('the program has its kernel, writes the bent normal word or the amount, and
       ),
     )
   }
+})
+
+test('the stage does not run in an image whose hold was dropped: no kernel, nothing thrown', () => {
+  const hold = createMaskHold()
+  hold.dispose()
+  const rt = {
+    run: { frame: 3 },
+    surfaceCache: { lighting: { rays: { frame: 3, sceneTrace: { maskHold: hold } } } },
+  } as unknown as WebgpuPagesRuntime
+  const settings = settingsOf({ screenProbeShortRangeAOHardwareRayTracing: true })
+  assert.equal(
+    occlusionTrianglesStageOf(rt, {} as GPUDevice, settings, (() => []) as never),
+    undefined,
+  )
 })

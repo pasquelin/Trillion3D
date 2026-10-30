@@ -42,15 +42,13 @@ import {
   FLAG_DYNAMIC,
   FLAG_SPRITE,
   FLAG_LINE,
-  FLAG_MAP_UV_HIGH,
-  FLAG_MAP_UV_LOW,
-  FLAG_MAP_UV_TOP,
   FLAG_VOXEL,
   RESPONSIVE_SHIFT,
   WPO_ROW_ALWAYS,
   WPO_ROW_MOVES,
   responsiveCode,
 } from '../../visibility/types.ts'
+import { mapUvSetFlags } from '../../visibility/mapUvSet.ts'
 
 /**
  * What a surface brings to each of its rows whatever their geometry: its maps' slots in the two
@@ -187,10 +185,7 @@ function rasterBits(mat: VisMaterial, dataLayer: MaterialLayers['dataLayer'], in
   const depth = into.graph && depthOffsetOf(into.graph)
   if (mat.alphaTest > 0 || mat.dashSize !== undefined || mask || depth) bits |= FLAG_MASK
   if (depth) bits |= FLAG_DEPTH_OFFSET
-  const baseSet = rasterSetOf(mat, mask, depth, into.graph && wpoOf(into.graph))
-  if (baseSet & 1) bits |= FLAG_MAP_UV_LOW
-  if (baseSet & 2) bits |= FLAG_MAP_UV_HIGH
-  if (baseSet & 4) bits |= FLAG_MAP_UV_TOP
+  bits |= mapUvSetFlags(rasterSetOf(mat, mask, depth, into.graph && wpoOf(into.graph)))
   // The tessellation draws a displaced surface whose height map the atlas holds
   // (`../../visibility/tessellation/`).
   if (

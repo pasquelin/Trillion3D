@@ -17,7 +17,7 @@ export interface HitPlacements {
 }
 
 /** The geometry a triangle with corner attributes has, as the resolve's rows say it: a texture coordinate and a normal, no stored tangent, the vertex colour where the surface reads it. */
-const attributed = (colours: boolean): GeometryBlock => ({
+export const attributed = (colours: boolean): GeometryBlock => ({
   vertexBase: 0,
   count: 0,
   hasUv: true,

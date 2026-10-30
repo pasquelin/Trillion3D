@@ -1932,8 +1932,11 @@ The same job from the command line:
 `"sky": true` on the entry of a sky material and nothing on the others. A `sky` that is not a boolean
 in `materials` refuses the job (`INVALID_OPTIONS`).
 
-The property rides everywhere the material goes. The HLOD proxies keep it: a merged layer that keeps
-its materials wears the sources' own, and never collapses a sky material into a plain one that happens to be the same
+The property rides everywhere the material goes. Each ray-tracing record of a primitive that wears a
+sky material carries the sky flag (`RAY_TRACING_FLAG_SKY`), so that the rays through the scene's
+triangles leave the dome out unless the project includes the sky (`rayTracingExcludeSky`,
+[SDK.md](SDK.md)). The HLOD proxies keep it: a merged layer that keeps its materials wears the
+sources' own, and never collapses a sky material into a plain one that happens to be the same
 definition (`collapseEquivalentMaterials`); an actor with its own flattened material (a shell, a
 simplified or an atlas-merged actor) is a sky material, `extras.sky` written in its glTF material,
 when every object of its cell wears one, and a plain one when the cell holds any other material.

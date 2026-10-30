@@ -20,8 +20,8 @@ import { ptFinishProgram, ptTraceProgram } from '../../lighting/pathTracing/trac
 export const PATH_TRACING_SHADERS: Record<string, string> = {
   PT_TRACE: ptTraceProgram(),
   PT_FINISH: ptFinishProgram(),
-  PT_TRACE_CLOUDS: ptTraceProgram(true),
-  PT_FINISH_CLOUDS: ptFinishProgram(true),
+  PT_TRACE_CLOUDS: ptTraceProgram(undefined, true),
+  PT_FINISH_CLOUDS: ptFinishProgram(undefined, true),
   PT_CLOUD_MAP: PT_CLOUD_MAP_WGSL,
   PT_SHADE_HITS: shadeHitProgram(),
   PT_ARGS: PT_ARGS_WGSL,

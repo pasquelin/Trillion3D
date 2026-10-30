@@ -1,3 +1,8 @@
+import {
+  NO_SCENE_MASKS,
+  sceneMaskKey,
+  type SceneMaskPrograms,
+} from '../rays/sceneTrace/sceneMaskPrograms.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { equalAreaDecode } from '../../../../math/src/wgsl/octahedral.ts'
@@ -12,7 +17,7 @@ import { bindingTable } from '../bounce/screen/screenProbeLayout.ts'
 import { TRACE_TRACED_HIT, TRACE_TRACED_SCENE } from '../bounce/screen/traceTracedWgsl.ts'
 import { tracedHitLightWgsl } from '../bounce/tracedHitWgsl.ts'
 import { sceneTraceAvoidWgsl } from '../rays/sceneTrace/avoidWgsl.ts'
-import { sceneTraceLayoutEntries } from '../rays/sceneTrace/sceneTraceWgsl.ts'
+import { sceneMaskedLayoutEntries } from '../rays/sceneTrace/sceneMaskWgsl.ts'
 import { surfaceHitCardsLayoutEntries } from '../surfaceCache/hitWgsl.ts'
 import { giFormatWgsl, giQuantizeWgsl, GI_VISIBLE_WGSL } from './frameWgsl.ts'
 import { TRANSLUCENCY_GI_GROUP } from './layout.ts'
@@ -50,7 +55,7 @@ export const traceGiTrianglesEntries = (
   ...surfaceHitCardsLayoutEntries(TRACE_TRACED_HIT, light),
 ]
 /** The layout of its scene trace group. */
-export const traceGiTrianglesSceneEntries = () => sceneTraceLayoutEntries(TRACE_TRACED_SCENE.first)
+export const traceGiTrianglesSceneEntries = () => sceneMaskedLayoutEntries(TRACE_TRACED_SCENE.first)
 
 /**
  * THE CONES CAST THROUGH THE SCENE'S TRIANGLES (`traceConesTriangles`), a thread a cone, after the trace that reads the cache (`traceCones`) has
@@ -61,16 +66,20 @@ export const traceGiTrianglesSceneEntries = () => sceneTraceLayoutEntries(TRACE_
  * multiplied by the pre-exposure, held to the most a cone brings back and written over the cone's light; a ray that hits nothing leaves what the
  * first trace wrote — the radiance cache's light and the sky. A hit that brings no light (the back of a one-sided primitive, or nearer than the nearest hit) is a hit all the same: only the sky light that leaks remains.
  */
-const giTrianglesEntry = (format: GPUTextureFormat, light: LightAtlasFormat) =>
+const giTrianglesEntry = (
+  format: GPUTextureFormat,
+  light: LightAtlasFormat,
+  programs: SceneMaskPrograms,
+) =>
   wgslBlock(
-    `GI_TRIANGLES_ENTRY(${format},${light})`,
+    `GI_TRIANGLES_ENTRY(${format},${light},${sceneMaskKey(programs)})`,
     [
       GI_PARAMS_WGSL,
       GI_TRACE_POINT_WGSL,
       GI_CELL_NOISE_WGSL,
       equalAreaDecode,
-      sceneTraceAvoidWgsl(TRACE_TRACED_SCENE.group, TRACE_TRACED_SCENE.first),
-      tracedHitLightWgsl(TRACE_TRACED_HIT, TRACE_TRACED_SCENE, light),
+      sceneTraceAvoidWgsl(TRACE_TRACED_SCENE.group, TRACE_TRACED_SCENE.first, programs),
+      tracedHitLightWgsl(TRACE_TRACED_HIT, TRACE_TRACED_SCENE, light, programs),
       giQuantizeWgsl(format),
       ...giFormatWgsl(format),
     ],
@@ -103,6 +112,7 @@ fn ${TRACE_GI_TRIANGLES_ENTRY}(@builtin(global_invocation_id) id:vec3u){
 export const traceGiTrianglesProgram = (
   format: GPUTextureFormat,
   light: LightAtlasFormat = WORD_LIGHT_FORMAT,
+  programs: SceneMaskPrograms = NO_SCENE_MASKS,
 ) =>
   wgslProgram(
     `@group(0) @binding(${C.params}) var<uniform> spBase:ScreenProbeParams;
@@ -114,6 +124,6 @@ var<private> sp:ScreenProbeParams;
       spReach,
       blueNoiseWgsl(0, C.blue),
       GI_VISIBLE_WGSL,
-      giTrianglesEntry(format, light),
+      giTrianglesEntry(format, light, programs),
     ],
   )

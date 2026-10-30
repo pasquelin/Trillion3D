@@ -33,9 +33,11 @@ test("a file's records come first, a run-time record's ranks follow its nodes an
     nodes: new Uint32Array(40),
     triangles: new Uint32Array(36),
     corners: new Uint32Array(0),
+    maskCorners: new Uint32Array(0),
     byPrimitive: new Map([[7, new Map([[0, 0]])]]),
     world: undefined,
     actorCells: 0,
+    actorRanks: 0,
   }
   const made = withRuntimeTrees(file, [
     { mesh: 9, primitive: 0, flags: RAY_TRACING_FLAG_TRANSLUCENT, tree: quad },
@@ -57,9 +59,11 @@ test('a run-time primitive named as a record of the file is refused, never writt
     nodes: new Uint32Array(20),
     triangles: new Uint32Array(12),
     corners: new Uint32Array(0),
+    maskCorners: new Uint32Array(0),
     byPrimitive: new Map([[3, new Map([[0, 0]])]]),
     world: undefined,
     actorCells: 0,
+    actorRanks: 0,
   }
   assert.throws(
     () => withRuntimeTrees(file, [{ mesh: 3, primitive: 0, flags: 0, tree: quad }]),

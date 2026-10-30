@@ -8,7 +8,7 @@ import {
 import { atlasEntry } from '../atlas.ts'
 import { skyLightReadLayoutEntries } from '../../../modules/sky/skyLight/read.ts'
 import { dagReadLayoutEntries } from '../../../geometry/dag/shader/bindings.ts'
-import { sceneTraceLayoutEntries } from '../../rays/sceneTrace/sceneTraceWgsl.ts'
+import { sceneMaskedLayoutEntries } from '../../rays/sceneTrace/sceneMaskWgsl.ts'
 import {
   surfaceHitBindingsFrom,
   surfaceHitCardsLayoutEntries,
@@ -19,7 +19,12 @@ import {
   lightAtlasSampleType,
   type LightAtlasFormat,
 } from '../../../gpu/core/lightAtlasFormat.ts'
-import { radianceCacheFormats, radianceRawFormat, radianceCacheTempFormats } from './cacheLayout.ts'
+import {
+  CACHE_LIT_MARKS_FORMAT,
+  radianceCacheFormats,
+  radianceRawFormat,
+  radianceCacheTempFormats,
+} from './cacheLayout.ts'
 
 /** The bindings of the kernel that makes the trace tiles of the probes the frame queued (`cacheTilesWgsl.ts`): the levels' uniform,
  *  the cell table, the queue, the cache's parameters, the list of the tiles and the lobes the screen probes want light in. */
@@ -114,14 +119,28 @@ export const CACHE_TRACED_HIT = { group: 0, cards: 22, instances: 30 } as const
 /** The scene trace's group and its first binding in it. */
 export const CACHE_TRACED_SCENE = { group: 1, first: 0 } as const
 
-/** The layouts of the trace kernel that casts its rays through the scene's triangles: its own group, then the scene trace's; the surface cache's final light read in the format `light`. */
-export const cacheTracedLayouts = (light: LightAtlasFormat = WORD_LIGHT_FORMAT) => [
+/** The bindings of the radiance cache's hit lighting (`cacheHitLitWgsl.ts`) beside the trace's own: the list of the hits to light, its sorted copy and the first pass's radiance, the texture the trace marks its hits in, the light functions' atlas and the light profiles'. */
+export const CACHE_LIT_BINDINGS = {
+  litList: 60,
+  litSorted: 61,
+  litRadiance: 62,
+  marks: 63,
+  lightFunction: 64,
+  lightProfile: 65,
+  lightProfileSampler: 66,
+} as const
+
+/** The layouts of the trace kernel that casts its rays through the scene's triangles: its own group, then the scene trace's; the surface cache's final light read in the format `light`; with `hitLit` the texture the hits are marked in is written too (the kernels carry it: `TracedCacheKernels.hitLit`). */
+export const cacheTracedLayouts = (light: LightAtlasFormat = WORD_LIGHT_FORMAT, hitLit = false) => [
   [
     ...cacheTraceBaseEntries(light),
     ...dagReadLayoutEntries(),
     ...surfaceHitCardsLayoutEntries(CACHE_TRACED_HIT, light),
+    ...(hitLit
+      ? [computeStorageTextureEntry(CACHE_LIT_BINDINGS.marks, CACHE_LIT_MARKS_FORMAT)]
+      : []),
   ],
-  sceneTraceLayoutEntries(CACHE_TRACED_SCENE.first),
+  sceneMaskedLayoutEntries(CACHE_TRACED_SCENE.first),
 ]
 
 /** The bindings of the kernel that spreads the trace atlas into the raw atlas (`cacheTraceWgsl.ts`): the levels' uniform, the cell table,

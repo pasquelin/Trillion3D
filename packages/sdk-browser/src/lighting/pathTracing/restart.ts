@@ -1,3 +1,4 @@
+import type { SceneMaskPrograms } from '../rays/sceneTrace/sceneMaskPrograms.ts'
 import type { PathTracingSettings, PathTracingProgress } from './framePlan.ts'
 
 /**
@@ -54,6 +55,9 @@ export interface PathTracingRun {
   readonly lights: number
   readonly camera: Float64Array
   readonly sky: string
+  /** What the rays cut the masked surfaces by: the graph programs of the any-hit test (a set is one array for one content, compared by identity) and the revision of the cutout words (`SceneTrace.cutoutRevision`). */
+  readonly cutBy: SceneMaskPrograms
+  readonly cutoutRevision: number
   /** The pre-exposure the first sample of the run was gathered under. */
   readonly baseExposure: number
 }
@@ -66,6 +70,8 @@ export interface PathTracingInputs {
   readonly lights: number
   readonly camera: ArrayLike<number>
   readonly sky: string
+  readonly cutBy: SceneMaskPrograms
+  readonly cutoutRevision: number
   readonly exposure: number
 }
 
@@ -81,6 +87,8 @@ export const runOf = (inputs: PathTracingInputs): PathTracingRun => ({
   lights: inputs.lights,
   camera: Float64Array.from(inputs.camera),
   sky: inputs.sky,
+  cutBy: inputs.cutBy,
+  cutoutRevision: inputs.cutoutRevision,
   baseExposure: inputs.exposure,
 })
 
@@ -95,6 +103,7 @@ export function restartReason(
   if (held.scene !== inputs.scene) return 'scene'
   if (held.lights !== inputs.lights) return 'lights'
   if (held.sky !== inputs.sky) return 'sky'
+  if (held.cutBy !== inputs.cutBy || held.cutoutRevision !== inputs.cutoutRevision) return 'cutout'
   const high = Math.max(held.baseExposure, inputs.exposure)
   if (high > 16 * Math.min(held.baseExposure, inputs.exposure)) return 'exposure'
   const { camera } = held

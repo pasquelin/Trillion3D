@@ -1,4 +1,5 @@
 import test from 'node:test'
+import { NO_SCENE_MASKS } from '../rays/sceneTrace/sceneMaskPrograms.ts'
 import assert from 'node:assert/strict'
 import { kernelShapeOf, screenProbeSources } from './screen/kernels.ts'
 import { SCREEN_PROBE_LEVELS } from '../../../../sdk-core/src/bounce/screenProbeLevels.ts'
@@ -120,35 +121,21 @@ test('the screen probes settings are read again at each image, and resolved only
 test('the traced scene kernel is kept by the rays a side of a probe, the samples of a tile and the fog on the rays: an option that changes none keeps it, one that does makes another', () => {
   const { device } = fakeDevice()
   const store = createScreenProbeStore()
-  const kernel = store.tracedFor(
-    device,
-    screenProbeSettings({ screenProbes: 'ultra' }),
-    WORD_LIGHT_FORMAT,
-  )
+  const kernelOf = (options: Parameters<typeof screenProbeSettings>[0]) =>
+    store.tracedMakerFor(device, screenProbeSettings(options), WORD_LIGHT_FORMAT)(NO_SCENE_MASKS)
+  const kernel = kernelOf({ screenProbes: 'ultra' })
   assert.equal(
-    store.tracedFor(
-      device,
-      screenProbeSettings({ screenProbes: 'ultra', screenProbeGatherNumMips: 2 }),
-      WORD_LIGHT_FORMAT,
-    ),
+    kernelOf({ screenProbes: 'ultra', screenProbeGatherNumMips: 2 }),
     kernel,
     'the levels of the gather',
   )
   assert.notEqual(
-    store.tracedFor(
-      device,
-      screenProbeSettings({ screenProbes: 'ultra', screenProbeQuality: 4 }),
-      WORD_LIGHT_FORMAT,
-    ),
+    kernelOf({ screenProbes: 'ultra', screenProbeQuality: 4 }),
     kernel,
     'sixteen rays a side',
   )
   assert.notEqual(
-    store.tracedFor(
-      device,
-      screenProbeSettings({ screenProbes: 'ultra', screenProbeHeightFogOnGI: true }),
-      WORD_LIGHT_FORMAT,
-    ),
+    kernelOf({ screenProbes: 'ultra', screenProbeHeightFogOnGI: true }),
     kernel,
     'the fog on the rays',
   )

@@ -42,6 +42,7 @@ function putWords(
     values.screenProbeScreenTracesMinimumOccupancy,
   )
   putVec4(words, at.grid, geometry.tilesX, geometry.tilesY, geometry.rows, geometry.maxAdaptive)
+  putVec4(words, at.lit, image.hitLight ?? 0, 0, 0, 0)
   putVec4(
     words,
     at.mode,
@@ -172,6 +173,8 @@ function putTraced(staged: Float32Array, settings: ScreenProbeSettings, image: S
     rays?.selfIntersections ?? 0,
   )
   putVec4(staged, at.projection, image.depthThicknessScale, 0, 0, 0)
+  // The exposure the hit lighting's lights are strengthened under, in the unused word of the mode word of the hit lighting (`lit.y`, read as a float).
+  staged[at.lit + 1] = image.exposure ?? 1
 }
 
 /** The short-range global illumination's numbers: its furthest reach as a share of the image's width (the reference's fraction of the screen, never under the occlusion's two tiles, never over

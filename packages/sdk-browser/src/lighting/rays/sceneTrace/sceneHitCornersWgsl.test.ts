@@ -26,10 +26,12 @@ const corner = (u: number, v: number, normal: number, colour: number): Corner =>
 const packColour = (r: number, g: number, b: number, a: number) =>
   (r | (g << 8) | (b << 16) | (a << 24)) >>> 0
 
-const run = () =>
+const run = (corners: Corner[]) =>
   shaderRun<{
-    stCornerSurface: (a: Corner[], bary: [number, number], normalled: boolean) => Surface
-  }>(sceneHitCornersWgsl({ group: 1, first: 0 }, { binding: 4 }), ['stCornerSurface'], {
+    stCornerSurface: (triangle: number, bary: [number, number], normalled: boolean) => Surface
+  }>(sceneHitCornersWgsl({ group: 1, first: 0 }), ['stCornerSurface'], {
+    stTable: corners.flat(),
+    stParams: { cornerWord: 0 },
     unpack2x16snorm: (w: number) => [((w << 16) >> 16) / 32767, (w >> 16) / 32767],
     unpack4x8unorm: (w: number) => [0, 8, 16, 24].map((s) => ((w >>> s) & 255) / 255),
   })
@@ -41,7 +43,7 @@ test('the coordinate and the colour are interpolated by the weights', () => {
     corner(2, 0, 0, white),
     corner(0, 4, 0, packColour(0, 0, 0, 255)),
   ]
-  const s = run().stCornerSurface(corners, [0.25, 0.5], false)
+  const s = run(corners).stCornerSurface(0, [0.25, 0.5], false)
   assert.deepEqual(s.uv, [0.5, 2])
   assert.ok(Math.abs(s.colour[0] - 0.5) < 1e-6)
   assert.deepEqual(
@@ -51,18 +53,33 @@ test('the coordinate and the colour are interpolated by the weights', () => {
   )
 })
 
+test('a triangle past the first is read at its own corners', () => {
+  const white = packColour(255, 255, 255, 255)
+  const corners = [
+    corner(0, 0, 0, white),
+    corner(2, 0, 0, white),
+    corner(0, 4, 0, white),
+    corner(9, 9, 0, white),
+    corner(9, 9, 0, white),
+    corner(9, 9, 0, white),
+  ]
+  const surface = run(corners)
+  assert.deepEqual(surface.stCornerSurface(0, [0.25, 0.5], false).uv, [0.5, 2])
+  assert.deepEqual(surface.stCornerSurface(1, [0.25, 0.5], false).uv, [9, 9])
+})
+
 test('the normal is the unit vector of the corners’ octahedral codes', () => {
   // The code zero is the pole, a +z normal like any other.
   const n = corner(0, 0, 0, 0)
-  const s = run().stCornerSurface([n, n, n], [0.3, 0.3], true)
+  const s = run([n, n, n]).stCornerSurface(0, [0.3, 0.3], true)
   assert.ok(Math.abs(Math.hypot(...s.normal) - 1) < 1e-5)
   assert.ok(s.normal[2] > 0.999)
 })
 
 test('the surface reads the record’s attribute and normal flags from the triangle', () => {
-  const text = wgslSource(sceneHitCornersWgsl({ group: 1, first: 0 }, { binding: 4 }))
+  const text = wgslSource(sceneHitCornersWgsl({ group: 1, first: 0 }))
   assert.match(text, new RegExp(`\\(flags&${RAY_TRACING_FLAG_ATTRIBUTES}u\\)!=0u`))
   assert.match(text, new RegExp(`\\(flags&${RAY_TRACING_FLAG_NORMALS}u\\)!=0u`))
   assert.match(text, /fn stHitSurface\(hit:StHit\)->StHitSurface\{/)
-  assert.match(text, /@group\(1\) @binding\(4\) var<storage,read> stCorners:array<vec4u>;/)
+  assert.match(text, /stCornerSurface\(hit\.triangle,hit\.bary,/)
 })

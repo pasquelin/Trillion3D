@@ -41,6 +41,10 @@ export function createMaterialTable() {
     get view() {
       return p.records?.view
     },
+    /** The atlases' slots' epoch: it moves when a record's slots are to be written again (`SurfaceSeen.epoch`). */
+    get epoch() {
+      return p.epoch
+    },
     /** What the table holds of `mat` (`SurfaceSeen`): its record's rank, and what it brings to each
      *  of its rows (`row`), which a row write reads instead of its maps — written first, with its
      *  record, where its version or the atlases' slots moved since. */

@@ -4,6 +4,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { cacheTempBytes, cacheTraceBytes } from './cache/cacheLayout.ts'
 import {
+  dropMarks,
   dropTemp,
   dropTraceAtlas,
   tempFor,
@@ -11,6 +12,7 @@ import {
   type FrameAtlases,
 } from './cache/frameAtlases.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
+import { installGpuDeviceLedger } from '../../gpu/core/deviceLedger.ts'
 import { WORD_LIGHT_FORMAT } from '../../gpu/core/lightAtlasFormat.ts'
 
 /** The updates in a row at a quarter of the texels held that make an atlas again at the size asked. */
@@ -115,4 +117,86 @@ test('the trace atlas alone is given back where the traced mode is off, the othe
   traceAtlasFor(state, 100, WORD_LIGHT_FORMAT)
   dropTemp(state)
   assert.deepEqual([state.temp, state.traceAtlas], [undefined, undefined])
+})
+
+test('a marks texture the budget refuses leaves the plain trace atlas held: no churn on the retry', () => {
+  const { state } = emptyAtlases()
+  const plain = traceAtlasFor(state, 1000, WORD_LIGHT_FORMAT)!
+  // Room for the plain atlas and a little more: the marked one does not fit beside it, nor does crediting the plain one admit it by luck.
+  installGpuDeviceLedger(state.device, { limit: () => plain.bytes + 1 })
+  for (let retry = 0; retry < 3; retry++) {
+    assert.equal(traceAtlasFor(state, 1000, WORD_LIGHT_FORMAT, true), undefined, 'refused')
+    assert.equal(state.traceAtlas, plain, 'the plain atlas stays held')
+    assert.equal(traceAtlasFor(state, 1000, WORD_LIGHT_FORMAT), plain, 'and is the one traced into')
+  }
+})
+
+test('a marks texture the budget admits replaces the plain trace atlas', () => {
+  const { state } = emptyAtlases()
+  const plain = traceAtlasFor(state, 1000, WORD_LIGHT_FORMAT)!
+  const marked = traceAtlasFor(state, 1000, WORD_LIGHT_FORMAT, true)!
+  assert.notEqual(marked, plain)
+  assert.equal(state.traceAtlas, marked)
+  assert.equal(traceAtlasFor(state, 1000, WORD_LIGHT_FORMAT, true), marked)
+})
+
+test('a marks texture that fits the budget alone but not beside the plain atlas is admitted, and the plain one is given back', () => {
+  const { state } = emptyAtlases()
+  const markedBytes = cacheTraceBytes(1024, WORD_LIGHT_FORMAT, true)
+  installGpuDeviceLedger(state.device, { limit: () => markedBytes })
+  const plain = traceAtlasFor(state, 1000, WORD_LIGHT_FORMAT)!
+  const marked = traceAtlasFor(state, 1000, WORD_LIGHT_FORMAT, true)
+  assert.ok(marked, 'admitted with the plain atlas credited')
+  assert.equal(state.traceAtlas, marked)
+  assert.notEqual(marked, plain)
+})
+
+test('a marks texture over the budget even with the plain atlas credited keeps the plain atlas: no churn', () => {
+  const { state } = emptyAtlases()
+  installGpuDeviceLedger(state.device, {
+    limit: () => cacheTraceBytes(1024, WORD_LIGHT_FORMAT, true) - 1,
+  })
+  const plain = traceAtlasFor(state, 1000, WORD_LIGHT_FORMAT)!
+  assert.equal(traceAtlasFor(state, 1000, WORD_LIGHT_FORMAT, true), undefined)
+  assert.equal(state.traceAtlas, plain)
+  assert.equal(traceAtlasFor(state, 1000, WORD_LIGHT_FORMAT), plain)
+})
+
+test('a plain trace uses the marked atlas held: no atlas made again when the trace goes from lit to cards and back', () => {
+  const { state } = emptyAtlases()
+  const marked = traceAtlasFor(state, 1000, WORD_LIGHT_FORMAT, true)!
+  assert.equal(traceAtlasFor(state, 1000, WORD_LIGHT_FORMAT), marked, 'cards')
+  assert.equal(state.traceAtlas, marked)
+  assert.equal(traceAtlasFor(state, 1000, WORD_LIGHT_FORMAT, true), marked, 'lit again')
+})
+
+test('a marked atlas that would grow, refused by the budget, is given back: what is held cannot serve the ask', () => {
+  const { state } = emptyAtlases()
+  const marked = traceAtlasFor(state, 1000, WORD_LIGHT_FORMAT, true)!
+  installGpuDeviceLedger(state.device, { limit: () => marked.bytes + 1 })
+  assert.equal(traceAtlasFor(state, 5000, WORD_LIGHT_FORMAT, true), undefined, 'grow refused')
+  assert.equal(state.traceAtlas, undefined, 'the held atlas is given back, as before')
+  assert.equal(state.smallTrace, 0)
+})
+
+test('a refused swap leaves the count of the atlas held to its own asks', () => {
+  const { state } = emptyAtlases()
+  const plain = traceAtlasFor(state, 4096, WORD_LIGHT_FORMAT)!
+  for (let i = 0; i < 5; i++) traceAtlasFor(state, 100, WORD_LIGHT_FORMAT)
+  assert.equal(state.smallTrace, 5)
+  installGpuDeviceLedger(state.device, { limit: () => plain.bytes + 1 })
+  assert.equal(traceAtlasFor(state, 4096, WORD_LIGHT_FORMAT, true), undefined, 'marks refused')
+  assert.equal(state.smallTrace, 5, 'the refused lit attempt does not touch the count')
+  assert.equal(state.traceAtlas, plain)
+})
+
+test('the marks texture is given back when the hit lighting is off, a plain atlas is kept', () => {
+  const { state } = emptyAtlases()
+  const plain = traceAtlasFor(state, 1000, WORD_LIGHT_FORMAT)!
+  dropMarks(state)
+  assert.equal(state.traceAtlas, plain, 'a plain atlas stays')
+  traceAtlasFor(state, 1000, WORD_LIGHT_FORMAT, true)
+  assert.ok(state.traceAtlas?.marks)
+  dropMarks(state)
+  assert.equal(state.traceAtlas, undefined, 'the marked atlas is given back')
 })

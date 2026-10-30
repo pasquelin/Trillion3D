@@ -1,5 +1,6 @@
 // When the accumulation starts over, and how the blocks of an image's dispatches are written.
 import { pathTracingBytes } from './gpuState.ts'
+import { NO_SCENE_MASKS, type SceneMaskPrograms } from '../rays/sceneTrace/sceneMaskPrograms.ts'
 import { skyTableMips, skyTableSize } from './skyWgsl.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -24,6 +25,8 @@ const inputs = (options = {}, over: Partial<PathTracingInputs> = {}): PathTracin
   lights: 1,
   camera: [1, 0, 0, 0, 0, 1],
   sky: 'none',
+  cutBy: NO_SCENE_MASKS,
+  cutoutRevision: 0,
   exposure: 1,
   ...over,
 })
@@ -38,6 +41,11 @@ test('an image continues the run it is the same view of, and starts over for wha
   assert.equal(restartReason(run, inputs({}, { scene: 2 })), 'scene')
   assert.equal(restartReason(run, inputs({}, { lights: 2 })), 'lights')
   assert.equal(restartReason(run, inputs({}, { sky: '1,1,1,1' })), 'sky')
+  assert.equal(restartReason(run, inputs({}, { cutoutRevision: 1 })), 'cutout')
+  assert.equal(
+    restartReason(run, inputs({}, { cutBy: [{ key: 'a' }] as unknown as SceneMaskPrograms })),
+    'cutout',
+  )
   assert.equal(restartReason(run, inputs({}, { camera: [1, 0, 0, 0, 0, 1.0001] })), 'camera')
 })
 

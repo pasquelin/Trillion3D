@@ -8,6 +8,7 @@ import type { ScreenReflection } from './gpu.ts'
 import { skyLightReadBindEntries, type SkyLightReadSet } from '../../modules/sky/skyLight/read.ts'
 import { heldProgramGroup, keptProgramGroup } from '../../gpu/bind/programGroups.ts'
 import {
+  reflectionHitLayout,
   reflectionSceneLayout,
   reflectionForwardLayout,
   reflectionLayout,
@@ -110,6 +111,36 @@ export function reflectionSceneGroup(
         ...skyLightReadBindEntries(REFLECTION_SKY_LIGHT, sky),
       ],
       'Trillion3D reflection scene',
+    )
+  )
+}
+
+/** The reflection group of the hit lighting's first pass (`reflectionHitLayout`): the view, the depth `depth` (`GpuHiz.depth`), the lighting's view `lightView`, the front depth and the sky light, without the lit image;
+ *  made again when one of them is not the one it was made over. */
+export function reflectionHitGroup(
+  reflection: ScreenReflection,
+  depth: HizDepth,
+  lightView: GPUBuffer,
+  sky: SkyLightReadSet,
+) {
+  const { device, hit } = reflection
+  const { next } = hit.identity
+  next.length = 0
+  next.push(depth, lightView, sky.cube, sky.harmonics, sky.params)
+  return (
+    heldProgramGroup(hit) ??
+    keptProgramGroup(
+      device,
+      reflectionHitLayout(device),
+      hit,
+      [
+        { binding: REFLECTION_VIEW_BINDING, resource: { buffer: reflection.uniform } },
+        ...hizDepthBindEntries(REFLECTION_DEPTH_BINDING, depth),
+        { binding: REFLECTION_LIGHT_VIEW_BINDING, resource: { buffer: lightView } },
+        { binding: REFLECTION_FRONT_BINDING, resource: reflection.front.views.depth },
+        ...skyLightReadBindEntries(REFLECTION_SKY_LIGHT, sky),
+      ],
+      'Trillion3D reflection hit lighting',
     )
   )
 }

@@ -2,7 +2,10 @@
 //! tracer keeps and whose group's lies over it. Each cluster's error is at least its children's
 //! and under its group's, so exactly one cluster of every path from a finest cluster to a root
 //! stands in the cut, and the surface it draws is whole.
-use super::attributes::{carries_any, carries_normal, triangle_attributes, TriangleAttributes};
+use super::attributes::{
+    carries_any, carries_normal, mask_attribute, triangle_attributes, triangle_mask,
+    TriangleAttributes, TriangleMask, TRIANGLE_MASK_BYTES,
+};
 use super::word::word;
 use crate::dag::{clusters_area, DagCluster};
 use crate::proxy::cut::selected;
@@ -16,13 +19,15 @@ pub(super) const FALLBACK_RELATIVE_ERROR: f32 = 1.0;
 
 /// A triangle of the cut: its corners in the primitive's object space, the rank of its cluster
 /// among the DAG's, its own rank in the cluster and its tag, which is zero but in the world's
-/// directory. `attributes` are its corners' (`attributes.rs`), zero where the cut has none.
+/// directory. `attributes` are its corners' (`attributes.rs`), zero where the cut has none, and `mask`
+/// their coordinates in the texture set the alpha mask reads, zero where the cut has none.
 pub(super) struct CutTriangle {
     pub corners: [[f32; 3]; 3],
     pub cluster: u32,
     pub triangle: u32,
     pub tag: u32,
     pub attributes: TriangleAttributes,
+    pub mask: TriangleMask,
 }
 
 /// The triangles of the cut, the error it keeps, and whether they carry their corners' attributes.
@@ -32,6 +37,8 @@ pub(super) struct Cut {
     pub attributed: bool,
     /// Whether the attributes include a shading normal.
     pub normalled: bool,
+    /// Whether the triangles carry the coordinates of the texture set the alpha mask reads.
+    pub masked: bool,
 }
 
 /// The finest clusters of a DAG: those no group made, the level 0 and the leaves a trim left
@@ -72,9 +79,10 @@ pub(super) fn cut_clusters<'a>(
 }
 
 /// The triangles of cluster `cluster`, of rank `rank` in its DAG, whose indices lie in
-/// `positions` and `carried`; an error for a rank that does not fit the file's 32-bit words.
+/// `positions` and `carried`, and in `mask` the attribute of the texture set the alpha mask reads; an
+/// error for a rank that does not fit the file's 32-bit words.
 pub(super) fn triangles_of<'a>(
-    (positions, carried): (&'a [f32], &'a [&'a Attribute]),
+    (positions, carried, mask): (&'a [f32], &'a [&'a Attribute], Option<&'a Attribute>),
     (rank, cluster): (usize, &'a DagCluster),
 ) -> impl Iterator<Item = Result<CutTriangle>> + 'a {
     (cluster.indices.as_chunks::<3>().0.iter().enumerate()).map(move |(triangle, corners)| {
@@ -84,24 +92,43 @@ pub(super) fn triangles_of<'a>(
             triangle: word(triangle, "triangle rank")?,
             tag: 0,
             attributes: triangle_attributes(carried, corners),
+            mask: mask.map_or([0; TRIANGLE_MASK_BYTES], |m| triangle_mask(m, corners)),
         })
     })
 }
 
-/// The cut of the DAG `clusters`, whose indices lie in `positions` and `carried`.
-pub(super) fn cut_of(
-    positions: &[f32],
-    carried: &[&Attribute],
-    clusters: &[DagCluster],
+/// The cut at `error` of the clusters `clusters`, each with its rank in its DAG, whose indices lie in
+/// `positions` and `carried`, with the coordinates of the texture set `mask_set` (past the first, zero
+/// for none) that the alpha mask of their primitive reads.
+pub(super) fn cut_over<'a>(
+    (positions, carried): (&[f32], &[&Attribute]),
+    clusters: impl Iterator<Item = (usize, &'a DagCluster)>,
+    (error, mask_set): (f32, usize),
 ) -> Result<Cut> {
-    let error = error_of(positions, clusters);
-    let triangles = cut_clusters(clusters.iter().enumerate(), error)
-        .flat_map(|cluster| triangles_of((positions, carried), cluster))
+    let mask = mask_attribute(carried, mask_set);
+    let triangles = cut_clusters(clusters, error)
+        .flat_map(|cluster| triangles_of((positions, carried, mask), cluster))
         .collect::<Result<_>>()?;
     Ok(Cut {
         error,
         triangles,
-        attributed: carries_any(carried),
+        attributed: carries_any(carried) || mask.is_some(),
         normalled: carries_normal(carried),
+        masked: mask.is_some(),
     })
+}
+
+/// The cut of the DAG `clusters`, whose indices lie in `positions` and `carried`, with the coordinates of the
+/// texture set `mask_set` (past the first, zero for none) that the primitive's alpha mask reads.
+pub(super) fn cut_of(
+    positions: &[f32],
+    carried: &[&Attribute],
+    clusters: &[DagCluster],
+    mask_set: usize,
+) -> Result<Cut> {
+    cut_over(
+        (positions, carried),
+        clusters.iter().enumerate(),
+        (error_of(positions, clusters), mask_set),
+    )
 }

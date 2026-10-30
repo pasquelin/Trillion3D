@@ -4,6 +4,7 @@ import type { ScreenProbeSettings } from '../../../../../sdk-core/src/bounce/scr
 import { BOUNCE_PASS } from '../../../diagnostic/stage/passLabels.ts'
 import type { SurfaceHitReads } from '../../surfaceCache/hitWgsl.ts'
 import type { SceneRays } from '../../surfaceCache/lighting/surfaceLighting.ts'
+import type { CacheHitLighting } from '../cache/cacheHitLit.ts'
 import type { RadianceCache } from '../cache/radianceCache.ts'
 import type { BouncePool, MarkSurface, PoolWork } from '../pool/pool.ts'
 import type { createBounceUniform } from '../uniform.ts'
@@ -81,10 +82,11 @@ interface QueuedInputs {
   reads: SurfaceHitReads
   eye: ArrayLike<number>
   rays: SceneRays | undefined
+  hit: CacheHitLighting | null | undefined
   preExposure: number
 }
 
-/** Encodes the pass of an image of probes and hands its queue to the radiance cache; nothing while the cache is frozen (it keeps its probes and its maps as they are).
+/** Encodes the pass of an image of probes and hands its queue to the radiance cache; nothing while the cache is frozen or the image cannot decide the hit lighting (it keeps its probes and its maps as they are).
  *  Asked for in full, every image gives every probe back. */
 function queueImage(
   parts: ProbeParts,
@@ -95,9 +97,11 @@ function queueImage(
   inputs: QueuedInputs,
 ) {
   if (!now.values.screenProbeRadianceCacheUpdate) return
+  // No information on the hit lighting while the last decided image wanted it: the cache is left as it is, like a frozen one (no pool stamps, no clear, no discard), the update waits for the next image.
+  if (parts.cache.undecided(now, inputs.hit)) return
   if (now.values.screenProbeRadianceCacheForceFullUpdate) {
     // The maps are sized for `now` before they are cleared (`queued` follows again, with nothing left to change).
-    parts.cache.follow(now, inputs.preExposure)
+    parts.cache.follow(now, inputs.preExposure, inputs.hit)
     parts.cache.clear(encoder)
     parts.pool.discard()
   }
@@ -137,7 +141,8 @@ export function createProbeEncoder(
      *  distance field — or, where the image made the scene trace (`rays`), through the scene's triangles —, its hits reading the
      *  surface cache (`reads`), those that leave the scene reaching the sky light (`sky`), the light kept under the pre-exposure
      *  `preExposure` (`cachedLightingPreExposureOf`). Under an orthographic view, `forward` is the
-     *  direction it looks along, which a probe's distance to the camera is measured along (`cameraDistanceSq`). */
+     *  direction it looks along, which a probe's distance to the camera is measured along (`cameraDistanceSq`). `hit` is what lighting the hits of the rays where they stand needs of the image
+     *  (`bounceHitLightingFollowOf`): `null` where the settings do not ask it, `undefined` where the image could not decide. */
     encode(
       encoder: GPUCommandEncoder,
       viewpoint: ArrayLike<number>,
@@ -147,6 +152,7 @@ export function createProbeEncoder(
       surface?: MarkSurface,
       rays?: SceneRays,
       forward?: ArrayLike<number>,
+      hit?: CacheHitLighting | null,
     ) {
       const now = settings()
       frame++
@@ -165,6 +171,7 @@ export function createProbeEncoder(
         reads,
         eye: viewpoint,
         rays,
+        hit,
         preExposure,
       })
     },

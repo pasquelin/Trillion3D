@@ -1,3 +1,4 @@
+import { NO_SCENE_MASKS, type SceneMaskPrograms } from '../rays/sceneTrace/sceneMaskPrograms.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { PT_AIR_BINDINGS, PT_AIR_STRUCT } from './airMediumWgsl.ts'
 import { ptCloudDeclarations } from './cloudMediumWgsl.ts'
@@ -130,15 +131,15 @@ fn ${PT_VISUALIZE_ENTRY}(@builtin(workgroup_id) wg:vec3u,@builtin(num_workgroups
 }`
 
 /** The trace program: what each path's ray meets, bounce by bounce (`PT_TRACE_BOUNCE_WGSL`), with the clouds' bindings and march where they are traced. */
-export const ptTraceProgram = (clouds = false) =>
+export const ptTraceProgram = (programs: SceneMaskPrograms = NO_SCENE_MASKS, clouds = false) =>
   wgslProgram(
     `${paths}\n${variance}\n${air}\n${clouds ? `${ptCloudDeclarations()}\n` : ''}${queue}\n${entries}`,
-    [PT_QUEUE_WGSL, PT_TRACE_BOUNCE_WGSL(PT_TRACE_SCENE, clouds)],
+    [PT_QUEUE_WGSL, PT_TRACE_BOUNCE_WGSL(PT_TRACE_SCENE, programs, clouds)],
   )
 
 /** The finish program: the rest of each bounce over the hit and its material (`PT_FINISH_BOUNCE_WGSL`), with the clouds' bindings where they are traced, and the views of the payload (`PT_VISUALIZE_WGSL`) that take its place. */
-export const ptFinishProgram = (clouds = false) =>
+export const ptFinishProgram = (programs: SceneMaskPrograms = NO_SCENE_MASKS, clouds = false) =>
   wgslProgram(
     `${paths}\n${lights}\n${air}\n${clouds ? `${ptCloudDeclarations()}\n` : ''}${queue}\n${finish}\n${visualize}`,
-    [PT_QUEUE_WGSL, PT_FINISH_BOUNCE_WGSL(PT_TRACE_SCENE, clouds), PT_VISUALIZE_WGSL],
+    [PT_QUEUE_WGSL, PT_FINISH_BOUNCE_WGSL(PT_TRACE_SCENE, programs, clouds), PT_VISUALIZE_WGSL],
   )

@@ -36,7 +36,7 @@ const TEXELS = Array.from(
 ).join('')
 
 /**
- * THE MATERIAL TABLE as a pass reads it (`materialTable.ts`): bound at `binding` as the engine binds
+ * THE MATERIAL TABLE as a pass reads it (`materialTable.ts`): bound at `binding` of `group` as the engine binds
  * every record table (`recordTextureWgsl`, a `2d-array` view), a surface's record
  * read whole by its row's or item's word (`materialAt`, `MATERIAL_RANK_MASK` below the second UV
  * set's bit) — each of its eleven texels a `textureLoad`, those a pass never reads left to the
@@ -44,13 +44,13 @@ const TEXELS = Array.from(
  * `materialChannelsOf`), and the lobe extension that word names
  * (`physicalAt`): the very words the table holds.
  */
-export const materialTableWgsl = (binding: number) =>
+export const materialTableWgsl = (binding: number, group = 0) =>
   wgslBlock(
-    `materialTableWgsl(${binding})`,
+    group === 0 ? `materialTableWgsl(${binding})` : `materialTableWgsl(${binding}, ${group})`,
     [
       recordTextureWgsl(MATERIAL_TABLE, {
         name: 'materialTable',
-        group: 0,
+        group,
         binding,
         access: 'read',
       }),

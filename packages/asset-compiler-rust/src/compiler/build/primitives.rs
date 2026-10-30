@@ -68,6 +68,7 @@ pub(super) fn compile_primitives(
         .collect();
     let no_fallbacks = BTreeMap::new();
     let no_covers = BTreeMap::new();
+    let (sky, _) = o.materials()?.sky_flags(g);
     let primitive_inputs = PrimitiveInputs {
         o,
         g,
@@ -85,6 +86,7 @@ pub(super) fn compile_primitives(
         covers: &no_covers,
         validated: accessors,
         progress,
+        sky: &sky,
     };
     let (compiled, admission) = pool.install(|| {
         run_jobs(

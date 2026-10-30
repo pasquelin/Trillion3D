@@ -15,13 +15,13 @@ import { computeUniformEntry } from '../../gpu/core/computeBindings.ts'
  */
 export const GRAPH_FRAME_BYTES = 48
 
-/** The WGSL struct of the frame and the uniform at `binding`, `graphFrame`. */
-export const graphFrameWgsl = (binding: number) =>
+/** The WGSL struct of the frame and the uniform at `binding` of `group`, `graphFrame`. */
+export const graphFrameWgsl = (binding: number, group = 0) =>
   wgslBlock(
-    `graphFrameWgsl(${binding})`,
+    group === 0 ? `graphFrameWgsl(${binding})` : `graphFrameWgsl(${binding}, ${group})`,
     [],
     `struct GraphFrame{clock:vec4f,eye:vec4f,before:vec3f,frame:u32,}
-@group(0) @binding(${binding}) var<uniform> graphFrame:GraphFrame;`,
+@group(${group}) @binding(${binding}) var<uniform> graphFrame:GraphFrame;`,
   )
 
 /** The layout entry of the frame at `binding`, seen by `visibility`. */

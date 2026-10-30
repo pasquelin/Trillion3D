@@ -1,6 +1,12 @@
+import {
+  NO_SCENE_MASKS,
+  sceneMaskKey,
+  type SceneMaskPrograms,
+} from '../rays/sceneTrace/sceneMaskPrograms.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { luminance } from '../../../../math/src/wgsl/color.ts'
-import { sceneTraceWgsl } from '../rays/sceneTrace/sceneTraceWgsl.ts'
+import { SCENE_MASK_END, sceneMaskWgsl } from '../rays/sceneTrace/sceneMaskWgsl.ts'
+import { sceneOccludedWgsl, sceneTraceWgsl } from '../rays/sceneTrace/sceneTraceWgsl.ts'
 import { ATMOSPHERE_SLOT } from '../../../../sdk-core/src/scene/core/atmospherePack.ts'
 import { PT_AIR_PHASE_WGSL, PT_GROUND_CLASS } from './airWgsl.ts'
 import { PT_CLOUD_PHASE_WGSL } from './cloudPhaseWgsl.ts'
@@ -15,8 +21,8 @@ import { PT_RADIANCE_WGSL } from './radianceWgsl.ts'
 import { PT_NO_CLASS } from './traceBounceWgsl.ts'
 import { PT_ROUND_WGSL, PT_VIEW_FLAGS_WGSL, PT_VIEW_WGSL } from './viewWgsl.ts'
 
-/** The bindings of the scene trace's group in the finish of a bounce, past the trace's four: the hits the trace found and the materials the shade of the hits gave them. */
-export const PT_FINISH_BINDINGS = { hits: 4, materials: 5 } as const
+/** The bindings of the scene trace's group in the finish of a bounce, past the trace's and the any-hit test's: the hits the trace found and the materials the shade of the hits gave them. */
+export const PT_FINISH_BINDINGS = { hits: SCENE_MASK_END, materials: SCENE_MASK_END + 1 } as const
 
 /** The most lights a point picks among, the length of the table of the cumulative importances a thread keeps. */
 const MAX_LIGHTS = PT_LIGHT_MAXIMUM
@@ -60,9 +66,13 @@ fn ptVisibleRgb(path:ptr<function,PtPath>,origin:vec3f,direction:vec3f,tMax:f32,
  * Where the clouds are traced (`clouds`), the event of the air can be one of the clouds: its phase is the four lobes of `PT_CLOUD_PHASE_WGSL`, a shadow ray toward a light that casts cloud shadows (or from the medium) also crosses the clouds (`ptCloudVisible`), and the octave of the approximation of
  * multiple scattering an event stands for lights its point and ends the path.
  */
-export const PT_FINISH_BOUNCE_WGSL = (scene: { group: number; first: number }, clouds = false) =>
+export const PT_FINISH_BOUNCE_WGSL = (
+  scene: { group: number; first: number },
+  programs: SceneMaskPrograms = NO_SCENE_MASKS,
+  clouds = false,
+) =>
   wgslBlock(
-    `PT_FINISH_BOUNCE_WGSL(${scene.group},${scene.first}${clouds ? ',clouds' : ''})`,
+    `PT_FINISH_BOUNCE_WGSL(${scene.group},${scene.first},${sceneMaskKey(programs)}${clouds ? ',clouds' : ''})`,
     [
       luminance,
       PT_VIEW_WGSL,
@@ -77,6 +87,8 @@ export const PT_FINISH_BOUNCE_WGSL = (scene: { group: number; first: number }, c
       PT_VOLUME_LIGHTING_WGSL(clouds),
       clouds ? PT_CLOUD_PHASE_WGSL : PT_AIR_PHASE_WGSL,
       sceneTraceWgsl(scene.group, scene.first),
+      sceneMaskWgsl(scene.group, scene.first, programs),
+      sceneOccludedWgsl(scene.group, scene.first),
     ],
     `@group(${scene.group}) @binding(${scene.first + PT_FINISH_BINDINGS.hits}) var<storage,read> ptHits:array<vec4u>;
 @group(${scene.group}) @binding(${scene.first + PT_FINISH_BINDINGS.materials}) var<storage,read> ptMaterials:array<vec4u>;
@@ -88,8 +100,7 @@ fn ptMax3(v:vec3f)->f32{return max(v.x,max(v.y,v.z));}
 fn ptScattered(path:ptr<function,PtPath>)->bool{return (*path).scatter==PT_SCATTER_DIFFUSE||(*path).scatter==PT_SCATTER_SPECULAR;}
 fn ptVisible(origin:vec3f,direction:vec3f,tMax:f32,casts:bool)->f32{
  if(!casts){return 1.0;}
- let hit=stTrace(StRay(origin,direction,0.0,tMax,ST_ANY_HIT|ST_SHADOW|ST_SKIP_TRANSLUCENT));
- return select(1.0,0.0,hit.hit||!stComplete);
+ return select(1.0,0.0,stOccluded(StRay(origin,direction,0.0,tMax,ST_ANY_HIT|ST_SHADOW|ST_SKIP_TRANSLUCENT|ST_PATH_RAY)));
 }
 ${clouds ? CLOUD_VISIBLE : AIR_VISIBLE}
 fn ptAccumulateAov(path:ptr<function,PtPath>,s:PtSurface){

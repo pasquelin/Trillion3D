@@ -1,6 +1,6 @@
 import type { LightAtlasFormat } from '../../../gpu/core/lightAtlasFormat.ts'
-import { ledgerAdmitted } from '../../../gpu/core/deviceLedger.ts'
 import { retire } from '../../../gpu/core/frameRetire.ts'
+import { keptOrMade } from '../../../gpu/core/keptOrMade.ts'
 import {
   cacheTempBytes,
   cacheTempExtent,
@@ -15,14 +15,6 @@ import {
   type CacheTempStorage,
   type TraceAtlas,
 } from './cacheStorage.ts'
-
-/** The updates in a row that ask at most a quarter of the texels of an atlas held before it is made again at the size asked. A memory
- *  housekeeping rule with no effect on the image: the atlases of a frame only grow with the queue's block, and a full update, which asks
- *  the whole pool, would otherwise leave its size held for good. */
-const SHRINK_AFTER_UPDATES = 30
-
-/** The share of the texels held that an update must ask at most, to count toward the atlas being made again smaller. */
-const SHRINK_SHARE = 1 / 4
 
 /** What the radiance cache keeps of the atlases of a frame between two images. */
 export interface FrameAtlases {
@@ -44,43 +36,17 @@ export function dropTraceAtlas(state: FrameAtlases) {
   state.smallTrace = 0
 }
 
+/** The marked trace atlas given back where the hit lighting that asked it is off: a plain trace then makes its own, and the marks texture is not held for nothing. */
+export function dropMarks(state: FrameAtlases) {
+  if (state.traceAtlas?.marks) dropTraceAtlas(state)
+}
+
 /** The atlases of the frame given back: destroyed once the image that names them is submitted. */
 export function dropTemp(state: FrameAtlases) {
   if (state.temp) retire(state.device, state.temp)
   state.temp = undefined
   state.smallTemp = 0
   dropTraceAtlas(state)
-}
-
-/**
- * The updates in a row that asked at most a quarter of the `held` texels, `small` before this one, `asked` texels now: the count after
- * it (none where this update asked more), and whether it has reached `SHRINK_AFTER_UPDATES`, the atlas then made again at the size asked.
- */
-function lingers(small: number, asked: number, held: number) {
-  const count = asked <= held * SHRINK_SHARE ? small + 1 : 0
-  return { count, shrink: count >= SHRINK_AFTER_UPDATES }
-}
-
-/**
- * An atlas of the frame kept or made: the `held` one where it `holds` what is asked and the updates in a row that asked at most a quarter of its `texels` (`small` before this
- * one, `asked` texels now) have not reached `SHRINK_AFTER_UPDATES`, with the count after this update; else made at the size `admit` asks, where the device's budget leaves
- * room (`ledgerAdmitted`, the held one's bytes credited) — none where it does not — and the count none.
- */
-function keptOrMade<T extends { bytes: number; destroy(): void }>(
-  device: GPUDevice,
-  held: T | undefined,
-  keep: { holds: boolean; small: number; asked: number; texels: number },
-  admit: { asked: number; what: string; make: () => T },
-) {
-  if (held && keep.holds) {
-    const { count, shrink } = lingers(keep.small, keep.asked, keep.texels)
-    if (!shrink) return { atlas: held, small: count }
-  }
-  const { value } = ledgerAdmitted(device, {
-    held: held && { bytes: held.bytes, dispose: () => retire(device, held) },
-    ...admit,
-  })
-  return { atlas: value, small: 0 }
 }
 
 /**
@@ -115,24 +81,38 @@ export function tempFor(state: FrameAtlases, storage: CacheStorage, queue: Cache
 }
 
 /** The trace atlas for `tiles` tiles, its rays' light stored in `light` (the atlases of a frame are given back whenever the cache's maps are made again, so the held one is of that format), the held one where it holds as many and has not stayed a quarter of them for `SHRINK_AFTER_UPDATES`
- *  updates; else made, where the device's budget leaves room — none where it does not, and the rays are marched. */
-export function traceAtlasFor(state: FrameAtlases, tiles: number, light: LightAtlasFormat) {
+ *  updates; else made, where the device's budget leaves room — none where it does not, and the rays are marched. `marked` asks the texture the hits are marked in beside it (the hit lighting): a held atlas that has it serves a plain trace too (the marks unused, no atlas made again when the
+ *  trace goes from lit to cards and back); a plain one held is replaced by a marked one only where the marked one is admitted, and kept where it is refused. */
+export function traceAtlasFor(
+  state: FrameAtlases,
+  tiles: number,
+  light: LightAtlasFormat,
+  marked = false,
+) {
   const held = state.traceAtlas
-  const { atlas, small } = keptOrMade(
+  // A marked atlas held serves a plain trace too; a plain one serves only a plain trace. A marks texture the budget refuses (or a shrink) keeps the atlas held, not dropping what works to make it again on the retry; a grow it refuses gives the held one back.
+  const {
+    atlas,
+    held: now,
+    small,
+  } = keptOrMade(
     state.device,
     held,
     {
-      holds: held !== undefined && held.tiles >= tiles,
+      holds: held !== undefined && held.tiles >= tiles && (!marked || held.marks !== undefined),
       small: state.smallTrace,
       asked: tiles,
       texels: held?.tiles ?? 0,
+      // A swap of the same size class (plain <-> marked) or a shrink keeps the atlas held on a refusal; a grow does not: what is held cannot serve the ask.
+      keepOnRefusal: held !== undefined && held.tiles >= tiles,
     },
     {
-      asked: cacheTraceBytes(tiles, light),
+      asked: cacheTraceBytes(tiles, light, marked),
       what: 'the radiance cache’s trace atlas',
-      make: () => createTraceAtlas(state.device, tiles, light),
+      make: () => createTraceAtlas(state.device, tiles, light, marked),
     },
   )
   state.smallTrace = small
-  return (state.traceAtlas = atlas)
+  state.traceAtlas = now
+  return atlas
 }

@@ -8,16 +8,16 @@ import type { CompiledGraph } from './compile.ts'
 const texelOf = (suffix: string) => `mgTexel${suffix}`
 
 /**
- * The function that reads the values of the graph `g` from the material table bound at `binding`
+ * The function that reads the values of the graph `g` from the material table bound at `binding` of `group`
  * (`mgLoad`, with the graph's suffix): its vectors, then its texture words, after the header texel
  * the surface's record names (`graph` less one). The values a surface writes beside its record
  * (`../table/graphRecord.ts`) are read by the pass that shades it, with no binding of its own.
  */
-export const graphLoadWgsl = (g: CompiledGraph, binding: number) => {
+export const graphLoadWgsl = (g: CompiledGraph, binding: number, group = 0) => {
   const vectors = Math.max(g.slots.vectors.length, 1)
   return wgslBlock(
-    `materialGraphLoad(${g.hash}${g.suffix},${binding})`,
-    [g.wgsl, materialTableWgsl(binding)],
+    `materialGraphLoad(${g.hash}${g.suffix},${binding}${group === 0 ? '' : `,${group}`})`,
+    [g.wgsl, materialTableWgsl(binding, group)],
     `fn ${texelOf(g.suffix)}(t:u32)->vec4u{return materialTableRecord(t/${MATERIAL_RECORD_TEXELS}u,t%${MATERIAL_RECORD_TEXELS}u);}
 fn mgLoad${g.suffix}(first:u32)->${g.values}{
  var g:${g.values};

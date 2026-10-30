@@ -1,3 +1,4 @@
+import { NO_SCENE_MASKS, type SceneMaskPrograms } from '../../rays/sceneTrace/sceneMaskPrograms.ts'
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { wgslBlock, wgslFn, type WgslDecl } from '../../../../../math/src/wgsl/decl.ts'
 import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
@@ -18,10 +19,12 @@ import {
   CACHE_TRACED_SCENE,
   CACHE_TRACE_BINDINGS as B,
   CACHE_TRACE_HIT,
+  CACHE_LIT_BINDINGS,
   CACHE_TRACE_SKY_LIGHT,
 } from './cacheBindings.ts'
 import { cacheTileList } from './cacheTilesWgsl.ts'
 import {
+  CACHE_LIT_MARKS_FORMAT,
   CACHE_TILE_SIDE,
   CACHE_TRACE_ATLAS_TILES,
   RADIANCE_CACHE_FLAGS,
@@ -31,15 +34,19 @@ import {
 import { CACHE_WORDS_WGSL } from './cacheWordsWgsl.ts'
 
 /** The trace's bindings and its constants; `out` names the storage texture it writes, at `B.raw`: the raw atlas, or the trace atlas. */
-const traceDeclarations = (out: string, light: LightAtlasFormat) => `${RADIANCE_CACHE_PARAMS.wgsl}
+const traceDeclarations = (
+  out: string,
+  light: LightAtlasFormat,
+  marks = false,
+) => `${RADIANCE_CACHE_PARAMS.wgsl}
 @group(0) @binding(${B.lights}) var<storage,read> directLights:DirectLights;
 @group(0) @binding(${B.queue}) var<storage,read> probeQueue:array<u32>;
 @group(0) @binding(${B.params}) var<uniform> cache:RadianceCacheParams;
 @group(0) @binding(${B.raw}) var ${out}:texture_storage_2d<${radianceRawFormat(light)},write>;
-${wgslConsts({ CACHE_TILE_SIDE, CACHE_FLAG_SKY: RADIANCE_CACHE_FLAGS.sky, CACHE_FLAG_TRACED: RADIANCE_CACHE_FLAGS.traced, CACHE_FLAG_LEAK: RADIANCE_CACHE_FLAGS.leak })}`
+${marks ? `@group(0) @binding(${CACHE_LIT_BINDINGS.marks}) var marksOut:texture_storage_2d<${CACHE_LIT_MARKS_FORMAT},write>;\n` : ''}${wgslConsts({ CACHE_TILE_SIDE, CACHE_FLAG_SKY: RADIANCE_CACHE_FLAGS.sky, CACHE_FLAG_TRACED: RADIANCE_CACHE_FLAGS.traced, CACHE_FLAG_LEAK: RADIANCE_CACHE_FLAGS.leak })}`
 
 /** The words of a raw texel: the light's, the distance word. */
-const cacheRawWord = (light: LightAtlasFormat) =>
+export const cacheRawWord = (light: LightAtlasFormat) =>
   lightWordsOf(light) === 1
     ? wgslFn(
         'cacheRawWord',
@@ -67,7 +74,7 @@ const marchMeanLight = wgslFn(
 )
 
 /** Where the ray of the tile `rank` of the list, at `local` in it, is in the trace atlas: the tiles in rows of `CACHE_TRACE_ATLAS_TILES`. */
-const TRACE_ATLAS_AT_WGSL = wgslBlock(
+export const TRACE_ATLAS_AT_WGSL = wgslBlock(
   'TRACE_ATLAS_AT_WGSL',
   [],
   `${wgslConsts({ CACHE_TRACE_ATLAS_TILES })}
@@ -78,7 +85,7 @@ fn traceAtlasAt(rank:u32,local:vec2u)->vec2u{
 
 /** The light of a ray of the trace through the scene's triangles, quantised as the trace atlas keeps it, dithered by a hash of its place in
  *  that atlas and of the image's turn. */
-const atlasRayLight = (light: LightAtlasFormat) =>
+export const atlasRayLight = (light: LightAtlasFormat) =>
   lightWordsOf(light) === 1
     ? wgslFn(
         'traceRayLight',
@@ -106,7 +113,7 @@ const splatMeanLight = (light: LightAtlasFormat) =>
  * `cache.traceTiles` tiles the atlas holds, from the tile the list's last cell names (`advanceSlice`): `rank` is the tile's place in the slice,
  * and a tile of another slice is left to its own pass.
  */
-const tileKernel = (
+export const tileKernel = (
   name: string,
   tail: string,
 ) => `@compute @workgroup_size(CACHE_TILE_SIDE,CACHE_TILE_SIDE)
@@ -130,16 +137,24 @@ fn ${name}(@builtin(workgroup_id) group:vec3u,@builtin(num_workgroups) groups:ve
 ${tail}
 }`
 
-/** The ray of a thread: its direction from the texel of its tile's level, cast as the probes' own rays are, the light of its hit, with its words. */
-const TRACE_RAY_WGSL = wgslBlock(
-  'TRACE_RAY_WGSL',
-  [CACHE_WORDS_WGSL, QUEUED_PROBE_WGSL],
-  `struct TileRay{seen:vec3f,word:u32,}
-/** The sky light that leaks onto a surface met \`distance\` metres along \`d\`: its reflection along the ray at the leaking roughness, times the share that leaks by channel and the share of the way to the distance it leaks whole at. */
-fn cacheSkyLeak(d:vec3f,distance:f32)->vec3f{
+/** The sky light that leaks onto a surface met `distance` metres along `d` (`cacheSkyLeak`): its reflection along the ray at the leaking roughness, times the share that leaks by channel and the share of the way to the distance it leaks whole at. */
+export const CACHE_SKY_LEAK_WGSL = wgslBlock(
+  'CACHE_SKY_LEAK_WGSL',
+  [],
+  `fn cacheSkyLeak(d:vec3f,distance:f32)->vec3f{
  if(!skyLightApplied()||all(cache.leak.xyz<=vec3f(0.0))){return vec3f(0.0);}
  return skyLightReflection(d,cache.leak.w)*cache.leak.xyz*saturate(distance*cache.leakDistance);
 }
+/** Whether the cache's rays cast through the triangles add the leaking sky light (the cache makes irradiance maps). */
+fn cacheLeaks()->bool{return (cache.flags&(CACHE_FLAG_TRACED|CACHE_FLAG_LEAK))==(CACHE_FLAG_TRACED|CACHE_FLAG_LEAK);}`,
+)
+
+/** The ray of a thread: its direction from the texel of its tile's level, cast as the probes' own rays are, the light of its hit, with its words; with `hitLit` a hit marked for the hit lighting's passes brings no light here, nor the sky light that leaks onto it. */
+const traceRayWgsl = (hitLit: boolean) =>
+  wgslBlock(
+    `TRACE_RAY_WGSL(${hitLit})`,
+    [CACHE_WORDS_WGSL, QUEUED_PROBE_WGSL, CACHE_SKY_LEAK_WGSL],
+    `struct TileRay{seen:vec3f,word:u32,}
 fn traceTileRay(queued:QueuedProbe,trace:u32,texel:vec2u,rank:u32,local:vec2u)->TileRay{
  let d=equalAreaDecode((vec2f(texel)+vec2f(0.5))/f32(trace));
  let begin=cacheMinTrace(queued.level);
@@ -147,13 +162,13 @@ fn traceTileRay(queued:QueuedProbe,trace:u32,texel:vec2u,rank:u32,local:vec2u)->
  let apart=(cache.flags&CACHE_FLAG_SKY)!=0u;
  let lit=select(ray.lighting+ray.open*skyProbeRadiance(d),ray.lighting,apart);
  // The rays cast through the triangles of a cache that makes irradiance maps add the sky light that leaks onto what they met (GetSkylightLeaking, RadianceCacheHardwareRayTracing.usf:306-309).
- let leaks=(cache.flags&(CACHE_FLAG_TRACED|CACHE_FLAG_LEAK))==(CACHE_FLAG_TRACED|CACHE_FLAG_LEAK);
+ let leaks=cacheLeaks()${hitLit ? '&&probeMark.x==0u' : ''};
  let light=lit+select(vec3f(0.0),cacheSkyLeak(d,ray.distance),leaks);
  let seen=traceRayLight(light*bounce.reach.z,rank,local);
  let word=cacheDepthWord(ray.distance,ray.open==0.0,select(0.0,ray.open,apart),ray.front,ray.twoSided);
  return TileRay(seen,word);
 }`,
-)
+  )
 
 /** The rays of a tile written to the raw atlas, the map at `base`: a tile of level zero writes its ray to the four texels it stands for, a
  *  tile of level one to one texel, a tile of level two the mean of four rays' light and the nearest of their distances. The rays are held
@@ -227,15 +242,20 @@ fn spreadTile(base:vec2u,at:vec2u,local:vec2u,trace:u32,lane:u32,seen:vec3f,word
  * trace atlas at the place of its tile in the list (`traceAtlasAt`), quantised as that atlas keeps it, dithered by a hash of that place and
  * the image's turn; `CACHE_SPLAT_PROGRAM` then spreads the trace atlas into the raw atlas by slot.
  */
-const traceProgram = (ray: WgslDecl, traced: boolean, light: LightAtlasFormat) =>
+const traceProgram = (ray: WgslDecl, traced: boolean, light: LightAtlasFormat, hitLit = false) =>
   wgslProgram(
-    `${traceDeclarations(traced ? 'traceOut' : 'rawOut', light)}
+    `${traceDeclarations(traced ? 'traceOut' : 'rawOut', light, hitLit)}
 ${tileKernel(
   'traceTiles',
   traced
     ? ` if(inside){
   let ray=traceTileRay(queued,trace,at*CACHE_TILE_SIDE+local,rank,local);
-  textureStore(traceOut,traceAtlasAt(rank,local),cacheRawWord(ray.seen,ray.word));
+  textureStore(traceOut,traceAtlasAt(rank,local),cacheRawWord(ray.seen,ray.word));${
+    hitLit
+      ? `
+  textureStore(marksOut,traceAtlasAt(rank,local),vec4u(probeMark,tile.x,tile.y));`
+      : ''
+  }
  }`
     : ` var ray=TileRay(vec3f(0.0),0u);
  if(inside){ray=traceTileRay(queued,trace,at*CACHE_TILE_SIDE+local,rank,local);}
@@ -251,7 +271,7 @@ ${tileKernel(
       CACHE_WORDS_WGSL,
       cacheTileList(B.tiles, false),
       cacheRawWord(light),
-      TRACE_RAY_WGSL,
+      traceRayWgsl(hitLit),
       ...(traced
         ? [TRACE_ATLAS_AT_WGSL, atlasRayLight(light)]
         : [marchRayLight, marchMeanLight, tileSpreadWgsl(light)]),
@@ -262,9 +282,18 @@ ${tileKernel(
 export const cacheTraceProgramOf = (light: LightAtlasFormat) =>
   traceProgram(probeRayWgsl(CACHE_TRACE_HIT, light), false, light)
 
-/** The trace cast through the scene's triangles, the surface cache's final light read in the format `light`. */
-export const cacheTracedProgramOf = (light: LightAtlasFormat) =>
-  traceProgram(probeRayTracedWgsl(CACHE_TRACED_HIT, CACHE_TRACED_SCENE, light), true, light)
+/** The trace cast through the scene's triangles, the surface cache's final light read in the format `light`; with `hitLit` the hits are marked in a second texture for the hit lighting's passes (`cacheHitLitWgsl.ts`) in place of being lit from the cards. */
+export const cacheTracedProgramOf = (
+  light: LightAtlasFormat,
+  programs: SceneMaskPrograms = NO_SCENE_MASKS,
+  hitLit = false,
+) =>
+  traceProgram(
+    probeRayTracedWgsl(CACHE_TRACED_HIT, CACHE_TRACED_SCENE, light, programs, hitLit),
+    true,
+    light,
+    hitLit,
+  )
 
 /**
  * THE SPREAD OF THE TRACE ATLAS (`spreadTiles`) into the raw atlas, after the trace through the scene's triangles: a workgroup a tile of the list, a thread a

@@ -32,9 +32,12 @@ import { REFLECTION_SURFACES_WGSL } from './surfacesWgsl.ts'
 export const REFLECTION_REACH_WGSL = wgslBlock(
   'REFLECTION_REACH_WGSL',
   [REFLECTION_CONSTANTS_WGSL, pixelModelOf],
-  `fn reflectionTraceShare(alpha:f32,flags:u32)->f32{
- let foliage=(flags&${SUBSURFACE_FLAG}u)!=0u||pixelModelOf(flags)==${PIXEL_MODEL.subsurface}u;
- let most=select(reflectionView.lobe.x,reflectionView.reach.z,foliage);
+  `// Whether a pixel of surface flags 'flags' is foliage: the thin transmission, or the subsurface model.
+fn reflectionFoliage(flags:u32)->bool{
+ return (flags&${SUBSURFACE_FLAG}u)!=0u||pixelModelOf(flags)==${PIXEL_MODEL.subsurface}u;
+}
+fn reflectionTraceShare(alpha:f32,flags:u32)->f32{
+ let most=select(reflectionView.lobe.x,reflectionView.reach.z,reflectionFoliage(flags));
  return saturate((most-sqrt(alpha))/reflectionView.lobe.y);
 }`,
 )

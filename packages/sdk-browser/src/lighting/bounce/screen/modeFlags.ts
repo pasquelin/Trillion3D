@@ -44,6 +44,10 @@ export interface ScreenProbeImage {
   /** The rays the screen left are cast through the scene's triangles this image (`TracedSceneGroups`), the scene trace the lighting made for it
    *  (`SceneRays`) held, not marched through the global distance field. */
   rays?: SceneRays
+  /** The mode word of the hit lighting (`hitLightWord`) that lights those rays' hits where they stand, in place of the cards' light: none (zero) where the rays are lit from the cards. */
+  hitLight?: number
+  /** The exposure the CPU knows for this view's image (`PreExposure.exposure`), which the hit lighting's lights are strengthened under (1 when absent). */
+  exposure?: number
 }
 
 /** The mode word's flags of an image at `settings`: each bit its meaning (`SCREEN_PROBE_FLAGS`). */

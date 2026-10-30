@@ -36,7 +36,7 @@ function run(stochastic: boolean) {
     traced: {
       kernels: kernels,
       buffers: { masks: {}, traces: {} },
-      sceneTrace: {},
+      sceneTrace: { maskReads: { color: { views: [], pages: { buffer: {} } }, sampler: {} } },
       views: {},
     },
     stochastic: stochastic

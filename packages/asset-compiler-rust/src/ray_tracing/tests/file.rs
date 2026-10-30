@@ -3,7 +3,9 @@
 use super::cluster;
 use crate::ray_tracing::abi::*;
 use crate::ray_tracing::encode::{encode, report};
-use crate::ray_tracing::tree::{material_flags, primitive_tree, PrimitiveTree, Traced};
+use crate::ray_tracing::tree::{
+    material_flags, primitive_tree, unreachable_sets, PrimitiveTree, Traced,
+};
 use crate::support::le::u32_at;
 use serde_json::json;
 
@@ -85,6 +87,43 @@ fn a_material_sets_the_flags() {
     assert_eq!(material_flags(Some(&masked), false), both);
     assert_eq!(material_flags(None, true), RAY_TRACING_FLAG_TRANSLUCENT);
     assert_eq!(material_flags(Some(&json!({})), false), 0);
+}
+
+#[test]
+fn a_masked_material_names_the_set_its_base_map_is_read_at() {
+    let set = |alpha: &str, tex_coord: u64| {
+        let material = json!({"alphaMode": alpha, "pbrMetallicRoughness": {"baseColorTexture": {"index": 0, "texCoord": tex_coord}}});
+        material_flags(Some(&material), false) & RAY_TRACING_FLAG_MASK_SET
+    };
+    assert_eq!(set("MASK", 3), 3 << RAY_TRACING_FLAG_MASK_SET_SHIFT);
+    assert_eq!(set("MASK", 0), 0);
+    assert_eq!(set("MASK", 7), 7 << RAY_TRACING_FLAG_MASK_SET_SHIFT);
+    assert_eq!(set("OPAQUE", 3), 0);
+    // The transform extension's coordinate set wins, as the raster samples it.
+    let moved = json!({"alphaMode": "MASK", "pbrMetallicRoughness": {"baseColorTexture": {"index": 0, "texCoord": 0, "extensions": {"KHR_texture_transform": {"texCoord": 2}}}}});
+    assert_eq!(
+        material_flags(Some(&moved), false) & RAY_TRACING_FLAG_MASK_SET,
+        2 << RAY_TRACING_FLAG_MASK_SET_SHIFT
+    );
+}
+
+#[test]
+fn a_masked_material_past_the_eighth_texture_set_cuts_by_the_first_and_is_told_by_name() {
+    let material = |alpha: &str| json!({"name": "leaf", "alphaMode": alpha, "pbrMetallicRoughness": {"baseColorTexture": {"index": 0, "texCoord": 8}}});
+    let flags = material_flags(Some(&material("MASK")), false);
+    assert_eq!(flags & RAY_TRACING_FLAG_MASK_SET, 0);
+    assert_ne!(flags & RAY_TRACING_FLAG_MASKED, 0);
+    let told = unreachable_sets(&[material("OPAQUE"), material("MASK")]);
+    assert_eq!(
+        told.len(),
+        1,
+        "a surface that is not masked never reads its set for a ray"
+    );
+    assert_eq!(told[0]["code"], "RAY_TRACING_TEXCOORD_OUT_OF_RANGE");
+    assert_eq!(told[0]["material"], 1);
+    assert!(told[0]["message"].as_str().unwrap().contains("leaf"));
+    let seventh = json!({"alphaMode": "MASK", "pbrMetallicRoughness": {"baseColorTexture": {"index": 0, "texCoord": 7}}});
+    assert!(unreachable_sets(&[seventh]).is_empty());
 }
 
 /// The flags each record of the file of the primitives `named` (mesh, primitive, flags), one

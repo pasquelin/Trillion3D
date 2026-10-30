@@ -12,7 +12,12 @@ import { skyLightReadLayoutEntries } from '../../../modules/sky/skyLight/read.ts
 import { cloudShadowLayoutEntries } from '../../atmosphere/cloudShadowRead.ts'
 import { globalReadLayoutEntries } from '../../distanceField/view.ts'
 import { lightFunctionLayoutEntry } from '../../lightFunction/bindings.ts'
-import { sceneTraceLayoutEntries } from '../../rays/sceneTrace/sceneTraceWgsl.ts'
+import {
+  oncePerDeviceOverPrograms,
+  sceneMaskKey,
+  type SceneMaskPrograms,
+} from '../../rays/sceneTrace/sceneMaskPrograms.ts'
+import { sceneMaskedLayoutEntries } from '../../rays/sceneTrace/sceneMaskWgsl.ts'
 import { surfaceCacheReadLayoutEntries } from '../sampleWgsl.ts'
 import { COMBINE_BINDINGS, COMBINE_ENTRIES, combineWgsl } from './combineWgsl.ts'
 import {
@@ -96,9 +101,8 @@ import {
   SHADOW_ARGS_WGSL,
   SHADOW_TRACE_BINDINGS,
   SHADOW_TRACE_ENTRY,
-  SHADOW_TRACE_COLOURED_WGSL,
   SHADOW_TRACE_SCENE,
-  SHADOW_TRACE_WGSL,
+  shadowTraceProgram,
 } from './shadowTraceWgsl.ts'
 import {
   RADIOSITY_TRACE_BINDINGS,
@@ -383,12 +387,6 @@ const shadowArgsKernel = oncePerDevice((device: GPUDevice) => {
   )
 })
 
-/** The trace over masks in the grey format, and in the colour one. */
-const TRACE_PROGRAMS = {
-  grey: SHADOW_TRACE_WGSL,
-  colour: SHADOW_TRACE_COLOURED_WGSL,
-} as const satisfies Record<AtlasFormat, string>
-
 /** The masks' program over masks in `format`, and the arguments of the traces' dispatch it lists: what every shadow pass starts with, made once for the device and the format. */
 const maskKernelsOf = {
   grey: oncePerDevice((device: GPUDevice) => makeMaskKernels(device, 'grey')),
@@ -435,32 +433,28 @@ function traceAnswerEntries() {
   ]
 }
 
-function shadowKernels(device: GPUDevice, format: AtlasFormat) {
+function shadowKernels(device: GPUDevice, format: AtlasFormat, programs: SceneMaskPrograms) {
   return {
     ...maskKernels(device, format),
     shadowTrace: createKernel(
       device,
-      'shadow trace',
-      TRACE_PROGRAMS[format],
+      `shadow trace ${format}|${sceneMaskKey(programs)}`,
+      shadowTraceProgram(format, programs),
       [SHADOW_TRACE_ENTRY],
       [...traceAnswerEntries(), ...dagReadLayoutEntries()],
-      { layouts: [sceneTraceLayoutEntries(SHADOW_TRACE_SCENE.first)] },
+      { layouts: [sceneMaskedLayoutEntries(SHADOW_TRACE_SCENE.first)] },
     ),
   }
 }
 
-const tracedShadowKernelsOf = {
-  grey: oncePerDevice((device: GPUDevice) => shadowKernels(device, 'grey')),
-  colour: oncePerDevice((device: GPUDevice) => shadowKernels(device, 'colour')),
-}
-
 /**
- * The traced shadows' programs, made once for the device and the format of the masks, when a scene has acceleration structures
+ * The traced shadows' programs, made once for the device, the format of the masks and the set of graph masks the rays cut by, when a scene has acceleration structures
  * and its shadows are traced: the masks, the arguments of the trace's dispatch, and the trace, whose second group is the
- * scene trace's (`sceneTraceLayoutEntries`), its first the cut's tables beside its own.
+ * scene trace's (`sceneMaskedLayoutEntries`), its first the cut's tables beside its own.
  */
-export const tracedShadowKernels = (device: GPUDevice, format: AtlasFormat) =>
-  tracedShadowKernelsOf[format](device)
+export const tracedShadowKernels = oncePerDeviceOverPrograms(
+  (device: GPUDevice, format: AtlasFormat, programs) => shadowKernels(device, format, programs),
+)
 
 /** The bindings of a pass over the light tiles that settles their masks: the tables, the light tiles' counters, the depth and normal layers, the light tiles, the masks and the lights. */
 function fieldTileEntries() {
@@ -522,14 +516,14 @@ export const fieldShadowMeshKernel = (device: GPUDevice, format: AtlasFormat) =>
 
 /** The radiosity's program that casts its rays through the scene's triangles, made once for the device and the format of the light when a scene has
  *  acceleration structures and its radiosity is traced, laid out as the traced shadows' trace is. */
-export const tracedRadiosityKernels = oncePerDeviceKey(
-  (device: GPUDevice, light: LightAtlasFormat) => {
+export const tracedRadiosityKernels = oncePerDeviceOverPrograms(
+  (device: GPUDevice, light: LightAtlasFormat, programs) => {
     const R = RADIOSITY_TRACED_BINDINGS
     return {
       radiosityTraced: createKernel(
         device,
-        'radiosity trace through triangles',
-        radiosityTracedProgramOf(light),
+        `radiosity trace through triangles ${light}|${sceneMaskKey(programs)}`,
+        radiosityTracedProgramOf(light, programs),
         [RADIOSITY_TRACE_ENTRY],
         [
           ...cardLayoutEntries(R.tables, RADIOSITY_TRACED_UNREAD, light),
@@ -542,7 +536,7 @@ export const tracedRadiosityKernels = oncePerDeviceKey(
           writes(R.hits, 'r32float'),
           ...dagReadLayoutEntries(),
         ],
-        { layouts: [sceneTraceLayoutEntries(RADIOSITY_TRACED_SCENE.first)] },
+        { layouts: [sceneMaskedLayoutEntries(RADIOSITY_TRACED_SCENE.first)] },
       ),
     }
   },

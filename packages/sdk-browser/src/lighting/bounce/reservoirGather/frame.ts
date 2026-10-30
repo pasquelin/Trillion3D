@@ -1,4 +1,5 @@
 import { invertMatrix4 } from '../../../../../math/src/matrix/matrix4Inverse.ts'
+import { isPending, isReady } from '../../rays/sceneTrace/sceneMaskHold.ts'
 import type { ScreenProbeSettings } from '../../../../../sdk-core/src/bounce/screenProbeOptions.ts'
 import type { WebgpuPagesRuntime } from '../../../frame/backend/runtime.ts'
 import { NEVER_SEEN } from '../../../frame/backend/state/previousCamera.ts'
@@ -25,7 +26,7 @@ import { screenProbeSettingsOf } from '../screen/settingsOf.ts'
 import { TRACE_TRACED_HIT, TRACE_TRACED_SCENE } from '../screen/traceTracedWgsl.ts'
 import { RESERVOIR_BINDINGS } from './commonWgsl.ts'
 import { IMAGE_ENTRIES } from './imageWgsl.ts'
-import { imageKernel, resampleKernel, traceKernel } from './kernels.ts'
+import { imageKernel, resampleKernel, traceKernel, traceMaker } from './kernels.ts'
 import {
   createParamBlock,
   PARAM_SLOT,
@@ -267,11 +268,18 @@ export function encodeReservoirGather(
   const rays = sceneRaysOf(rt.surfaceCache?.lighting, rt.run.frame)
   const noise = blueNoiseNow(device)
   const light = surfaceCacheLightOf(rt, device)
-  const trace = traceKernel(device, light)
+  // The kernels that do not depend on the scene trace compile from the first image, whatever the guard below holds back.
   const resample = resampleKernel(device)
   const pixels = imageKernel(device)
   if (!surfaces || !reflection || !reflectionGroup || !rays || !noise) return
-  if (!trace.ready || !resample.ready || !pixels.ready) return
+  const trace = rays.sceneTrace.maskHold.use(
+    'reservoir gather',
+    light,
+    traceMaker(device, light),
+    isReady,
+    isPending,
+  )?.kernel
+  if (!trace?.ready || !resample.ready || !pixels.ready) return
   const resources = reservoirResourcesOf(rt, device, state, values.reservoirGatherDownsampleFactor)
   if (!resources) return
 

@@ -13,8 +13,8 @@ import { ledgerAdmitted } from '../../gpu/core/deviceLedger.ts'
 import { volumeTablesBytes, type PathTracingGpu } from './gpuState.ts'
 import type { PathTracingPipelines } from './pipelines.ts'
 
-/** The sampled textures the finish of a bounce binds where the clouds are traced, as its layout counts them (the cut's four, the air's depth table, the light grid's two, the sky's two, the cloud material's five and the acceleration map). A device that grants fewer (`maxSampledTexturesPerShaderStage`; the engine asks for more where the adapter offers them) traces no clouds. */
-export const PT_CLOUD_FINISH_TEXTURES = 15
+/** The sampled textures the finish of a bounce binds where the clouds are traced, as its layout counts them (the cut's four, the scene trace's four, the air's depth table, the light grid's two, the sky's two, the cloud material's five and the acceleration map). A device that grants fewer (`maxSampledTexturesPerShaderStage`; the engine asks for more where the adapter offers them) traces no clouds. */
+export const PT_CLOUD_FINISH_TEXTURES = 19
 
 /** Whether the device binds the textures the finish takes where the clouds are traced. */
 export const grantsPathTracedClouds = (device: GPUDevice) =>

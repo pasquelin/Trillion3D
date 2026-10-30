@@ -43,16 +43,21 @@ test('a hit is read as the reference reads it: only a stopped trace that held no
     /out\.radiance=tracedHitLight\(hit,origin,d,side,sp\.tracedHit\.x,sp\.tracedHit\.y,vec2u\(0u\)\);/,
   )
   // The hit's read is the text the world probes' rays share: a near or back-face hit brings nothing, the cards of the placement met give the light.
+  // The hit's light hands the hit to the cards' read (`tracedCardLight`, shared with the scene view's traced rays), coarse pages.
   const light = PROGRAM.match(/fn tracedHitLight\([\s\S]*?\n\}/)![0]
   assert.match(
     light,
-    /if\(\(!hit\.frontFace&&!hit\.twoSided\)\|\|hitCm<nearest\)\{return vec3f\(0\.0\);\}/,
+    /return tracedCardLight\(hit\.object,hit\.frontFace,hit\.twoSided,hitCm,origin\*f32\(BOUNCE_CM\)\+d\*hitCm,hit\.normal,scConeTangent\(side\)\*hitCm,depthBias,nearest,false,coord\)\.radiance;/,
+  )
+  const cards = PROGRAM.match(/fn tracedCardLight\([\s\S]*?\n\}/)![0]
+  assert.match(
+    cards,
+    /if\(\(!frontFace&&!twoSided\)\|\|hitCm<nearest\)\{return ScHit\(vec3f\(0\.0\),false\);\}/,
   )
   assert.match(
-    light,
-    /scEvaluateMeshCards\(placement,origin\*f32\(BOUNCE_CM\)\+d\*hitCm,hit\.normal,scConeTangent\(side\)\*hitCm,depthBias,false,coord\)/,
+    cards,
+    /return scEvaluateMeshCards\(scPlacementMeshCards\(scHitPlacement\(object\)\),world,normal,radius,depthBias,hiRes,coord\);/,
   )
-  assert.match(light, /scPlacementMeshCards\(scHitPlacement\(hit\.object\)\)/)
 })
 
 test('a hit writes its light dithered by the tile’s blue noise and its distance held to the furthest a ray looks; a miss leaves the ray to the radiance cache, its light untouched', () => {

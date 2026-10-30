@@ -14,7 +14,6 @@ import {
 } from '../../../geometry/dag/frameTable.ts'
 import {
   carriedBounds,
-  placement,
   poseOf,
   referenceSphereRadius,
 } from '../../../geometry/dag/shader/drawDistance.fixture.ts'

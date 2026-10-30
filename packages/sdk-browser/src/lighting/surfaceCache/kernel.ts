@@ -8,6 +8,8 @@ export interface Kernel<E extends string> {
   /** The compiled pipeline of `entry`: read once `ready`. */
   pipeline(entry: E): GPUComputePipeline
   readonly ready: boolean
+  /** Whether a compile of it is in flight. */
+  readonly pending: boolean
   /**
    * The bind group `at` (0 the kernel's own, then those of `layouts` of `createKernel`) of the resources `identity`
    * lists, `entries` what it is made of where one of them moved.
@@ -65,6 +67,9 @@ export function createKernel<E extends string>(
     },
     get ready() {
       return stages.ready
+    },
+    get pending() {
+      return stages.pending
     },
     group(identity, entries, at = 0) {
       const identities = bound[at]

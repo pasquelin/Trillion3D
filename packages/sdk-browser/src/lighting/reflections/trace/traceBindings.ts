@@ -2,6 +2,7 @@ import {
   computeBufferEntry,
   computeStorageTextureEntry,
   computeTextureEntry,
+  computeUniformEntry,
 } from '../../../gpu/core/computeBindings.ts'
 import { globalDistanceFieldTraceWgsl } from '../../distanceField/globalTraceWgsl.ts'
 import {
@@ -13,7 +14,9 @@ import {
 import { dagReadLayoutEntries } from '../../../geometry/dag/shader/bindings.ts'
 import { oncePerDevice, oncePerDeviceKey } from '../../../gpu/core/oncePerDevice.ts'
 import { WORD_LIGHT_FORMAT, type LightAtlasFormat } from '../../../gpu/core/lightAtlasFormat.ts'
+import { sceneMaskedLayoutEntries } from '../../rays/sceneTrace/sceneMaskWgsl.ts'
 import { sceneTraceLayoutEntries } from '../../rays/sceneTrace/sceneTraceWgsl.ts'
+import { VISUALIZE_MODE } from '../../surfaceCache/visualizeModes.ts'
 import { HDR_FORMAT } from '../../../scene/targetFormats.ts'
 import { BLUE_NOISE_FORMAT } from '../../../gpu/noise/blueNoiseTextures.ts'
 import { FRONT_TRACED_FORMAT } from '../frontLayer.ts'
@@ -25,6 +28,8 @@ import {
 } from '../grids.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { REFLECTION_SIDE } from '../constants.ts'
+import { lightFunctionLayoutEntry } from '../../lightFunction/bindings.ts'
+import { lightProfileLayoutEntries } from '../../lightProfile/profileBindings.ts'
 import { rayFogLayoutEntries, type RayFogBindings } from '../rayFog.ts'
 import { listWgsl } from '../../../gpu/dispatch/list.ts'
 
@@ -61,7 +66,7 @@ export const REFLECTION_LAYER_WGSL = wgslBlock('REFLECTION_LAYER_WGSL', [], '')
  */
 export const REFLECTION_TRACE_BINDINGS = {
   flags: 0,
-  // Not 1: the cut's tables the scene trace reads sit at the culling's bindings, 1, 6, 7 and 9 (`REFLECTION_HARDWARE_SCENE`).
+  // Not 1: the cut's tables the scene trace reads sit at the culling's bindings, 1, 6, 7 and 9 (`hardwareHitLayout`).
   normals: 58,
   lobes: 2,
   lights: 3,
@@ -95,6 +100,15 @@ export const REFLECTION_TRACE_BINDINGS = {
   fogCubemap: 59,
   fogSampler: 60,
   pendingMesh: 61,
+  hits: 62,
+  // The hit lighting's lists (`hitLighting/`): the compacted traces and their count, the sorted ones, the radiance of the first pass.
+  litList: 63,
+  litSorted: 64,
+  litRadiance: 65,
+  // What the first pass reads of the lights beside the lights' buffer: the light functions' atlas (read as a storage texture, spending none of the stage's sampled textures) and the light profiles' atlas with its sampler.
+  litFunction: 66,
+  litProfile: 67,
+  litProfileSampler: 68,
 } as const
 
 const B = REFLECTION_TRACE_BINDINGS
@@ -118,6 +132,12 @@ export const REFLECTION_HIT_BINDINGS: SurfaceHitBindings = {
   cards: B.cards,
   instances: B.instances,
   feedback: true,
+}
+
+/** Where the hit lighting's finishing pass reads the surface cache: the same bindings, the indirect light's layer in place of the final one (`hitLighting/`). */
+export const REFLECTION_INDIRECT_BINDINGS: SurfaceHitBindings = {
+  ...REFLECTION_HIT_BINDINGS,
+  visualize: VISUALIZE_MODE.indirectLighting,
 }
 
 /** The hit's read the scene stage's rays end in (`scGlobalHit`), over the group's bindings, the cache's final light stored in `light`. */
@@ -308,12 +328,26 @@ fn reflectionTileOrigin(t:u32)->vec2u{return vec2u(t&0xffffu,t>>16u)*${REFLECTIO
 )
 
 /** The scene trace's group and its first binding in it, in the scene stage that casts its rays through the scene's triangles
- *  (`../sceneTraceHardware.ts`): the cut's tables it traces beside are at the culling's bindings of group 0 (1, 6, 7 and 9). */
+ *  (`../sceneTraceHardware.ts`). */
 export const REFLECTION_HARDWARE_SCENE = { group: 2, first: 0 } as const
 
 /** The layout of group 0 of the scene stage that casts its rays through the scene's triangles, once a device: the scene stage's less the
- *  global field and its object grid (the rays are not marched), with the cut's tables and what a hit reads of the surface cache. */
+ *  global field and its object grid (the rays are not marched) nor the cut's tables (the trace kept the triangles, `hardwareHitLayout`),
+ *  with what a hit reads of the surface cache. */
 const hardwareSceneLayoutOf = oncePerDeviceKey((device: GPUDevice, light: LightAtlasFormat) =>
+  hardwareAnswerLayout(device, light, REFLECTION_HIT_BINDINGS, [
+    computeBufferEntry(B.pendingIn, 'read-only-storage'),
+    computeBufferEntry(B.hits, 'storage'),
+  ]),
+)
+
+/** The layout of the answer over the cards bindings `cards` (the final light, or the indirect light of the hit lighting's finishing pass) with the buffers `extra` past the hits. */
+export const hardwareAnswerLayout = (
+  device: GPUDevice,
+  light: LightAtlasFormat,
+  cards: SurfaceHitBindings,
+  extra: GPUBindGroupLayoutEntry[],
+) =>
   device.createBindGroupLayout({
     label: 'Trillion3D reflection scene trace',
     entries: [
@@ -321,13 +355,12 @@ const hardwareSceneLayoutOf = oncePerDeviceKey((device: GPUDevice, light: LightA
       ...field(),
       ...fog(),
       ...past(true),
-      ...dagReadLayoutEntries(),
-      ...surfaceHitCardsLayoutEntries(REFLECTION_HIT_BINDINGS, light),
+      ...surfaceHitCardsLayoutEntries(cards, light),
       computeStorageTextureEntry(B.traceOut, REFLECTION_GRID_FORMAT),
-      computeBufferEntry(B.pendingIn, 'read-only-storage'),
+      // The triangles the trace kept (`hardwareHitLayout`), which this answer reads, then what else the pass reads.
+      ...extra,
     ],
-  }),
-)
+  })
 
 /** The layout of group 0 of the scene stage that casts its rays through the scene's triangles, once a device and a format of the cache's final light. */
 export const hardwareSceneLayout = (
@@ -335,10 +368,69 @@ export const hardwareSceneLayout = (
   light: LightAtlasFormat = WORD_LIGHT_FORMAT,
 ) => hardwareSceneLayoutOf(device, light)
 
-/** The layout of the scene trace's own group (`REFLECTION_HARDWARE_SCENE`), once a device. */
+/** The layout of the scene trace's own group (`REFLECTION_HARDWARE_SCENE`) in the answer, once a device: the trace's resources alone, the answer casting no ray (`stParams` only), the stage's group 0 and the reflection group holding sixteen sampled textures already. */
 export const hardwareTraceLayout = oncePerDevice((device: GPUDevice) =>
   device.createBindGroupLayout({
     label: 'Trillion3D reflection scene trace triangles',
     entries: sceneTraceLayoutEntries(REFLECTION_HARDWARE_SCENE.first),
+  }),
+)
+
+/** The layout of group 0 of the trace that casts the scene stage's rays through the scene's triangles (`hardwareReflectionKernels`, the kernel `traceSceneHit`), once a device: the surface's pixels and its rays, the lights, the cut's tables, the list of
+ *  the rays the screen missed and the buffer the triangles they meet are kept in. It holds neither the cache nor the fog's cubemap, so that the any-hit test's colour atlas fits beside the cut's tables in the stage's sixteen sampled textures. */
+export const hardwareHitLayout = oncePerDevice((device: GPUDevice) =>
+  device.createBindGroupLayout({
+    label: 'Trillion3D reflection scene trace hits',
+    entries: [
+      ...surface(rays(), false),
+      ...field(),
+      ...dagReadLayoutEntries(),
+      computeBufferEntry(B.pendingIn, 'read-only-storage'),
+      computeBufferEntry(B.hits, 'storage'),
+    ],
+  }),
+)
+
+/** The layout of group 0 of the hit lighting's first pass (`litDirect`): the trace's (`hardwareHitLayout`) less the list of the rays missed (the pass runs over the list of the traces to light, which it adds, with its sorted copy and the radiance it writes): eight storage buffers with the scene trace's three, then the light functions' atlas and the light profiles' (`litFunction`, `litProfile`). The sixteenth sampled texture of the stage is the profiles' atlas: the pass binds the reflection group without the lit image (`reflectionHitLayout`). */
+export const hardwareLitLayout = oncePerDevice((device: GPUDevice) =>
+  device.createBindGroupLayout({
+    label: 'Trillion3D reflection hit lighting direct',
+    entries: [
+      ...surface(rays(), false),
+      ...field(),
+      ...dagReadLayoutEntries(),
+      computeBufferEntry(B.hits, 'storage'),
+      computeBufferEntry(B.litList, 'read-only-storage'),
+      computeBufferEntry(B.litSorted, 'read-only-storage'),
+      computeBufferEntry(B.litRadiance, 'storage'),
+      lightFunctionLayoutEntry(B.litFunction, undefined, true),
+      ...lightProfileLayoutEntries({ atlas: B.litProfile, sampler: B.litProfileSampler }),
+    ],
+  }),
+)
+
+/** The layout of group 0 of the hit lighting's second pass (`litFinish`): the answer's, over the indirect light of the cache, less the list of the rays missed, with the hits, the lists and the first pass's radiance read: eight storage buffers, the scene trace's group (`hardwareFinishSceneLayout`) holding none. */
+export const hardwareFinishLayout = oncePerDeviceKey((device: GPUDevice, light: LightAtlasFormat) =>
+  hardwareAnswerLayout(device, light, REFLECTION_INDIRECT_BINDINGS, [
+    computeBufferEntry(B.hits, 'storage'),
+    computeBufferEntry(B.litList, 'read-only-storage'),
+    computeBufferEntry(B.litSorted, 'read-only-storage'),
+    computeBufferEntry(B.litRadiance, 'read-only-storage'),
+  ]),
+)
+
+/** The layout of the scene trace's own group (`REFLECTION_HARDWARE_SCENE`) in the trace of the rays (`hardwareHitLayout`): the trace and its any-hit test (`sceneMaskWgsl.ts`). */
+export const hardwareMaskedTraceLayout = oncePerDevice((device: GPUDevice) =>
+  device.createBindGroupLayout({
+    label: 'Trillion3D reflection scene trace triangles masked',
+    entries: sceneMaskedLayoutEntries(REFLECTION_HARDWARE_SCENE.first),
+  }),
+)
+
+/** The layout of the scene trace's own group (`REFLECTION_HARDWARE_SCENE`) in the hit lighting's second pass, once a device: the trace's parameters alone, the pass casting no ray (its group 0 holds eight storage buffers already). */
+export const hardwareFinishSceneLayout = oncePerDevice((device: GPUDevice) =>
+  device.createBindGroupLayout({
+    label: 'Trillion3D reflection hit lighting finish scene',
+    entries: [computeUniformEntry(REFLECTION_HARDWARE_SCENE.first)],
   }),
 )

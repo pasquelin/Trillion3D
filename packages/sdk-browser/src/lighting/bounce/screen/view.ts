@@ -2,6 +2,7 @@ import type { ScreenProbeSettings } from '../../../../../sdk-core/src/bounce/scr
 import { ledgerAdmitted } from '../../../gpu/core/deviceLedger.ts'
 import { retire } from '../../../gpu/core/frameRetire.ts'
 import { gpuAllocator } from '../../../gpu/core/resourceAllocator.ts'
+import type { LitListResources } from '../../reflections/hitLighting/listPasses.ts'
 import { createScreenProbeGroups } from './groups.ts'
 import type { PassRanks } from './groupParts.ts'
 import type { ScreenProbeKernels } from './kernels.ts'
@@ -52,7 +53,9 @@ export interface ScreenProbeView {
   indirect: GPUTextureView | undefined
   /** The short-range global illumination the temporal pass wrote this image, which the lighting adds to the probes' light; none where the level gathers none. */
   shortRangeGi: GPUTextureView | undefined
-  /** Bytes the resources hold. */
+  /** The hit lighting's lists and radiance (`hitLitStage.ts`), made on the first image that lights the rays' hits where they stand and sized for every ray of the view; none before, and none while the option is off or refused. */
+  hitLit?: LitListResources
+  /** Bytes the resources hold, the hit lighting's included. */
   readonly bytes: number
   /** Gives the resources back, destroyed once the image that names them is submitted (`retire`). */
   dispose(): void
@@ -109,7 +112,7 @@ function makeView(
   const allocator = gpuAllocator(device, 'Trillion3D screen probes')
   const resources = createScreenProbeResources(allocator, capacity, settings)
   device.queue.writeBuffer(resources.listHead, 0, new Uint32Array([0, 0, 1, 0]))
-  const bytes = allocator.bytes()
+  const base = allocator.bytes()
   const view: ScreenProbeView = {
     key: settingsKeyOf(settings),
     size,
@@ -123,10 +126,13 @@ function makeView(
     previousInverse: new Float64Array(16),
     indirect: undefined,
     shortRangeGi: undefined,
-    bytes,
+    get bytes() {
+      return base + (view.hitLit?.bytes ?? 0)
+    },
     dispose() {
       retire(device, allocator)
       if (view.ranks) retire(device, view.ranks)
+      view.hitLit?.dispose()
     },
   }
   return view

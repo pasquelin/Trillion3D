@@ -1,5 +1,5 @@
 import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
-import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { wgslBlock, wgslFn } from '../../../../../math/src/wgsl/decl.ts'
 import { NO_INDEX } from '../../../../../math/src/wgsl/constants.ts'
 import {
   faceNormal,
@@ -12,7 +12,9 @@ import {
 import { pow2FromExponent } from '../../../../../math/src/wgsl/integer.ts'
 import { inverseTranspose3, unitOrZero } from '../../../../../math/src/wgsl/inverseTranspose.ts'
 import {
+  RAY_TRACING_FLAG_ACTOR,
   RAY_TRACING_FLAG_ALL_TRANSLUCENT,
+  RAY_TRACING_FLAG_SKY,
   RAY_TRACING_FLAG_TRANSLUCENT,
   RAY_TRACING_FLAG_TWO_SIDED,
   RAY_TRACING_LEAF_COUNT_SHIFT,
@@ -77,7 +79,7 @@ const SCENE_TRACE_CELL_OBJECT_MASK = 0x7fffffff
  * each placement, nonzero for one left out of the image): its mode, its switches (`SCENE_CULL_FLAGS`), the
  * direction the view looks along and the scale of the instances' draw distances, and whether the translucent primitives of a mesh that has
  * an opaque one are left out of the rays that ask it (`ST_SKIP_TRANSLUCENT`; `skipsTranslucentSections`, one by default), and where in the table the
- * placements' material words begin (`materialWord`, `TRACED_MATERIAL_WORDS` a placement, which the traced translucency reads a hit's material from).
+ * placements' material words begin (`materialWord`, `TRACED_MATERIAL_WORDS` a placement, which the traced translucency reads a hit's material from), where in the geometry the triangles begin (`triangleBase`, in `vec4u`), and where in the table the corners' attributes, their cutout coordinates and the material words of the HLOD actors begin (`cornerWord`, `maskWord`, `actorWord`, `TRACED_MATERIAL_WORDS` for each rank an actor's record names).
  */
 export const SCENE_TRACE_PARAMS = fieldLayout('StParams', [
   ['eyeXY', 'vec4u'],
@@ -99,7 +101,12 @@ export const SCENE_TRACE_PARAMS = fieldLayout('StParams', [
   ['viewDirection', 'vec3f'],
   ['viewDistanceScale', 'f32'],
   ['skipsTranslucentSections', 'u32'],
+  ['excludesSky', 'u32'],
   ['materialWord', 'u32'],
+  ['triangleBase', 'u32'],
+  ['cornerWord', 'u32'],
+  ['maskWord', 'u32'],
+  ['actorWord', 'u32'],
 ] as const)
 
 /** The parameters' uniform `stParams` at binding `binding` of group `group`: what the trace and the culling pass share. */
@@ -109,13 +116,13 @@ export const sceneTraceParamsWgsl = (group: number, binding: number) =>
     [],
     `${SCENE_TRACE_PARAMS.wgsl}
 @group(${group}) @binding(${binding}) var<uniform> stParams:StParams;
-/** The eye's z words as the world at the eye takes its second operand (\`worldAtEyeWgsl\`): the x and y words are \`stParams.eyeXY\`. */
+/** The eye's z words as the world at the eye takes its second operand (worldAtEyeWgsl): the x and y words are stParams.eyeXY. */
 fn stEyeZ()->vec4u{return vec4u(stParams.eyeZ,0u,0u);}`,
   )
 
 /**
  * The scene trace's declarations in group `group` from binding `first` (`sceneTraceLayoutEntries`
- * is their layout): `stParams`, `stNodes` (five `vec4u` a node), `stTriangles` (three `vec4u` a triangle), `stTable`. The placement tree and the
+ * is their layout): `stParams`, `stGeometry` (the file's nodes, five `vec4u` a node, then from `stParams.triangleBase` its triangles, three `vec4u` a triangle), `stTable` (which also holds, from `stParams.cornerWord`, the attributes of the triangles' corners and, from `stParams.maskWord`, their cutout coordinates). The trace takes two storage bindings, so that the programs that bind it stay within a stage's eight. The placement tree and the
  * placements' worlds are not here: they are the cut's record tables, listed beside
  * (`DAG_READ_TABLES_WGSL`, group 0 at the culling's bindings).
  */
@@ -123,9 +130,8 @@ const sceneTraceBindings = (group: number, first: number) =>
   wgslBlock(
     `sceneTraceBindings(${group},${first})`,
     [sceneTraceParamsWgsl(group, first)],
-    `@group(${group}) @binding(${first + 1}) var<storage,read> stNodes:array<vec4u>;
-@group(${group}) @binding(${first + 2}) var<storage,read> stTriangles:array<vec4u>;
-@group(${group}) @binding(${first + 3}) var<storage,read> stTable:array<u32>;`,
+    `@group(${group}) @binding(${first + 1}) var<storage,read> stGeometry:array<vec4u>;
+@group(${group}) @binding(${first + 2}) var<storage,read> stTable:array<u32>;`,
   )
 
 /** The layout entries of `sceneTraceBindings` from `first`, and of the cut's tables it reads beside
@@ -134,16 +140,18 @@ export const sceneTraceLayoutEntries = (first: number): GPUBindGroupLayoutEntry[
   computeUniformEntry(first),
   computeBufferEntry(first + 1, 'read-only-storage'),
   computeBufferEntry(first + 2, 'read-only-storage'),
-  computeBufferEntry(first + 3, 'read-only-storage'),
 ]
+
+/** The bindings the scene trace takes from `first`: a program that binds more of its own in the group starts past them. */
+export const SCENE_TRACE_BINDINGS = 3
 
 /** The bind group entries of `sceneTraceBindings` from `first`, over the resources of `trace`, whose table
  *  `syncPlacements` has made. */
 export const sceneTraceBindEntries = (
-  trace: Pick<SceneTrace, 'params' | 'nodes' | 'triangles' | 'table'>,
+  trace: Pick<SceneTrace, 'params' | 'geometry' | 'table'>,
   first: number,
 ): GPUBindGroupEntry[] =>
-  [trace.params, trace.nodes, trace.triangles, trace.table].map((buffer, at) => ({
+  [trace.params, trace.geometry, trace.table].map((buffer, at) => ({
     binding: first + at,
     resource: { buffer },
   }))
@@ -162,6 +170,10 @@ const SCENE_TRACE_FLAGS = {
   barycentric: 128,
   meetTranslucent: 256,
   onlyTranslucent: 512,
+  forceOpaque: 1024,
+  meetSky: 2048,
+  pathRay: 4096,
+  accumulate: 8192,
 } as const
 
 const R = RAY_TRACING_RECORD_AT
@@ -176,6 +188,7 @@ const SCENE_TRACE_CONSTS = wgslConsts({
   ST_TAIL_ACTOR: RAY_TRACING_TRIANGLE_AT.cluster - TAIL,
   ST_TAIL_CELL: RAY_TRACING_TRIANGLE_AT.tag - TAIL,
   ST_RECORD_WORDS: RAY_TRACING_RECORD_WORDS,
+  ST_RECORD_PRIMITIVE: R.primitive,
   ST_RECORD_FLAGS: R.flags,
   ST_RECORD_FIRST_NODE: R.firstNode,
   ST_RECORD_NODES: R.nodeCount,
@@ -183,6 +196,7 @@ const SCENE_TRACE_CONSTS = wgslConsts({
   ST_RECORD_BOX_MIN: R.boxMin,
   ST_RECORD_BOX_MAX: R.boxMax,
   ST_RECORD_TRIANGLES: R.triangleCount,
+  ST_RECORD_MASK_TRIANGLE: R.maskTriangle,
   ST_WORLD_BIT: SCENE_TRACE_WORLD_BIT,
   ST_CELL_DRAWN: SCENE_TRACE_CELL_DRAWN,
   ST_OBJECT_MASK: SCENE_TRACE_CELL_OBJECT_MASK,
@@ -193,6 +207,8 @@ const SCENE_TRACE_CONSTS = wgslConsts({
   ST_TWO_SIDED: RAY_TRACING_FLAG_TWO_SIDED,
   ST_TRANSLUCENT: RAY_TRACING_FLAG_TRANSLUCENT,
   ST_ALL_TRANSLUCENT: RAY_TRACING_FLAG_ALL_TRANSLUCENT,
+  ST_IS_ACTOR: RAY_TRACING_FLAG_ACTOR,
+  ST_SKY: RAY_TRACING_FLAG_SKY,
   ST_CASTS_NO_SHADOW: CASTS_NO_SHADOW,
   ST_ANY_HIT: SCENE_TRACE_FLAGS.anyHit,
   ST_CULL_FRONT: SCENE_TRACE_FLAGS.cullFront,
@@ -204,6 +220,10 @@ const SCENE_TRACE_CONSTS = wgslConsts({
   ST_BARYCENTRIC: SCENE_TRACE_FLAGS.barycentric,
   ST_MEET_TRANSLUCENT: SCENE_TRACE_FLAGS.meetTranslucent,
   ST_ONLY_TRANSLUCENT: SCENE_TRACE_FLAGS.onlyTranslucent,
+  ST_FORCE_OPAQUE: SCENE_TRACE_FLAGS.forceOpaque,
+  ST_MEET_SKY: SCENE_TRACE_FLAGS.meetSky,
+  ST_PATH_RAY: SCENE_TRACE_FLAGS.pathRay,
+  ST_ACCUMULATE: SCENE_TRACE_FLAGS.accumulate,
   ST_MATERIAL_WORDS: TRACED_MATERIAL_WORDS,
   ST_MATERIAL_FLAGS_AT: TRACED_MATERIAL_AT.flags,
   ST_MATERIAL_TRANSLUCENT: TRACED_MATERIAL_FLAGS.translucent,
@@ -217,7 +237,7 @@ const ST_TYPES = `${SCENE_TRACE_CONSTS}
 ${SCENE_TRACE_SIGNED_CONSTS}
 struct StRay{origin:vec3f,direction:vec3f,tMin:f32,tMax:f32,flags:u32,}
 /** A hit: its distance, the placement it met, its record, its triangle in the file and the object a hit table names its surface by (the
- *  placement, for a placement's; for an HLOD actor's, the object the cut's cell word gives; \`NO_INDEX\` for a miss and for an actor with
+ *  placement, for a placement's; for an HLOD actor's, the object the cut's cell word gives; NO_INDEX for a miss and for an actor with
  *  none), the normal, the faces, and, for a ray that asks it (ST_BARYCENTRIC), the weights of the triangle's second and third corners at the hit. */
 struct StHit{distance:f32,placement:u32,record:u32,triangle:u32,object:u32,normal:vec3f,bary:vec2f,frontFace:bool,twoSided:bool,hit:bool,}
 /** A node of a primitive's structure: its corner, the size of a quantum along each axis, how far a
@@ -226,19 +246,20 @@ struct StHit{distance:f32,placement:u32,record:u32,triangle:u32,object:u32,norma
 struct StNode{corner:vec3f,scale:vec3f,slack:vec3f,internal:u32,childBase:u32,triangleBase:u32,metas:vec2u,grid0:vec4u,grid1:vec4u,grid2:vec4u,}
 /** A placement taken into its primitive's space: its rank, its record, the first node, the nodes and
  *  the first triangle of the record, whether the world mirrors, whether the primitive is two-sided, the object its hits
- *  are told by, and, for the world's directory, the word of the table where the cells of its instance begin (\`NO_INDEX\`
- *  for any other). */
-struct StInstance{placement:u32,record:u32,firstNode:u32,nodes:u32,firstTriangle:u32,mirrored:bool,twoSided:bool,object:u32,cells:u32,}
+ *  are told by, the word of the table where the cells of its instance begin for the world's directory (NO_INDEX
+ *  for any other), and whether its surface is masked, decided once here so that an opaque one never runs the any-hit test. */
+struct StInstance{placement:u32,record:u32,firstNode:u32,nodes:u32,firstTriangle:u32,mirrored:bool,twoSided:bool,object:u32,cells:u32,masked:bool,}
 /** The trace in progress: its ray, whether it is done (a hit of an any-hit ray), whether it is
- *  complete — the answer to read once \`stTrace\` has returned —, and the steps spent. */
+ *  complete — the answer to read once stTrace has returned —, and the steps spent. */
 var<private> stRay:StRay;
 var<private> stDone:bool;
 var<private> stComplete:bool;
 var<private> stSteps:u32;
-/** Whether the trace in progress leaves out the primitive of the record flags \`flags\`: its mesh is translucent whole (\`ST_ALL_TRANSLUCENT\`),
- *  whatever the image asks, unless the ray meets translucent geometry (ST_MEET_TRANSLUCENT); or it is translucent, the ray asks it (ST_SKIP_TRANSLUCENT) and the image tests the mesh sections' visibility. */
+/** Whether the trace in progress leaves out the primitive of the record flags flags: its mesh is translucent whole (ST_ALL_TRANSLUCENT),
+ *  whatever the image asks, unless the ray meets translucent geometry (ST_MEET_TRANSLUCENT); or it is translucent, the ray asks it (ST_SKIP_TRANSLUCENT) and the image tests the mesh sections' visibility;
+ *  or it wears a sky material (ST_SKY) and the ray does not meet it (ST_MEET_SKY, a path tracer's camera ray): the project excludes the sky (excludesSky), or the ray is a path tracer's (ST_PATH_RAY), which ignores that setting. */
 fn stSkipsTranslucent(flags:u32)->bool{
- return ((flags&ST_ALL_TRANSLUCENT)!=0u&&(stRay.flags&ST_MEET_TRANSLUCENT)==0u)||((stRay.flags&ST_SKIP_TRANSLUCENT)!=0u&&stParams.skipsTranslucentSections!=0u&&(flags&ST_TRANSLUCENT)!=0u);
+ return ((flags&ST_ALL_TRANSLUCENT)!=0u&&(stRay.flags&ST_MEET_TRANSLUCENT)==0u)||((stRay.flags&ST_SKIP_TRANSLUCENT)!=0u&&stParams.skipsTranslucentSections!=0u&&(flags&ST_TRANSLUCENT)!=0u)||((flags&ST_SKY)!=0u&&(stParams.excludesSky!=0u||(stRay.flags&ST_PATH_RAY)!=0u)&&(stRay.flags&ST_MEET_SKY)==0u);
 }`
 
 /** The reads of a node of the file, of a child's box and of the table's floats, and the step a triangle met costs. */
@@ -248,35 +269,35 @@ fn stStep()->bool{
  stSteps++;
  return true;
 }
-/** The size of a quantum along each axis, a power of two from the three exponent bytes of \`word\`. */
+/** The size of a quantum along each axis, a power of two from the three exponent bytes of word. */
 fn stScale(word:u32)->vec3f{
  return vec3f(
   pow2FromExponent(max(bitcast<i32>(word<<24u)>>24u,ST_MIN_EXPONENT)),
   pow2FromExponent(max(bitcast<i32>(word<<16u)>>24u,ST_MIN_EXPONENT)),
   pow2FromExponent(max(bitcast<i32>(word<<8u)>>24u,ST_MIN_EXPONENT)));
 }
-/** The node of rank \`rank\` in the file, as far as its own box needs it: the first of its 80 bytes' five
- *  \`vec4u\` (the corner and the exponents with the mask); the links, the metas and the boxes' bytes
- *  (\`stNodeOpen\`) are left zero. */
+/** The node of rank rank in the file, as far as its own box needs it: the first of its 80 bytes' five
+ *  vec4u (the corner and the exponents with the mask); the links, the metas and the boxes' bytes
+ *  (stNodeOpen) are left zero. */
 fn stNodeHead(rank:u32)->StNode{
- let head=stNodes[rank*ST_NODE_VECS];
+ let head=stGeometry[rank*ST_NODE_VECS];
  let corner=bitcast<vec3f>(head.xyz);
  let scale=stScale(head.w);
  return StNode(corner,scale,(abs(corner)+scale*255.0)*2.4e-7,head.w>>24u,0u,0u,vec2u(0u),vec4u(0u),vec4u(0u),vec4u(0u));
 }
-/** The node \`nd\` of rank \`rank\` with the other four \`vec4u\` of its bytes (the links and the metas, the
+/** The node nd of rank rank with the other four vec4u of its bytes (the links and the metas, the
  *  three groups of the boxes' bytes), laid in 16 bytes: what its children need. */
 fn stNodeOpen(nd:StNode,rank:u32)->StNode{
  let at=rank*ST_NODE_VECS;
- let links=stNodes[at+1u];
- return StNode(nd.corner,nd.scale,nd.slack,nd.internal,links.x,links.y,links.zw,stNodes[at+2u],stNodes[at+3u],stNodes[at+4u]);
+ let links=stGeometry[at+1u];
+ return StNode(nd.corner,nd.scale,nd.slack,nd.internal,links.x,links.y,links.zw,stGeometry[at+2u],stGeometry[at+3u],stGeometry[at+4u]);
 }
 /** The grid the node's children are quantised on, its corner to 255 quanta, grown by the slack: a
  *  box that holds every child's. */
 fn stNodeBox(nd:StNode)->Box{
  return Box(nd.corner-nd.slack,nd.corner+nd.scale*255.0+nd.slack);
 }
-/** Child \`slot\` of the node \`nd\` of an instance: its box, the quantised corners on the node's grid, grown by
+/** Child slot of the node nd of an instance: its box, the quantised corners on the node's grid, grown by
  *  the slack; the rank in the file of the node it is — the record's first, the node's link and the internal children
  *  before its slot —, or of the first triangle it holds and how many it holds; none for an empty slot. */
 fn stChild(nd:StNode,slot:u32,inst:StInstance)->WideChild{
@@ -295,19 +316,43 @@ fn stChild(nd:StNode,slot:u32,inst:StInstance)->WideChild{
   select(code>>ST_LEAF_COUNT_SHIFT,0u,inner),
   inner||code!=0u);
 }
-/** The three floats from word \`at\` of the table. */
+/** The three floats from word at of the table. */
 fn stVec3(at:u32)->vec3f{return bitcast<vec3f>(vec3u(stTable[at],stTable[at+1u],stTable[at+2u]));}`
 
+/** The default any-hit test, which keeps every triangle: a program that lists the mask (`sceneMaskWgsl.ts`) replaces it. */
+export const ST_MASK_KEEPS_DEFAULT = wgslFn(
+  'stMaskKeeps',
+  [],
+  'fn stMaskKeeps(placement:u32,record:u32,triangle:u32,origin:vec3f,direction:vec3f,a:vec3f,b:vec3f,c:vec3f)->bool{return true;}',
+  { weak: true },
+)
+
+/** The default of whether a record's surface is masked, which no program without the any-hit test needs: never. */
+export const ST_MASKED_DEFAULT = wgslFn(
+  'stMasked',
+  [],
+  'fn stMasked(placement:u32,record:u32,flags:u32)->bool{return false;}',
+  { weak: true },
+)
+
+/** The default of the accumulating shadow rays' pass over a translucent surface, which no program without them needs: never (the program that traces them lists its own, `litWgsl.ts`). */
+export const ST_ACCUMULATES_DEFAULT = wgslFn(
+  'stAccumulates',
+  [],
+  'fn stAccumulates(placement:u32,record:u32)->bool{return false;}',
+  { weak: true },
+)
+
 /** One triangle of the file against the ray, in the instance's space. */
-const ST_TRIANGLE = `/** The nearer of \`best\` and the triangle \`ti\` of the file against the ray in the instance's space: kept when nearer
- *  than the best hit, past the ray's \`tMin\` and not a front face the ray culls; its normal is the winding's, in the
+const ST_TRIANGLE = `/** The nearer of best and the triangle ti of the file against the ray in the instance's space: kept when nearer
+ *  than the best hit, past the ray's tMin and not a front face the ray culls; its normal is the winding's, in the
  *  placement's space. */
 fn stTriangle(inst:StInstance,origin:vec3f,direction:vec3f,ti:u32,best:StHit)->StHit{
- // Three \`vec4u\`: the nine floats of the corners, then the cluster, the rank and a zero word.
+ // Three vec4u: the nine floats of the corners, then the cluster, the rank and a zero word.
  let at=ti*ST_TRIANGLE_VECS;
- let v0=stTriangles[at];
- let v1=stTriangles[at+1u];
- let v2=stTriangles[at+2u];
+ let v0=stGeometry[stParams.triangleBase+at];
+ let v1=stGeometry[stParams.triangleBase+at+1u];
+ let v2=stGeometry[stParams.triangleBase+at+2u];
  let a=bitcast<vec3f>(v0.xyz);
  let b=bitcast<vec3f>(vec3u(v0.w,v1.x,v1.y));
  let c=bitcast<vec3f>(vec3u(v1.z,v1.w,v2.x));
@@ -321,15 +366,19 @@ fn stTriangle(inst:StInstance,origin:vec3f,direction:vec3f,ti:u32,best:StHit)->S
  if(t<stRay.tMin){return best;}
  // A two-sided primitive's hit under its distance, a one-sided primitive's back face under its own: passed by.
  if((stRay.flags&ST_SKIP_NEAR)!=0u&&select(!front&&t<stParams.skipBackFaceDistance,t<stParams.skipTwoSidedDistance,inst.twoSided)){return best;}
+ // The any-hit test of a masked surface: a triangle the material cuts away at the hit is passed by, unless the ray forces every surface opaque.
+ if(inst.masked&&(stRay.flags&ST_FORCE_OPAQUE)==0u&&!stMaskKeeps(inst.placement,inst.record,ti,origin,direction,a,b,c)){return best;}
+ // A shadow ray that accumulates (with ST_ANY_HIT) passes a translucent surface by (stAccumulates), after the any-hit test of the masks.
+ if(stAccumulates(inst.placement,inst.record)){return best;}
  if((stRay.flags&ST_ANY_HIT)!=0u){stDone=true;}
  return StHit(t,inst.placement,inst.record,ti,inst.object,normal,vec2f(0.0),front,inst.twoSided,true);
 }
 /** The weights of the second and third corners of the triangle ti at which the ray in the instance's space meets it: asked once of a placement's winning hit, not of each nearer candidate. */
 fn stBarycentric(origin:vec3f,direction:vec3f,ti:u32)->vec2f{
  let at=ti*ST_TRIANGLE_VECS;
- let v0=stTriangles[at];
- let v1=stTriangles[at+1u];
- let v2=stTriangles[at+2u];
+ let v0=stGeometry[stParams.triangleBase+at];
+ let v1=stGeometry[stParams.triangleBase+at+1u];
+ let v2=stGeometry[stParams.triangleBase+at+2u];
  let a=bitcast<vec3f>(v0.xyz);
  return rayTriangleBarycentric(origin,direction,a,bitcast<vec3f>(vec3u(v0.w,v1.x,v1.y)),bitcast<vec3f>(vec3u(v1.z,v1.w,v2.x)));
 }`
@@ -366,10 +415,10 @@ const ST_BLAS = stInstanceWalk('stBlas', 'best=stTriangle(inst,origin,direction,
 /** The actor of an entry of the world's directory, entered as a placement is: the entry (a box where a triangle's corners are,
  *  then the actor's rank among the actors' records, a zero word and its HLOD cell) read, the cell's word asked whether the cut
  *  draws the actor, and, if it does, the actor's record entered and its structure walked. */
-const ST_ACTOR = `/** The nearer of \`best\` and what the ray meets of the actor of the entry \`ti\` of the directory \`dir\`: none if the cut
+const ST_ACTOR = `/** The nearer of best and what the ray meets of the actor of the entry ti of the directory dir: none if the cut
  *  does not draw its cell, else its structure walked in the space of the directory's placement, whose box the walk met. */
 fn stActor(dir:StInstance,origin:vec3f,direction:vec3f,ti:u32,best:StHit)->StHit{
- let tail=stTriangles[ti*ST_TRIANGLE_VECS+ST_TAIL_VEC];
+ let tail=stGeometry[stParams.triangleBase+ti*ST_TRIANGLE_VECS+ST_TAIL_VEC];
  let cell=stTable[dir.cells+tail[ST_TAIL_CELL]];
  if((cell&ST_CELL_DRAWN)==0u){return best;}
  // The actors' records are the ones just before the directory's, in the actors' order: the entries lie in leaf order and name their actor by rank.
@@ -378,7 +427,8 @@ fn stActor(dir:StInstance,origin:vec3f,direction:vec3f,ti:u32,best:StHit)->StHit
  let nodes=stTable[at+ST_RECORD_NODES];
  let flags=stTable[at+ST_RECORD_FLAGS];
  if(nodes==0u||stSkipsTranslucent(flags)){return best;}
- let inst=StInstance(dir.placement,record,stTable[at+ST_RECORD_FIRST_NODE],nodes,stTable[at+ST_RECORD_FIRST_TRIANGLE],dir.mirrored,(flags&ST_TWO_SIDED)!=0u,(cell&ST_OBJECT_MASK)-1u,NO_INDEX);
+ // The actor's instance keeps the directory's placement, whose transform it is walked in; the any-hit test (stMaskKeeps) reads the actor's own material words, by the record's flag and the material rank it names.
+ let inst=StInstance(dir.placement,record,stTable[at+ST_RECORD_FIRST_NODE],nodes,stTable[at+ST_RECORD_FIRST_TRIANGLE],dir.mirrored,(flags&ST_TWO_SIDED)!=0u,(cell&ST_OBJECT_MASK)-1u,NO_INDEX,stMasked(dir.placement,record,flags));
  let hit=stBlas(origin,direction,best.distance,inst);
  if(hit.hit&&hit.distance<best.distance){return hit;}
  return best;
@@ -391,9 +441,9 @@ const ST_DIRECTORY = stInstanceWalk(
 )
 
 /** One placement entered unless this image's culling left it out, then taken into its primitive's space. */
-const ST_ENTER = `/** The nearer of \`best\` and what the ray meets of placement \`w\`, \`inverse\` the inverse of the ray's direction:
- *  none of a placement the image's culling left out (\`sceneCullWgsl.ts\`), else entered and taken into its primitive's
- *  space. A placement of the world DAG is entered as the world's directory, which enters the actors the cut draws (\`stActor\`). */
+const ST_ENTER = `/** The nearer of best and what the ray meets of placement w, inverse the inverse of the ray's direction:
+ *  none of a placement the image's culling left out (sceneCullWgsl.ts), else entered and taken into its primitive's
+ *  space. A placement of the world DAG is entered as the world's directory, which enters the actors the cut draws (stActor). */
 fn stEnter(w:u32,best:StHit,inverse:vec3f)->StHit{
  if(stDone||w>=stParams.placements||stTable[stParams.cullWord+w]!=0u){return best;}
  let slot=stTable[stParams.placementWord+w];
@@ -421,7 +471,7 @@ fn stEnter(w:u32,best:StHit,inverse:vec3f)->StHit{
  }
  if(rayBoxEntry(stVec3(at+ST_RECORD_BOX_MIN),stVec3(at+ST_RECORD_BOX_MAX),entry.origin,rayInverseDirection(entry.direction),best.distance)>best.distance){return best;}
  let cells=select(NO_INDEX,stParams.cellsWord+(slot&~ST_WORLD_BIT)*stParams.cells,world);
- let inst=StInstance(w,record,stTable[at+ST_RECORD_FIRST_NODE],nodes,stTable[at+ST_RECORD_FIRST_TRIANGLE],entry.mirrored,(flags&ST_TWO_SIDED)!=0u,w,cells);
+ let inst=StInstance(w,record,stTable[at+ST_RECORD_FIRST_NODE],nodes,stTable[at+ST_RECORD_FIRST_TRIANGLE],entry.mirrored,(flags&ST_TWO_SIDED)!=0u,w,cells,!world&&stMasked(w,record,flags));
  var hit:StHit;
  if(world){hit=stDirectory(entry.origin,entry.direction,best.distance,inst);}
  else{hit=stBlas(entry.origin,entry.direction,best.distance,inst);}
@@ -433,7 +483,7 @@ fn stEnter(w:u32,best:StHit,inverse:vec3f)->StHit{
 }`
 
 /** The trace itself: the placement tree's walk, then the normal of the nearest hit turned into the world. */
-const ST_TRACE = `/** The trace of \`ray\`: see the library's comment. */
+const ST_TRACE = `/** The trace of ray: see the library's comment. */
 fn stTrace(ray:StRay)->StHit{
  stRay=ray;
  stDone=false;
@@ -456,7 +506,7 @@ ${placementTreeCast({
 })}
  if(best.hit&&(ray.flags&ST_ANY_HIT)==0u){
   // The triangle's normal in the world, the inverse transpose of the placement's linear part turning it,
-  // facing the ray whichever side was met: the side the winding faced is \`frontFace\`.
+  // facing the ray whichever side was met: the side the winding faced is frontFace.
   let turned=unitOrZero(inverseTranspose3(worldsLinear(best.placement),best.normal));
   best.normal=select(-turned,turned,dot(turned,ray.direction)<0.0);
  }
@@ -480,7 +530,7 @@ ${placementTreeCast({
  *
  * A ray's `flags` choose what it meets: `ST_ANY_HIT` ends the trace at the first hit (a shadow ray's);
  * `ST_CULL_FRONT` ignores a triangle whose winding faces the ray, `ST_CULL_BACK` one whose winding faces
- * away, unless its primitive is two-sided (`frontFace` as the world turns it); `ST_SHADOW` ignores the
+ * away, unless its primitive is two-sided (`frontFace` as the world turns it); `ST_FORCE_OPAQUE` skips the any-hit test of the masked surfaces (`stMaskKeeps`, which keeps every triangle unless the program lists the mask of `sceneMaskWgsl.ts`); `ST_ACCUMULATE` (with `ST_ANY_HIT`, and `ST_MEET_TRANSLUCENT` where a mesh all of whose primitives are translucent must be met) passes the translucent surfaces by where the program lists its own `stAccumulates` (the hit lighting's, which multiplies its `stVisibility` by what each lets through, and stops at the first opaque one or where nothing is left: `hit`); `ST_SHADOW` ignores the
  * placements whose mark says they cast no shadow; `ST_SKIP_TRANSLUCENT` the primitives flagged
  * translucent, where the image tests the mesh sections' visibility (`params.skipsTranslucentSections`; else they are met as opaque ones,
  * but for those of a mesh all of whose primitives are translucent, `ST_ALL_TRANSLUCENT`, which only a ray that sets `ST_MEET_TRANSLUCENT` meets, as a path tracer's); `ST_SKIP_NEAR` passes by, past the ray's `tMin`, a hit on a two-sided primitive nearer than
@@ -536,6 +586,9 @@ export const sceneTraceWgsl = (group: number, first: number) =>
       reachUnboundedWgsl,
       pow2FromExponent,
       NO_INDEX,
+      ST_MASK_KEEPS_DEFAULT,
+      ST_MASKED_DEFAULT,
+      ST_ACCUMULATES_DEFAULT,
     ],
     [
       ST_TYPES,
@@ -547,4 +600,15 @@ export const sceneTraceWgsl = (group: number, first: number) =>
       ST_ENTER,
       ST_TRACE,
     ].join('\n'),
+  )
+
+/** `stOccluded(ray)`, listed by the programs that ask only whether a ray is stopped (the shadow rays' helper): by a hit (the first, for a shadow ray), or by a trace that did not finish, whose walk may have left a nearer triangle untested. */
+export const sceneOccludedWgsl = (group: number, first: number) =>
+  wgslFn(
+    'stOccluded',
+    [sceneTraceWgsl(group, first)],
+    `fn stOccluded(ray:StRay)->bool{
+ let hit=stTrace(ray);
+ return hit.hit||!stComplete;
+}`,
   )

@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   RAY_TRACING_FLAG_MASKED,
+  RAY_TRACING_FLAG_SKY,
   RAY_TRACING_FLAG_TRANSLUCENT,
   RAY_TRACING_FLAG_TWO_SIDED,
 } from '../../../../../sdk-core/src/contracts/rayTracingAbi.ts'
@@ -68,4 +69,12 @@ test('a primitive placed by two materials is double-sided and masked where one i
   assert.ok((flags(a, b) & RAY_TRACING_FLAG_TWO_SIDED) !== 0)
   assert.ok((flags(a, b) & RAY_TRACING_FLAG_TRANSLUCENT) !== 0)
   assert.equal(flags(a, surface('front')) & RAY_TRACING_FLAG_TRANSLUCENT, 0)
+})
+
+test('a primitive is flagged sky where every material that places it is a sky material', () => {
+  const sky = { ...surface('front'), sky: true }
+  const flags = (...worn: (typeof sky | ReturnType<typeof surface>)[]) =>
+    rayTracingOf(scene(worn.map((w) => root(4, tree, w))))!.records[2]
+  assert.equal(flags(sky, sky) & RAY_TRACING_FLAG_SKY, RAY_TRACING_FLAG_SKY)
+  assert.equal(flags(sky, surface('front')) & RAY_TRACING_FLAG_SKY, 0)
 })

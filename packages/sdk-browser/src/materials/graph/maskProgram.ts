@@ -41,7 +41,10 @@ export const maskClipValue = (surface: { opacityMaskClipValue?: number; alphaTes
  * scaled by to find the level a texture is read at (the camera's pools cancel their level offset,
  * the shadows' read none), `frame` the binding of the graph frame (`graphFrameWgsl.ts`) the
  * clocks are read from, and `noise` the binding of the blue noise a dithered cutout is cut by, where
- * the pass has it. None: the module is the one without graphs and without dither, word for word.
+ * the pass has it. `where` says where a module that is not the visibility layout binds the material
+ * table and the graph frame: their group (`frame` is the frame's binding in it) and the table's
+ * binding; the visibility layout's group 0 and `VIS_BINDINGS.material` where it names none. None:
+ * the module is the one without graphs and without dither, word for word.
  */
 export interface MaskSet {
   readonly programs: readonly PixelProgram[]
@@ -49,6 +52,7 @@ export interface MaskSet {
   readonly footprint?: string
   readonly frame: number
   readonly noise?: number
+  readonly where?: { readonly group: number; readonly table: number }
 }
 
 /** No graph mask, no dither. */
@@ -62,7 +66,15 @@ export const maskSetOf = (
   sample: WgslDecl,
   footprint = '1.0',
   noise?: number,
-): MaskSet => ({ programs, frame, sample, footprint, ...(noise !== undefined && { noise }) })
+  where?: MaskSet['where'],
+): MaskSet => ({
+  programs,
+  frame,
+  sample,
+  footprint,
+  ...(noise !== undefined && { noise }),
+  ...(where && { where }),
+})
 
 /** Whether a module's cutout test is given the pixel it cuts (`maskKeepAt`): it holds graph masks or
  *  dithers. */
@@ -73,7 +85,7 @@ export const maskMovesDepth = (set: MaskSet) => set.programs.some((program) => p
 
 /** What tells two sets apart: the programs, by key, and whether it dithers. */
 export const masksKey = (set: MaskSet) =>
-  `${set.programs.map((mask) => mask.key).join(',')}${set.noise === undefined ? '' : `@${set.frame}.${set.noise}`}`
+  `${set.programs.map((mask) => mask.key).join(',')}${set.noise === undefined ? '' : `@${set.frame}.${set.noise}`}${set.where ? `#${set.where.group}.${set.frame}.${set.where.table}` : ''}`
 
 /** The values of `mask`'s program a module declares (`rasterValues`), and the function of its
  *  output over the colour read `sample` (`rasterOutput`). */

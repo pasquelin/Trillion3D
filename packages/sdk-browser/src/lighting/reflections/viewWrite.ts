@@ -8,7 +8,8 @@ import {
 } from '../../visibility/hiz/gpu/screenSlab.ts'
 import type { HeldImage } from './litImage.ts'
 import { REFLECTION_VIEW_AT, REFLECTION_VIEW_WORDS } from './viewLayout.ts'
-import { gridSide } from './grids.ts'
+import { usedAxis } from './grids.ts'
+import { HIT_LIGHT, hitLightWord } from './hitLighting/constants.ts'
 import {
   defaultReflections,
   type ReflectionSettings,
@@ -47,6 +48,8 @@ export type ReflectionFrame = {
   /** The centimetres a texel of a card may lie from the point a ray through the scene's triangles hit (`ReflectionView.hardware.w`, the surface cache's
    *  sampling depth bias of the scene trace the image hands out, `SceneRays`): zero when absent. */
   cardDepthBias?: number
+  /** Whether the hit lighting does not run in this image although its settings ask for it (its kernels are still compiling): the view then tells the scene stage so, and it meets the translucent surfaces no more than it lights. */
+  hitUnlit?: boolean
   /** The sphere that holds the stand-ins of the first-person objects (`ReflectionView.firstPerson`, `firstPersonBounds.ts`): its centre in the world, then its radius; none
    *  when absent or its radius is 0. */
   firstPerson?: ArrayLike<number>
@@ -55,6 +58,8 @@ export type ReflectionFrame = {
   /** The pre-exposure this image's light is written multiplied by: the ceiling of a ray's radiance, in the display's white, is divided by it,
    *  and the lit image that is held keeps it, the next image dividing the light it reads by it (1 when absent). */
   preExposure?: number
+  /** The exposure the CPU knows for this image (`PreExposure.exposure`, this view's own): the hit lighting's lights are strengthened under it (`ReflectionView.radiance.z`, 1 when absent). */
+  exposure?: number
 }
 
 /** The switches a layer's flags differ in: its denoising passes and its scene trace. */
@@ -158,24 +163,29 @@ function putTraceLanes(
   )
 }
 
+/** `ReflectionView.translucent.z`: the hit lighting runs (`HIT_LIGHT.on`) and lights every hit (`HIT_LIGHT.forced`). */
+export const hitLightFlags = (hit: ReflectionSettings['hit']) =>
+  (hit.on ? HIT_LIGHT.on : 0) | (hit.forced ? HIT_LIGHT.forced : 0)
+
 /**
  * The writer of what a ray may spend and which of its stages run into the staged view `staged`
  * (`ReflectionView.grid`, `.scene`, `.reach`, `.march`, `.light`, `.denoise`, `.spread`, `.lobe`, `.taps`):
  * the lanes of `trace`, the grid's extent over a view of `size` pixels. Nothing is allocated by a call.
  */
 function createTraceWriter(staged: Float32Array) {
-  const [grid, scene, taps, frontLanes] = (['grid', 'scene', 'taps', 'front'] as const).map(
-    (field) => lanesOf(staged, field),
-  )
+  const [grid, scene, taps, frontLanes, translucent] = (
+    ['grid', 'scene', 'taps', 'front', 'translucent'] as const
+  ).map((field) => lanesOf(staged, field))
   return (
     trace: ReflectionSettings,
     size: readonly [number, number],
     cardDepthBias: number,
     preExposure: number,
+    hitUnlit: boolean,
   ) => {
     // The grid holds the finer of the two layers' blocks along each axis; each layer reads its own (`reflectionBlock`).
-    grid[0] = gridSide(size[0], Math.min(trace.block, trace.frontBlock[0]))
-    grid[1] = gridSide(size[1], Math.min(trace.blockY, trace.frontBlock[1]))
+    grid[0] = usedAxis(size[0], trace.block, trace.frontBlock[0])
+    grid[1] = usedAxis(size[1], trace.blockY, trace.frontBlock[1])
     grid[2] = trace.block
     grid[3] = trace.blockY
     frontLanes[1] = trace.frontBlock[0]
@@ -193,6 +203,8 @@ function createTraceWriter(staged: Float32Array) {
     taps[0] = trace.reconstructionSamples
     taps[1] = trace.bilateralSamples
     taps[2] = trace.screenMinimumOccupancy
+    translucent[2] = hitUnlit ? 0 : hitLightFlags(trace.hit)
+    translucent[3] = hitLightWord(trace.hit)
     putTraceLanes(staged, trace, cardDepthBias, preExposure)
   }
 }
@@ -223,6 +235,7 @@ export function createReflectionViewWriter(device: GPUDevice, buffer: GPUBuffer)
     const [, height] = frame.size
     staged[REFLECTION_VIEW_AT.radiance] = held.size[0]
     staged[REFLECTION_VIEW_AT.radiance + 1] = held.size[1]
+    staged[REFLECTION_VIEW_AT.radiance + 2] = frame.exposure ?? 1
     staged[REFLECTION_VIEW_AT.radiance + 3] = 1 / held.preExposure
     screenSlabInto(staged, REFLECTION_VIEW_AT.slab, m, height, frame.eye)
     staged[REFLECTION_VIEW_AT.eyeSpread] = eyeToPixelSpread(m, height)
@@ -239,7 +252,13 @@ export function createReflectionViewWriter(device: GPUDevice, buffer: GPUBuffer)
     for (let k = 0; k < 4; k++)
       staged[REFLECTION_VIEW_AT.firstPerson + k] = frame.firstPerson?.[k] ?? 0
     const trace = frame.settings ?? (defaults ??= defaultReflections())
-    writeTrace(trace, frame.size, frame.cardDepthBias ?? 0, frame.preExposure ?? 1)
+    writeTrace(
+      trace,
+      frame.size,
+      frame.cardDepthBias ?? 0,
+      frame.preExposure ?? 1,
+      frame.hitUnlit ?? false,
+    )
     // The lit image is tested against the depth with the same per-projection scale as the march (orthographic views only).
     staged[REFLECTION_VIEW_AT.light + 1] = screenRelativeThickness(m, trace.sampleDepthThickness)
     staged[REFLECTION_VIEW_AT.thickness] = screenRelativeThickness(m, trace.relativeThickness)

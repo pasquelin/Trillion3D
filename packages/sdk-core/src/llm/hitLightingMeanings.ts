@@ -1,0 +1,18 @@
+import type { HitLightingField } from '../contracts/hitLightingOptions.ts'
+
+/** What each setting of the reflections' hit lighting means (`../contracts/hitLightingOptions.ts`). */
+export const HIT_LIGHTING_MEANINGS: Readonly<Record<HitLightingField, string>> = {
+  reflectionHardwareRayTracingHitLighting: `Whether the reflection hits the surface cache cannot light (no card gave any light) are traced again and lit where they stand, with the hit's own material and the scene's lights (off by default). Needs the scene to have acceleration structures.`,
+  reflectionHardwareRayTracingBucketMaterials: `Whether the traces of that second pass are sorted by material so that neighbouring threads shade the same one (on by default).`,
+  hardwareRayTracingLightingMode: `'surfaceCache' (the default) lights the reflection hits from the surface cache; 'hitLighting' and 'hitLightingForReflections' light every hit of the reflections where it stands; 'hitLighting' alone lights the hits of the screen probes' rays and of the radiance cache's rays the same way (the other two keep the surface cache for them).`,
+  hardwareRayTracingHitLightingAllowed: `Scalability switch (on by default): false forbids the hit lighting whatever the other settings say.`,
+  hardwareRayTracingHitLightingDirectLighting: `Whether the scene's lights are evaluated at the hit (on by default), the material's whole response toward the eye (diffuse and specular lobe); off, the surface cache's own light is read as it stands (the sky light's terms alone when it is on).`,
+  hardwareRayTracingHitLightingShadowMode: `'off', 'hard' (a shadow ray to the light's centre) or 'soft' (the default: a ray to a point of its source) for the lights evaluated at the hit.`,
+  hardwareRayTracingHitLightingSkylight: `The sky light's unshadowed irradiance at the hit in place of the surface cache's indirect light: 'off', 'on', or 'standalone' (the default: on only without surface-cache indirect lighting, so never in this engine).`,
+  hardwareRayTracingHitLightingReflectionCaptures: `With the sky light on, whether the hit's specular is its reflectance on the reflected ray's reading of the filtered sky cube (the reflection captures' only source here) in place of the rough share of the irradiance (off by default).`,
+  hardwareRayTracingHitLightingForceOpaque: `Whether the trace of the hit lighting that meets the hit again skips the any-hit test of the masks (off by default).`,
+  hardwareRayTracingHitLightingShadowTranslucencyMode: `'opaque' (every surface blocks), 'masked' (the default: masked surfaces are cut by their alpha) or 'fractional' (masked surfaces are cut, translucent ones let through the share their coverage leaves) for the shadow rays of the hit lighting.`,
+  reflectionMaxBounces: `The most reflection rays a path of the hit lighting has, from 1 (the default: a single ray, no mirror seen in a mirror) to 64: from a lit hit the path goes on along the hit's own specular reflection while the surfaces it met are smooth enough for the reflections to trace, each hit lit as the first and weighed by the top layer's reflectance met. Needs the hit lighting to run.`,
+  reflectionRayTracedTranslucentRefractions: `The project's switch (on by default) that lets the hit lighting trace through the translucent surfaces: off, \`reflectionMaxRefractionBounces\` does nothing.`,
+  reflectionMaxRefractionBounces: `The refraction events a path of the hit lighting goes through after the first (0 by default: the translucent surfaces are passed by). With 1 or more the hit lighting meets the translucent surfaces, lights them like any hit, and the path goes on straight through each, weighed by what its coverage lets through, up to that many times (to 63). Needs the hit lighting to run.`,
+}

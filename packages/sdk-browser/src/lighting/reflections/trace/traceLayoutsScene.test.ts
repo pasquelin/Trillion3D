@@ -2,6 +2,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
+  hardwareHitLayout,
+  hardwareMaskedTraceLayout,
   hardwareSceneLayout,
   hardwareTraceLayout,
   REFLECTION_TRACE_BINDINGS as B,
@@ -12,6 +14,7 @@ import { reflectionTraceShader } from './trace.ts'
 import { REFLECTION_DEPTH_FORMAT } from '../grids.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/fakeDevice/globals.ts'
 import { KERNELS, device, reached } from './traceLayouts.fixture.ts'
+import { PREVIEW_LAYOUT_NAMES } from '../../../../../sdk-core/src/texture/previewFormat.ts'
 
 // The reflection group's layout reads the stage flags (`GPUShaderStage`).
 installGpuGlobals()
@@ -123,4 +126,37 @@ test('the scene stage alone fogs a ray: it reaches the fog’s cubemap and sampl
     const textures = sampled.flatMap(({ entries }) => entries).filter(({ texture }) => texture)
     assert.ok(textures.length <= 16, `${textures.length} sampled textures`)
   }
+})
+
+test('the trace of the rays through the scene’s triangles holds the bindings its code reaches and the any-hit test’s colour atlas beside the cut’s tables, within the sixteen sampled textures of a stage; the answer reads the triangles it kept', () => {
+  type Layout = { entries: { binding: number; texture?: object; buffer?: { type: string } }[] }
+  const program = reflectionTraceShader(false, true)
+  const tracing = hardwareHitLayout(device) as unknown as Layout
+  const held = new Set(tracing.entries.map(({ binding }) => binding))
+  for (const [binding, name] of reached(program, 'traceSceneHit'))
+    assert.ok(
+      held.has(binding),
+      `traceSceneHit reaches ${name} (${binding}), its layout holds none`,
+    )
+  const group = (name: 'traceSceneHit' | 'traceScene') => [...reached(program, name).values()]
+  assert.ok(group('traceSceneHit').includes('reflectionHits'), 'the trace keeps what it met')
+  assert.ok(group('traceScene').includes('reflectionHits'), 'the answer reads it')
+  assert.ok(!group('traceScene').some((name) => name.startsWith('st') && name !== 'stParams'))
+  const reflection = reflectionLayout(device) as unknown as Layout
+  const masked = hardwareMaskedTraceLayout(device) as unknown as Layout
+  const textures = [tracing, reflection, masked]
+    .flatMap(({ entries }) => entries)
+    .filter(({ texture }) => texture)
+  assert.ok(textures.length <= 16, `${textures.length} sampled textures`)
+  const maskLanes = masked.entries.filter(({ texture }) => texture)
+  assert.equal(
+    maskLanes.length,
+    PREVIEW_LAYOUT_NAMES.length + 1,
+    'the colour atlas’s lanes and the surfaces’ records',
+  )
+  for (const binding of [B.hits, B.pendingIn])
+    assert.ok(held.has(binding), `the trace binds ${binding}`)
+  // The answer’s group holds the hits as storage the program declares read-write.
+  const answering = hardwareSceneLayout(device) as unknown as Layout
+  assert.equal(answering.entries.find(({ binding }) => binding === B.hits)?.buffer?.type, 'storage')
 })

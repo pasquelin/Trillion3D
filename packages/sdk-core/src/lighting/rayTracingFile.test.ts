@@ -70,14 +70,22 @@ test('a file whose head, sizes or records do not close is refused', () => {
       ),
     /triangles out of the order/,
   )
+  // The sky flag is a known bit: a primitive of a sky material is read.
+  assert.doesNotThrow(() =>
+    parseRayTracing(
+      fileOf({}, (v) =>
+        v.setUint32(RAY_TRACING_HEAD_BYTES + RAY_TRACING_RECORD_AT.flags * 4, 2048, true),
+      ),
+    ),
+  )
   assert.throws(
     () =>
       parseRayTracing(
         fileOf({}, (v) =>
-          v.setUint32(RAY_TRACING_HEAD_BYTES + RAY_TRACING_RECORD_AT.flags * 4, 256, true),
+          v.setUint32(RAY_TRACING_HEAD_BYTES + RAY_TRACING_RECORD_AT.flags * 4, 4096, true),
         ),
       ),
-    /flags 256/,
+    /flags 4096/,
   )
   assert.throws(
     () =>

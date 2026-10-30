@@ -5,9 +5,14 @@ import { noiseFrame } from '../../frame/render/noiseFrame.ts'
 import { frontStamp } from './frontLayer.ts'
 import { firstPersonBoundsOf } from './firstPersonBounds.ts'
 import type { ScreenReflection } from './gpu.ts'
-import { reflectionField, reflectionGroup, reflectionLightView } from './group.ts'
+import {
+  reflectionField,
+  reflectionGroup,
+  reflectionHitGroup,
+  reflectionLightView,
+} from './group.ts'
 import { readableCache } from './hitCards.ts'
-import { hardwareReflections } from './hardware.ts'
+import { hardwareReflections, reflectionSceneRays } from './hardware.ts'
 import { followReflectionLight } from './reflectionPipelines.ts'
 import { surfaceCacheLightOf } from '../surfaceCache/light.ts'
 import type { LightAtlasFormat } from '../../gpu/core/lightAtlasFormat.ts'
@@ -32,6 +37,11 @@ import { preExposureOf } from '../../post/exposure/pre.ts'
 import { readHizSetting } from '../../../../sdk-core/src/contracts/hizOptions.ts'
 import type { ReflectionSettings } from '../../../../sdk-core/src/contracts/reflectionOptions.ts'
 import { blueNoiseNow, noiseViewOn } from '../../gpu/noise/blueNoiseTextures.ts'
+import { hitLightingFits, hitLightingRun } from './hitLighting/stage.ts'
+import { lightFunctionResources } from '../lightFunction/frame.ts'
+import { lightProfileResources } from '../lightProfile/frame.ts'
+import { lightProfileStandIn } from '../lightProfile/profileStandIn.ts'
+import { usedAxis } from './grids.ts'
 
 /** The device offset the temporal anti-aliasing shifts this image's view-projection by
  *  (`jitterViewProjection`), none when the image does not accumulate; the scratch tuple it fills is
@@ -45,6 +55,11 @@ function jitterOf({ gpu }: WebgpuPagesRuntime): readonly [number, number] {
   jitter[1] = (2 * taa.jitter[1]) / taa.jitterGrid[1]
   return jitter
 }
+
+/** The blocks of pixels the surfaces trace, the grid they use and the surfaces that reconstruct: the scratch tuples every image fills for the trace (`traceReflections`), which keeps none of them. */
+const blocks: [number, number] = [0, 0]
+const usedBlocks: [number, number] = [0, 0]
+const reconstructs: [boolean, boolean] = [false, false]
 
 /** The sphere that holds the first-person stand-ins, the scratch every image fills (`firstPersonBoundsOf`). */
 const firstPerson = new Float64Array(4)
@@ -64,6 +79,7 @@ function writeFrame(
   frame.frameIndex = noiseFrame(rt)
   frame.eye = run.gate.cam.eye
   frame.preExposure = preExposureOf(rt).now
+  frame.exposure = preExposureOf(rt).exposure
   frame.firstPerson = firstPersonBoundsOf(rt, firstPerson)
   // The view was cut, or the image the lit image was drawn at is not the one before: nothing of it describes this image, the history starts again.
   const { held } = reflection.lit
@@ -80,6 +96,7 @@ function writeFrame(
   // The depth bias the hits of rays through the scene's triangles read the cards with, from the scene trace the lighting made for the image.
   frame.cardDepthBias = sceneRaysOf(rt.surfaceCache?.lighting, run.frame)?.depthBias
   frame.settings = settings
+  frame.hitUnlit = false
   stageReflectionImage(reflection, frame)
   reflection.stagedFrame = run.frame
 }
@@ -148,6 +165,10 @@ function bindTraceInputs(
   const writes = rt.views.active === rt.views.main ? cache : undefined
   writes?.feedback.begin(writes.cache, gpu.targetSize, rt.surfaceCache?.lighting?.begunFeedback)
   inputs.hit = surfaceHitReads(rt, reflection.device, undefined, light).hit
+  // The hit lighting reads the light functions and profiles as the bounce's lights do (`lightFunctionBounce`).
+  inputs.lightFunction =
+    lightFunctionResources(rt, 'lightFunctionBounce') ?? gpu.deferred!.placeholders.lightFunction
+  inputs.lightProfile = lightProfileResources(rt) ?? lightProfileStandIn(reflection.device)
   // The vectors are this image's motion since the image before: read only against that image's history.
   const reach = vectorsReach(reflection.lit.held, reflection.frame.image ?? NEVER_SEEN)
   inputs.vectors = (reach && screenProbeVectors(rt)) || reflection.noVectors
@@ -232,11 +253,38 @@ export function traceReflections(
 ) {
   if (!staged) return
   const { reflection, stages, depth, lightView, surfaces, settings } = staged
+  // No ask stands from an image that threw before this trace ended: the one fold at the image's end reads only the ask of the trace that completed.
+  reflection.litAsk.set = false
   const writes = bindTraceInputs(rt, reflection, settings, surfaces, stages.light)
   const group = reflectionGroup(reflection, depth, lightView, skyLightReadOf(rt))
   // Where the scene has acceleration structures the scene stage's rays go through its triangles; else they are marched through the field.
-  const hardware = hardwareReflections(rt, reflection, settings, stages.light)
+  // The grid this image uses, and whether its hit lighting fits the device (neither the scene stage's program nor its hits' records carry the hit lighting's word where it does not).
+  const size = rt.gpu.targetSize
+  blocks[0] = settings.block
+  blocks[1] = settings.blockY
+  const grid = usedBlocks
+  grid[0] = usedAxis(size[0], settings.block, settings.frontBlock[0])
+  grid[1] = usedAxis(size[1], settings.blockY, settings.frontBlock[1])
+  reconstructs[0] = settings.reconstruction
+  reconstructs[1] = settings.frontReconstruction
+  const lit =
+    !!reflectionSceneRays(rt, settings) && hitLightingFits(reflection.device, settings.hit, grid)
+  const hardware = hardwareReflections(rt, reflection, settings, stages.light, lit)
   reflection.inputs.rays = hardware?.rays
+  const hitRun = hitLightingRun(
+    reflection,
+    settings.hit,
+    hardware?.rays,
+    stages.light,
+    lit && hardware?.rays
+      ? reflectionHitGroup(reflection, depth, lightView, skyLightReadOf(rt))
+      : undefined,
+  )
+  // The scene stage made with the hit lighting's code while its kernels compile: the view tells it nothing is lit this image, so it meets no translucent surface and marks no hit.
+  if (lit && hardware && !hitRun) {
+    reflection.frame.hitUnlit = true
+    reflection.writeView(reflection.frame, reflection.lit.held)
+  }
   // The rays count this image's alone: the counters emptied before the trace, copied after it.
   reflection.census.clear(encoder)
   // The meshes' fields stage of the opaque rays (`trace/meshes.ts`): none while the trace is off or the scene stage casts through triangles.
@@ -257,18 +305,39 @@ export function traceReflections(
     stages,
     reflection.inputs,
     group,
-    rt.gpu.targetSize,
-    [settings.block, settings.blockY],
+    size,
+    blocks,
     settings.frontBlock,
-    [settings.reconstruction, settings.frontReconstruction],
+    grid,
+    reconstructs,
     !!reflection.frame.front,
     hardware?.stage,
     meshes,
     radianceCacheStage(rt, reflection, reflection.inputs, settings),
+    hitRun,
   )
   reflection.depthImage = reflection.frame.image ?? NEVER_SEEN
   reflection.census.copy(encoder, rt.run.frame, !hardware)
   writes?.feedback.end(encoder, writes.cache)
+  // A copy: the scratch grid is the module's, refilled by the next runtime's trace before this image's fold reads the ask.
+  const ask = reflection.litAsk
+  ask.set = !!lit
+  if (lit) {
+    ask.grid[0] = grid[0]
+    ask.grid[1] = grid[1]
+    ask.vertices = settings.hit.vertices
+  }
+}
+
+/** The grids' keeping windows, folded once at the end of every image the grids live — traced, screen-marched or staged for none —, with what the image's trace asked of the hit lighting's state (`litAsk`, none where it did not run): the state and the hits' buffer of each surface are let go once a window of images has asked for less than they hold. */
+export function keepReflectionGrids(rt: WebgpuPagesRuntime) {
+  const reflection = rt.gpu.reflection
+  if (!reflection) return
+  const { litAsk } = reflection
+  const ask = litAsk.set ? litAsk : undefined
+  reflection.grids.keepLit(rt.run.frame, ask)
+  reflection.front.grids.keepLit(rt.run.frame, ask)
+  litAsk.set = false
 }
 
 /** Whether the reflections have a lit image to keep: an image they staged (`stageReflections` told its

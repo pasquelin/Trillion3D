@@ -1,5 +1,6 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { FLAG_MAP_UV_HIGH, FLAG_MAP_UV_LOW, FLAG_MAP_UV_TOP, MATERIAL_SECOND_UV } from '../types.ts'
+import { MAP_UV_SET } from '../mapUvSet.ts'
+import { MATERIAL_SECOND_UV } from '../types.ts'
 import { QUANTIZED } from './pageGeometryWgsl.ts'
 import { normalAtlasWgsl } from './pageWgsl.ts'
 
@@ -46,10 +47,10 @@ export const PAGE_UV_OR_FIRST_WGSL = wgslBlock(
 export const maskUvWgsl = (binding: number) =>
   wgslBlock(
     `maskUvWgsl(${binding})`,
-    [normalAtlasWgsl(binding), PAGE_UV_OR_FIRST_WGSL],
+    [normalAtlasWgsl(binding), PAGE_UV_OR_FIRST_WGSL, MAP_UV_SET],
     `/** The texture set the row's base map reads: its two flags. */
 fn pageMaskSet(page:PageInfo)->u32{
- return select(0u,1u,(page.flags&${FLAG_MAP_UV_LOW}u)!=0u)|select(0u,2u,(page.flags&${FLAG_MAP_UV_HIGH}u)!=0u)|select(0u,4u,(page.flags&${FLAG_MAP_UV_TOP}u)!=0u);
+ return mapUvSetOf(page.flags);
 }
 fn pageMaskUv(page:PageInfo,h:ClusterHeader,vertex:u32)->vec2f{return pageUvOrFirst(page,h,vertex,pageMaskSet(page));}`,
   )

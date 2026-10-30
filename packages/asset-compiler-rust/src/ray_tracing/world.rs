@@ -3,18 +3,21 @@
 //! Every HLOD actor is its own mesh with its own DAG (`hlod/chain/builds.rs`), all spliced into the
 //! world's one DAG on one vertex buffer in the world's space. Each is cut as a primitive's DAG is,
 //! at the error of its own finest clusters (`cut::error_over`), never at one error for the world,
-//! whose size no actor has; its tree is a record of its own, wearing its material's flags and
-//! naming the HLOD cell whose switch shows it (`Traced::actor`). Which actors draw is the cut's to
+//! whose size no actor has; its tree is a record of its own, wearing its material's flags, carrying
+//! its corners' attributes and the coordinates of the texture set its mask reads as a primitive's
+//! does, and naming the HLOD cell whose switch shows it and the rank of the material it wears
+//! (`Traced::actor`). Which actors draw is the cut's to
 //! say this frame, cell by cell, so a ray enters only the actors whose cell it draws
 //! (`sceneTraceWgsl.ts`): to find them without trying every actor it walks the directory, a tree
 //! over the actors' boxes whose entries stand where triangles do.
-use super::attributes::TRIANGLE_ATTRIBUTE_BYTES;
-use super::cut::{cut_clusters, error_over, is_finest, triangles_of, Cut, CutTriangle};
+use super::attributes::{mask_set_of, TRIANGLE_ATTRIBUTE_BYTES, TRIANGLE_MASK_BYTES};
+use super::cut::{cut_over, error_over, is_finest, Cut, CutTriangle};
 use super::tree::{tree_of, PrimitiveTree, Traced};
 use super::word::word;
 use crate::dag::DagCluster;
 use crate::Result;
 use std::collections::BTreeMap;
+use trillion3d_page_codec::encode::Attribute;
 
 /// What a cluster of the world DAG says to the ray tracer: the rank of its actor, the HLOD cell
 /// whose switch shows that actor and the flags of the actor's material (`material_flags`).
@@ -40,9 +43,9 @@ impl WorldTrees {
 }
 
 /// The tree of actor `actor`, whose gated clusters are `ranks` of the world DAG `clusters`, over
-/// `positions`; none when its cut holds no triangle.
+/// `positions` and the attributes `carried`; none when its cut holds no triangle.
 fn actor_tree(
-    positions: &[f32],
+    (positions, carried): (&[f32], &[&Attribute]),
     clusters: &[DagCluster],
     (ranks, gates): (&[usize], &[Option<WorldGate>]),
 ) -> Result<Option<PrimitiveTree>> {
@@ -51,18 +54,15 @@ fn actor_tree(
         .map(|&rank| &clusters[rank])
         .filter(|c| is_finest(c));
     let error = error_over(positions, finest);
-    let triangles = cut_clusters(ranks.iter().map(|&rank| (rank, &clusters[rank])), error)
-        .flat_map(|cluster| triangles_of((positions, &[]), cluster))
-        .collect::<Result<_>>()?;
     let gate = gates[ranks[0]].expect("a gated cluster");
     let cell = word(gate.cell, "HLOD cell rank")?;
-    let cut = Cut {
-        error,
-        triangles,
-        attributed: false,
-        normalled: false,
-    };
-    tree_of(cut, Traced::actor(gate.flags, cell))
+    let material = word(gate.actor, "actor rank")?;
+    let cut = cut_over(
+        (positions, carried),
+        ranks.iter().map(|&rank| (rank, &clusters[rank])),
+        (error, mask_set_of(gate.flags)),
+    )?;
+    tree_of(cut, Traced::actor(gate.flags, cell, material))
 }
 
 /// The directory over `actors`: one entry for each, standing where a triangle does — the low and the
@@ -77,6 +77,7 @@ fn directory_of(actors: &[PrimitiveTree]) -> Result<Option<PrimitiveTree>> {
                 triangle: 0,
                 tag: actor.traced.cell,
                 attributes: [0; TRIANGLE_ATTRIBUTE_BYTES],
+                mask: [0; TRIANGLE_MASK_BYTES],
             })
         })
         .collect::<Result<_>>()?;
@@ -86,15 +87,17 @@ fn directory_of(actors: &[PrimitiveTree]) -> Result<Option<PrimitiveTree>> {
         triangles,
         attributed: false,
         normalled: false,
+        masked: false,
     };
     tree_of(cut, Traced::WORLD)
 }
 
 /// The trees of the world DAG `clusters`, whose indices lie in `positions`, `gates` naming each
 /// cluster's actor, cell and flags, none for a cluster that holds no triangle of its own (a voxel
-/// page); none when no actor's cut holds a triangle, an error when a tree is too large.
+/// page); the attributes `carried` lie beside `positions`; none when no actor's cut holds a
+/// triangle, an error when a tree is too large.
 pub(crate) fn world_trees(
-    positions: &[f32],
+    (positions, carried): (&[f32], &[&Attribute]),
     clusters: &[DagCluster],
     gates: &[Option<WorldGate>],
 ) -> Result<Option<WorldTrees>> {
@@ -107,7 +110,7 @@ pub(crate) fn world_trees(
     }
     let mut actors = Vec::new();
     for ranks in of_actor.values() {
-        actors.extend(actor_tree(positions, clusters, (ranks, gates))?);
+        actors.extend(actor_tree((positions, carried), clusters, (ranks, gates))?);
     }
     let Some(directory) = directory_of(&actors)? else {
         return Ok(None);

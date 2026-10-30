@@ -29,6 +29,11 @@ pub(super) fn surface_tables(
     let (responsive, mut ignored) = materials.responsive_levels(described);
     let (sky, sky_ignored) = materials.sky_flags(described);
     ignored.extend(sky_ignored);
+    ignored.extend(crate::ray_tracing::unreachable_sets(
+        described["materials"]
+            .as_array()
+            .map_or(&[][..], Vec::as_slice),
+    ));
     let mut surfaces = Materials {
         table: Vec::new(),
         interned: BTreeMap::new(),

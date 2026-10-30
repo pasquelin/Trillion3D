@@ -7,13 +7,15 @@ import { NO_INDEX } from '../../../../../math/src/constants.ts'
 import { fakeDevice } from '../../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { words } from '../../../../../../tests/kit/fakeDevice/fakeBuffers.ts'
 import { destroyRetired } from '../../../gpu/core/frameRetire.ts'
-import { ensureSceneTrace, sceneTraceWords, type TracedWorld } from './sceneTraceResources.ts'
+import { sceneTraceWords, type TracedWorld } from './sceneTraceResources.ts'
 import { SCENE_TRACE_PARAMS } from './sceneTraceWgsl.ts'
 import { TRACED_MATERIAL_WORDS } from '../../reflections/translucency/materialWords.ts'
 import {
   CULLING,
   WORLD,
   drawn,
+  ensureTrace,
+  testHold,
   fileOf,
   tableOf,
   worldFileOf,
@@ -23,13 +25,12 @@ import {
 /** The words the table holds for each placement it has room for: its record, its culling word and its material. */
 const PLACEMENT_WORDS = 2 + TRACED_MATERIAL_WORDS
 
-test('the table has room for a word for each cell of each instance of the world DAG, when the file has its directory', () => {
+test('the table has room for a word for each cell of each instance of the world DAG, when the file has its directory', (t) => {
+  const hold = testHold(t)
   const world = worldOf(40, 2, () => false)
   // Two instances of forty words each, after the four words of records and the placements' room.
   assert.deepEqual(sceneTraceWords(worldFileOf(), 3, world), {
-    nodes: 8,
-    triangles: 12,
-    corners: 4,
+    geometry: 8 + 12,
     table: 4 + 4 * PLACEMENT_WORDS + 80,
   })
   assert.deepEqual(
@@ -47,12 +48,12 @@ test('the table has room for a word for each cell of each instance of the world 
   assert.equal(sceneTraceWords(worldFileOf(), 3, three).table, 4 + 4 * PLACEMENT_WORDS + 160)
   const { device } = fakeDevice()
   const file = worldFileOf()
-  const kept = ensureSceneTrace(undefined, device, file, 3, world).sceneTrace!
-  assert.equal(ensureSceneTrace(kept, device, file, 3, world).sceneTrace, kept)
-  assert.notEqual(ensureSceneTrace(kept, device, file, 3, three).sceneTrace, kept, 'outgrown')
+  const kept = ensureTrace(hold, undefined, device, file, 3, world).sceneTrace!
+  assert.equal(ensureTrace(hold, kept, device, file, 3, world).sceneTrace, kept)
+  assert.notEqual(ensureTrace(hold, kept, device, file, 3, three).sceneTrace, kept, 'outgrown')
   const fewer = worldOf(40, 1, () => false)
   assert.equal(
-    ensureSceneTrace(kept, device, file, 3, fewer).sceneTrace,
+    ensureTrace(hold, kept, device, file, 3, fewer).sceneTrace,
     kept,
     'a world that shrinks keeps its room',
   )
@@ -61,22 +62,23 @@ test('the table has room for a word for each cell of each instance of the world 
   const stateless = { world: { draws: () => false } } as unknown as TracedWorld
   for (const silent of [undefined, bare, stateless])
     assert.equal(
-      ensureSceneTrace(kept, device, file, 3, silent).sceneTrace,
+      ensureTrace(hold, kept, device, file, 3, silent).sceneTrace,
       kept,
       'a cut without its world for a frame keeps the room',
     )
   assert.equal(
-    ensureSceneTrace(kept, device, file, 3, world).sceneTrace,
+    ensureTrace(hold, kept, device, file, 3, world).sceneTrace,
     kept,
     'and the next frame',
   )
 })
 
-test('a placement of the world DAG is the directory at its instance; a cell’s word is whether the cut draws it and the object a hit is told by', () => {
+test('a placement of the world DAG is the directory at its instance; a cell’s word is whether the cut draws it and the object a hit is told by', (t) => {
+  const hold = testHold(t)
   const { device } = fakeDevice()
   const world = worldOf(3, 2, (k, cell) => (k === 0 && cell === 1) || (k === 1 && cell === 2))
   const file = worldFileOf()
-  const trace = ensureSceneTrace(undefined, device, file, 4, world).sceneTrace!
+  const trace = ensureTrace(hold, undefined, device, file, 4, world).sceneTrace!
   const roots = [{ mesh: 3, primitive: 5 }, { hlod: {} }, {}, { hlod: {} }]
   trace.syncPlacements(roots, world)
   // The records, the four placements, then two instances' three cells: the drawn ones, with no object told yet;
@@ -110,6 +112,7 @@ test('a placement of the world DAG is the directory at its instance; a cell’s 
     skipBackFaceDistance: 0,
     skipTwoSidedDistance: 0,
     skipsTranslucentSections: true,
+    excludesSky: false,
     culling: CULLING,
   })
   const P = SCENE_TRACE_PARAMS.at
@@ -122,28 +125,32 @@ test('a placement of the world DAG is the directory at its instance; a cell’s 
   assert.equal(written[P.cullWord], 4 + 4 + 6)
 })
 
-test('a world root the table has no room for in its cells’ words, or a file with no directory, is not traced', () => {
+test('a world root the table has no room for in its cells’ words, or a file with no directory, is not traced', (t) => {
+  const hold = testHold(t)
   const { device } = fakeDevice()
   const world = worldOf(40, 1, () => true)
-  const trace = ensureSceneTrace(undefined, device, worldFileOf(), 3, world).sceneTrace!
+  const trace = ensureTrace(hold, undefined, device, worldFileOf(), 3, world).sceneTrace!
   trace.syncPlacements([{ hlod: {} }, { hlod: {} }], world)
   assert.deepEqual(tableOf(trace).slice(4, 6), [WORLD, NO_INDEX])
-  const bare = ensureSceneTrace(undefined, device, fileOf(), 3, world).sceneTrace!
+  const bare = ensureTrace(hold, undefined, device, fileOf(), 3, world).sceneTrace!
   bare.syncPlacements([{ hlod: {} }], world)
   assert.equal(tableOf(bare)[4], NO_INDEX)
 })
 
-test('a file whose actors name a cell the cut does not pack is refused with its reason, the trace held given back', () => {
+test('a file whose actors name a cell the cut does not pack is refused with its reason, the trace held given back', (t) => {
+  const hold = testHold(t)
   const { device, destroyed } = fakeDevice()
   const file = worldFileOf()
-  const held = ensureSceneTrace(
+  const held = ensureTrace(
+    hold,
     undefined,
     device,
     file,
     3,
     worldOf(3, 1, () => false),
   ).sceneTrace!
-  const refused = ensureSceneTrace(
+  const refused = ensureTrace(
+    hold,
     held,
     device,
     file,
@@ -156,7 +163,8 @@ test('a file whose actors name a cell the cut does not pack is refused with its 
   assert.ok(destroyed.includes(held.table))
   // The cut's cells are as many as the actors name, or more; a cut that packs no world has no instance to enter one.
   assert.ok(
-    ensureSceneTrace(
+    ensureTrace(
+      hold,
       undefined,
       device,
       file,
@@ -165,7 +173,8 @@ test('a file whose actors name a cell the cut does not pack is refused with its 
     ).sceneTrace,
   )
   assert.ok(
-    ensureSceneTrace(
+    ensureTrace(
+      hold,
       undefined,
       device,
       file,
@@ -173,9 +182,10 @@ test('a file whose actors name a cell the cut does not pack is refused with its 
       worldOf(40, 1, () => false),
     ).sceneTrace,
   )
-  assert.ok(ensureSceneTrace(undefined, device, file, 3).sceneTrace)
+  assert.ok(ensureTrace(hold, undefined, device, file, 3).sceneTrace)
   assert.ok(
-    ensureSceneTrace(
+    ensureTrace(
+      hold,
       undefined,
       device,
       fileOf(),
@@ -185,11 +195,12 @@ test('a file whose actors name a cell the cut does not pack is refused with its 
   )
 })
 
-test('the cells’ words are made again only when the cut’s draws, its cells, its roots or the stand-ins’ list moved; written only when they differ', () => {
+test('the cells’ words are made again only when the cut’s draws, its cells, its roots or the stand-ins’ list moved; written only when they differ', (t) => {
+  const hold = testHold(t)
   const gpu = fakeDevice()
   let asked = 0
   const world = worldOf(3, 2, (k, cell) => (asked++, k === 0 && cell === 1))
-  const trace = ensureSceneTrace(undefined, gpu.device, worldFileOf(), 4, world).sceneTrace!
+  const trace = ensureTrace(hold, undefined, gpu.device, worldFileOf(), 4, world).sceneTrace!
   const roots = [{ mesh: 3, primitive: 5 }, { hlod: {} }, {}, { hlod: {} }]
   const cellWrites = () => gpu.writes.filter((w) => w.buffer === trace.table && w.offset === 8 * 4)
   trace.syncPlacements(roots, world)

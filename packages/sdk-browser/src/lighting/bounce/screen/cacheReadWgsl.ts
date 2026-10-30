@@ -24,9 +24,10 @@ const cacheGatheredWgsl = (
   sky: number,
   scope: CacheGatherScope,
   light: LightAtlasFormat,
-) => `@group(0) @binding(${final}) var cacheFinal:texture_2d<${lightAtlasScalar(light)}>;
-@group(0) @binding(${raw}) var cacheRaw:texture_2d<u32>;
-@group(0) @binding(${sky}) var cacheSky:texture_2d<f32>;
+  group: number,
+) => `@group(${group}) @binding(${final}) var cacheFinal:texture_2d<${lightAtlasScalar(light)}>;
+@group(${group}) @binding(${raw}) var cacheRaw:texture_2d<u32>;
+@group(${group}) @binding(${sky}) var cacheSky:texture_2d<f32>;
 struct CacheSample{radiance:vec3f,distance:f32,sky:f32,}
 struct CacheGathered{corner:array<u32,8>,place:array<vec3f,8>,alpha:vec3f,levelHeld:u32,}
 var<${scope}> cacheNow:CacheGathered;
@@ -188,7 +189,7 @@ fn spFarOf(P:vec3f,d:vec3f,size:f32)->SpFar{
  * interpolated the same way, fills the light with the sky itself along the ray (`spCacheSky`). `spFarOf` is a ray's answer
  * past the screen and the near scene: the cache's, with the distance it reads (the greatest a probe's ray holds, `CACHE_MAX_HIT`, where the probes' rays met
  * no surface, which the ray's word then keeps as the furthest a ray looks); the environment's, at the ray's reach, where the cache covers no point of it.
- * The final maps are read as the format `light` stores them (`lightOfTexel`).
+ * The final maps are read as the format `light` stores them (`lightOfTexel`), the three bindings lying in bind group `group`.
  */
 export const spCacheRead = (
   final: number,
@@ -196,9 +197,10 @@ export const spCacheRead = (
   sky: number,
   scope: CacheGatherScope = 'workgroup',
   light: LightAtlasFormat = WORD_LIGHT_FORMAT,
+  group = 0,
 ) =>
   wgslBlock(
-    `spCacheRead(${final}, ${raw}, ${sky}, ${scope}, ${light})`,
+    `spCacheRead(${final}, ${raw}, ${sky}, ${scope}, ${light}${group ? `, ${group}` : ''})`,
     [
       CACHE_WORDS_WGSL,
       ...lightReadDeps(light),
@@ -206,7 +208,7 @@ export const spCacheRead = (
       REFLECTION_ENVIRONMENT_WGSL,
       SKY_READ_WGSL,
     ],
-    cacheGatheredWgsl(final, raw, sky, scope, light) +
+    cacheGatheredWgsl(final, raw, sky, scope, light, group) +
       cacheHeldWgsl +
       cacheGatherWgsl(scope) +
       cacheTexelsText(light) +

@@ -64,6 +64,7 @@ import { skyLightReadWgsl } from '../../modules/sky/skyLight/read.ts'
  *  - `cache`, for the rough reflections that read the radiance cache (`cacheLimits`, `cacheReads`, `radianceCache/wgsl.ts`): the roughness it is read from (`x`) and
  *    the one the rays are shortest at (`y`), the width of the noise added to a roughness (`z`), the scale of the sphere a probe is read through (`w`);
  *    `cacheTrace`: the metres a ray goes at the first roughness (`x`) and at the second (`y`), and whether the probes are drawn stochastically (`z`);
+ *  - `translucent`, the hit lighting's switches (`z`, `hitLightFlags`) and its mode (`w`, `hitLighting/constants.ts`); `x` and `y` are not used;
  *  - `jitter`, the device offset the temporal anti-aliasing shifts `viewProj` by (`xy`) and the one it shifted
  *    `radianceViewProj` by (`zw`): what the surfaces' vectors, drawn without it, are compared after.
  */
@@ -95,6 +96,7 @@ const LAYOUT = fieldLayout('ReflectionView', [
   ['firstPersonMinimum', 'f32'],
   ['cache', 'vec4f'],
   ['cacheTrace', 'vec4f'],
+  ['translucent', 'vec4u'],
 ] as const)
 
 /** Each field's first word in the view. */

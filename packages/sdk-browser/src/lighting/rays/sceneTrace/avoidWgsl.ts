@@ -2,6 +2,8 @@ import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
 import { DISTANCE_FIELD_UNITS_PER_METRE } from '../../../../../sdk-core/src/contracts/distanceFieldAbi.ts'
 import { SELF_INTERSECTION } from '../../surfaceCache/lighting/layout.ts'
+import { NO_SCENE_MASKS, sceneMaskKey, type SceneMaskPrograms } from './sceneMaskPrograms.ts'
+import { sceneMaskWgsl } from './sceneMaskWgsl.ts'
 import { sceneTraceWgsl } from './sceneTraceWgsl.ts'
 
 /**
@@ -11,19 +13,28 @@ import { sceneTraceWgsl } from './sceneTraceWgsl.ts'
  * traced again from past a first hit that is a back face nearer than the trace's `skipBackFaceDistance` or a two-sided hit nearer than its
  * `skipTwoSidedDistance` (a hair past the latter, 0.01 centimetres), once; or passes such hits as it travels.
  */
-export const sceneTraceAvoidWgsl = (group: number, first: number) =>
+export const sceneTraceAvoidWgsl = (
+  group: number,
+  first: number,
+  programs: SceneMaskPrograms = NO_SCENE_MASKS,
+) =>
   wgslBlock(
-    `SCENE_TRACE_AVOID_WGSL(${group},${first})`,
-    [sceneTraceWgsl(group, first)],
+    `SCENE_TRACE_AVOID_WGSL(${group},${first},${sceneMaskKey(programs)})`,
+    [sceneTraceWgsl(group, first), sceneMaskWgsl(group, first, programs)],
     `${wgslConsts({
       ST_AVOID_CULL: SELF_INTERSECTION.cull,
       ST_AVOID_RETRACE: SELF_INTERSECTION.retrace,
       ST_AVOID_SKIP: SELF_INTERSECTION.skip,
     })}
-fn stTraceAvoiding(origin:vec3f,d:vec3f,near:f32,far:f32,avoid:u32)->StHit{
+// The flags a ray carries as the setting avoids the geometry it starts on.
+fn stAvoidFlags(avoid:u32)->u32{
  var flags=ST_SKIP_TRANSLUCENT;
  if(avoid==ST_AVOID_CULL){flags|=ST_CULL_BACK;}
  if(avoid>=ST_AVOID_SKIP){flags|=ST_SKIP_NEAR;}
+ return flags;
+}
+fn stTraceAvoiding(origin:vec3f,d:vec3f,near:f32,far:f32,avoid:u32)->StHit{
+ let flags=stAvoidFlags(avoid);
  var tMin=near;
  var hit:StHit;
  for(var trace=0u;trace<2u;trace++){

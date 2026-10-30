@@ -1,11 +1,13 @@
 //! The world's trees cut every actor at its own error into a record of its own, naming its cell
-//! and wearing its flags; the directory has an entry for each, standing where a triangle does;
+//! and wearing its flags and material rank; the directory has an entry for each, standing where a triangle does;
 //! a cluster no gate names holds none.
 use super::cluster;
 use crate::ray_tracing::abi::*;
 use crate::ray_tracing::encode::encode;
 use crate::ray_tracing::world::{world_trees, WorldGate};
 use crate::support::le::u32_at;
+use trillion3d_page_codec::encode::Attribute;
+use trillion3d_page_codec::{FLAG_UV, FLAG_UV1};
 
 /// The cluster rank of each triangle of `bytes`, sorted.
 fn clusters_of(bytes: &[u8]) -> Vec<u32> {
@@ -49,7 +51,7 @@ fn every_actor_is_cut_at_its_own_error_into_a_record_naming_its_cell() {
         Some(gate(1)),
         None,
     ];
-    let trees = world_trees(&positions, &dag, &gates)
+    let trees = world_trees((&positions, &[]), &dag, &gates)
         .expect("trees")
         .expect("triangles");
     assert_eq!(trees.actors.len(), 2);
@@ -88,9 +90,10 @@ fn every_actor_is_cut_at_its_own_error_into_a_record_naming_its_cell() {
     let record = |rank: usize| RAY_TRACING_HEAD_BYTES + rank * RAY_TRACING_RECORD_BYTES;
     let word = |rank: usize, at: usize| u32_at(&bytes, record(rank) + 4 * at).unwrap();
     for (rank, actor_flags) in flags.into_iter().enumerate() {
+        // No mesh, the rank of the material the actor wears where a primitive's number is.
         assert_eq!(
             [word(rank, 0), word(rank, 1)],
-            [RAY_TRACING_NO_PRIMITIVE; 2]
+            [RAY_TRACING_NO_PRIMITIVE, rank as u32]
         );
         // An actor is a mesh of one material: a translucent one is translucent whole.
         let whole = actor_flags & RAY_TRACING_FLAG_TRANSLUCENT != 0;
@@ -110,5 +113,57 @@ fn every_actor_is_cut_at_its_own_error_into_a_record_naming_its_cell() {
 fn a_world_of_voxel_pages_alone_has_no_trees() {
     let positions = [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0];
     let dag = [cluster(vec![0, 1, 2], (0.0, f64::INFINITY), false)];
-    assert!(world_trees(&positions, &dag, &[None]).unwrap().is_none());
+    assert!(world_trees((&positions, &[]), &dag, &[None])
+        .unwrap()
+        .is_none());
+}
+
+#[test]
+fn an_actor_whose_mask_reads_a_later_set_keeps_the_corners_attributes_and_that_sets_coordinates() {
+    let positions = [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0];
+    let dag = [cluster(vec![0, 1, 2], (0.0, f64::INFINITY), false)];
+    let uvs = Attribute {
+        flag: FLAG_UV,
+        width: 2,
+        values: vec![0.0, 0.0, 2.0, 0.0, 0.0, 3.0],
+    };
+    let second = Attribute {
+        flag: FLAG_UV1,
+        width: 2,
+        values: vec![5.0, 5.0, 6.0, 5.0, 5.0, 7.0],
+    };
+    let carried = [&uvs, &second];
+    let set = 1 << RAY_TRACING_FLAG_MASK_SET_SHIFT;
+    let gate = |flags| {
+        Some(WorldGate {
+            actor: 4,
+            cell: 2,
+            flags,
+        })
+    };
+    let masked = world_trees(
+        (&positions, &carried),
+        &dag,
+        &[gate(RAY_TRACING_FLAG_MASKED | set)],
+    )
+    .expect("trees")
+    .expect("triangles");
+    let actor = &masked.actors[0];
+    assert_eq!(actor.attributes.len(), 3 * RAY_TRACING_CORNER_BYTES);
+    assert_eq!(actor.mask.len(), 3 * RAY_TRACING_MASK_CORNER_BYTES);
+    let flags = actor.traced.flags;
+    assert_eq!(flags & RAY_TRACING_FLAG_MASK_SET, set);
+    assert_ne!(flags & RAY_TRACING_FLAG_ATTRIBUTES, 0);
+    assert_eq!(actor.traced.primitive, 4, "the rank of its material");
+    // A set the world does not carry is left out of the record, whose mask reads the first.
+    let only_first = [&uvs];
+    let absent = world_trees(
+        (&positions, &only_first),
+        &dag,
+        &[gate(RAY_TRACING_FLAG_MASKED | set)],
+    )
+    .expect("trees")
+    .expect("triangles");
+    assert!(absent.actors[0].mask.is_empty());
+    assert_eq!(absent.actors[0].traced.flags & RAY_TRACING_FLAG_MASK_SET, 0);
 }

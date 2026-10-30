@@ -13,6 +13,7 @@ import { POOL_SLOT, poolShapeOf, poolWorkWords } from '../pool/poolLayout.ts'
 import { PROBE_QUEUE_WORDS } from './probeQueueWgsl.ts'
 import { lightAtlasFormat, type LightAtlasFormat } from '../../../gpu/core/lightAtlasFormat.ts'
 import { createCacheKernels } from '../cache/cacheKernels.ts'
+import type { CacheHitLighting } from '../cache/cacheHitLit.ts'
 import { createRadianceCache, type AfterUpdate } from '../cache/radianceCache.ts'
 import { createProbeStorage } from './probeStorage.ts'
 import { createPlacementFollow } from './probeSync.ts'
@@ -94,9 +95,9 @@ function probeApi(
   return {
     cascades,
     /** The image's viewpoint and the pre-exposure its light is cached under, taken before anything reads the levels or the cache this
-     *  image: the maps made or given back — a closed series finds work when they are made — and the levels re-centred on it. */
-    track(viewpoint: ArrayLike<number>, preExposure: number) {
-      cache.follow(settings(), preExposure)
+     *  image: the maps made or given back — a closed series finds work when they are made — and the levels re-centred on it. `hit` is the image's hit lighting for the cache (`null` where the settings do not light the hits: the cache gives its hit lighting back; `undefined` where the image has no information: the cache keeps it). */
+    track(viewpoint: ArrayLike<number>, preExposure: number, hit?: CacheHitLighting | null) {
+      cache.follow(settings(), preExposure, hit)
       encoder.follow(viewpoint)
     },
     /** The image's probe pass, once `track` has taken its viewpoint (`probeEncode.ts`). */

@@ -106,15 +106,18 @@ test('the tile jitter of a block of two across and one down alternates by row an
   assert.ok(program.includes('if(block.y<2u){return vec2u((g.y+turn)%2u,0u);}'))
 })
 
-test('the scene stage through the scene’s triangles holds the bindings its code reaches, the cut’s tables beside the cache’s, and neither the field nor its grid', () => {
+test('the scene stage through the scene’s triangles holds the bindings its code reaches and no other (not the cut’s tables, which the trace of the triangles alone reads), and neither the field nor its grid', () => {
   const program = reflectionTraceShader(false, true)
   const reachedHere = reached(program, 'traceScene')
   const layout = hardwareSceneLayout(device) as unknown as { entries: { binding: number }[] }
   const held = new Set(layout.entries.map(({ binding }) => binding))
   for (const [binding, name] of reachedHere)
     assert.ok(held.has(binding), `traceScene reaches ${name} (${binding}), its layout holds none`)
-  // The cut's tables sit at the culling's bindings; the surface stage's pixels moved off the first of them.
-  for (const binding of [1, 6, 7, 9]) assert.ok(held.has(binding), `the cut's table at ${binding}`)
+  // Only reachable bindings: the answer reads the triangles the trace kept, so the cut's tables (the culling's bindings 1, 6, 7 and 9,
+  // which the surface stage's pixels moved off) are in the trace's layout alone.
+  for (const binding of held)
+    assert.ok(reachedHere.has(binding), `binding ${binding} is never reached`)
+  for (const binding of [1, 6, 7, 9]) assert.ok(!held.has(binding), `no cut's table at ${binding}`)
   assert.notEqual(B.normals, 1)
   const names = [...reachedHere.values()]
   for (const name of ['hitInstances', 'scFeedback']) assert.ok(names.includes(name), name)

@@ -11,6 +11,7 @@ import { skyLightReadWgsl, type SkyLightBindings } from '../../../modules/sky/sk
 import { SKY_READ_WGSL } from '../../atmosphere/skyReadWgsl.ts'
 import { DIRECT_LIGHT_WGSL } from '../../direct/lightWgsl.ts'
 import { sceneTraceAvoidWgsl } from '../../rays/sceneTrace/avoidWgsl.ts'
+import { NO_SCENE_MASKS, type SceneMaskPrograms } from '../../rays/sceneTrace/sceneMaskPrograms.ts'
 import { surfaceHitCardsWgsl, surfaceHitWgsl } from '../hitWgsl.ts'
 import { SURFACE_CACHE_LAYER_AT as L } from '../sampleWgsl.ts'
 import {
@@ -212,10 +213,13 @@ fn rayRadiance(texel:RadTexel,dir:vec3f)->vec3f{
 }`
 
 /** The trace through the scene's triangles, the rays' radiance stored in `light`, and the cache's final light read in it. */
-export const radiosityTracedProgramOf = (light: LightAtlasFormat) =>
+export const radiosityTracedProgramOf = (
+  light: LightAtlasFormat,
+  programs: SceneMaskPrograms = NO_SCENE_MASKS,
+) =>
   wgslProgram(radiosityKernel(kernelBindings(TB, light), TRACED_RADIANCE, light, true), [
     ...sharedDeclarations(TB, light),
     CM_PER_M_WGSL,
     surfaceHitCardsWgsl({ group: 0, cards: TB.tables, instances: TB.instances }, light),
-    sceneTraceAvoidWgsl(RADIOSITY_TRACED_SCENE.group, RADIOSITY_TRACED_SCENE.first),
+    sceneTraceAvoidWgsl(RADIOSITY_TRACED_SCENE.group, RADIOSITY_TRACED_SCENE.first, programs),
   ])

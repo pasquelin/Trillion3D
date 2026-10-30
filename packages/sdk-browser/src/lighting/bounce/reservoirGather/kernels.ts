@@ -1,6 +1,11 @@
+import {
+  heldMakerOf,
+  oncePerDeviceOverPrograms,
+  sceneMaskKey,
+} from '../../rays/sceneTrace/sceneMaskPrograms.ts'
 import { startedComputeStages } from '../../../gpu/core/computeStages.ts'
 import type { LightAtlasFormat } from '../../../gpu/core/lightAtlasFormat.ts'
-import { oncePerDevice, oncePerDeviceKey } from '../../../gpu/core/oncePerDevice.ts'
+import { oncePerDevice } from '../../../gpu/core/oncePerDevice.ts'
 import { reflectionLayout } from '../../reflections/reflectionPipelines.ts'
 import { TRACE_TRACED_SCENE } from '../screen/traceTracedWgsl.ts'
 import { IMAGE_ENTRIES, imageEntries, imageProgram } from './imageWgsl.ts'
@@ -32,22 +37,32 @@ function started<E extends string>(
     get ready() {
       return stages.ready
     },
+    get pending() {
+      return stages.pending
+    },
     pipeline: (entry: E) => stages.pipelineOf(entry),
   }
 }
 
 /** The kernel that casts the rays of the reservoirs through the scene's triangles (the first rays and the validation), for a surface cache stored in `light`: its group 0 with the cut's tables and the cards, the reflection group, the scene trace's. */
-export const traceKernel = oncePerDeviceKey((device: GPUDevice, light: LightAtlasFormat) => {
-  const label = `Trillion3D reservoir rays ${light}`
-  const groups: GPUBindGroupLayout[] = []
-  groups[0] = device.createBindGroupLayout({ label, entries: reservoirTraceEntries(light) })
-  groups[1] = reflectionLayout(device)
-  groups[TRACE_TRACED_SCENE.group] = device.createBindGroupLayout({
-    label,
-    entries: reservoirTraceSceneEntries(),
-  })
-  return started(device, label, groups, reservoirTraceProgram(light), [RESERVOIR_TRACE_ENTRY])
-})
+export const traceKernel = oncePerDeviceOverPrograms(
+  (device: GPUDevice, light: LightAtlasFormat, programs) => {
+    const label = `Trillion3D reservoir rays ${light}|${sceneMaskKey(programs)}`
+    const groups: GPUBindGroupLayout[] = []
+    groups[0] = device.createBindGroupLayout({ label, entries: reservoirTraceEntries(light) })
+    groups[1] = reflectionLayout(device)
+    groups[TRACE_TRACED_SCENE.group] = device.createBindGroupLayout({
+      label,
+      entries: reservoirTraceSceneEntries(),
+    })
+    return started(device, label, groups, reservoirTraceProgram(light, programs), [
+      RESERVOIR_TRACE_ENTRY,
+    ])
+  },
+)
+
+/** The maker of the trace kernel for a device and a light format, as the mask hold takes it (`maskHold.use`): one function each, not one an image. */
+export const traceMaker = heldMakerOf(traceKernel)
 
 /** The kernels that resample the reservoirs (clearing, temporal, one spatial pass). */
 export const resampleKernel = oncePerDevice((device: GPUDevice) => {

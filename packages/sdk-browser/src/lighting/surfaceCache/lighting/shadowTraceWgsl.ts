@@ -1,6 +1,8 @@
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { WORKGROUP_THREADS } from '../../../gpu/dispatch/grid.ts'
 import { DIRECT_LIGHT_WGSL } from '../../direct/lightWgsl.ts'
+import { NO_SCENE_MASKS, type SceneMaskPrograms } from '../../rays/sceneTrace/sceneMaskPrograms.ts'
+import { sceneMaskWgsl } from '../../rays/sceneTrace/sceneMaskWgsl.ts'
 import { sceneTraceWgsl } from '../../rays/sceneTrace/sceneTraceWgsl.ts'
 import { ARGS_WRITER_WGSL } from './contextWgsl.ts'
 import {
@@ -144,7 +146,11 @@ fn ${entry}(@builtin(workgroup_id) group:vec3u,@builtin(num_workgroups) n:vec3u,
 
 export const SHADOW_TRACE_ENTRY = 'shadowTrace'
 
-const shadowTraceProgram = (format: AtlasFormat) =>
+/** The trace over masks in `format`, its rays cutting the surfaces by the graph masks `programs`. */
+export const shadowTraceProgram = (
+  format: AtlasFormat,
+  programs: SceneMaskPrograms = NO_SCENE_MASKS,
+) =>
   wgslProgram(
     `${shadowTraceDeclarations}
 ${shadowTraceMasks}
@@ -157,6 +163,7 @@ ${shadowTraceEntry(SHADOW_TRACE_ENTRY)}`,
       CM_PER_M_WGSL,
       DIRECT_LIGHT_WGSL,
       sceneTraceWgsl(SHADOW_TRACE_SCENE.group, SHADOW_TRACE_SCENE.first),
+      sceneMaskWgsl(SHADOW_TRACE_SCENE.group, SHADOW_TRACE_SCENE.first, programs),
     ],
   )
 

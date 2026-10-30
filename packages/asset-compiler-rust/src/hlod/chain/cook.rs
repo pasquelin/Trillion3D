@@ -70,7 +70,7 @@ pub(crate) fn cook(
 ) -> Result<(Cooked, Vec<builds::Actor>)> {
     let (mut world, actors, rows, failures, measures) =
         builds::world_dag(instances, tree, builder)?;
-    let ray_tracing = super::traced::ray_tracing(&world, &actors, materials)?;
+    let ray_tracing = super::traced::ray_tracing(&world, &actors, (materials, builder.sky))?;
     let mut cooked = bundles::pack_world(&mut world, (tree, &rows), builder.hlod)?;
     cooked.ray_tracing = ray_tracing;
     // Per HLOD level from 0, as the measures count them (`Measures`).

@@ -1,3 +1,8 @@
+import {
+  NO_SCENE_MASKS,
+  sceneMaskKey,
+  type SceneMaskPrograms,
+} from '../../rays/sceneTrace/sceneMaskPrograms.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
@@ -10,11 +15,12 @@ import {
   sceneHitVelocityEntry,
 } from '../../rays/sceneTrace/sceneHitVelocityWgsl.ts'
 import { sceneTraceAvoidWgsl } from '../../rays/sceneTrace/avoidWgsl.ts'
-import { sceneTraceLayoutEntries } from '../../rays/sceneTrace/sceneTraceWgsl.ts'
+import { sceneMaskedLayoutEntries } from '../../rays/sceneTrace/sceneMaskWgsl.ts'
 import { surfaceHitCardsLayoutEntries } from '../../surfaceCache/hitWgsl.ts'
 import { WORD_LIGHT_FORMAT, type LightAtlasFormat } from '../../../gpu/core/lightAtlasFormat.ts'
 import { bounceBindingsWgsl } from '../gridWgsl.ts'
 import { tracedHitLightWgsl } from '../tracedHitWgsl.ts'
+import { LIT_MATERIAL_WGSL } from '../../reflections/hitLighting/pathWgsl.ts'
 import { spCommon, spParams } from './commonWgsl.ts'
 import { spProbeRecords, spReach } from './probesWgsl.ts'
 import { rayFogLayoutEntries, type RayFogBindings } from '../../reflections/rayFog.ts'
@@ -59,6 +65,9 @@ export const TRACE_TRACED_BINDINGS = bindingTable({
   sceneRays: [12, 'buffer-read'],
   blue: [13, 'float'],
 })
+/** The five top bits, all set, of a ray's word in the trace's radiance texture: they mark a hit to light again where it stands (the hit lighting's passes), the low fifteen bits holding the key of its material (`litMaterialKey`). A packed light never sets them all (the blue's exponent field tops at 11110), so a bright ray is never taken for a mark. */
+export const SP_LIT_MARK = 0xf8000000
+
 /** The cells' table the coverage names without reading: declared, in no layout. */
 const TRACED_CELL_TABLE = 15
 /** Where the stage reads what a hit finds: the surface cache's cards alone, the global field neither marched nor bound. The cut's tables it
@@ -85,18 +94,26 @@ export const traceTracedEntries = (fog: boolean, light: LightAtlasFormat = WORD_
   ...rayFogLayoutEntries(TRACE_TRACED_FOG, fog),
 ]
 /** The layout of the stage's scene trace group. */
-export const traceTracedSceneEntries = () => sceneTraceLayoutEntries(TRACE_TRACED_SCENE.first)
+export const traceTracedSceneEntries = () => sceneMaskedLayoutEntries(TRACE_TRACED_SCENE.first)
 
 const T = TRACE_TRACED_BINDINGS.at
 
-/** The text of the traced ray: its start off the surface and the ray itself. */
-const SP_TRACED_RAY_TEXT = `struct SpTraced{radiance:vec3f,distance:f32,hit:bool,speed:f32,}
-/** Where the ray \`d\` of \`probe\` starts: off the surface along its normal (turned toward the ray on a probe with backface diffuse light) by the normal bias. */
-fn spTracedStart(probe:SpProbe,d:vec3f)->vec3f{
+/** The text of the traced ray: its start off the surface and the ray itself; with `hitLit` a hit on a triangle is not lit here but marked (`spTracedMark`: the hit lighting's bit and the key of the hit's material, for the passes that follow). */
+/** Where the ray `d` of `probe` starts (`spTracedStart`): off the surface along its normal (turned toward the ray on a probe with backface diffuse light) by the normal bias. */
+export const SP_TRACED_START = wgslBlock(
+  'SP_TRACED_START',
+  [],
+  `fn spTracedStart(probe:SpProbe,d:vec3f)->vec3f{
  var normal=probe.N;
  if(probe.foliage&&dot(normal,d)<0.0){normal=-normal;}
  return probe.P+sp.traced.y*normal;
-}
+}`,
+)
+
+const spTracedRayText = (
+  hitLit: boolean,
+) => `struct SpTraced{radiance:vec3f,distance:f32,hit:bool,speed:f32,}
+${hitLit ? 'var<private> spTracedMark:u32=0u;\n' : ''}
 /** The ray \`d\` of \`probe\` that the screen left at \`missed\` metres, to the \`reach\` of its cell, traced against the scene's triangles; \`speed\` the metres the placement it hit moved since the last image. */
 fn spTracedRay(probe:SpProbe,d:vec3f,missed:f32,reach:f32,side:f32)->SpTraced{
  var rayBias=sp.traced.x;
@@ -119,48 +136,66 @@ fn spTracedRay(probe:SpProbe,d:vec3f,missed:f32,reach:f32,side:f32)->SpTraced{
  out.distance=hit.distance;
  // No pose moved since the poses the last drawn frame drew were kept: the hit's placement stands where it stood, its speed exactly zero.
  if(spFlag(SP_FLAG_POSES_MOVING)){out.speed=length(stHitVelocity(hit.placement,origin-view.display.yzw+d*hit.distance,stParams.eyeXY,stEyeZ()));}
- // A hit too near to tell from the surface itself would light it with its own light; the back of a one-sided surface has no cards.
- out.radiance=tracedHitLight(hit,origin,d,side,sp.tracedHit.x,sp.tracedHit.y,vec2u(0u));
+${
+  hitLit
+    ? ` // The hit is lit again where it stands (the hit lighting's passes); the key of its material sorts it.
+ spTracedMark=${SP_LIT_MARK}u|(litMaterialKey(hit.placement,hit.record)&0x7fffu);`
+    : ` // A hit too near to tell from the surface itself would light it with its own light; the back of a one-sided surface has no cards.
+ out.radiance=tracedHitLight(hit,origin,d,side,sp.tracedHit.x,sp.tracedHit.y,vec2u(0u));`
+}
  return out;
 }`
 
 /** The radiance a ray cast through the scene's triangles finds (`spTracedRay`), and the distance it went. */
-const spTracedRayWgsl = (light: LightAtlasFormat) =>
+const spTracedRayWgsl = (light: LightAtlasFormat, programs: SceneMaskPrograms, hitLit: boolean) =>
   wgslBlock(
-    `SP_TRACED_RAY(${light})`,
+    `SP_TRACED_RAY(${light},${sceneMaskKey(programs)},${hitLit})`,
     [
-      sceneTraceAvoidWgsl(TRACE_TRACED_SCENE.group, TRACE_TRACED_SCENE.first),
+      SP_TRACED_START,
+      sceneTraceAvoidWgsl(TRACE_TRACED_SCENE.group, TRACE_TRACED_SCENE.first, programs),
       SCENE_HIT_VELOCITY_WGSL,
-      tracedHitLightWgsl(TRACE_TRACED_HIT, TRACE_TRACED_SCENE, light),
+      hitLit
+        ? LIT_MATERIAL_WGSL
+        : tracedHitLightWgsl(TRACE_TRACED_HIT, TRACE_TRACED_SCENE, light, programs),
     ],
-    SP_TRACED_RAY_TEXT,
+    spTracedRayText(hitLit),
   )
 
 /** The light of a hit (`spTracedLit`), `ray` of `probe` along `d`: the height fog laid over it, from where the ray started over the distance it hit at, where `fog`
  *  (`spRayFogged`, `rayFogWgsl.ts`), which reads the lights the stage then binds; the light of the hit as it is otherwise. */
-const spTracedLit = (fog: boolean, light: LightAtlasFormat) =>
+const spTracedLit = (
+  fog: boolean,
+  light: LightAtlasFormat,
+  programs: SceneMaskPrograms,
+  hitLit: boolean,
+) =>
   wgslBlock(
-    `spTracedLit(${fog},${light})`,
+    `spTracedLit(${fog},${light},${sceneMaskKey(programs)},${hitLit})`,
     fog
-      ? [spTracedRayWgsl(light), DIRECT_LIGHT_WGSL, rayFogWgsl(TRACE_TRACED_FOG)]
-      : [spTracedRayWgsl(light)],
+      ? [spTracedRayWgsl(light, programs, hitLit), DIRECT_LIGHT_WGSL, rayFogWgsl(TRACE_TRACED_FOG)]
+      : [spTracedRayWgsl(light, programs, hitLit)],
     `${fog ? `@group(0) @binding(${TRACE_TRACED_FOG.lights}) var<storage,read> directLights:DirectLights;\n` : ''}fn spTracedLit(ray:SpTraced,probe:SpProbe,d:vec3f)->vec3f{
  return ${fog ? 'spRayFogged(ray.radiance,spTracedStart(probe,d),d,ray.distance,true)' : 'ray.radiance'};
 }`,
   )
 
 /** The stage, a thread a listed ray: its texel and where the screen left it read, a hit's light and the ray's end written. */
-const traceTriangles = (fog: boolean, light: LightAtlasFormat) =>
+const traceTriangles = (
+  fog: boolean,
+  light: LightAtlasFormat,
+  programs: SceneMaskPrograms,
+  hitLit: boolean,
+) =>
   wgslBlock(
-    `SP_TRACE_TRIANGLES(${fog},${light})`,
+    `SP_TRACE_TRIANGLES(${fog},${light},${sceneMaskKey(programs)},${hitLit})`,
     [
       spListedRays(T.sceneRays),
       SP_RAY_CONE,
-      spTracedRayWgsl(light),
+      spTracedRayWgsl(light, programs, hitLit),
       SP_FAR_PENDING,
       ditherLight,
       packLight,
-      spTracedLit(fog, light),
+      spTracedLit(fog, light, programs, hitLit),
     ],
     `@group(0) @binding(${T.radiance}) var radianceOut:texture_storage_2d<${F.trace},write>;
 @group(0) @binding(${T.hit}) var hitIo:texture_storage_2d<${F.hit},read_write>;
@@ -178,27 +213,39 @@ fn traceTriangles(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroup
  let direction=spRayDirection(listed.atlas,t,index);
  if(spFlag(SP_FLAG_SCENE_TRACES)){
   ray=spTracedRay(probe,direction,spHitDistance(textureLoad(hitIo,texel).r),reach,spRayCone(listed.atlas,t));
-  if(ray.hit){ray.radiance+=spSkyLeak(direction,ray.distance);}
+  // A marked hit is lit by the hit lighting's passes, which add the sky light that leaks onto it.
+  if(ray.hit${hitLit ? '&&spTracedMark==0u' : ''}){ray.radiance+=spSkyLeak(direction,ray.distance);}
  }
  let end=min(ray.distance,spMaxTrace());
  if(!ray.hit){
   textureStore(hitIo,texel,vec4u(SP_FAR_PENDING,0u,0u,0u));
   return;
  }
- let lit=spTracedLit(ray,probe,direction);
+${
+  hitLit
+    ? ` // A hit on a triangle leaves its mark for the hit lighting's passes, which write its light; a black hit at the ray's end is lit as it stands.
+ if(spTracedMark!=0u){textureStore(radianceOut,texel,vec4u(spTracedMark,0u,0u,0u));}else{
+  let noise=blueNoiseVec2(spProbeTile(index,own),sp.mode.w).y;
+  textureStore(radianceOut,texel,vec4u(packLight(ditherLight(spTracedLit(ray,probe,direction),noise)),0u,0u,0u));
+ }
+ textureStore(hitIo,texel,vec4u(spHitWord(end,spHitMoving(probe,ray.speed)),0u,0u,0u));`
+    : ` let lit=spTracedLit(ray,probe,direction);
  let moving=spHitMoving(probe,ray.speed);
  let noise=blueNoiseVec2(spProbeTile(index,own),sp.mode.w).y;
  textureStore(radianceOut,texel,vec4u(packLight(ditherLight(lit,noise)),0u,0u,0u));
- textureStore(hitIo,texel,vec4u(spHitWord(end,moving),0u,0u,0u));
+ textureStore(hitIo,texel,vec4u(spHitWord(end,moving),0u,0u,0u));`
+}
 }`,
   )
 
-/** The stage's program over `side × side` rays a probe and `samples` of a tile, laying the height fog over the light of its hits where `fog`. */
+/** The stage's program over `side × side` rays a probe and `samples` of a tile, laying the height fog over the light of its hits where `fog`; with `hitLit` the hits on triangles are marked for the hit lighting's passes (`hitLitWgsl.ts`) in place of being lit from the cards. */
 export const traceTracedShader = (
   side: number,
   samples: readonly [number, number],
   fog: boolean,
   light: LightAtlasFormat = WORD_LIGHT_FORMAT,
+  programs: SceneMaskPrograms = NO_SCENE_MASKS,
+  hitLit = false,
 ) =>
   wgslProgram(
     `${spParams(T.params)}
@@ -209,6 +256,6 @@ ${wgslConsts({ SP_TRACE: side })}`,
       spReach,
       spProbeRecords(T.info, T.normal, true),
       spRays(T.ray, T.pixels, T.blue, true),
-      traceTriangles(fog, light),
+      traceTriangles(fog, light, programs, hitLit),
     ],
   )

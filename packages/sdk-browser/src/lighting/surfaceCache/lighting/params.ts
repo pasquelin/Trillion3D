@@ -244,6 +244,7 @@ export function traceViewOf(
     skipBackFaceDistance: settings.surfaceCacheHardwareRayTracingSkipBackFaceHitDistance / CM,
     skipTwoSidedDistance: settings.surfaceCacheHardwareRayTracingSkipTwoSidedHitDistance / CM,
     skipsTranslucentSections: settings.surfaceCacheHardwareRayTracingMeshSectionVisibilityTest,
+    excludesSky: settings.rayTracingExcludeSky,
     culling: {
       mode: settings.rayTracingCulling,
       radius: settings.rayTracingCullingRadius / CM,

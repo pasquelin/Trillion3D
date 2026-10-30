@@ -2,16 +2,32 @@
 //! coordinate, the shading normal and the vertex colour of the DAG's vertex it names
 //! (`RAY_TRACING_CORNER_BYTES`), read from the arrays the cut's indices lie in (`carried`, beside the
 //! positions). They are written after the triangles (`encode.rs`), in the order of the tree's
-//! triangles, so that a triangle's rank in the file is also the rank of its three corners.
-use super::abi::RAY_TRACING_CORNER_BYTES;
+//! triangles, so that a triangle's rank in the file is also the rank of its three corners. A primitive
+//! whose alpha mask reads a texture set past the first also keeps that set's coordinate at each corner
+//! (`RAY_TRACING_MASK_CORNER_BYTES`), in a table of its own.
+use super::abi::{
+    RAY_TRACING_CORNER_BYTES, RAY_TRACING_FLAG_MASK_SET, RAY_TRACING_FLAG_MASK_SET_SHIFT,
+    RAY_TRACING_MASK_CORNER_BYTES,
+};
 use trillion3d_page_codec::encode::Attribute;
-use trillion3d_page_codec::{FLAG_COLOR, FLAG_NORMAL, FLAG_UV};
+use trillion3d_page_codec::{FLAG_COLOR, FLAG_NORMAL, FLAG_UV, UV_FLAGS};
 
 /// The bytes of the three corners of a triangle.
 pub(super) const TRIANGLE_ATTRIBUTE_BYTES: usize = 3 * RAY_TRACING_CORNER_BYTES;
 
 /// A triangle's three corners' attributes, as the file lays them.
 pub(super) type TriangleAttributes = [u8; TRIANGLE_ATTRIBUTE_BYTES];
+
+/// The bytes of the three corners' cutout coordinates of a triangle.
+pub(super) const TRIANGLE_MASK_BYTES: usize = 3 * RAY_TRACING_MASK_CORNER_BYTES;
+
+/// A triangle's three corners' coordinates of the set its alpha mask reads.
+pub(super) type TriangleMask = [u8; TRIANGLE_MASK_BYTES];
+
+/// The texture set past the first that the alpha mask of a primitive with flags `flags` reads (zero for none).
+pub(super) fn mask_set_of(flags: u32) -> usize {
+    ((flags & RAY_TRACING_FLAG_MASK_SET) >> RAY_TRACING_FLAG_MASK_SET_SHIFT) as usize
+}
 
 /// The vertex colour of a corner whose mesh has none: white, which multiplies nothing.
 const NO_COLOUR: [u8; 4] = [255; 4];
@@ -32,11 +48,17 @@ fn values_of(attribute: &Attribute, vertex: usize, least: usize) -> Option<&[f32
         .get(from..from.checked_add(attribute.width)?)
 }
 
-/// Whether `carried` holds an attribute a hit reads: a normal, a texture coordinate or a colour.
+/// Whether `carried` holds an attribute a hit reads: a normal, the first texture coordinate or a colour.
 pub(super) fn carries_any(carried: &[&Attribute]) -> bool {
     carried
         .iter()
         .any(|a| matches!(a.flag, FLAG_NORMAL | FLAG_UV | FLAG_COLOR))
+}
+
+/// The attribute of texture set `set` (1 to 7) among `carried`, none if the mesh does not carry it.
+pub(super) fn mask_attribute<'a>(carried: &[&'a Attribute], set: usize) -> Option<&'a Attribute> {
+    let flag = UV_FLAGS.get(set).filter(|_| set > 0)?;
+    find(carried, *flag).filter(|a| a.width >= 2)
 }
 
 /// Whether `carried` holds a shading normal.
@@ -94,6 +116,18 @@ pub(super) fn triangle_attributes(carried: &[&Attribute], corners: &[u32]) -> Tr
     for (k, &vertex) in corners.iter().enumerate() {
         out[k * RAY_TRACING_CORNER_BYTES..(k + 1) * RAY_TRACING_CORNER_BYTES]
             .copy_from_slice(&corner(carried, vertex));
+    }
+    out
+}
+
+/// The coordinates of the three corners `corners` of a triangle in the texture set `mask` (zero where the set holds none).
+pub(super) fn triangle_mask(mask: &Attribute, corners: &[u32]) -> TriangleMask {
+    let mut out = [0; TRIANGLE_MASK_BYTES];
+    for (k, &vertex) in corners.iter().enumerate() {
+        let uv = values_of(mask, vertex as usize, 2).map_or([0.0; 2], |v| [v[0], v[1]]);
+        let at = k * RAY_TRACING_MASK_CORNER_BYTES;
+        out[at..at + 4].copy_from_slice(&uv[0].to_le_bytes());
+        out[at + 4..at + 8].copy_from_slice(&uv[1].to_le_bytes());
     }
     out
 }

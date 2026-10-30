@@ -16,7 +16,7 @@ import {
 } from '../../frame/render/skyLightState.ts'
 import { preExposureOf } from '../../post/exposure/pre.ts'
 import { ledgerAdmitted, ledgerRoom } from '../../gpu/core/deviceLedger.ts'
-import { chainReady } from '../deferred/fullscreen.ts'
+import { chainCompiled, chainPending, chainReady } from '../deferred/fullscreen.ts'
 import { entriesReady } from '../../gpu/bind/bindIdentity.ts'
 import { shadeBindEntries } from '../../gpu/bind/bindEntries.ts'
 import { shadeResources } from '../../gpu/bind/shadeBindings.ts'
@@ -58,8 +58,7 @@ import {
 } from './cloudFrame.ts'
 import {
   finishStageOf,
-  pathTracingCloudPipelinesOf,
-  pathTracingPipelinesOf,
+  pathTracingMaker,
   volumeStagesOf,
   type PathTracingPipelines,
 } from './pipelines.ts'
@@ -195,14 +194,38 @@ function resourcesOf(
 /** The pipelines an image waits for: every one it runs, the table of the air only where the air is traced and the map of the clouds only where the clouds are. */
 const readyStagesOf = (
   pipelines: PathTracingPipelines,
-  settings: PathTracingSettings,
+  visualize: string,
   air: boolean,
-  clouds: unknown,
+  clouds: boolean,
 ) => [
   ...pipelines.all,
-  finishStageOf(pipelines, settings.pathTracingVisualize),
-  ...volumeStagesOf(pipelines, air, !!clouds),
+  finishStageOf(pipelines, visualize),
+  ...volumeStagesOf(pipelines, air, clouds),
 ]
+
+/** What the mask hold asks of the stages an image runs: whether they are compiled (each started where it was not) and whether any compile is in flight; one pair for each variant of the stages (the view's finish, the air, the clouds), made once. */
+const stageTests = new Map<
+  string,
+  {
+    compiled: (pipelines: PathTracingPipelines) => boolean
+    pending: (pipelines: PathTracingPipelines) => boolean
+  }
+>()
+function stageTestsOf(settings: PathTracingSettings, air: boolean, clouds: boolean) {
+  const key = `${settings.pathTracingVisualize}|${air}|${clouds}`
+  let tests = stageTests.get(key)
+  if (!tests) {
+    const { pathTracingVisualize: visualize } = settings
+    stageTests.set(
+      key,
+      (tests = {
+        compiled: (pipelines) => chainCompiled(...readyStagesOf(pipelines, visualize, air, clouds)),
+        pending: (pipelines) => chainPending(...readyStagesOf(pipelines, visualize, air, clouds)),
+      }),
+    )
+  }
+  return tests
+}
 
 /** What a path-traced image leaves for the lit image to be drawn with. */
 export interface PathTracedImage {
@@ -335,8 +358,19 @@ export function preparePathTracing(
       }
   }
   const clouds = mapped && air ? wanted : undefined
-  const pipelines = clouds ? pathTracingCloudPipelinesOf(device) : pathTracingPipelinesOf(device)
-  if (!chainReady(...readyStagesOf(pipelines, settings, air, clouds))) return undefined
+  const variant = clouds ? 'clouds' : 'plain'
+  const tests = stageTestsOf(settings, air, !!clouds)
+  const heldKernels = rays.sceneTrace.maskHold.use(
+    'path tracing',
+    variant,
+    pathTracingMaker(device, variant),
+    tests.compiled,
+    tests.pending,
+  )
+  if (!heldKernels) return undefined
+  const { kernel: pipelines, programs: cutBy } = heldKernels
+  if (!chainReady(...readyStagesOf(pipelines, settings.pathTracingVisualize, air, !!clouds)))
+    return undefined
   const inputs: PathTracingInputs = {
     settings,
     size,
@@ -344,6 +378,8 @@ export function preparePathTracing(
     lights: store.epoch,
     camera: [...cam.world, ...cam.projection],
     sky: `${sky ? skyLightStateOf(rt).uniform.join(',') : 'none'}|${air ? store.atmosphereVersion : 0}|${cloudsKey(clouds)}`,
+    cutBy,
+    cutoutRevision: rays.sceneTrace.cutoutRevision(),
     exposure: preExposureOf(rt).now,
   }
   const reason = restartReason(state.run, inputs)

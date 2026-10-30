@@ -1,6 +1,7 @@
 import {
   RAY_TRACING_FLAG_ALL_TRANSLUCENT,
   RAY_TRACING_FLAG_ATTRIBUTES,
+  RAY_TRACING_FLAG_MASK_SET,
   RAY_TRACING_FLAG_NORMALS,
   RAY_TRACING_FLAG_TRANSLUCENT,
   RAY_TRACING_NODE_BYTES,
@@ -83,7 +84,8 @@ export function withRuntimeTrees(
     records[at + A.primitive] = primitive
     // A run-time mesh carries no corner attributes, whatever flags its caller passes.
     records[at + A.flags] =
-      (flags & ~(RAY_TRACING_FLAG_ATTRIBUTES | RAY_TRACING_FLAG_NORMALS)) |
+      (flags &
+        ~(RAY_TRACING_FLAG_ATTRIBUTES | RAY_TRACING_FLAG_NORMALS | RAY_TRACING_FLAG_MASK_SET)) |
       (translucent ? RAY_TRACING_FLAG_ALL_TRANSLUCENT : 0)
     records[at + A.firstNode] = node
     records[at + A.nodeCount] = tree.nodes.length / NODE_WORDS
@@ -103,8 +105,10 @@ export function withRuntimeTrees(
     nodes,
     triangles,
     corners,
+    maskCorners: file?.maskCorners ?? new Uint32Array(0),
     byPrimitive,
     world: file?.world,
     actorCells: file?.actorCells ?? 0,
+    actorRanks: file?.actorRanks ?? 0,
   }
 }

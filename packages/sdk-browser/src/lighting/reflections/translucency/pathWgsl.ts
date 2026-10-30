@@ -49,7 +49,7 @@ const REFRACTION_WGSL = `fn rttSampleRefraction(dir:vec3f,normal:vec3f,eta:f32,p
  * the ray and the material at the hit), `rttHitLight(hit, origin, dir, surface, reflectionAlpha) -> vec3f` (the light the hit gives toward the ray),
  * `rttSky(dir) -> vec3f`, `rttRandom1() -> f32`, `rttRandom2() -> vec2f`, and the constants `RTT_MAX_PRIMARY`, `RTT_MAX_SECONDARY`, `RTT_THRESHOLD`,
  * `RTT_REFRACTION`, `RTT_SAMPLE_REFLECTION_IN_REFLECTIONS`, `RTT_NEAR_MAX` (the longest a bent or secondary ray goes), `RTT_START_BIAS` and `RTT_START_NORMAL_BIAS`
- * (the reflections' biases), and `rttReflectionAlpha(roughness) -> f32` (the share of the light a surface leaves to a reflection ray).
+ * (the reflections' biases). The share of the light a surface leaves to a reflection ray is the reflections' own (`reflectionTraceShare` of the path's roughness squared), so the caller's program holds `REFLECTION_REACH_WGSL`.
  */
 export const TRACED_PATH_WGSL = wgslBlock(
   'TRACED_PATH_WGSL',
@@ -101,7 +101,7 @@ fn rttTracePath(first:RttRay)->RttResult{
     let refractive=m.ior>1.0;
     pathRoughness=1.0-(1.0-pathRoughness)*(1.0-m.roughness);
     var reflectAlpha=0.0;
-    if(s<RTT_MAX_SECONDARY){reflectAlpha=rttReflectionAlpha(pathRoughness);}
+    if(s<RTT_MAX_SECONDARY){reflectAlpha=reflectionTraceShare(pathRoughness*pathRoughness,0u);}
     var light=rttHitLight(hit,ray.origin,ray.dir,surf,reflectAlpha)+m.emissive;
     light=coverage*secondary*light;
     if(s!=0){pathLuminance+=dot(light,vec3f(0.2126,0.7152,0.0722));}

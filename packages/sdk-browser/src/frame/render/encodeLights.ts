@@ -66,6 +66,7 @@ import {
 import { surfaceCacheLightOf } from '../../lighting/surfaceCache/light.ts'
 import { lightSurfaceCache } from '../../lighting/surfaceCache/lighting/frame.ts'
 import { sceneRaysOf } from '../../lighting/surfaceCache/lighting/surfaceLighting.ts'
+import { bounceHitLightingFollowOf } from './bounceHitLighting.ts'
 import { heldSkyLight } from './skyLightHeld.ts'
 import { skyLightPending, skyLightReadOf } from './skyLightState.ts'
 import { cloudShadowOf, encodeCloudShadow } from './encodeCloudShadow.ts'
@@ -464,7 +465,7 @@ function encodeBounce(
   orthographic = cam.viewPoint[3] === 0
   for (let axis = 0; axis < 3; axis++) viewForward[axis] = -cam.viewPoint[axis]
   // The cache and the levels follow it now, before the screen probes and the reflections read them, whenever the pass is encoded.
-  probes.track(viewpoint, cachedLightingPreExposureOf(rt))
+  probes.track(viewpoint, cachedLightingPreExposureOf(rt), bounceHitLightingFollowOf(rt))
   // The rays marched through the field read the surface cache at their hits: it is made for the images to come.
   demandSurfaceCache(rt)
   const queued = queuedBounce(rt, device, probes, prepared)
@@ -495,6 +496,7 @@ function encodeBouncePass(
     surface,
     rays,
     orthographic ? viewForward : undefined,
+    bounceHitLightingFollowOf(rt),
   )
   bounce.probesUpdated = probes.lastProbes
   // The volume's own cache is worked beside the world's, its cells marked against this image's depth as theirs are.

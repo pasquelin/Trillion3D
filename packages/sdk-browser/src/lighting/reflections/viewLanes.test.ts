@@ -223,6 +223,14 @@ test('the ceiling of a ray, in the display’s white, is divided by the image’
   assert.equal(ceiling(4), 10)
 })
 
+test('the exposure the hit lighting’s lights are strengthened under travels in the view, each view its own', () => {
+  const exposure = (value?: number) =>
+    lanesOf({ settings: reflections({}), exposure: value }).floats('radiance')[2]
+  assert.equal(exposure(), 1, 'none: unit')
+  assert.equal(exposure(0.5), 0.5)
+  assert.equal(exposure(8), 8)
+})
+
 test('the view tells whether the screen is traced against a lit image no cut has made another, and whether the depth kept is that image’s', () => {
   const traced = (extra: object) => {
     const { sent, write, held, frame } = stillView(extra)

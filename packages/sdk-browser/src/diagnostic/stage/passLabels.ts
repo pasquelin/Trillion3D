@@ -133,6 +133,8 @@ export const REFLECTION_TRACE_PASS = 'Trillion3D reflection trace'
 export const REFLECTION_SCENE_PASS = 'Trillion3D reflection scene'
 /** The reflections' spatial reuse, temporal accumulation and last pass, both surfaces'. */
 export const REFLECTION_DENOISE_PASS = 'Trillion3D reflection denoise'
+/** The reflections' hit lighting, both surfaces': the traces collected, sorted by material and lit again. */
+export const REFLECTION_HIT_LIGHTING_PASS = 'Trillion3D reflection hit lighting'
 /** The lighting's passes, in their order (`../../lighting/deferred/deferred.ts`), all timed with the
  *  Lighting stage: the classification of the surfaces into tiles, the lit image's one
  *  pass, which draws the background, the surfaces as they are, the emission, then the directional
@@ -365,6 +367,7 @@ export const ENGINE_PASSES = [
   definePass({ label: REFLECTION_PASS, stage: 'reflections', block: 'other' }),
   definePass({ label: REFLECTION_TRACE_PASS, stage: 'reflections', block: 'other' }),
   definePass({ label: REFLECTION_SCENE_PASS, stage: 'reflections', block: 'other' }),
+  definePass({ label: REFLECTION_HIT_LIGHTING_PASS, stage: 'reflections', block: 'other' }),
   definePass({ label: REFLECTION_DENOISE_PASS, stage: 'reflections', block: 'other' }),
   definePass({ label: PARTICLES_PASS, stage: 'physics', block: 'other' }),
   definePass({ label: TILE_CLASSIFICATION_PASS, stage: 'lighting', block: 'other' }),

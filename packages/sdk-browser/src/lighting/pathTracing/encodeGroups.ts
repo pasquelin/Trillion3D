@@ -2,8 +2,11 @@ import { dagReadGroupEntries } from '../../geometry/dag/shader/bindings.ts'
 import { createCachedGroup } from '../../gpu/bind/cachedGroup.ts'
 import { entriesIdentity } from '../../gpu/bind/entriesIdentity.ts'
 import { shadeBindEntries } from '../../gpu/bind/bindEntries.ts'
-import { sceneHitCornersBindEntry } from '../rays/sceneTrace/sceneHitCornersWgsl.ts'
-import { sceneTraceBindEntries } from '../rays/sceneTrace/sceneTraceWgsl.ts'
+import {
+  sceneTraceGroupEntries,
+  sceneTraceGroupResources,
+} from '../rays/sceneTrace/sceneTraceGroup.ts'
+import type { SceneTrace } from '../rays/sceneTrace/sceneTraceResources.ts'
 import type { SceneRays } from '../surfaceCache/lighting/surfaceLighting.ts'
 import { PT_AIR_BINDINGS } from './airMediumWgsl.ts'
 import { cloudResources, shifted, type PathTracingClouds } from './cloudFrame.ts'
@@ -42,6 +45,12 @@ export function createPathTracingGroups() {
     ),
   ) as Record<string, ReturnType<typeof createCachedGroup>>
   const view = (gpu: PathTracingGpu) => ({ buffer: gpu.blocks, size: PT_VIEW.words * 4 })
+  // The names of a group are copied by its cache as it is asked: one list serves every group.
+  const named: unknown[] = []
+  const withScene = (scene: SceneTrace, first: unknown, second: unknown) => {
+    sceneTraceGroupResources(scene, named).push(first, second)
+    return named
+  }
   return (input: PathTracingGroupInputs) => {
     const { device, gpu, pipelines, rays, resolve, shade, variance, clouds } = input
     const B = PT_TRACE_BINDINGS
@@ -63,7 +72,7 @@ export function createPathTracingGroups() {
         : []),
     ]
     const cloudResourceList = clouds ? cloudResources(gpu, clouds) : []
-    const sceneEntries = () => sceneTraceBindEntries(scene, first)
+    const sceneEntries = () => sceneTraceGroupEntries(scene, first)
     const dag = [...Object.values(rays.views)]
     const trace0 = caches.trace0(
       device,
@@ -83,18 +92,9 @@ export function createPathTracingGroups() {
     const trace1 = caches.trace1(
       device,
       pipelines.traceLayouts[1],
-      [
-        scene.params,
-        scene.nodes,
-        scene.triangles,
-        scene.table,
-        scene.corners,
-        gpu.placements,
-        gpu.hits,
-      ],
+      withScene(scene, gpu.placements, gpu.hits),
       () => [
         ...sceneEntries(),
-        sceneHitCornersBindEntry(scene, first + PT_TRACE_STAGE_BINDINGS.corners),
         {
           binding: first + PT_TRACE_STAGE_BINDINGS.placements,
           resource: { buffer: gpu.placements },
@@ -133,7 +133,7 @@ export function createPathTracingGroups() {
     const finish1 = caches.finish1(
       device,
       pipelines.finishLayouts[1],
-      [scene.params, scene.nodes, scene.triangles, scene.table, gpu.hits, gpu.materials],
+      withScene(scene, gpu.hits, gpu.materials),
       () => [
         ...sceneEntries(),
         { binding: first + PT_FINISH_BINDINGS.hits, resource: { buffer: gpu.hits } },

@@ -1,11 +1,12 @@
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
+import { isPending, isReady, REFLECTION_HIT_GROUP } from '../rays/sceneTrace/sceneMaskHold.ts'
 import { wantsContractLighting } from '../../frame/prepare/lit.ts'
 import { waterFrontOf } from '../../blend/water/waterReflection.ts'
 import { drawsLit } from '../../visibility/shader/shadeMode.ts'
 import { sceneRaysOf } from '../surfaceCache/lighting/surfaceLighting.ts'
 import type { ReflectionSettings } from '../../../../sdk-core/src/contracts/reflectionOptions.ts'
 import type { ScreenReflection } from './gpu.ts'
-import { hardwareReflectionKernels } from './reflectionPipelines.ts'
+import { hardwareKernelKey, hardwareReflectionMaker } from './reflectionPipelines.ts'
 import type { LightAtlasFormat } from '../../gpu/core/lightAtlasFormat.ts'
 
 /**
@@ -31,6 +32,11 @@ export function reflectionsTraced(rt: WebgpuPagesRuntime) {
   )
 }
 
+/** The scene trace the lighting made for this image's reflections where they cast their rays through the scene's triangles: none where the settings or the view say otherwise, or the scene has no acceleration structures. */
+export function reflectionSceneRays(rt: WebgpuPagesRuntime, settings: ReflectionSettings) {
+  return wants(rt, settings) ? sceneRaysOf(rt.surfaceCache?.lighting, rt.run.frame) : undefined
+}
+
 /** The scene trace of this image and the compiled scene stage that casts the reflections' rays through it, none where the image's rays are
  *  marched through the field instead: the settings or the view say so, the lighting made no scene trace for them (the scene has no acceleration
  *  structures, its buffers do not fit), or the program is still compiling. */
@@ -39,10 +45,18 @@ export function hardwareReflections(
   reflection: ScreenReflection,
   settings: ReflectionSettings,
   light: LightAtlasFormat,
+  lit: boolean,
 ) {
-  if (!wants(rt, settings)) return undefined
-  const rays = sceneRaysOf(rt.surfaceCache?.lighting, rt.run.frame)
+  const rays = reflectionSceneRays(rt, settings)
   if (!rays) return undefined
-  const stage = hardwareReflectionKernels(reflection.device, light)
-  return stage.ready ? { rays, stage } : undefined
+  const key = hardwareKernelKey(light, lit)
+  const stage = rays.sceneTrace.maskHold.use(
+    'hardware reflections',
+    key,
+    hardwareReflectionMaker(reflection.device, key),
+    isReady,
+    isPending,
+    REFLECTION_HIT_GROUP,
+  )?.kernel
+  return stage?.ready ? { rays, stage } : undefined
 }

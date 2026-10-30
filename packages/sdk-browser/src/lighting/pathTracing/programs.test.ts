@@ -16,20 +16,19 @@ import {
   ptTraceProgram,
 } from './traceProgram.ts'
 
-test('the trace program has every entry and binds eight storage buffers at most: the paths, the queue and the scene trace’s tables with the corners, the placements and the hits', () => {
+test('the trace program has every entry and binds eight storage buffers at most: the paths, the queue and the scene trace’s geometry and table, the colour atlas’s page table, the placements and the hits', () => {
   const text = ptTraceProgram()
   for (const entry of Object.values(PT_TRACE_ENTRIES))
     assertProgramAssembles(text, entry, `the trace ${entry}`)
   const storage = [...text.matchAll(/var<storage[^>]*>\s*(\w+)/g)].map((m) => m[1])
   assert.deepEqual([...new Set(storage)].sort(), [
+    'colorPages',
     'ptHits',
     'ptPlacements',
     'ptQueue',
     'ptStates',
-    'stCorners',
-    'stNodes',
+    'stGeometry',
     'stTable',
-    'stTriangles',
   ])
 })
 

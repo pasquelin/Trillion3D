@@ -8,6 +8,7 @@ import {
   reflectionSceneLayout,
   reflectionLayout,
 } from '../../lighting/reflections/reflectionPipelines.ts'
+import { hitLightingKernels } from '../../lighting/reflections/hitLighting/kernels.ts'
 import { createHizPipelines } from '../../visibility/hiz/gpu/pipelines.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { dagBindEntries } from '../../geometry/dag/shader/bindings.ts'
@@ -47,6 +48,9 @@ import {
   tracedRadiosityKernels,
   tracedShadowKernels,
 } from '../../lighting/surfaceCache/lighting/kernels.ts'
+import { probeLitKey, probeLitMaker } from '../../lighting/bounce/screen/hitLitKernels.ts'
+import { NO_SCENE_MASKS } from '../../lighting/rays/sceneTrace/sceneMaskPrograms.ts'
+import { cacheLitMaker } from '../../lighting/bounce/cache/cacheHitLitKernels.ts'
 import { tracedCacheKernels } from '../../lighting/bounce/cache/cacheKernels.ts'
 import { WORD_LIGHT_FORMAT } from './lightAtlasFormat.ts'
 import {
@@ -80,11 +84,25 @@ test("the reflections' and the depth pyramid's kernels fit WebGPU's defaults", a
   withinDefaults(layouts, 'the reflections and the depth pyramid')
 })
 
-test("the reflections' scene stage through the scene's triangles fits WebGPU's defaults: its group with the cut's tables, the reflection group, the scene trace's", () => {
+test("the reflections' scene stage through the scene's triangles fits WebGPU's defaults: the trace of its rays (the cut's tables, the reflection group, the scene trace with its any-hit test) and its answer (the cache, the fog, the reflection group, the scene trace)", () => {
   const { device, pipelineLayouts: layouts } = fakeDevice()
   hardwareReflectionKernels(device, WORD_LIGHT_FORMAT)
-  assert.equal(layouts.length, 1)
+  assert.equal(layouts.length, 2)
   withinDefaults(layouts, 'the reflection scene stage through the scene triangles')
+})
+
+test("the reflections' hit lighting fits WebGPU's defaults: the scene stage with its marking, the compaction, the sort and the two lit passes (eight storage buffers each at most)", () => {
+  const { device, pipelineLayouts: layouts } = fakeDevice()
+  hardwareReflectionKernels(device, WORD_LIGHT_FORMAT, undefined, true)
+  hitLightingKernels(device, WORD_LIGHT_FORMAT)
+  // The trace and its answer, then the compaction, its dispatch, the copy, the sort's arguments and the sort, and the first and second passes of both surfaces.
+  assert.equal(layouts.length, 2 + 5 + 4)
+  withinDefaults(layouts, 'the reflection hit lighting')
+  for (const layout of layouts.slice(-4))
+    assert.ok(
+      (storageBufferCount(layout) ?? 0) <= 8,
+      'a lit pass binds at most eight storage buffers',
+    )
 })
 
 test("the cut's programs fit WebGPU's default limits, whatever the world", () => {
@@ -236,6 +254,14 @@ test("the radiance cache's trace through the scene's triangles fits WebGPU's def
   withinDefaults([wgslComputeLayout(CACHE_TRACED_PROGRAM)], 'the radiance cache traced trace')
 })
 
+test("the radiance cache's hit lighting fits WebGPU's default limits: the trace that marks the hits, the compaction, the list's passes, the two lit passes (eight storage buffers each at most)", () => {
+  const { device, pipelineLayouts: layouts } = fakeDevice()
+  cacheLitMaker(device, WORD_LIGHT_FORMAT)(NO_SCENE_MASKS)
+  withinDefaults(layouts, 'the radiance cache hit lighting')
+  for (const layout of layouts)
+    assert.ok((storageBufferCount(layout) ?? 0) <= 8, 'a pass binds at most eight storage buffers')
+})
+
 test("the radiance cache's spread of the trace atlas and its final maps fit WebGPU's default limits: the fixup writes four storage textures", () => {
   withinDefaults([wgslComputeLayout(CACHE_SPLAT_PROGRAM)], 'the radiance cache spread')
   withinDefaults([wgslComputeLayout(CACHE_FIXUP_PROGRAM)], 'the radiance cache fixup')
@@ -251,6 +277,20 @@ test("the screen probes' scene stage through the scene's triangles fits WebGPU's
   })
   tracedSceneKernel(device, { side: 8, samples: [4, 4], heightFog: true, light: WORD_LIGHT_FORMAT })
   withinDefaults(layouts, 'the screen probes traced scene stage')
+})
+
+test("the screen probes' hit lighting fits WebGPU's default limits, with the fog on the rays or not: the stage that marks the hits, the compaction, the list's passes, the two lit passes (eight storage buffers each at most)", () => {
+  for (const heightFog of [false, true]) {
+    const { device, pipelineLayouts: layouts } = fakeDevice()
+    const shape = { side: 8, samples: [4, 4] as const, heightFog, light: WORD_LIGHT_FORMAT }
+    probeLitMaker(device, probeLitKey(shape))(NO_SCENE_MASKS)
+    withinDefaults(layouts, 'the screen probes hit lighting')
+    for (const layout of layouts)
+      assert.ok(
+        (storageBufferCount(layout) ?? 0) <= 8,
+        'a pass binds at most eight storage buffers',
+      )
+  }
 })
 
 test("the scene trace's culling pass fits WebGPU's default limits: the cut's tables in group 0, its parameters and the table it writes in group 1", () => {

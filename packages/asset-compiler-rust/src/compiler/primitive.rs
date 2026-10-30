@@ -56,7 +56,20 @@ pub(crate) struct PrimitiveInputs<'a> {
     /// Accessors that `plan_buffers` has already validated once, on the same bytes.
     pub validated: &'a BTreeSet<usize>,
     pub progress: &'a (dyn Fn(Value) + Sync),
+    /// The sky property of each material of `g`, by its rank (`MaterialOptions::sky_flags`): a
+    /// primitive wearing a sky material is flagged so in its ray-tracing record.
+    pub sky: &'a [bool],
 }
+
+/// The ray-tracing flag of a primitive wearing a sky material (`RAY_TRACING_FLAG_SKY`), none for
+/// any other.
+fn sky_flag(sky: &[bool], primitive: &Value) -> u32 {
+    let worn = primitive["material"]
+        .as_u64()
+        .and_then(|rank| sky.get(rank as usize));
+    u32::from(worn.copied().unwrap_or(false)) * crate::ray_tracing::abi::RAY_TRACING_FLAG_SKY
+}
+
 /// A compiled primitive and what later stages read beside it once every primitive is done.
 pub(crate) struct CompiledPrimitive {
     pub value: Value,
@@ -208,7 +221,8 @@ pub(crate) fn compile_primitive(
     let traced = crate::ray_tracing::Traced {
         mesh: mesh as u32,
         primitive: primitive as u32,
-        flags: crate::ray_tracing::material_flags(material, blended),
+        flags: crate::ray_tracing::material_flags(material, blended)
+            | sky_flag(inputs.sky, read.primitive),
         cell: 0,
     };
     let mut dag = build_primitive(
