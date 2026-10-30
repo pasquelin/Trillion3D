@@ -7,10 +7,7 @@
  */
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
-import {
-  GLOBAL_DISTANCE_FIELD_MAX_CLIPMAPS,
-  GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION,
-} from '../../../../../sdk-core/src/lighting/globalDistanceField.ts'
+import { GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION } from '../../../../../sdk-core/src/lighting/globalDistanceField.ts'
 import { CONTROL } from '../clipmapBlock.ts'
 import { globalDistanceFieldReadWgsl } from '../globalReadWgsl.ts'
 
@@ -22,7 +19,7 @@ export const PAGE_STATS_GROUP = 4
 export const PAGE_STATS_ENTRIES = { pages: 'gdfPageStats', totals: 'gdfPageTotals' } as const
 
 /** The pages kernel counts the pages of every clipmap that are in use, and the ones with no voxel strictly between 0 and 1 (nothing near a surface) in them, the border
- *  voxels left out by clamping the read inside the page; the totals kernel adds the pages every rank composited this image and copies the free list's allocator. */
+ *  voxels left out by clamping the read inside the page; the totals kernel copies the pages every cache composited this image, added up in the control word the compose pass bumps (`CONTROL.updated`), and the free list's allocator. */
 export const PAGE_STATS_WGSL = wgslProgram(
   `${wgslConsts({
     STATS_PAGES: 0,
@@ -30,11 +27,8 @@ export const PAGE_STATS_WGSL = wgslProgram(
     STATS_UPDATED: 2,
     STATS_FREE: 3,
     CONTROL_FREE_ALLOCATOR: CONTROL.freeAllocator,
-    CONTROL_COUNTERS: CONTROL.counters,
-    COUNTERS_PER_CLIPMAP: CONTROL.countersPerClipmap,
-    COMPOSED_COUNTER: 2,
+    CONTROL_UPDATED: CONTROL.updated,
     PAGE_VOXELS: GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION,
-    MAX_CLIPMAPS: GLOBAL_DISTANCE_FIELD_MAX_CLIPMAPS,
   })}
 @group(1) @binding(0) var<storage,read_write> stats:array<atomic<u32>>;
 @group(1) @binding(1) var<storage,read> control:array<u32>;
@@ -59,11 +53,7 @@ export const PAGE_STATS_WGSL = wgslProgram(
  if(!filled){atomicAdd(&stats[STATS_EMPTY],1u);}
 }
 @compute @workgroup_size(1) fn ${PAGE_STATS_ENTRIES.totals}(){
- var composed=0u;
- for(var rank=0u;rank<MAX_CLIPMAPS;rank++){
-  composed+=control[CONTROL_COUNTERS+rank*COUNTERS_PER_CLIPMAP+COMPOSED_COUNTER];
- }
- atomicStore(&stats[STATS_UPDATED],composed);
+ atomicStore(&stats[STATS_UPDATED],control[CONTROL_UPDATED]);
  atomicStore(&stats[STATS_FREE],control[CONTROL_FREE_ALLOCATOR]);
 }`,
   [globalDistanceFieldReadWgsl(0, 0, false)],

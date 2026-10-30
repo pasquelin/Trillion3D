@@ -33,6 +33,7 @@ import { meshFieldWgsl } from './meshFieldWgsl.ts'
 const CONSTANTS = wgslConsts({
   CONTROL_COUNTERS: CONTROL.counters,
   COUNTERS_PER_CLIPMAP: CONTROL.countersPerClipmap,
+  CONTROL_UPDATED: CONTROL.updated,
 })
 
 /** The entries. */
@@ -122,6 +123,7 @@ ${REDUCE}
  }
  if(page.valid){
   let at=atomicAdd(&control[CONTROL_COUNTERS+clip.packed*COUNTERS_PER_CLIPMAP+2u],1u);
+  atomicAdd(&control[CONTROL_UPDATED],1u);
   tiles[clip.tiles.y+at]=packTile(grid);
  }
 }`,

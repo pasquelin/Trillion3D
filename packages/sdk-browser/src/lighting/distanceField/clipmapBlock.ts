@@ -68,14 +68,15 @@ export const CLIP_BLOCK_BYTES = 256
 /** The words of the control buffer: the page free list's allocator, the allocator of the pages
  *  returned, then four counters for each clipmap slot (updated pages, culling cells, composited
  *  pages, the culling grid's allocator), then the flags of the clipmaps whose meshes were not all
- *  streamed in. */
+ *  streamed in, then the pages composited this image by every cache together (the one word the caches' clears leave, `updated`). */
 export const CONTROL = {
   freeAllocator: 0,
   returnAllocator: 1,
   counters: 2,
   countersPerClipmap: 4,
   pending: 2 + 6 * 4,
-  words: 2 + 6 * 4 + 6,
+  updated: 2 + 6 * 4 + 6,
+  words: 2 + 6 * 4 + 6 + 1,
 } as const
 
 /** The words of a clipmap slot's dispatch arguments: the page tiles, the culling cells, the

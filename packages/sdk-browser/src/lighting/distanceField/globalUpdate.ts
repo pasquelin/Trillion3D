@@ -8,7 +8,7 @@ import {
 import type { GlobalDistanceFieldSettings } from '../../../../sdk-core/src/contracts/globalDistanceFieldOptions.ts'
 import { dispatchCubes, dispatchRows, WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
 import { ALLOCATE_ENTRIES } from './allocateWgsl.ts'
-import { ARGS_WORDS, CLIP_BLOCK, CLIP_BLOCK_BYTES } from './clipmapBlock.ts'
+import { ARGS_WORDS, CLIP_BLOCK, CLIP_BLOCK_BYTES, CONTROL } from './clipmapBlock.ts'
 import { writeClipmapBlock, writePackedClipmap, writeUpdateBounds } from './clipmapUniforms.ts'
 import { COMPOSE_ENTRY } from './composeWgsl.ts'
 import { COVERAGE_ENTRY } from './coverageWgsl.ts'
@@ -128,7 +128,8 @@ function writeCullBlock(ctx: UpdateContext, cache: number, clipmaps: number) {
 /** The clears a cache's passes start from: the counters, the list of culled placements, the grids' headers. */
 function clearCache(encoder: GPUCommandEncoder, ctx: UpdateContext, clipmaps: number) {
   const { res } = ctx
-  encoder.clearBuffer(res.control, 4)
+  // Every word but the free list's allocator and the pages composited this image by all the caches (`CONTROL.updated`).
+  encoder.clearBuffer(res.control, 4, (CONTROL.updated - 1) * 4)
   if (res.objects) encoder.clearBuffer(res.objects, 0, OBJECT_COUNTS * 4)
   for (let rank = 0; rank < clipmaps; rank++)
     encoder.clearBuffer(res.cull, rank * res.sizes.cull * 4, 2 * res.sizes.cullGrid * 4)
@@ -282,6 +283,8 @@ export function encodeGlobalUpdate(encoder: GPUCommandEncoder, ctx: UpdateContex
     cache,
     active: ctx.plan.caches[cache].filter((plan) => plan.updates.length > 0),
   }))
+  // The pages the caches composite this image are added up in one word, from nothing, whether or not any cache has regions.
+  encoder.clearBuffer(ctx.res.control, CONTROL.updated * 4, 4)
   const first = caches.find(({ active }) => active.length > 0)
   if (!first) return false
   if (ctx.plan.reset) encodeReset(encoder, ctx, blockOffset(first.cache, 0))
