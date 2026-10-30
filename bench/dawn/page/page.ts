@@ -53,11 +53,14 @@ export function pageAddress(file: string, search: string) {
 }
 
 /** The page's `../runtime/engine.js`: the checkout's engine, whose `createWorld` also hands the
- *  bench each world the page makes, and `animation.createMixer` each mixer (`benchMixers`). */
+ *  bench each world the page makes, set with the settings `BENCH_WORLD` names (e.g.
+ *  `{"reflections":{"reflectionStatistics":true}}`), and `animation.createMixer` each mixer (`benchMixers`). */
 const engineModule = (engine: string) => `export * from '${engine}';
 import { createWorld as engineWorld, animation as engineAnimation } from '${engine}';
 export function createWorld(...args) {
   const world = engineWorld(...args);
+  // Settings a session reads once when it opens (BENCH_WORLD, a JSON of groups), set as the world is made.
+  for (const [group, values] of Object.entries(JSON.parse(process.env.BENCH_WORLD ?? '{}'))) world[group] = values;
   (globalThis.benchWorlds ??= []).push(world);
   return world;
 }

@@ -67,6 +67,8 @@ export async function playScenario(options: BenchOptions, stem: string) {
       quality?: { preset?: unknown; hardware?: Hardware; benchmark?: () => Promise<Hardware> }
     }
   ).quality
+  // A comparison with another engine pins the preset its reference runs at (`BENCH_QUALITY`, e.g. `max`), over the page's and the benchmark's.
+  if (quality && process.env.BENCH_QUALITY) quality.preset = process.env.BENCH_QUALITY
   const found =
     quality?.preset === 'auto' && !quality.hardware && quality.benchmark
       ? await quality.benchmark()
