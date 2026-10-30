@@ -55,6 +55,6 @@ export async function createLightningVolume(device: GPUDevice) {
       workgroups: [side, side, side] as const,
     }
   })
-  runGenerator(device, label, passes, [])
+  runGenerator(device, label, passes)
   return texture
 }

@@ -9,7 +9,7 @@ import { rand3dPcg16 } from '../../../../../math/src/wgsl/sampling.ts'
 const WARP_OFFSET = [0.37, 0.71] as const
 
 /**
- * THE PERIODIC GRADIENT NOISE OF THE PLANE the layout pattern and the global mask are made from, one
+ * THE PERIODIC GRADIENT NOISE OF THE PLANE the global mask is made from, one
  * block: `gradientNoise`, the noise of the grid of `cells` cells a side at `q`, in about [-0.7, 0.7]:
  * the four corners' unit gradients, hashed from the corner's cell wrapped by the period so that the
  * noise tiles, dotted with the offsets to them and blended by the quintic fade; `fractal`, `octaves`
