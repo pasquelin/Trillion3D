@@ -1,4 +1,5 @@
-import { mipSize } from '../../../../math/src/scalar/integers.ts'
+import { ceilDiv, mipSize } from '../../../../math/src/scalar/integers.ts'
+import { clamp } from '../../../../math/src/scalar/reals.ts'
 import {
   AMBIENT_CUBEMAP_FACE_PERM,
   AMBIENT_CUBEMAP_FACE_SIGN,
@@ -6,6 +7,7 @@ import {
 } from '../../../../sdk-core/src/lighting/ambientCubemapMips.ts'
 import { cubemapMipCount } from '../../../../sdk-core/src/scene/core/fogCubemap.ts'
 import type { SkyLightCubemap } from '../../../../sdk-core/src/modules/sky/skyLightCubemap.ts'
+import { uploadCubeFloats } from '../../modules/sky/skyLight/cubeFloatUpload.ts'
 import { CUBE_FACES } from '../../modules/sky/skyLight/layout.ts'
 import {
   COMPUTE,
@@ -29,7 +31,7 @@ import { CUBE_FILTER, CUBE_FILTER_BINDINGS } from './ambientCubemapFilterText.ts
 
 /**
  * THE AMBIENT CUBEMAP'S MIP CHAIN, MADE ON THE GPU (`ambientCubemapFilterWgsl.ts`), once for a cube: the cube's texels uploaded as full floats
- * face by face over the images that ask for them (`CONVERT_BUDGET`), their box-filtered mips made in one submit, then the angular filter run
+ * face by face over the images that ask for them (`uploadCubeFloats`), their box-filtered mips made in one submit, then the angular filter run
  * over the texels of every mip, face by face, in chunks of rows within a budget of texels an image (`TEXELS_PER_IMAGE`, at least one chunk).
  * The chain is the cube's only once the last chunk is run; the source chain and the records are then handed to the retire list.
  */
@@ -40,9 +42,6 @@ const COPY_DST = 2,
   STORAGE_BINDING = 8,
   UNIFORM = 64,
   BUFFER_COPY_DST = 8
-
-/** The channels uploaded in one image, at most, past the first face: a cube of a big side goes up face by face, not in one stall. */
-const CONVERT_BUDGET = 1 << 20
 
 /** The texels the angular filter writes in one image, at most, past the first chunk. A texel is a walk over the cone's blocks of the source. */
 const TEXELS_PER_IMAGE = 1 << 18
@@ -154,8 +153,13 @@ function facesWords() {
   return words
 }
 
-/** The build of the chain of `data` begun: its textures and buffers made, its kernels asked of the compiler, nothing uploaded. */
-export function openCubeBuild(device: GPUDevice, data: SkyLightCubemap, label: string): CubeBuild {
+/** The build of the chain of `data` begun: its textures and buffers made, its kernels asked of the compiler. Its source is `uploaded`, the float cube the peak was found over (`takeFloatCube`), or made empty, nothing uploaded. */
+export function openCubeBuild(
+  device: GPUDevice,
+  data: SkyLightCubemap,
+  label: string,
+  uploaded?: GPUTexture,
+): CubeBuild {
   const { size } = data
   kernels(device)
   const count = cubemapMipCount(size)
@@ -166,13 +170,15 @@ export function openCubeBuild(device: GPUDevice, data: SkyLightCubemap, label: s
     format: 'rgba16float',
     usage: TEXTURE_BINDING | STORAGE_BINDING,
   })
-  const source = device.createTexture({
-    label: `${label} source`,
-    size: { width: size, height: size, depthOrArrayLayers: CUBE_FACES },
-    mipLevelCount: count,
-    format: 'rgba32float',
-    usage: TEXTURE_BINDING | STORAGE_BINDING | COPY_DST,
-  })
+  const source =
+    uploaded ??
+    device.createTexture({
+      label: `${label} source`,
+      size: { width: size, height: size, depthOrArrayLayers: CUBE_FACES },
+      mipLevelCount: count,
+      format: 'rgba32float',
+      usage: TEXTURE_BINDING | STORAGE_BINDING | COPY_DST,
+    })
   const faces = device.createBuffer({
     label: `${label} faces`,
     size: CUBE_FACES_WORDS * 4,
@@ -199,39 +205,10 @@ export function openCubeBuild(device: GPUDevice, data: SkyLightCubemap, label: s
       groups: [],
       recordInts,
       recordFloats: new Float32Array(recordInts.buffer),
-      uploaded: 0,
+      uploaded: uploaded ? CUBE_FACES : 0,
       averaged: false,
     },
   }
-}
-
-/** The faces of `data` not yet up written into the source, as many as the budget of this image holds and at least one. */
-function upload(device: GPUDevice, data: SkyLightCubemap, scratch: Scratch) {
-  const { size, texels } = data
-  const faceTexels = size * size
-  const { source } = scratch
-  const rgba = (scratch.rgba ??= new Float32Array(faceTexels * 4))
-  let budget = CONVERT_BUDGET
-  while (scratch.uploaded < CUBE_FACES && (budget > 0 || scratch.uploaded === 0)) {
-    const face = scratch.uploaded
-    for (let i = 0; i < faceTexels; i++) {
-      rgba[i * 4] = texels[(face * faceTexels + i) * 3]
-      rgba[i * 4 + 1] = texels[(face * faceTexels + i) * 3 + 1]
-      rgba[i * 4 + 2] = texels[(face * faceTexels + i) * 3 + 2]
-      rgba[i * 4 + 3] = 1
-    }
-    device.queue.writeTexture(
-      { texture: source, origin: [0, 0, face] },
-      rgba,
-      { bytesPerRow: size * 16, rowsPerImage: size },
-      { width: size, height: size },
-    )
-    scratch.uploaded++
-    budget -= faceTexels * 3
-  }
-  if (scratch.uploaded < CUBE_FACES) return false
-  scratch.rgba = undefined
-  return true
 }
 
 /** The box-filtered mips of the source made, one dispatch a mip, in one submit. */
@@ -259,7 +236,7 @@ function average(device: GPUDevice, size: number, scratch: Scratch) {
       }),
     )
     const side = mipSize(size, level)
-    pass.dispatchWorkgroups(Math.ceil(side / GROUP), Math.ceil(side / GROUP), CUBE_FACES)
+    pass.dispatchWorkgroups(ceilDiv(side, GROUP), ceilDiv(side, GROUP), CUBE_FACES)
   }
   pass.end()
   device.queue.submit([encoder.finish()])
@@ -299,7 +276,7 @@ function filter(device: GPUDevice, data: SkyLightCubemap, build: CubeBuild, scal
   let budget = TEXELS_PER_IMAGE
   for (let slot = 0; slot < SLOTS && build.level < count && (budget > 0 || slot === 0); slot++) {
     const side = mipSize(size, build.level)
-    const rows = Math.min(side - build.row, Math.max(1, Math.floor(budget / side)))
+    const rows = clamp(Math.floor(budget / side), 1, side - build.row)
     const { source, sin, cos, kernelCos, inverseWidth } = ambientCubemapLevelCone(size, build.level)
     ints[at.counts] = side
     ints[at.counts + 1] = mipSize(size, source)
@@ -314,7 +291,7 @@ function filter(device: GPUDevice, data: SkyLightCubemap, build: CubeBuild, scal
     floats[at.scale] = scale
     device.queue.writeBuffer(scratch.records, slot * stride, ints)
     pass.setBindGroup(0, filterGroup(device, build, scratch, build.level), [slot * stride])
-    pass.dispatchWorkgroups(Math.ceil(side / GROUP), Math.ceil(rows / GROUP))
+    pass.dispatchWorkgroups(ceilDiv(side, GROUP), ceilDiv(rows, GROUP))
     budget -= rows * side
     build.row += rows
     if (build.row === side) {
@@ -352,7 +329,8 @@ export function advanceCubeBuild(
 ) {
   const { scratch } = build
   if (!scratch) return true
-  if (scratch.uploaded < CUBE_FACES && !upload(device, data, scratch)) return false
+  if (scratch.uploaded < CUBE_FACES && !uploadCubeFloats(device, scratch.source, data, scratch))
+    return false
   if (!kernels(device).ready) return false
   if (!scratch.averaged) average(device, data.size, scratch)
   filter(device, data, build, scale)

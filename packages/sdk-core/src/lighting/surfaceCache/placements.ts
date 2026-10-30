@@ -57,6 +57,7 @@ export function addMeshCards(cache: SurfaceCache, placement: Placement) {
   )
   if (!built) {
     placement.validMeshCards = false
+    cache.changes.groups.add(placement.id)
     return
   }
   const { instance, cards } = built
@@ -68,6 +69,7 @@ export function addMeshCards(cache: SurfaceCache, placement: Placement) {
   })
   cache.changes.meshCards.add(index)
   cache.changes.placements.add(placement.id)
+  cache.changes.groups.add(placement.id)
   placement.meshCards = index
   placement.visible = true
 }
@@ -83,6 +85,7 @@ export function removeMeshCards(cache: SurfaceCache, placement: Placement, hide 
   cache.meshCards.removeSpan(placement.meshCards, 1)
   cache.changes.meshCards.add(placement.meshCards)
   cache.changes.placements.add(placement.id)
+  cache.changes.groups.add(placement.id)
   placement.meshCards = -1
   if (hide) placement.visible = false
 }
@@ -166,6 +169,7 @@ export function setPlacement(cache: SurfaceCache, id: number, source: PlacementS
   ) {
     known.world.set(source.world)
     updateBounds(known)
+    cache.changes.groups.add(id)
     moveCards(cache, known)
     setChannels(cache, known, lightingChannels)
     return
@@ -188,6 +192,7 @@ export function setPlacement(cache: SurfaceCache, id: number, source: PlacementS
   }
   updateBounds(placement)
   cache.placements.set(id, placement)
+  cache.changes.groups.add(id)
 }
 
 /** Forgets the placement `id`: its cards leave the scene. */
@@ -196,6 +201,7 @@ export function removePlacement(cache: SurfaceCache, id: number) {
   if (!placement) return
   removeMeshCards(cache, placement, false)
   cache.placements.delete(id)
+  cache.changes.groups.add(id)
 }
 
 /** The placement `id` changed its surface — a material, a texture —: every page of its cards that is

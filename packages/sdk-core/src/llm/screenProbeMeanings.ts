@@ -92,6 +92,10 @@ const FILTER_MEANINGS = /* @__PURE__ */ (() =>
       "The distance, in centimetres, the 'scene-visualization' view starts its trace at (0 by default).",
     visualizeMaxTraceDistance:
       "The longest trace, in centimetres, of the 'scene-visualization' view (100000 by default).",
+    visualizeHardwareRayTracing:
+      "Whether the 'scene-visualization' view traces its rays through the scene's triangles (true, the default) in place of marching the global distance field, where the scene has acceleration structures: the tiles of 8 by 8 pixels of the view are listed, a ray is listed for each pixel of them, each ray is traced through the triangles and the light of the surface cache at its hit is shown. visualizeCullingMode, visualizeMinTraceDistance and visualizeMaxTraceDistance apply to it; visualizeSceneTraceRadianceCache does not (the probes' light past the trace belongs to the march).",
+    visualizeCullingMode:
+      "The faces the rays of the 'scene-visualization' view traced through the triangles (visualizeHardwareRayTracing) pass through: 0 (the default) none, 1 the back faces, 2 the front faces.",
     debugCursorX:
       "The column of the display's pixels the debug views read as the cursor, -1 (the default) for none: the views that follow the cursor take the middle of the image for the screen probes' rays and draw nothing for the reflection rays.",
     debugCursorY:

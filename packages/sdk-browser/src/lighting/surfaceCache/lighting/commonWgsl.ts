@@ -1,4 +1,4 @@
-import { wgslBlock, type WgslDecl } from '../../../../../math/src/wgsl/decl.ts'
+import { wgslBlock, wgslFn, type WgslDecl } from '../../../../../math/src/wgsl/decl.ts'
 import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
 import { DISTANCE_FIELD_UNITS_PER_METRE as CM } from '../../../../../sdk-core/src/contracts/distanceFieldAbi.ts'
 import { LIGHTING_CONTEXTS } from '../../../../../sdk-core/src/lighting/surfaceCache/lightingMath.ts'
@@ -84,16 +84,28 @@ const CONSTANTS = wgslConsts({
   TILE_LIGHT_STANDALONE,
 })
 
-const TILES_WGSL = wgslBlock(
-  'LIGHTING_TILES_WGSL',
+/** The tile a listed word names inside its page: x the low nibble of the byte above the page, y the high. The one declaration of it: the kernels of the direct update
+ *  list it in `LIGHTING_TILES_WGSL`, the cursor card's program lists it alone (`cursorCardWgsl.ts`). */
+export const TILE_COORD_OF = wgslFn(
+  'tileCoordOf',
+  [],
+  'fn tileCoordOf(packed:u32)->vec2u{return vec2u((packed>>24u)&15u,(packed>>28u)&15u);}',
+)
+
+const TILES_HEAD_WGSL = wgslBlock(
+  'LIGHTING_TILES_HEAD_WGSL',
   [],
   `
 fn lgFlag(f:u32)->bool{return (lp.flags&f)!=0u;}
 /** The rank of the workgroup in a dispatch in rows. */
 fn flatGroup(g:vec3u,n:vec3u)->u32{return g.x+g.y*n.x;}
-fn tilePage(packed:u32)->u32{return packed&0xffffffu;}
-fn tileCoordOf(packed:u32)->vec2u{return vec2u((packed>>24u)&15u,(packed>>28u)&15u);}
-fn ctxListed(list:u32)->u32{return ctxW(CTX_LISTED+list);}
+fn tilePage(packed:u32)->u32{return packed&0xffffffu;}`,
+)
+
+const TILES_WGSL = wgslBlock(
+  'LIGHTING_TILES_WGSL',
+  [TILES_HEAD_WGSL, TILE_COORD_OF],
+  `fn ctxListed(list:u32)->u32{return ctxW(CTX_LISTED+list);}
 fn ctxTile(list:u32,i:u32)->u32{return ctxW(select(lp.indirectAt,lp.directAt,list==LG_LIST_DIRECT)+i);}
 /** A page's size in texels, and the atlas's texel its first is. */
 fn pageSize(page:u32)->vec2u{return vec2u(u32(scPageF(page,2u)),u32(scPageF(page,3u)));}

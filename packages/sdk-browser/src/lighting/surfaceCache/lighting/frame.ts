@@ -10,6 +10,7 @@ import { occlusionTraced, reservoirsTraced, screenProbesTraced } from '../../bou
 import { screenProbeSettingsOf } from '../../bounce/screen/settingsOf.ts'
 import { translucencyGiTraced } from '../../translucencyGi/frame.ts'
 import { tracedTranslucencyTraced } from '../../reflections/translucency/stage.ts'
+import { sceneVisualizeTraced } from '../sceneDebug/hardware/wants.ts'
 import { reflectionsTraced } from '../../reflections/hardware.ts'
 import { hardwareRayTracing, surfaceCacheRaysOf } from '../../rays/hardwareRayTracing.ts'
 import { pathTracingOn } from '../../pathTracing/enabled.ts'
@@ -88,11 +89,12 @@ export function lightSurfaceCache(
       direction: cameraForward<[number, number, number]>([0, 0, 0], frame.cam.world),
       transportEpoch: lights.store.transportEpoch,
       meshReach: reachOf(rt, state) + state.settings.surfaceCacheCardCaptureMargin,
-      // The path tracer casts every ray of its view through the scene's triangles, whatever the device's hardware; so do the reservoirs, once the setting chose them over the probes, the ray traced shadows of the lights that ask for them, the ray traced ambient occlusion, the ray traced sky light, the traced translucency (its own setting is the whole gate), and the sampled lighting's shadow caster views (`sampledLightsHardwareRayTracing`).
+      // The path tracer casts every ray of its view through the scene's triangles, whatever the device's hardware; so do the reservoirs, once the setting chose them over the probes, the ray traced shadows of the lights that ask for them, the ray traced ambient occlusion, the ray traced sky light, the traced translucency (its own setting is the whole gate), the scene view traced through the triangles (`visualizeHardwareRayTracing`), and the sampled lighting's shadow caster views (`sampledLightsHardwareRayTracing`).
       probes:
         pathTracingOn(rt) ||
         reservoirsTraced(rt) ||
         tracedTranslucencyTraced(rt) ||
+        sceneVisualizeTraced(rt) ||
         rayTracedShadowsTraced(rt) ||
         rayTracedAoTraced(rt) ||
         skyLightTracedWanted(rt) ||

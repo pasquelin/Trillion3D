@@ -128,7 +128,7 @@ export const maxTileCapturesPerFrame = (settings: SurfaceCacheSettings) => {
 }
 
 /** The distance from the eyes to the box `bounds` (`minX..maxZ`): that of the nearest. */
-function nearestDistance(bounds: ArrayLike<number>, origins: readonly Vec3[]) {
+export function nearestDistance(bounds: ArrayLike<number>, origins: readonly Vec3[]) {
   let nearest = Infinity
   for (const [x, y, z] of origins) nearest = Math.min(nearest, boxPointDistance(bounds, 0, x, y, z))
   return nearest
@@ -136,7 +136,7 @@ function nearestDistance(bounds: ArrayLike<number>, origins: readonly Vec3[]) {
 
 /** The placements that deserve mesh cards: in range, with a face of the least resolution, opaque or
  *  masked unless `addTranslucent`. */
-function wantsCards(
+export function wantsCards(
   placement: Placement,
   distance: number,
   limits: CardLimits,
@@ -151,6 +151,13 @@ function wantsCards(
   )
 }
 
+/** Counts an operation of the scene in `ops` (the count, then the ids of the first ones). */
+export function noteOp(ops: Uint32Array, id: number) {
+  const at = ops[0]! + 1
+  ops[0] = at
+  if (at < ops.length) ops[at] = id
+}
+
 /**
  * Gives mesh cards to the placements that deserve them and takes them from those that no longer
  * do. The placements that want cards and have none are counted (`stats.meshCardsToAdd`); the
@@ -160,18 +167,28 @@ export function cullPlacements(cache: SurfaceCache, view: CardView, limits: Card
   const { settings } = cache
   const adds: { placement: Placement; distance: number }[] = []
   const removes: Placement[] = []
+  const { addOps, removeOps } = cache.stats
   for (const placement of cache.placements.values()) {
     const distance = nearestDistance(placement.bounds, view.origins)
     if (wantsCards(placement, distance, limits, view.addTranslucent ?? false)) {
-      if (!placement.visible && placement.validMeshCards) adds.push({ placement, distance })
-    } else if (placement.visible && removes.length < settings.surfaceCacheRemovesPerFrame) {
-      removes.push(placement)
+      if (!placement.visible && placement.validMeshCards) {
+        adds.push({ placement, distance })
+        noteOp(addOps, placement.id)
+      }
+    } else if (placement.visible) {
+      noteOp(removeOps, placement.id)
+      if (removes.length < settings.surfaceCacheRemovesPerFrame) removes.push(placement)
     }
   }
-  cache.stats.meshCardsToAdd = adds.length
   for (const placement of removes) removeMeshCards(cache, placement)
+  addNearest(cache, adds)
+}
+
+/** Counts the placements that want mesh cards (`stats.meshCardsToAdd`) and gives them to the nearest, up to twice the captures of an image. */
+export function addNearest(cache: SurfaceCache, adds: { placement: Placement; distance: number }[]) {
+  cache.stats.meshCardsToAdd = adds.length
   adds.sort((a, b) => a.distance - b.distance)
-  for (const { placement } of adds.slice(0, 2 * maxCapturesPerFrame(settings)))
+  for (const { placement } of adds.slice(0, 2 * maxCapturesPerFrame(cache.settings)))
     addMeshCards(cache, placement)
 }
 

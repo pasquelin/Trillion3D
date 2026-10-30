@@ -60,6 +60,12 @@ test('a frozen cache captures no tile, whatever its budget, and asks of the scen
   assert.equal(work.texels, 0)
 })
 
+test('a placement that wants cards is counted in the scene add operations, with its id', () => {
+  const { cache } = updated({})
+  assert.deepEqual(Array.from(cache.stats.addOps.slice(0, 3)), [1, 0, 0])
+  assert.equal(cache.stats.removeOps[0], 0)
+})
+
 test('a cache recaptured every image is emptied each image and captures without a budget, unless it is frozen', () => {
   const recapture = { surfaceCacheRecaptureEveryFrame: true }
   assert.equal(maxTileCapturesPerFrame({ ...defaults, ...recapture }), INT32_MAX)

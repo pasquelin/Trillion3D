@@ -8,6 +8,7 @@ import { resolveSettings } from '../../../../sdk-core/src/contracts/settingRules
 import { AMBIENT_CUBEMAP_RULES } from '../../../../sdk-core/src/contracts/ambientCubemapOptions.ts'
 import { writtenBytes } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
+import { cubePeakKernel } from '../../modules/sky/skyLight/cubePeak.fixture.ts'
 import { CUBE_FILTER } from './ambientCubemapFilterText.ts'
 import {
   ambientCubemapOn,
@@ -25,7 +26,10 @@ const LABEL = 'Trillion3D ambient cubemap'
 
 /** A runtime of the parts the frame reads: the context's cube and settings, the device. */
 function runtime(settings: Parameters<typeof resolveSettings>[1], data?: ReturnType<typeof cube>) {
-  const gpu = fakeDevice(BACKEND)
+  const gpu: ReturnType<typeof fakeDevice> = fakeDevice({
+    ...BACKEND,
+    kernel: cubePeakKernel(() => gpu.textureWrites),
+  })
   const rt = {
     context: { ...resolveSettings(AMBIENT_CUBEMAP_RULES, settings), ambientCubemap: data },
     lights: {},
@@ -69,8 +73,13 @@ test('the cube is a texture of its mip chain in half floats, every texel of ever
   assert.equal(made[0].format, 'rgba16float')
   assert.equal(made[0].mipLevelCount, 5)
   assert.ok(made[0].usage & GPUTextureUsage.STORAGE_BINDING, 'the kernel writes it')
-  // The cube goes up whole as full floats, a write a face, into the chain's source.
+  // The cube goes up whole as full floats, a write a face, once: the cube that found its peak is the chain's source.
   assert.equal(gpu.textureWrites.length, 6)
+  assert.ok(
+    gpu.textureWrites.every(
+      (write) => (write.destination.texture as { label?: string }).label === 'Trillion3D cube peak',
+    ),
+  )
   // Each texel of each face of each mip is the target of one thread of one chunk.
   const texels = new Map<string, number>()
   const at = CUBE_FILTER.at
@@ -114,4 +123,44 @@ test('a cube taken away leaves the image without the light, and the session end 
   assert.equal(ambientCubemapPending(rt), false)
   releaseAmbientCubemap(rt)
   assert.equal(rt.lights.ambientCubemap, undefined)
+})
+
+test('a new picture is measured behind the cube held: the image keeps the cube it had and is drawn again until the peak is back', async () => {
+  const { rt } = runtime({}, cube())
+  const { bound } = await untilWhole(rt)
+  ;(rt.context as { ambientCubemap?: unknown }).ambientCubemap = cube(2)
+  const meanwhile = ambientCubemapResources(rt, true)
+  assert.equal(meanwhile?.view, bound.view, 'the cube held is still bound')
+  assert.equal(ambientCubemapPending(rt), true, 'the image is drawn again')
+})
+
+test('a picture given up before its peak is back destroys its float cube at once', () => {
+  const { rt, gpu } = runtime({}, cube())
+  ambientCubemapResources(rt, true)
+  const measure = gpu.textures.find((texture) => texture.label === 'Trillion3D cube peak')!
+  assert.ok(!gpu.destroyed.includes(measure), 'alive while its kernels compile')
+  ;(rt.context as { ambientCubemap?: unknown }).ambientCubemap = cube(2)
+  ambientCubemapResources(rt, true)
+  assert.ok(gpu.destroyed.includes(measure))
+})
+
+test('back to the cube held before the one measured had its peak, the measured one is given up: no float cube is left held', async () => {
+  const { rt, gpu } = runtime({}, cube())
+  await untilWhole(rt)
+  const held = (rt.context as { ambientCubemap?: unknown }).ambientCubemap
+  ;(rt.context as { ambientCubemap?: unknown }).ambientCubemap = cube(2)
+  ambientCubemapResources(rt, true)
+  const measure = gpu.textures.filter((texture) => texture.label === 'Trillion3D cube peak').at(-1)!
+  assert.ok(!gpu.destroyed.includes(measure), 'alive while its peak is awaited')
+  ;(rt.context as { ambientCubemap?: unknown }).ambientCubemap = held
+  ambientCubemapResources(rt, true)
+  assert.ok(gpu.destroyed.includes(measure))
+})
+
+test('an image that is not lit keeps the cube last bound: the next lit image binds it, not a black stand-in, while a new picture is measured', async () => {
+  const { rt } = runtime({}, cube())
+  const { bound } = await untilWhole(rt)
+  ;(rt.context as { ambientCubemap?: unknown }).ambientCubemap = cube(2)
+  assert.equal(ambientCubemapResources(rt, false), undefined)
+  assert.equal(ambientCubemapResources(rt, true)?.view, bound.view)
 })

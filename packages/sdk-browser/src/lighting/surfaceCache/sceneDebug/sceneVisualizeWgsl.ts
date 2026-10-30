@@ -1,7 +1,7 @@
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
+import { wgslFn } from '../../../../../math/src/wgsl/decl.ts'
 import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
 import { equalAreaEncode } from '../../../../../math/src/wgsl/octahedral.ts'
-import { pixelToNdc, unprojectPoint } from '../../../../../math/src/wgsl/projection.ts'
 import { bilinear3, interleavedGradientNoise } from '../../../../../math/src/wgsl/sampling.ts'
 import { FULLSCREEN_VERTEX } from '../../../gpu/shader/fullscreenTriangle.ts'
 import {
@@ -16,6 +16,7 @@ import { bounceBindingsWgsl } from '../../bounce/gridWgsl.ts'
 import { fieldMapReads } from '../../bounce/irradianceField/gatherWgsl.ts'
 import { FIELD_MAP_BORDER } from '../../bounce/irradianceField/mapsWgsl.ts'
 import { BOUNCE_CM_WGSL } from '../../bounce/tracedHitWgsl.ts'
+import { VIEW_RAY_WGSL } from '../../deferred/worldAtWgsl.ts'
 import { surfaceHitBindingsFrom, surfaceHitWgsl, type SurfaceHitBindings } from '../hitWgsl.ts'
 import { DIRECT_LIGHT_WGSL } from '../../direct/lightWgsl.ts'
 import { heightFogOverWgsl } from '../../reflections/rayLightWgsl.ts'
@@ -87,8 +88,21 @@ export const SCENE_VISUALIZE_FOG: RayFogBindings = {
 export const SCENE_VISUALIZE_PARAM_WORDS = 16
 export const SCENE_VISUALIZE_FLAG = { cache: 1, hiRes: 2, sky: 4, fog: 8, tiled: 16 } as const
 
+/** `sceneInside(local)`: whether the pixel at `local` of a tile is inside its rounded corners (a whole display has none), over the parameters `scene` (`tile`, `flags.x`) the program declares. */
+export const sceneInside = wgslFn(
+  'sceneInside',
+  [],
+  `fn sceneInside(local:vec2f)->bool{
+ if((scene.flags.x&${SCENE_VISUALIZE_FLAG.tiled}u)==0u){return true;}
+ let low=vec2f(${TILE_CORNER}.0);
+ let high=scene.tile.zw-vec2f(${TILE_CORNER}.0+1.0);
+ let away=max(max(low-local,local-high),vec2f(0.0));
+ return length(away)-${TILE_CORNER}.0<0.5;
+}`,
+)
+
 /** What a hit of the trace gives `seen` for mode `mode`: its light, or a debug colour in the cache's unit of light (`invPre`). */
-function hitShadeWgsl(mode: number) {
+export function hitShadeStatement(mode: number) {
   if (mode === VISUALIZE_MODE.geometryNormals)
     return '   seen=(surface.face*0.5+vec3f(0.5))*invPre;'
   if (mode === VISUALIZE_MODE.surfaceCache)
@@ -99,15 +113,15 @@ function hitShadeWgsl(mode: number) {
     : '   seen=surface.radiance;'
 }
 
-/** How `seen` becomes the pixel for mode `mode`: through the composition's table, or, for the albedo and the vectors, in the unit of the image. */
-function outputWgsl(mode: number) {
+/** How `seen` becomes the colour of the pixel for mode `mode`: through the composition's table, or, for the albedo and the vectors, in the unit of the image. */
+export function outputColour(mode: number) {
   switch (visualizeOutputOf(mode)) {
     case 'srgb':
-      return ' return vec4f(saturate(linearToSrgb(seen/invPre)),1.0);'
+      return 'saturate(linearToSrgb(seen/invPre))'
     case 'raw':
-      return ' return vec4f(saturate(seen/invPre),1.0);'
+      return 'saturate(seen/invPre)'
     default:
-      return ' return vec4f(saturate(visualizeTonemap(seen,scene.flags.y!=0u)),1.0);'
+      return 'saturate(visualizeTonemap(seen,scene.flags.y!=0u))'
   }
 }
 
@@ -165,37 +179,15 @@ fn sceneFar(level:u32,P:vec3f,d:vec3f,spread:f32)->vec3f{
  if(out.sky>0.0&&skyLit()){out.radiance=mix(out.radiance,skyProbeRadiance(d),out.sky);}
  return out.radiance;
 }
-// Under an orthographic view every ray runs along the view's direction, from the point of the plane through the eye that its pixel falls on.
-fn sceneOrtho()->bool{return bounce.forward.w!=0.0;}
-fn sceneRay(pixel:vec2f)->vec3f{
- if(sceneOrtho()){return normalize(bounce.forward.xyz);}
- let ndc=pixelToNdc(pixel,scene.size.xy);
- return normalize(unprojectPoint(view.inverseViewProjection,vec3f(ndc,0.5))-view.camera.xyz);
-}
-fn sceneEye(pixel:vec2f)->vec3f{
- if(!sceneOrtho()){return view.camera.xyz;}
- let ndc=pixelToNdc(pixel,scene.size.xy);
- let on=unprojectPoint(view.inverseViewProjection,vec3f(ndc,0.5));
- let forward=normalize(bounce.forward.xyz);
- return on-forward*dot(on-view.camera.xyz,forward);
-}
-// Whether the pixel at 'local' of a tile is inside its rounded corners (a whole display has none).
-fn sceneInside(local:vec2f)->bool{
- if((scene.flags.x&${SCENE_VISUALIZE_FLAG.tiled}u)==0u){return true;}
- let low=vec2f(${TILE_CORNER}.0);
- let high=scene.tile.zw-vec2f(${TILE_CORNER}.0+1.0);
- let away=max(max(low-local,local-high),vec2f(0.0));
- return length(away)-${TILE_CORNER}.0<0.5;
-}
 @fragment fn sceneVisualizeFs(@builtin(position) at:vec4f)->@location(0) vec4f{
  let local=at.xy-scene.tile.xy;
  if(!sceneInside(local)){discard;}
  // The tile shows the whole display, scaled to it.
  let pixel=local/scene.tile.zw*scene.size.xy;
- let eye=sceneEye(pixel);
- let d=sceneRay(pixel);
+ let eye=viewRayStart(pixel,scene.size.xy);
+ let d=viewRay(pixel,scene.size.xy);
  // The cone of one pixel: the angle to the ray of its neighbour.
- let spread=length(sceneRay(pixel+vec2f(1.0,0.0))-d);
+ let spread=length(viewRay(pixel+vec2f(1.0,0.0),scene.size.xy)-d);
  var reach=scene.trace.y;
  var cover=CacheCoverage(0u,false,0.0);
  if((scene.flags.x&${SCENE_VISUALIZE_FLAG.cache}u)!=0u){
@@ -215,7 +207,7 @@ fn sceneInside(local:vec2f)->bool{
    escaped=false;
    travelled=marched.hitTime;
    let surface=scGlobalHit(start,d,marched,spread,false,-1.0,(scene.flags.x&${SCENE_VISUALIZE_FLAG.hiRes}u)!=0u,vec2u(0u));
-${hitShadeWgsl(mode)}
+${hitShadeStatement(mode)}
   }
  }
  if(escaped){
@@ -227,14 +219,14 @@ ${hitShadeWgsl(mode)}
   let metres=select(max(scene.size.w,travelled/f32(BOUNCE_CM)),travelled/f32(BOUNCE_CM),!escaped);
   seen=heightFogOver(seen,eye,d*metres);
  }
-${outputWgsl(mode)}
+return vec4f(${outputColour(mode)},1.0);
 }`,
     [
+      sceneInside,
       DIRECT_LIGHT_WGSL,
       heightFogOverWgsl(SCENE_VISUALIZE_FOG.cubemap, SCENE_VISUALIZE_FOG.sampler),
       linearToSrgb,
-      pixelToNdc,
-      unprojectPoint,
+      VIEW_RAY_WGSL,
       interleavedGradientNoise,
       equalAreaEncode,
       bilinear3,

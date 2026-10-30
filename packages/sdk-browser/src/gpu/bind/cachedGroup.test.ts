@@ -41,6 +41,20 @@ test('resources that take turns each keep their group at a depth of two, and are
   }
 })
 
+test('a group over a layout, its entries listed every image, is made again only where the layout or a buffer the entries name moved', () => {
+  const { device, made } = fakeDevice()
+  const a = {} as GPUBuffer
+  const b = {} as GPUBuffer
+  const cached = createCachedGroup()
+  const over = (buffer: GPUBuffer, on = layout) =>
+    cached.over(device, on, [{ binding: 0, resource: { buffer } }])
+  const first = over(a)
+  assert.equal(over(a), first)
+  assert.notEqual(over(b), first)
+  over(b, {} as GPUBindGroupLayout)
+  assert.equal(made(), 3)
+})
+
 test('a named group is kept per name while its resources hold, and made again where one moved', () => {
   const { device, made } = fakeDevice()
   const targets: GroupCache = { groups: new Map() }

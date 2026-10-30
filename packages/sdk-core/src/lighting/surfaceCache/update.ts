@@ -2,6 +2,7 @@ import type { SurfaceCacheSettings } from '../../contracts/surfaceCacheOptions.t
 import { cardLimits } from './cardResolution.ts'
 import { forceEvictEntireCache, processRequests, type CaptureWork } from './captures.ts'
 import type { Feedback } from './feedback.ts'
+import { applySceneOps, type SceneOps } from './gpuDriven.ts'
 import { removeAllMeshCards, updateAtlasSize } from './placements.ts'
 import { cullPlacements, maxTileCapturesPerFrame, planRequests, type CardView } from './requests.ts'
 import type { SurfaceCache } from './state.ts'
@@ -33,6 +34,8 @@ export interface UpdateView extends CardView {
   readonly light?: string
   /** Whether the debugging reset is asked for this image (`surfaceCacheReset` turned on, or an image that is a multiple of `surfaceCacheResetEveryNthFrame`): the atlas and the cards are emptied. */
   readonly reset?: boolean
+  /** With `surfaceCacheGpuDrivenUpdate`, the lists the GPU's pass wrote that an earlier image's copy brought back, when one has arrived: the placements to give mesh cards and to take them from, in place of the CPU's test. */
+  readonly sceneOps?: SceneOps
   /** Whether the optional pages are asked to leave the atlas this image (`surfaceCacheForceEvictHiResPages` turned on). */
   readonly forceEvictHiResPages?: boolean
 }
@@ -74,11 +77,19 @@ export function updateSurfaceCache(
   cache.stats.meshCardsToAdd = 0
   cache.stats.lockedCardsToUpdate = 0
   cache.stats.hiResPagesToAdd = 0
+  // The GPU's lists come a few images apart: their counts stay until the next list is applied.
+  if (!settings.surfaceCacheGpuDrivenUpdate) {
+    cache.stats.addOps.fill(0)
+    cache.stats.removeOps.fill(0)
+    cache.changes.groups.clear()
+  }
   const budget = maxTileCapturesPerFrame(settings)
   let work: CaptureWork = { pages: [], texels: 0, hasCardCopy: false, reset: false }
   if (budget > 0) {
     const limits = cardLimits(settings, view.orthographic, view.clipmapExtent)
-    cullPlacements(cache, view, limits)
+    if (settings.surfaceCacheGpuDrivenUpdate) {
+      if (view.sceneOps) applySceneOps(cache, view.sceneOps, view, limits)
+    } else cullPlacements(cache, view, limits)
     const requests = planRequests(cache, view, limits, view.feedback)
     work = processRequests(cache, requests, budget, view.ready)
   }

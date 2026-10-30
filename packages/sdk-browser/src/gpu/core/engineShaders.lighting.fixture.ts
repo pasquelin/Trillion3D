@@ -13,12 +13,18 @@ import { imageProgram } from '../../lighting/bounce/reservoirGather/imageWgsl.ts
 import { resampleProgram } from '../../lighting/bounce/reservoirGather/resampleWgsl.ts'
 import {
   FIELD_OFFSETS_PROGRAM,
+  fieldOffsetsProgram,
   GBUFFER_OFFSETS_PROGRAM,
 } from '../../lighting/bounce/irradianceField/offsetsWgsl.ts'
 import { MARK_HAIR_SHADER } from '../../lighting/bounce/pool/poolMarkHairWgsl.ts'
 import { EYE_MARK_SHADER } from '../../lighting/surfaceCache/sceneDebug/eyeMarker.ts'
+import { HISTORY_VISUALIZE_WGSL } from '../../lighting/surfaceCache/sceneDebug/historyVisualize.ts'
 import { materialPropertiesWgsl } from '../../lighting/surfaceCache/sceneDebug/materialProperties.ts'
 import { radianceProbeListWgsl } from '../../lighting/surfaceCache/sceneDebug/radianceProbesWgsl.ts'
+import {
+  radiosityProbesDrawWgsl,
+  radiosityProbesListWgsl,
+} from '../../lighting/surfaceCache/sceneDebug/radiosityProbesWgsl.ts'
 import { DISTANCE_FIELD_KERNEL_WGSL } from '../../../../sdk-core/src/lighting/distanceFieldKernel.ts'
 import {
   CAPTURE_COPY_CODE,
@@ -65,6 +71,10 @@ import {
   cubeAverageShader,
   cubeFilterShader,
 } from '../../lighting/deferred/ambientCubemapFilterWgsl.ts'
+import {
+  cubeDownsampleMaxShader,
+  cubeMaxLuminanceShader,
+} from '../../modules/sky/skyLight/cubePeakWgsl.ts'
 import { perLightPassWgsl } from '../../lighting/deferred/perLightPassWgsl.ts'
 import { FULL_CONTRACT } from '../../lighting/deferred/contractCuts.ts'
 import { TILE_CLASS_NAMES, TILE_CLASSES } from '../../lighting/deferred/tileClass.ts'
@@ -121,9 +131,13 @@ function lightPassShaders() {
     Object.assign(out, {
       [`SUN_CLASS_${name}`]: wgslModule(sunPassWgsl(FULL_CONTRACT, tileClass)),
       [`LOCAL_CLASS_${name}`]: wgslModule(localPassWgsl(FULL_CONTRACT, tileClass)),
-      // The per-light path (`shadowOnePassProjection` false): the local lights' pass without the shadowed lights, and the draw of one.
+      // The per-light path (`shadowOnePassProjection` or `clusteredDeferredShading` false): the local lights' pass without the shadowed lights, the
+      // draw of one (its mask the light's layer), and the local lights' pass for one light (its shadow its lane of the packed mask).
       [`LOCAL_UNBATCHED_CLASS_${name}`]: wgslModule(
-        localPassWgsl(FULL_CONTRACT, tileClass, { skipHeld: true }),
+        localPassWgsl(FULL_CONTRACT, tileClass, { loop: 'unbatched' }),
+      ),
+      [`LOCAL_ONE_CLASS_${name}`]: wgslModule(
+        localPassWgsl(FULL_CONTRACT, tileClass, { loop: 'one' }),
       ),
       [`PER_LIGHT_CLASS_${name}`]: wgslModule(perLightPassWgsl(FULL_CONTRACT, tileClass)),
       [`INDIRECT_CLASS_${name}`]: wgslModule(
@@ -135,6 +149,9 @@ function lightPassShaders() {
       // The program that writes the toon data (`ContractKey.toonData`, `toonUnifiedDiffuse`): the passes of the lights write it, the local one reads it back.
       [`SUN_TOON_DATA_CLASS_${name}`]: wgslModule(sunPassWgsl(TOON_DATA_CONTRACT, tileClass)),
       [`LOCAL_TOON_DATA_CLASS_${name}`]: wgslModule(localPassWgsl(TOON_DATA_CONTRACT, tileClass)),
+      [`LOCAL_ONE_TOON_DATA_CLASS_${name}`]: wgslModule(
+        localPassWgsl(TOON_DATA_CONTRACT, tileClass, { loop: 'one' }),
+      ),
       [`PER_LIGHT_TOON_DATA_CLASS_${name}`]: wgslModule(
         perLightPassWgsl(TOON_DATA_CONTRACT, tileClass),
       ),
@@ -185,7 +202,10 @@ export const LIGHTING_SHADERS: Record<string, string> = {
   FIELD_OFFSETS_BY_FIELD_FILTERED_MIP: fieldOffsetsProgram(true),
   BOUNCE_MARK_HAIR: MARK_HAIR_SHADER,
   BOUNCE_MARK_EYE: EYE_MARK_SHADER,
+  SCREEN_PROBE_HISTORY_VISUALIZE: HISTORY_VISUALIZE_WGSL,
   RADIANCE_PROBE_LIST: radianceProbeListWgsl,
+  RADIOSITY_PROBES_LIST: radiosityProbesListWgsl,
+  RADIOSITY_PROBES_DRAW: radiosityProbesDrawWgsl,
   MATERIAL_PROPERTIES: materialPropertiesWgsl,
   DISTANCE_FIELD_VOXEL_KERNEL: DISTANCE_FIELD_KERNEL_WGSL,
   REFLECTION_CAPTURE_COPY: CAPTURE_COPY_CODE,

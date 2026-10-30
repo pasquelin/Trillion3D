@@ -22,11 +22,11 @@ export const TV_SH_WGSL = wgslBlock(
 const TV_Y1:f32=${wgslF32(0.488603)};
 const TV_L0:f32=PI;
 const TV_L1:f32=${wgslF32(TAU / 3)};
-/** The first two bands' basis at the unit direction \`d\`: the constant term, then the three linear ones. */
+/** The first two bands' basis at the unit direction d: the constant term, then the three linear ones. */
 fn tvBasis(d:vec3f)->vec4f{return vec4f(TV_Y0,-TV_Y1*d.y,TV_Y1*d.z,-TV_Y1*d.x);}
 /** The colour of the constant band with its luminance divided out: the colour the linear bands take. */
 fn tvNormalisedAmbient(ambient:vec3f,luminance:f32)->vec3f{return ambient/(luminance+0.00001);}
-/** The irradiance on a surface of normal \`N\` of the light \`ambient\` (the constant band) and \`directional\` (the linear bands' luminance). */
+/** The irradiance on a surface of normal N of the light ambient (the constant band) and directional (the linear bands' luminance). */
 fn tvIrradiance(ambient:vec3f,directional:vec3f,N:vec3f,single:bool)->vec3f{
  let constant=ambient*(TV_Y0*TV_L0);
  if(single){return max(constant,vec3f(0.0));}

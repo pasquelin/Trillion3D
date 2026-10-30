@@ -11,7 +11,16 @@ import { CONTEXT_ARGS, CONTEXT_AT } from '../lighting/layout.ts'
 /** The settings a debug view reads. */
 export type SceneDebugSettings = Pick<
   SurfaceCacheSettings,
-  'surfaceCacheLightingStats' | 'surfaceCacheSceneStats' | 'surfaceCacheVisualizePrimitiveGroups'
+  | 'surfaceCacheLightingStats'
+  | 'surfaceCacheSceneStats'
+  | 'surfaceCacheVisualizePrimitiveGroups'
+  | 'surfaceCacheViewCards'
+  | 'surfaceCacheViewTiles'
+  | 'surfaceCacheCursorCard'
+  | 'surfaceCacheCursorCardLayer'
+  | 'surfaceCacheRadiosityVisualizeProbes'
+  | 'surfaceCacheRadiosityVisualizeProbeRadius'
+  | 'surfaceCacheRadiosityVisualizeProbesShowInvalid'
 >
 
 /** What the image shows of the cache: the update whose table is written (0 none, 1 the direct light's, 2 the indirect's, 3 the lights and atlas of the direct light's), the counts of the scene, the boxes of the placements. */
@@ -19,6 +28,15 @@ export interface SceneDebug {
   lightingStats: 0 | 1 | 2 | 3
   sceneStats: boolean
   primitiveGroups: boolean
+  /** The boxes of the cards and tiles the direct update lights, and the card under the cursor with the layer its preview shows (0 to 4). */
+  viewCards: boolean
+  viewTiles: boolean
+  cursorCard: boolean
+  cursorCardLayer: number
+  /** The spheres at the radiosity probes of the cards: whether, their radius in centimetres, and whether the probes on no surface are drawn (pink). */
+  radiosityProbes: boolean
+  radiosityProbeRadius: number
+  radiosityProbesShowInvalid: boolean
 }
 
 const LIGHTING_STATS = [0, 1, 2, 3] as const
@@ -35,11 +53,24 @@ export const sceneDebugOf = (settings: SceneDebugSettings, mode: DiagnosticMode)
   sceneStats: settings.surfaceCacheSceneStats || mode === 'surface-cache-scene-stats',
   primitiveGroups:
     settings.surfaceCacheVisualizePrimitiveGroups || mode === 'surface-cache-primitive-groups',
+  viewCards: settings.surfaceCacheViewCards,
+  viewTiles: settings.surfaceCacheViewTiles,
+  cursorCard: settings.surfaceCacheCursorCard,
+  cursorCardLayer: settings.surfaceCacheCursorCardLayer,
+  radiosityProbes: settings.surfaceCacheRadiosityVisualizeProbes,
+  radiosityProbeRadius: settings.surfaceCacheRadiosityVisualizeProbeRadius,
+  radiosityProbesShowInvalid: settings.surfaceCacheRadiosityVisualizeProbesShowInvalid,
 })
 
 /** Whether any view is shown. */
 export const sceneDebugShown = (view: SceneDebug) =>
-  view.lightingStats > 0 || view.sceneStats || view.primitiveGroups
+  view.lightingStats > 0 ||
+  view.sceneStats ||
+  view.primitiveGroups ||
+  view.viewCards ||
+  view.viewTiles ||
+  view.cursorCard ||
+  view.radiosityProbes
 
 /** The words of the context buffer's header the tables read: everything before the dispatch arguments, then the groups of shadow traces. */
 export const CONTEXT_HEADER_READ_WORDS = CONTEXT_AT.args + 4 * CONTEXT_ARGS.shadowTraces + 1

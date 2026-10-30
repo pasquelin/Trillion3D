@@ -9,10 +9,15 @@ import {
   INTEGRATE_TILE_ARGS_WORDS,
   integrateTileGrid,
 } from '../../bounce/screen/screenProbeLayout.ts'
+import type { GpuLines } from './gpuLines.ts'
 import { drawProbeLines, type ProbeLineState } from './probeLines.ts'
 import { createMaterialProperties, type MaterialProperties } from './materialProperties.ts'
 import { createRadianceProbes, type RadianceProbes } from './radianceProbes.ts'
+import { createRadiosityProbes, type RadiosityProbes } from './radiosityProbes.ts'
 import { createSceneVisualize, type SceneLabel, type SceneVisualize } from './sceneVisualize.ts'
+import { createCursorCard, type CursorCard } from './cursorCard.ts'
+import { createHistoryVisualize, type HistoryVisualize } from './historyVisualize.ts'
+import { VISUALIZE_HISTORY_MODES } from '../visualizeModes.ts'
 import { directLightCounts, directLightingStatsLines } from './directLightingStats.ts'
 import {
   PROBE_COUNTER_WORDS,
@@ -52,10 +57,16 @@ interface DebugState extends ProbeLineState {
   readonly reader: ReturnType<typeof createGpuPeriodicReadback>
   /** The spheres at the world's probes, made at the first image the view is shown. */
   spheres?: RadianceProbes
+  /** The spheres at the radiosity probes of the cards, made at the first image the view is shown. */
+  radiosityProbes?: RadiosityProbes
   /** The scene seen from the camera, made at the first image the view is shown. */
   scene?: SceneVisualize
   /** The material of the pixel under the cursor, made at the first image the view is shown. */
   material?: MaterialProperties
+  /** The screen probes' history seen over the image, made at the first image the view is shown. */
+  history?: HistoryVisualize
+  /** The card under the cursor, its boxes and preview, made at the first image the view is shown. */
+  cursorCard?: CursorCard
   /** The screen probes' counters, read back like the header while a probe view asks: made at the first image that does. */
   probes?: {
     readonly words: Uint32Array<ArrayBuffer>
@@ -92,8 +103,11 @@ export function disposeSceneDebug(rt: WebgpuPagesRuntime) {
   state?.traces?.dispose()
   state?.reflection?.dispose()
   state?.spheres?.dispose()
+  state?.radiosityProbes?.dispose()
   state?.scene?.dispose()
   state?.material?.dispose()
+  state?.history?.dispose()
+  state?.cursorCard?.dispose()
   states.delete(rt)
 }
 
@@ -286,16 +300,44 @@ export function encodeSceneDebug(
   state.text.begin(cam)
   // The scene replaces the image, so it is drawn first and the other views lie over it.
   let sceneLabels: readonly SceneLabel[] = []
-  if (probeView.sceneVisualization) {
+  // The history modes draw over the composed image, not the scene.
+  const historyShown =
+    probeView.sceneVisualization && VISUALIZE_HISTORY_MODES.includes(probeView.sceneMode)
+  if (probeView.sceneVisualization && !historyShown) {
     state.scene ??= createSceneVisualize(device)
     sceneLabels = state.scene.encode(rt, encoder, gpu.displayView, gpu.displaySize, probeView)
   } else if (state.scene) {
     state.scene.dispose()
     state.scene = undefined
   }
+  if (historyShown) {
+    state.history ??= createHistoryVisualize(device)
+    state.history.encode(rt, encoder, probeView.sceneMode)
+  } else if (state.history) {
+    state.history.dispose()
+    state.history = undefined
+  }
   const next = cacheShown ? drawCacheViews(rt, encoder, state, cacheView) : 0
   const after = drawProbeViews(rt, device, encoder, state, probeView, next)
-  const appended = drawProbeLines(rt, device, encoder, state, probeView)
+  const cards = cacheShown && (cacheView.viewCards || cacheView.viewTiles || cacheView.cursorCard)
+  let cursorCard: ((lines: GpuLines) => boolean) | undefined
+  if (cards) {
+    const card = (state.cursorCard ??= createCursorCard(device))
+    cursorCard = (lines) =>
+      card.encode(
+        rt,
+        encoder,
+        lines,
+        gpu.displayView!,
+        gpu.displaySize,
+        probeView.cursor,
+        cacheView,
+      )
+  } else if (state.cursorCard) {
+    state.cursorCard.dispose()
+    state.cursorCard = undefined
+  }
+  const appended = drawProbeLines(rt, device, encoder, state, probeView, cursorCard)
   const reflected = state.reflection
     ? writeTable(state, gpu.displaySize, state.reflection.text(), after)
     : after
@@ -320,6 +362,20 @@ export function encodeSceneDebug(
   } else if (state.spheres) {
     state.spheres.dispose()
     state.spheres = undefined
+  }
+  if (cacheShown && cacheView.radiosityProbes) {
+    state.radiosityProbes ??= createRadiosityProbes(device)
+    state.radiosityProbes.encode(
+      rt,
+      encoder,
+      gpu.displayView,
+      gpu.displaySize,
+      cam.viewProjectionRelative,
+      cacheView,
+    )
+  } else if (state.radiosityProbes) {
+    state.radiosityProbes.dispose()
+    state.radiosityProbes = undefined
   }
   for (const { text, x, y } of sceneLabels) state.text.lines.text(text, x, y, DEBUG_COLORS.yellow)
   state.text.encode(encoder, gpu.displayView, gpu.displaySize, cam, appended)

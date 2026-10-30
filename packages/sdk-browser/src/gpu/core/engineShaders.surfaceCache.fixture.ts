@@ -39,6 +39,7 @@ import {
 } from '../../lighting/surfaceCache/copyWgsl.ts'
 import { ATLAS_VIEW_WGSL } from '../../lighting/surfaceCache/debugWgsl.ts'
 import { FEEDBACK_COMPACTION_SHADER } from '../../lighting/surfaceCache/feedbackWgsl.ts'
+import { SCENE_UPDATE_WGSL } from '../../lighting/surfaceCache/gpuDrivenWgsl.ts'
 import { combineWgsl } from '../../lighting/surfaceCache/lighting/combineWgsl.ts'
 import { CONTEXT_WGSL, SPLICE_WGSL } from '../../lighting/surfaceCache/lighting/contextWgsl.ts'
 import { cullWgsl } from '../../lighting/surfaceCache/lighting/cullWgsl.ts'
@@ -117,6 +118,7 @@ export const SURFACE_CACHE_SHADERS: Record<string, string> = {
   SURFACE_CACHE_CLEAR_BLOCKS_WGSL: CLEAR_BLOCKS_WGSL,
   SURFACE_CACHE_ATLAS_VIEW_WGSL: ATLAS_VIEW_WGSL,
   SURFACE_CACHE_FEEDBACK_COMPACTION_SHADER: FEEDBACK_COMPACTION_SHADER,
+  SURFACE_CACHE_SCENE_UPDATE_WGSL: SCENE_UPDATE_WGSL,
   SURFACE_CACHE_CONTEXT_WGSL: CONTEXT_WGSL,
   SURFACE_CACHE_SPLICE_WGSL: SPLICE_WGSL,
   SURFACE_CACHE_DIRECT_WGSL: directProgramOf('grey', WORD_LIGHT_FORMAT),

@@ -1,6 +1,6 @@
 import type { ScreenProbeValues } from '../../../../../sdk-core/src/bounce/screenProbeOptions.ts'
 import type { DiagnosticMode } from '../../../../../sdk-core/src/runtime/diagnostics.ts'
-import { VISUALIZE_MODE } from '../visualizeModes.ts'
+import { VISUALIZE_MODE, VISUALIZE_SCENE_ALIASES } from '../visualizeModes.ts'
 import type { PoolStats } from '../../bounce/pool/pool.ts'
 import {
   INTEGRATE_TILE_COUNTS_AT,
@@ -34,6 +34,8 @@ export type ProbeDebugValues = Pick<
   | 'visualizeHiResSurface'
   | 'visualizeMinTraceDistance'
   | 'visualizeMaxTraceDistance'
+  | 'visualizeHardwareRayTracing'
+  | 'visualizeCullingMode'
   | 'debugCursorX'
   | 'debugCursorY'
 >
@@ -67,6 +69,9 @@ export interface ProbeDebug {
   sceneHiRes: boolean
   sceneMinTrace: number
   sceneMaxTrace: number
+  /** Whether the view traces its rays through the scene's triangles (`visualizeHardwareRayTracing`) and the faces they pass (`visualizeCullingMode`: 0 none, 1 the back faces, 2 the front faces). */
+  sceneHardware: boolean
+  sceneCulling: number
   /** Whether the scene view's light goes through the composition's table (`visualizeToneMap`). */
   sceneToneMap: boolean
   /** The cursor in the display's pixels, none where a coordinate is negative. */
@@ -76,12 +81,13 @@ export interface ProbeDebug {
 /** The radius of a probe's sphere over its cell's side, at a scale of one. */
 const RADIANCE_PROBE_RADIUS = 0.05
 
-/** Whether `mode` is a mode of the scene view this engine draws (the hardware-only and screen probe history modes are not). */
-const isSceneMode = (mode: number) => (Object.values(VISUALIZE_MODE) as number[]).includes(mode)
+/** Whether `mode` is a mode of the scene view: one of the table, or one that draws as the scene. */
+const isTableMode = (mode: number) => (Object.values(VISUALIZE_MODE) as number[]).includes(mode)
+const isSceneMode = (mode: number) => isTableMode(mode) || VISUALIZE_SCENE_ALIASES.includes(mode)
 
 /** The mode the scene view draws for the setting `setting`: its own where it is one, else the scene. */
 const sceneModeOf = (setting: number) =>
-  isSceneMode(setting) && setting > 0 ? setting : VISUALIZE_MODE.scene
+  isTableMode(setting) && setting > 0 ? setting : VISUALIZE_MODE.scene
 
 /** The views to show: each the setting names or the diagnostic mode `mode` names. */
 export const probeDebugOf = (values: ProbeDebugValues, mode: DiagnosticMode): ProbeDebug => ({
@@ -114,6 +120,8 @@ export const probeDebugOf = (values: ProbeDebugValues, mode: DiagnosticMode): Pr
   sceneHiRes: values.visualizeHiResSurface,
   sceneMinTrace: values.visualizeMinTraceDistance,
   sceneMaxTrace: values.visualizeMaxTraceDistance,
+  sceneHardware: values.visualizeHardwareRayTracing,
+  sceneCulling: values.visualizeCullingMode,
   sceneToneMap: values.visualizeToneMap,
   cursor: [values.debugCursorX, values.debugCursorY],
 })

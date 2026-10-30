@@ -50,9 +50,11 @@ export function closeImage(
   // does, and keeps nothing unheld: it leaves the light of its pages (`CapturePage.refresh`).
   const { meshCardsToAdd, lockedCardsToUpdate, hiResPagesToAdd } = cache.stats
   // Work left: cards to add or update, pages asked again, or an object held back for its textures — which land between two images and are
-  // captured by the next, so the frame must not be held before it.
+  // captured by the next, so the frame must not be held before it. The GPU's update of the scene (`surfaceCacheGpuDrivenUpdate`) answers a few images late: the frame is not held until its lists are quiet.
   state.busy =
-    meshCardsToAdd + lockedCardsToUpdate + hiResPagesToAdd > 0 || account.waiting + heldBack > 0
+    meshCardsToAdd + lockedCardsToUpdate + hiResPagesToAdd > 0 ||
+    account.waiting + heldBack > 0 ||
+    !!state.gpuDriven?.settling
   // A frozen cache or update frame keeps the clock where it is (`surfaceCacheFreeze`, `surfaceCacheFreezeUpdateFrame`).
   if (!updateFrameFrozen(state.settings)) advanceFrame(cache)
   state.updated = true

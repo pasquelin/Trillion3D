@@ -4,6 +4,7 @@ import {
   countSetting as count,
   INT32_RANGE,
   flagSetting as flag,
+  gatedFlagSetting as gatedFlag,
   integerSetting as integer,
   nonNegativeSetting as nonNegative,
   numberSetting as number,
@@ -41,6 +42,7 @@ const CAPTURE_RULES = /* @__PURE__ */ (() =>
     count('surfaceCacheCardCapturesPerFrame', 300, 0),
     integer('surfaceCacheCardCaptureFactor', 64, [1, 1024]),
     count('surfaceCacheRemovesPerFrame', 512, 0),
+    flag('surfaceCacheGpuDrivenUpdate', false),
     count('surfaceCacheViewOriginDistanceThreshold', 100, 0),
     flag('surfaceCacheUpdateViewOrigin', true),
     number('surfaceCacheCardCaptureRefreshFraction', 0.125, [0, 1]),
@@ -93,7 +95,7 @@ const DIRECT_LIGHT_RULES = /* @__PURE__ */ (() =>
     flag('surfaceCacheDirectLightingOffscreenShadowingTraceMeshSdfs', true),
     nonNegative('surfaceCacheDirectLightingMeshSdfShadowRayBias', 2),
     flag('surfaceCacheDirectLightingCloudTransmittance', true),
-    flag('surfaceCacheDirectLightingHardwareRayTracing', true),
+    gatedFlag('surfaceCacheDirectLightingHardwareRayTracing', true, 'rayTracingEnable'),
     nonNegative('surfaceCacheDirectLightingHardwareRayTracingShadowRayBias', 1),
     nonNegative('surfaceCacheDirectLightingHardwareRayTracingEndBias', 1),
     flag('surfaceCacheDirectLightingHardwareRayTracingAdaptiveShadowTracing', true),
@@ -134,7 +136,7 @@ const RADIOSITY_RULES = /* @__PURE__ */ (() =>
     number('surfaceCacheRadiosityMaxRayIntensity', 40, [0, 1000000]),
     number('surfaceCacheRadiosityDistanceFieldSurfaceBias', 10, [0, 1000]),
     number('surfaceCacheRadiosityDistanceFieldSurfaceSlopeBias', 5, [0, 1000]),
-    flag('surfaceCacheRadiosityHardwareRayTracing', true),
+    gatedFlag('surfaceCacheRadiosityHardwareRayTracing', true, 'rayTracingEnable'),
     nonNegative('surfaceCacheRadiosityHardwareRayTracingBias', 0.1),
     nonNegative('surfaceCacheRadiosityHardwareRayTracingNormalBias', 0.1),
     integer('surfaceCacheHardwareRayTracingAvoidSelfIntersections', 3, [0, 3]),
@@ -154,6 +156,13 @@ const DEBUG_RULES = /* @__PURE__ */ (() =>
     integer('surfaceCacheLightingStats', 0, [0, 3]),
     flag('surfaceCacheSceneStats', false),
     flag('surfaceCacheVisualizePrimitiveGroups', false),
+    flag('surfaceCacheViewCards', false),
+    flag('surfaceCacheViewTiles', false),
+    flag('surfaceCacheCursorCard', false),
+    integer('surfaceCacheCursorCardLayer', 3, [0, 4]),
+    flag('surfaceCacheRadiosityVisualizeProbes', false),
+    nonNegative('surfaceCacheRadiosityVisualizeProbeRadius', 10),
+    flag('surfaceCacheRadiosityVisualizeProbesShowInvalid', false),
   ] as const))()
 
 /**
@@ -199,7 +208,8 @@ const DEBUG_RULES = /* @__PURE__ */ (() =>
  *
  * THE UPDATE. Each image captures at most `surfaceCacheCardCapturesPerFrame` (300) cards, the
  * nearest first, adds the cards of twice as many meshes, and removes those of at most
- * `surfaceCacheRemovesPerFrame` (512); every view drawn beside the main one that has drawn is a streaming view, whose eye
+ * `surfaceCacheRemovesPerFrame` (512); with `surfaceCacheGpuDrivenUpdate` (off, work in progress) the test of each placement against the eyes, which meshes
+ * are added and which removed, is made by a pass of the GPU and read back a few images late, the same limits applying; every view drawn beside the main one that has drawn is a streaming view, whose eye
  * the cards are kept for too, nearest eye first, when it lies `surfaceCacheViewOriginDistanceThreshold` (100) centimetres
  * or more from the eyes held, and two eyes at most are held; the main view's eye is moved ahead by the camera's velocity
  * offset of the global distance field (`globalDistanceFieldFastCameraMode`), and `surfaceCacheUpdateViewOrigin` (on), when off, leaves it
@@ -308,7 +318,10 @@ const DEBUG_RULES = /* @__PURE__ */ (() =>
  * THE DEBUG TABLES. `surfaceCacheLightingStats` (0) writes over the image the table of one update of the lighting: 1 the
  * direct light's, 2 the indirect's — the histogram of the tiles by priority bucket, the bucket the budget ends in and its tiles, the
  * pages and the tiles the image lights —, 3 the lights the direct update gathers (batched and standalone, rect, light functions, IES), the atlas and the update's size, the trace method and count and the cards and tiles it lights, `surfaceCacheSceneStats` (off) the counts of the placements, mesh cards and cards in the scene,
- * and `surfaceCacheVisualizePrimitiveGroups` (off) the box of every placement that has mesh cards. The diagnostic modes
+ * `surfaceCacheVisualizePrimitiveGroups` (off) the box of every placement that has mesh cards, `surfaceCacheViewCards` (off) the box of every card the direct update lights, `surfaceCacheViewTiles` (off) the box of every tile it lights,
+ * and `surfaceCacheCursorCard` (off) the card under the cursor (`debugCursorX`, `debugCursorY`): its box in red, the tile under the cursor in purple and a preview of the card's layer `surfaceCacheCursorCardLayer` (3, from 0 to 4),
+ * and `surfaceCacheRadiosityVisualizeProbes` (off) a sphere at each radiosity probe of the cards, `surfaceCacheRadiosityVisualizeProbeRadius` (10) centimetres across its radius, coloured by the light the probe's harmonics give along the sphere's normal,
+ * and, with `surfaceCacheRadiosityVisualizeProbesShowInvalid` (off), a pink sphere at each probe that lies on no surface. The diagnostic modes
  * `surface-cache-direct-stats`, `surface-cache-indirect-stats`, `surface-cache-direct-lighting-stats`, `surface-cache-scene-stats` and `surface-cache-primitive-groups` show the same.
  */
 // A spread at the top level is not pure to a bundler: marked so, a bundle that never reads the table drops it.

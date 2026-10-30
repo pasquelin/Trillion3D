@@ -1,5 +1,6 @@
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
+import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { equalAreaEncode } from '../../../../../math/src/wgsl/octahedral.ts'
 import { bilinear3 } from '../../../../../math/src/wgsl/sampling.ts'
 import {
@@ -12,8 +13,8 @@ import { bounceBindingsWgsl } from '../../bounce/gridWgsl.ts'
 import {
   FIELD_IRRADIANCE_READ,
   FIELD_SLOT_CONSTS,
-  FIELD_SLOT_SHIFT_WGSL,
   fieldMapReads,
+  fieldSlotShift,
 } from '../../bounce/irradianceField/gatherWgsl.ts'
 import { FIELD_MAP_BORDER } from '../../bounce/irradianceField/mapsWgsl.ts'
 import { SKY_READ_WGSL } from '../../atmosphere/skyReadWgsl.ts'
@@ -66,6 +67,17 @@ const CUBE = [
   4, 7, 5,
 ]
 
+/** The cube a probe's sphere is cut out of: `probeCubeCorner` is the corner (-1 or 1 along each axis) a vertex of the draw is at. */
+export const PROBE_CUBE_WGSL = wgslBlock(
+  'probeCube',
+  [],
+  `var<private> CUBE=array<u32,${RADIANCE_PROBE_VERTICES}>(${CUBE.map((corner) => `${corner}u`).join(',')});
+fn probeCubeCorner(vertex:u32)->vec3f{
+ let corner=CUBE[vertex];
+ return vec3f(select(-1.0,1.0,(corner&1u)!=0u),select(-1.0,1.0,(corner&2u)!=0u),select(-1.0,1.0,(corner&4u)!=0u));
+}`,
+)
+
 /** The share of the rays of a probe that left the scene along a direction, over the sky atlas `skyAtlas` and the maps' parameters `field` the program declares. */
 export const RADIANCE_PROBE_SKY_SHARE = `// The share of the rays of the probe in 'slot' that left the scene along 'direction': the sky's map, bilinear, over the border of the final maps.
 fn visSky(slot:u32,direction:vec3f)->f32{
@@ -88,7 +100,6 @@ struct Vis{viewProj:mat4x4f,pick:vec4u,scale:vec4f}
 @group(0) @binding(${B.adaptive}) var<storage,read> adaptiveProbes:array<u32>;
 @group(0) @binding(${B.slots}) var<storage,read> poolSlots:array<u32>;
 @group(0) @binding(${B.list}) var<storage,${list === 'read' ? 'read' : 'read_write'}> probeList:array<vec4u>;
-${FIELD_SLOT_SHIFT_WGSL}
 // The slot plus one that holds the probe of rank 'rank' (0 the cell's own, then its adaptive ones) in 'cell' of 'level', zero for none. pick: the level, what is shown, the flags, the adaptive probes a cell may hold.
 fn visHeld(level:u32,cell:vec3i,rank:u32)->u32{
  if(rank==0u){return cacheSlotOf(level,cell);}
@@ -119,7 +130,7 @@ export const radianceProbeListWgsl = wgslProgram(
   if(at<arrayLength(&probeList)){probeList[at]=vec4u(bitcast<u32>(cell.x),bitcast<u32>(cell.y),bitcast<u32>(cell.z),rank);}
  }
 }`,
-  [CACHE_WORDS_WGSL, bounceBindingsWgsl(0, B.grid, B.table)],
+  [CACHE_WORDS_WGSL, fieldSlotShift, bounceBindingsWgsl(0, B.grid, B.table)],
 )
 
 /** The draw: a cube round each probe, the sphere cut out in the fragment and coloured by the light. */
@@ -136,7 +147,6 @@ ${declarations('read')}
 ${fieldMapReads(light)}
 ${FIELD_IRRADIANCE_READ}
 ${RADIANCE_PROBE_SKY_SHARE}
-var<private> CUBE=array<u32,${RADIANCE_PROBE_VERTICES}>(${CUBE.map((corner) => `${corner}u`).join(',')});
 struct Out{
  @builtin(position) position:vec4f,
  @location(0) @interpolate(flat) cell:vec3i,
@@ -155,8 +165,7 @@ struct Out{
  if(held==0u){return out;}
  let spacing=bounce.levels[level].spacing;
  let radius=vis.scale.x*spacing;
- let corner=CUBE[vertex];
- let local=vec3f(select(-1.0,1.0,(corner&1u)!=0u),select(-1.0,1.0,(corner&2u)!=0u),select(-1.0,1.0,(corner&4u)!=0u))*radius;
+ let local=probeCubeCorner(vertex)*radius;
  let centre=probePosition(cell,spacing)+fieldSlotShift(held);
  out.world=centre+local;
  out.position=vis.viewProj*vec4f(out.world,1.0);
@@ -207,6 +216,8 @@ struct Out{
 }`,
     [
       CACHE_WORDS_WGSL,
+      PROBE_CUBE_WGSL,
+      fieldSlotShift,
       bounceBindingsWgsl(0, B.grid, B.table),
       equalAreaEncode,
       bilinear3,

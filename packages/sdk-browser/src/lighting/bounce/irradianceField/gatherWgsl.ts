@@ -1,4 +1,5 @@
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
+import { wgslFn } from '../../../../../math/src/wgsl/decl.ts'
 import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
 import { equalAreaEncode } from '../../../../../math/src/wgsl/octahedral.ts'
 import {
@@ -161,14 +162,17 @@ export const FIELD_SLOT_CONSTS = wgslConsts({
 })
 
 /** Where the probe of the slot 'held' (plus one) stands from its cell's place: its offset (the move off the surfaces, or an adaptive probe's), read from the pool's slots 'poolSlots'. */
-export const FIELD_SLOT_SHIFT_WGSL = `fn fieldSlotShift(held:u32)->vec3f{
+export const fieldSlotShift = wgslFn(
+  'fieldSlotShift',
+  [],
+  `fn fieldSlotShift(held:u32)->vec3f{
  let at=(held-1u)*FIELD_SLOT_WORDS+FIELD_SLOT_OFFSET;
  return vec3f(bitcast<f32>(poolSlots[at]),bitcast<f32>(poolSlots[at+1u]),bitcast<f32>(poolSlots[at+2u]));
-}`
+}`,
+)
 
 /** The weighing of a probe for a pixel and the miss counted where the interpolation found none. */
 const FIELD_PROBE_WGSL = `struct FieldSum{irradiance:vec3f,reflection:vec3f,weight:f32,}
-${FIELD_SLOT_SHIFT_WGSL}
 /** The probe in 'slot' at 'probePosition', weighed for the pixel at 'P' (normal 'N') read from 'S', added in square roots. */
 fn fieldProbe(sum:FieldSum,slot:u32,probePosition:vec3f,P:vec3f,S:vec3f,N:vec3f,reflection:vec3f,mip:f32,trilinear:f32,withReflection:bool,adaptiveUsed:bool)->FieldSum{
  var out=sum;
@@ -276,7 +280,7 @@ fn fieldGather(@builtin(global_invocation_id) id:vec3u){
   if(adaptive&&feedback&&answered==0.0){fieldMiss(cover.level,S,spacing);}
  }else{
   // Past the field's levels the pixel takes the sky light's: its diffuse light along the normal, its reflection along the reflected view, the rough share mixed as above
-  // (GetIrradianceFieldInterpolatedLighting, IrradianceFieldInterpolation.ush:361-365).
+  // (the reference's irradiance field interpolation, its sky light branch).
   let sky=skyLightApplied();
   diffuse=select(vec3f(0.0),skyLightDiffuse(N),sky);
   specular=mix(select(vec3f(0.0),skyLightReflection(reflection,rough),sky),diffuse,diffuseLerp);
@@ -307,6 +311,7 @@ export const fieldGatherProgram = (light: LightAtlasFormat = WORD_LIGHT_FORMAT) 
     ].join('\n'),
     [
       SP_REFLECTION,
+      fieldSlotShift,
       WORLD_AT_WGSL,
       CACHE_WORDS_WGSL,
       bounceBindingsWgsl(0, FIELD_GATHER_BINDINGS.grid, FIELD_GATHER_BINDINGS.table),

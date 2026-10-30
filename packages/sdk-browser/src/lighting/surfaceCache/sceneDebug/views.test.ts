@@ -117,3 +117,40 @@ test('the direct lighting table writes the trace groups and the cards and tiles 
   assert.equal(sceneDebugOf(settings({ surfaceCacheLightingStats: 3 }), 'beauty').lightingStats, 3)
   assert.equal(CONTEXT_HEADER_READ_WORDS, CONTEXT_AT.args + 4 * CONTEXT_ARGS.shadowTraces + 1)
 })
+
+test('the cards, the tiles and the card under the cursor are views of their own settings', () => {
+  assert.equal(
+    sceneDebugShown(sceneDebugOf(settings({ surfaceCacheViewCards: true }), 'beauty')),
+    true,
+  )
+  assert.equal(
+    sceneDebugShown(sceneDebugOf(settings({ surfaceCacheViewTiles: true }), 'beauty')),
+    true,
+  )
+  const cursor = sceneDebugOf(
+    settings({ surfaceCacheCursorCard: true, surfaceCacheCursorCardLayer: 4 }),
+    'beauty',
+  )
+  assert.deepEqual([cursor.cursorCard, cursor.cursorCardLayer], [true, 4])
+})
+
+test('the radiosity probes are a view of their own settings, with the radius and the invalid probes', () => {
+  const off = sceneDebugOf(settings({}), 'beauty')
+  assert.deepEqual(
+    [off.radiosityProbes, off.radiosityProbeRadius, off.radiosityProbesShowInvalid],
+    [false, 10, false],
+  )
+  const view = sceneDebugOf(
+    settings({
+      surfaceCacheRadiosityVisualizeProbes: true,
+      surfaceCacheRadiosityVisualizeProbeRadius: 5,
+      surfaceCacheRadiosityVisualizeProbesShowInvalid: true,
+    }),
+    'beauty',
+  )
+  assert.deepEqual(
+    [view.radiosityProbes, view.radiosityProbeRadius, view.radiosityProbesShowInvalid],
+    [true, 5, true],
+  )
+  assert.equal(sceneDebugShown(view), true)
+})

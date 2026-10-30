@@ -45,6 +45,10 @@ import {
   OVERVIEW_TILE_MARGIN,
 } from '../visualizeModes.ts'
 import { TEXT_LINE } from '../../../diagnostic/textOverlay.ts'
+import { encodeDedicatedRays } from './hardware/dedicatedRays.ts'
+import { createSceneHardware } from './hardware/hardware.ts'
+import { HARDWARE_PARAMS } from './hardware/layout.ts'
+import { createHardwareTarget } from './hardware/target.ts'
 
 /**
  * THE SCENE SEEN FROM THE CAMERA (`scene-visualization`, `sceneVisualizeWgsl.ts`): one full-screen draw over the display image, every pixel its own ray. The world's probes it
@@ -154,13 +158,17 @@ export function createSceneVisualize(device: GPUDevice) {
   })
   const sky = standInTexture(device, `${LABEL} sky`, 'r32float').createView()
   const finals = new Map<LightAtlasFormat, GPUTextureView>()
+  // The draws through the scene's triangles (`hardware/`) and the dedicated reflection rays view write to a texture of their own, laid over the display.
+  const target = createHardwareTarget(device)
+  const hardware = createSceneHardware(device, target)
+  const hardwareWords = new Uint32Array(HARDWARE_PARAMS.words)
   const maps = new Float32Array(12)
   return {
     /** Draws the view over `target` (`size` display pixels), the tiles of the overview mode one after the other; the labels to write over it, none where it could not draw. */
     encode(
       rt: WebgpuPagesRuntime,
       encoder: GPUCommandEncoder,
-      target: GPUTextureView,
+      targetView: GPUTextureView,
       size: readonly [number, number],
       view: ProbeDebug,
     ): SceneLabel[] {
@@ -197,17 +205,56 @@ export function createSceneVisualize(device: GPUDevice) {
               y: rect.y + rect.height - LABEL_FOOT + line * TEXT_LINE,
             }),
           )
+        if (each.mode === VISUALIZE_MODE.dedicatedReflectionRays) {
+          // A compute draw cannot lie inside the render pass the others share.
+          pass?.end()
+          pass = undefined
+          encodeDedicatedRays(
+            rt,
+            device,
+            encoder,
+            target,
+            hardwareWords,
+            targetView,
+            size,
+            view,
+            at,
+            rect,
+            tiled,
+          )
+          return
+        }
         if (!visualizeTracesScene(each.mode)) return
+        // The reflection view traces as far as the reflections do.
+        const traceReach =
+          each.mode === VISUALIZE_MODE.reflectionView
+            ? settings.values.screenProbeMaxTraceDistance * CENTIMETRES_PER_METRE
+            : view.sceneMaxTrace
+        if (view.sceneHardware) {
+          pass?.end()
+          pass = undefined
+          if (
+            hardware.encode(
+              rt,
+              encoder,
+              targetView,
+              size,
+              view,
+              at,
+              each.mode,
+              rect,
+              tiled,
+              traceReach,
+            )
+          )
+            return
+        }
         const feedback =
           view.sceneSurfaceCacheFeedback && VISUALIZE_LAST_USED_MODES.includes(each.mode)
         const made = kernel(device, light, each.mode, feedback, compressed)
         const draw = made.draw.get()
         if (!draw) return
-        // The reflection view traces as far as the reflections do.
-        const maxTrace =
-          each.mode === VISUALIZE_MODE.reflectionView
-            ? settings.values.screenProbeMaxTraceDistance * CENTIMETRES_PER_METRE
-            : view.sceneMaxTrace
+        const maxTrace = traceReach
         params.set(
           [
             size[0],
@@ -241,7 +288,7 @@ export function createSceneVisualize(device: GPUDevice) {
         device.queue.writeBuffer(paramsOf(at), 0, params)
         pass ??= encoder.beginRenderPass({
           label: LABEL,
-          colorAttachments: [{ view: target, loadOp: 'load', storeOp: 'store' }],
+          colorAttachments: [{ view: targetView, loadOp: 'load', storeOp: 'store' }],
         })
         pass.setViewport(rect.x, rect.y, rect.width, rect.height, 0, 1)
         pass.setScissorRect(rect.x, rect.y, rect.width, rect.height)
@@ -275,6 +322,8 @@ export function createSceneVisualize(device: GPUDevice) {
       return labels
     },
     dispose() {
+      hardware.dispose()
+      target.dispose()
       for (const buffer of paramsBuffers) buffer.destroy()
       mapsBuffer.destroy()
       grid.destroy()

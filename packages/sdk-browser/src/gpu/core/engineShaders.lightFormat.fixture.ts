@@ -39,6 +39,10 @@ import {
 import { reservoirTraceProgram } from '../../lighting/bounce/reservoirGather/traceWgsl.ts'
 import { radianceCacheProgram } from '../../lighting/reflections/radianceCache/wgsl.ts'
 import { sceneVisualizeWgsl } from '../../lighting/surfaceCache/sceneDebug/sceneVisualizeWgsl.ts'
+import {
+  cursorCardPreviewWgsl,
+  cursorCardWgsl,
+} from '../../lighting/surfaceCache/sceneDebug/cursorCardWgsl.ts'
 import { radianceProbeDrawWgsl } from '../../lighting/surfaceCache/sceneDebug/radianceProbesWgsl.ts'
 import {
   OVERVIEW_TILES,
@@ -52,6 +56,16 @@ import { WORD_LIGHT_FORMAT } from './lightAtlasFormat.ts'
 const SCENE_MODES = Object.values(VISUALIZE_MODE).filter(
   (mode) => mode !== VISUALIZE_MODE.none && !(mode in OVERVIEW_TILES) && visualizeTracesScene(mode),
 )
+
+/** The layer modes the card preview shows, and those of them that read the light in the format. */
+const CURSOR_CARD_MODES = [
+  VISUALIZE_MODE.albedo,
+  VISUALIZE_MODE.normals,
+  VISUALIZE_MODE.emissive,
+  VISUALIZE_MODE.directLighting,
+  VISUALIZE_MODE.indirectLighting,
+]
+const LIGHT_READ_MODES = [VISUALIZE_MODE.directLighting, VISUALIZE_MODE.indirectLighting]
 
 const FORMATS: readonly LightAtlasFormat[] = ['rg11b10ufloat', 'rgba16float', 'rgba32float']
 
@@ -84,6 +98,14 @@ export const LIGHT_FORMAT_SHADERS: Record<string, string> = Object.fromEntries([
       sceneVisualizeWgsl(format, mode, false, false, true),
     ]),
     [`RADIANCE_PROBE_DRAW_${format}`, radianceProbeDrawWgsl(format)],
+    [`CURSOR_CARD_${format}`, cursorCardWgsl(format, false)],
+    [`CURSOR_CARD_FILTERED_MIP_${format}`, cursorCardWgsl(format, true)],
+    ...CURSOR_CARD_MODES.filter(
+      (mode) => format === WORD_LIGHT_FORMAT || LIGHT_READ_MODES.includes(mode),
+    ).map((mode) => [
+      `CURSOR_CARD_PREVIEW_${format}_${mode}`,
+      cursorCardPreviewWgsl(format, mode, false),
+    ]),
   ]),
   ...FORMATS.flatMap((format) => [
     [`CACHE_FILTER_${format}`, cacheFilterProgram(format)],

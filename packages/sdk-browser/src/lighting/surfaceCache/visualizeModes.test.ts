@@ -6,8 +6,10 @@ import {
   visualizeDrawsOf,
   visualizeHitIsColour,
   visualizeLayersOf,
+  visualizeTracesScene,
   visualizeOutputOf,
   VISUALIZE_MODE,
+  VISUALIZE_SCENE_ALIASES,
 } from './visualizeModes.ts'
 
 test('the overview draws the geometry normals, the reflection view and the coverage in three tiles of a row', () => {
@@ -41,4 +43,11 @@ test('a mode reads the layers it names and shows its value as the reference does
   assert.equal(visualizeHitIsColour(VISUALIZE_MODE.directLighting), false)
   assert.equal(visualizeHitIsColour(VISUALIZE_MODE.cardWeights), true)
   assert.equal(visualizeHitIsColour(VISUALIZE_MODE.geometryNormals), true)
+})
+
+test('the screen probes’ history modes draw no scene, and the numbers of the hardware-only views draw as the scene', () => {
+  assert.equal(visualizeTracesScene(VISUALIZE_MODE.screenProbeFastUpdate), false)
+  assert.equal(visualizeTracesScene(VISUALIZE_MODE.screenProbeFramesAccumulated), false)
+  assert.deepEqual(VISUALIZE_SCENE_ALIASES, [14, 15])
+  assert.equal(visualizeTracesScene(14), true)
 })

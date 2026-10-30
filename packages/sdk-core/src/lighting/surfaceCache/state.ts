@@ -135,7 +135,13 @@ interface SurfaceCacheStats {
   hiResPagesToAdd: number
   /** The texels the cards the law keeps would take in the atlas at the levels it asks. */
   desiredTexels: number
+  /** The scene operations of the last image, for the debug table: the count of the placements that wanted mesh cards (`addOps`) or lost them (`removeOps`), then the ids of the first few. */
+  addOps: Uint32Array
+  removeOps: Uint32Array
 }
+
+/** The words a scene operation list holds: the count, then the ids of the first operations. */
+export const SCENE_OPS_WORDS = 8
 
 /** Indices each listed once, in the order they came. */
 export type IndexList = ReturnType<typeof createMarkedList>
@@ -148,6 +154,8 @@ interface SurfaceCacheChanges {
   /** The placements whose mesh cards came or went: the table that takes a placement to its mesh
    *  cards (a placement is named by a small whole number, the rank that indexes that table). */
   readonly placements: IndexList
+  /** The placements whose record in the GPU-driven update's table (`gpuDriven.ts`) is out of date: made, moved, removed, or whose mesh cards came or went. */
+  readonly groups: IndexList
 }
 
 /** The surface cache of a scene. */
@@ -216,7 +224,15 @@ export function createSurfaceCache(settings: SurfaceCacheSettings): SurfaceCache
       meshCards: createMarkedList(),
       pages: createMarkedList(),
       placements: createMarkedList(),
+      groups: createMarkedList(),
     },
-    stats: { meshCardsToAdd: 0, lockedCardsToUpdate: 0, hiResPagesToAdd: 0, desiredTexels: 0 },
+    stats: {
+      meshCardsToAdd: 0,
+      lockedCardsToUpdate: 0,
+      hiResPagesToAdd: 0,
+      desiredTexels: 0,
+      addOps: new Uint32Array(SCENE_OPS_WORDS),
+      removeOps: new Uint32Array(SCENE_OPS_WORDS),
+    },
   }
 }

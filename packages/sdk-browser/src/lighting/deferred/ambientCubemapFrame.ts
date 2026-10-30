@@ -8,7 +8,8 @@ import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { retire } from '../../gpu/core/frameRetire.ts'
 import { oncePerDevice } from '../../gpu/core/oncePerDevice.ts'
 import { standInBuffer, standInTexture } from '../../gpu/core/standIns.ts'
-import { cubemapPairFit } from '../../modules/sky/skyLight/cubemap.ts'
+import { cubemapPairFit, followMeasured } from '../../modules/sky/skyLight/cubemap.ts'
+import { takeFloatCube } from '../../modules/sky/skyLight/cubePeak.ts'
 import {
   advanceCubeBuild,
   closeCubeBuild,
@@ -23,7 +24,8 @@ import {
  *
  * The chain is filtered by angle on the GPU (`ambientCubemapBuild.ts`: the sky light's own filter is a convolution by the GGX
  * lobe of a roughness, another kernel), over the images a budget of texels an image allows, and kept while the data is the same; a cube
- * brighter than a half float holds (found on the GPU, `cubePeak`) is rescaled and the light given the inverse (`cubemapPairFit`), so nothing is clamped. The cube is
+ * brighter than a half float holds is rescaled and the light given the inverse (`cubemapPairFit`: its brightest channel found on the GPU
+ * over a few images, the cube held meanwhile kept), so nothing is clamped. The cube is
  * the light's only once the chain is whole: the images drawn meanwhile are drawn again (`ambientCubemapPending`), never held, and light
  * nothing from it.
  */
@@ -54,8 +56,10 @@ export interface AmbientCubemapFrame {
   colour?: GPUBuffer
   /** The colour as last written to the buffer, times the light's unit. */
   readonly written: Float32Array<ArrayBuffer>
-  /** Whether the chain is still being written. */
+  /** Whether the chain is still being written, or the cube's brightest channel still being found. */
   pending: boolean
+  /** The cube whose brightest channel the GPU is being asked for. */
+  measuring?: SkyLightCubemap
   /** The cube and its colour as the last image bound them, none while the image has no light from it (`ambientCubemapResources`). */
   ready?: { readonly view: GPUTextureView; readonly colour: GPUBuffer }
 }
@@ -110,21 +114,29 @@ export const ambientCubemapOn = (rt: Rt) => follow(rt).on
 /** Whether the chain is still being written: the image drawn meanwhile is drawn again (`holdWebgpuFrame`). */
 export const ambientCubemapPending = (rt: Rt) => rt.lights.ambientCubemap?.pending === true
 
-/** The cube of `data` held, its chain not begun, fitted to a half float by `fit`. */
+/** The cube of `data` held, its chain not begun, fitted to a half float by `fit`; `floats`, the float cube the peak was found over, is the chain's source. */
 function open(
   device: GPUDevice,
   data: SkyLightCubemap,
   fit: NonNullable<ReturnType<typeof cubemapPairFit>>,
+  floats: GPUTexture | undefined,
 ): HeldCube {
   return {
     data,
-    build: openCubeBuild(device, data, 'Trillion3D ambient cubemap'),
+    build: openCubeBuild(device, data, 'Trillion3D ambient cubemap', floats),
     cube: fit.cube,
     light: fit.light,
   }
 }
 
+/** The measure of the cube being waited for given up unless it is `keep`. */
+function measure(frame: AmbientCubemapFrame, device: GPUDevice, keep?: SkyLightCubemap) {
+  followMeasured(device, frame, frame.measuring && [frame.measuring], keep ? [keep] : [])
+  frame.measuring = keep
+}
+
 function drop(frame: AmbientCubemapFrame, device: GPUDevice) {
+  measure(frame, device)
   if (frame.held) {
     closeCubeBuild(device, frame.held.build)
     retire(device, frame.held.build.texture)
@@ -140,26 +152,35 @@ export function ambientCubemapResources(rt: Rt, lit: boolean) {
   const frame = follow(rt)
   const { device } = rt.gpu
   const cube = frame.cube
+  const previous = frame.ready
   frame.ready = undefined
   if (!device || !frame.on || !cube) {
     if (device) drop(frame, device)
     frame.pending = false
     return undefined
   }
-  // A view that is not lit keeps the cube it made, and does not write more of it.
+  // A view that is not lit keeps the cube it made, and does not write more of it; the cube last bound stays the one the next lit image
+  // binds while a new one is measured.
   if (!lit) {
     frame.pending = false
+    frame.ready = previous
     return undefined
   }
   if (frame.held?.data.texels !== cube.texels || frame.held.data.size !== cube.size) {
-    drop(frame, device)
-    // The GPU finds the cube's brightest channel first: the chain is begun once it has returned it.
-    const fit = cubemapPairFit(device, cube)
+    measure(frame, device, cube)
+    const fit = cubemapPairFit(device, frame, () => true, cube)
+    // The cube held meanwhile (the data before it) is kept as it was bound.
     if (!fit) {
       frame.pending = true
-      return undefined
+      return (frame.ready = previous)
     }
-    frame.held = open(device, cube, fit)
+    // Taken before the measure is given up: the owners' last hold destroys it.
+    const floats = takeFloatCube(device, cube)
+    drop(frame, device)
+    frame.held = open(device, cube, fit, floats)
+  } else if (frame.measuring) {
+    // Back to the cube held before the one measured had its peak: the measured one is no longer wanted.
+    measure(frame, device)
   }
   const held = frame.held!
   const whole = advanceCubeBuild(device, held.data, held.build, held.cube)

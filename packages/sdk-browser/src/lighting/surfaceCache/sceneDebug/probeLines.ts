@@ -33,7 +33,7 @@ export function appendProbeLines(
   encoder: GPUCommandEncoder,
   lines: GpuLines,
   view: ProbeDebug,
-  traces: ProbeTraces,
+  traces: ProbeTraces | undefined,
   reflection: ReflectionTraces | undefined,
 ) {
   const size = rt.gpu.displaySize
@@ -63,7 +63,7 @@ export function appendProbeLines(
       size,
     )
   const tone = view.traces ? visualizeTonemapBindings(rt) : undefined
-  if (tone)
+  if (tone && traces)
     traces.encode(
       encoder,
       lines,
@@ -84,17 +84,19 @@ export function appendProbeLines(
   return true
 }
 
-/** Draws the lines the probes' views append, made at the first image one is shown and given back when none is. Returns what the lines pass draws, none where nothing was appended. */
+/** Draws the lines the probes' views append, and those `extra` appends (it says whether it did), made at the first image one is shown and given back when none is. Returns what the lines pass draws, none where nothing was appended. */
 export function drawProbeLines(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
   encoder: GPUCommandEncoder,
   state: ProbeLineState,
   view: ProbeDebug,
+  extra?: (lines: GpuLines) => boolean,
 ) {
   const screen = rt.gpu.screenProbes
-  const drawn = view.reflectionTraces || (screen?.history && screen.image && probeLinesShown(view))
-  if (!drawn) {
+  // The probes' content reads the records of an image cast; `extra` only adds its own lines.
+  const probed = !!(screen?.history && screen.image && probeLinesShown(view))
+  if (!(extra || view.reflectionTraces || probed)) {
     state.gpuLines?.dispose()
     state.gpuLines = undefined
     state.traces?.dispose()
@@ -105,12 +107,20 @@ export function drawProbeLines(
   }
   const lines = (state.gpuLines ??= createGpuLines(device))
   lines.begin(encoder)
-  const traces = (state.traces ??= createProbeTraces(device))
+  if (!view.traces) {
+    state.traces?.dispose()
+    state.traces = undefined
+  } else state.traces ??= createProbeTraces(device)
   if (!view.reflectionTraces) {
     state.reflection?.dispose()
     state.reflection = undefined
   } else state.reflection ??= createReflectionTraces(device)
-  const appended = appendProbeLines(rt, device, encoder, lines, view, traces, state.reflection)
+  const own = extra?.(lines)
+  const appendedProbes =
+    (probed || view.reflectionTraces) &&
+    appendProbeLines(rt, device, encoder, lines, view, state.traces, state.reflection)
+  const appended = !!own || appendedProbes
+  if (!appended) return undefined
   lines.end(encoder)
-  return appended ? { ...lines.appended, depth: rt.gpu.depthView } : undefined
+  return { ...lines.appended, depth: rt.gpu.depthView }
 }

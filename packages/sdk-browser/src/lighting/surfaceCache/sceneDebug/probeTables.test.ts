@@ -30,6 +30,8 @@ const values = (changes: Partial<Parameters<typeof probeDebugOf>[0]> = {}) => ({
   visualizeHiResSurface: true,
   visualizeMinTraceDistance: 0,
   visualizeMaxTraceDistance: 100000,
+  visualizeHardwareRayTracing: true,
+  visualizeCullingMode: 0,
   debugCursorX: -1,
   debugCursorY: -1,
   ...changes,
@@ -58,6 +60,8 @@ test('a probe view shows when its setting is on or its mode is chosen, and none 
     sceneHiRes: true,
     sceneMinTrace: 0,
     sceneMaxTrace: 100000,
+    sceneHardware: true,
+    sceneCulling: 0,
     sceneToneMap: true,
     cursor: [-1, -1],
   })
@@ -73,6 +77,11 @@ test('a probe view shows when its setting is on or its mode is chosen, and none 
   assert.equal(probeDebugOf(values({ visualizeMode: 8 }), 'beauty').sceneVisualization, true)
   assert.equal(probeDebugOf(values({ visualizeMode: 8 }), 'beauty').sceneMode, 8)
   assert.equal(probeDebugOf(values(), 'scene-visualization').sceneMode, 3)
+  assert.equal(
+    probeDebugOf(values({ visualizeHardwareRayTracing: false }), 'beauty').sceneHardware,
+    false,
+  )
+  assert.equal(probeDebugOf(values({ visualizeCullingMode: 2 }), 'beauty').sceneCulling, 2)
   assert.equal(
     probeDebugOf(values({ screenProbeGatherVisualizeTraces: true }), 'beauty').traces,
     true,

@@ -19,6 +19,7 @@ import {
   fogFaceProgram,
   skyFaceProgram,
 } from '../../modules/sky/skyLight/faceWgsl.ts'
+import { cubeHalfShader } from '../../modules/sky/skyLight/cubeHalfWgsl.ts'
 import { FILTER_CODE } from '../../modules/sky/skyLight/filterWgsl.ts'
 import { IRRADIANCE_CODE } from '../../modules/sky/skyLight/irradianceWgsl.ts'
 import { SKY_MESH_CODE } from '../../modules/sky/skyLight/skyMeshWgsl.ts'
@@ -75,22 +76,25 @@ function cloudViewTexts() {
     skyLight: false,
     volumeShadowMap: false,
     closestDepth: false,
+    debugView: 0,
   }
+  const scene = {
+    depth: 'scene',
+    minMaxDepth: false,
+    emptySpace: false,
+    opaqueShadow: false,
+    localLights: false,
+    skyLight: false,
+    volumeShadowMap: false,
+    closestDepth: false,
+    debugView: 0,
+  } as const
   return {
     CLOUD_DEPTH_RANGE_DEPTH: depthRangeProgram('depth'),
     CLOUD_DEPTH_RANGE_RANGE: depthRangeProgram('range'),
     CLOUD_DEPTH_RANGE_CHECKERBOARD: depthRangeProgram('checkerboard'),
     CLOUD_TRACE_RANGE: cloudTraceProgram({ depth: 'range', minMaxDepth: true, ...options }),
-    CLOUD_TRACE_SCENE: cloudTraceProgram({
-      depth: 'scene',
-      minMaxDepth: false,
-      emptySpace: false,
-      opaqueShadow: false,
-      localLights: false,
-      skyLight: false,
-      volumeShadowMap: false,
-      closestDepth: false,
-    }),
+    CLOUD_TRACE_SCENE: cloudTraceProgram(scene),
     // The march started where the empty-space table says the cloud does.
     CLOUD_TRACE_EMPTY_SPACE: cloudTraceProgram({
       depth: 'scene',
@@ -101,6 +105,7 @@ function cloudViewTexts() {
       skyLight: false,
       volumeShadowMap: false,
       closestDepth: false,
+      debugView: 0,
     }),
     // The cloud's own shade read from the clouds' shadow maps, no ray marched toward the lights.
     CLOUD_TRACE_SHADOW_MAPS: cloudTraceProgram({
@@ -112,6 +117,7 @@ function cloudViewTexts() {
       skyLight: false,
       volumeShadowMap: true,
       closestDepth: false,
+      debugView: 0,
     }),
     // A scene with no air: the distant sky light read from the sky light's harmonics.
     CLOUD_TRACE_AIRLESS: cloudTraceProgram({
@@ -123,6 +129,7 @@ function cloudViewTexts() {
       skyLight: true,
       volumeShadowMap: false,
       closestDepth: false,
+      debugView: 0,
     }),
     CLOUD_HAZE: cloudHazeProgram(DEFAULT_AIR_SHAPE).code,
     CLOUD_RECONSTRUCT_FIRST: reconstructProgram(target, false),
@@ -149,6 +156,7 @@ export const SKY_SHADERS: Record<string, string> = {
   MASK_CODE,
   PROFILE_CODE,
   SKY_LIGHT_COPY_CODE: COPY_CODE,
+  SKY_LIGHT_CUBE_HALF_CODE: cubeHalfShader(),
   SKY_LIGHT_SKY_FACE_CODE: skyFaceProgram(DEFAULT_AIR_SHAPE).code,
   SKY_LIGHT_FOG_FACE_CODE: fogFaceProgram(DEFAULT_AIR_SHAPE).code,
   SKY_LIGHT_FOG_FACE_DEPTH_CODE: fogFaceProgram(DEFAULT_AIR_SHAPE, true).code,

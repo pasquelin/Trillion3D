@@ -20,7 +20,10 @@ import {
   atlasPages,
   captureAtlasPages,
 } from '../../../../sdk-core/src/lighting/surfaceCache/pageAllocator.ts'
-import { PAGE_SIZE } from '../../../../sdk-core/src/lighting/surfaceCache/cardResolution.ts'
+import {
+  cardLimits,
+  PAGE_SIZE,
+} from '../../../../sdk-core/src/lighting/surfaceCache/cardResolution.ts'
 import {
   cardPageView,
   type CardView,
@@ -65,6 +68,7 @@ import { createAtlasViewer, type AtlasViewer } from './debug.ts'
 import { ATLAS_VIEWS } from './debugWgsl.ts'
 import { sceneDebugOf, sceneDebugShown } from './sceneDebug/views.ts'
 import { createSurfaceFeedback, type SurfaceFeedback } from './feedbackBuffer.ts'
+import { createGpuDrivenUpdate, type GpuDrivenUpdate } from './gpuDriven.ts'
 import { disposeSurfaceLighting, type SurfaceLightingState } from './lighting/surfaceLighting.ts'
 import { placementChannelsOf } from '../../geometry/dag/info/placementInfoLayout.ts'
 import {
@@ -113,6 +117,8 @@ export interface SurfaceCacheFrameState {
   readonly tables: SurfaceTables
   /** The feedback of the rays that read the cards: their buffer, its compaction, its read-back (`feedbackBuffer.ts`). */
   readonly feedback: SurfaceFeedback
+  /** The GPU's update of the scene, made when `surfaceCacheGpuDrivenUpdate` first asks for it (`gpuDriven.ts`). */
+  gpuDriven?: GpuDrivenUpdate
   /** What the rays that read the cache bind of it: its tables, layers, the field's object grid and the table of instances (`surfaceHitReads`). */
   readonly hit: ReturnType<typeof createHitCards>
   atlases?: SurfaceAtlases
@@ -468,6 +474,8 @@ function release(state: SurfaceCacheFrameState) {
   state.atlases?.dispose()
   state.tables.dispose()
   state.feedback.reset()
+  state.gpuDriven?.dispose()
+  state.gpuDriven = undefined
   state.viewer = state.kernels = state.shading = state.atlases = undefined
   state.cache = createSurfaceCache(state.settings)
   state.placements = createCardPlacements(state.source.meshCards ?? [])
@@ -622,6 +630,15 @@ function debugRequests(rt: WebgpuPagesRuntime, state: SurfaceCacheFrameState) {
   return { reset, forceEvictHiResPages }
 }
 
+/** The GPU's update of the scene while the setting asks for it, made on first use; given up, and to be written whole again, while it does not. */
+function gpuDrivenOf(device: GPUDevice, state: SurfaceCacheFrameState) {
+  if (!state.settings.surfaceCacheGpuDrivenUpdate) {
+    state.gpuDriven?.reset()
+    return undefined
+  }
+  return (state.gpuDriven ??= createGpuDrivenUpdate(device))
+}
+
 /** One image's work of the cache: `encodeSurfaceCache` after it knows the cache is asked for. */
 function updateImage(
   rt: WebgpuPagesRuntime,
@@ -658,10 +675,13 @@ function updateImage(
   state.tables.update(cache, preExposure, colorBoost, encoder)
   const gate = captureGate(rt, state)
   const { reset, forceEvictHiResPages } = debugRequests(rt, state)
+  const orthographic = cam.perspective === 0
+  const clipmapExtent = reachOf(rt, state)
+  const gpuDriven = gpuDrivenOf(device, state)
   const work = updateSurfaceCache(cache, state.settings, {
     origins: eyes,
-    orthographic: cam.perspective === 0,
-    clipmapExtent: reachOf(rt, state),
+    orthographic,
+    clipmapExtent,
     compressed: atlases.compressed,
     light: atlases.light,
     preExposure,
@@ -669,7 +689,9 @@ function updateImage(
     forceEvictHiResPages,
     ready: gate.ready,
     feedback: state.feedback.take(),
+    sceneOps: gpuDriven?.begin(),
   })
+  gpuDriven?.encode(encoder, cache, eyes, cardLimits(state.settings, orthographic, clipmapExtent))
   const settings = captureSettingsOf(state, preExposure)
   if (work.reset || !atlases.cleared) {
     atlases.clear(encoder)

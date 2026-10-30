@@ -26,6 +26,8 @@ export const VISUALIZE_MODE = {
   lastUsedPageHighRes: 19,
   tileShadowDownsampleFactor: 20,
   cardSharingId: 21,
+  screenProbeFastUpdate: 22,
+  screenProbeFramesAccumulated: 23,
   radiosityNumFramesAccumulated: 24,
 } as const
 
@@ -51,8 +53,20 @@ export const VISUALIZE_LAYER_MODES = [
 /** The modes that read the surface cache's last use of its pages (the feedback buffer). */
 export const VISUALIZE_LAST_USED_MODES: readonly number[] = [M.lastUsedPage, M.lastUsedPageHighRes]
 
-/** Whether the mode `mode` traces the scene from the camera (the others read a surface of the cache only). */
-export const visualizeTracesScene = (mode: number) => mode !== M.dedicatedReflectionRays
+/** The modes that show a field the screen probes' history keeps (a byte: the amount of fast update in its high four bits, the frames held in its low four), not the scene. */
+export const VISUALIZE_HISTORY_MODES: readonly number[] = [
+  M.screenProbeFastUpdate,
+  M.screenProbeFramesAccumulated,
+]
+
+/** The numbers of the local position and the velocity, by name: the reference shows them with hardware ray tracing only and gives them no pass of their own, so here they draw as the scene (`VISUALIZE_MODE.scene`) and stay out of `VISUALIZE_MODE`. */
+export const VISUALIZE_SCENE_ALIAS = { localPosition: 14, velocity: 15 } as const
+
+export const VISUALIZE_SCENE_ALIASES: readonly number[] = Object.values(VISUALIZE_SCENE_ALIAS)
+
+/** Whether the mode `mode` traces the scene from the camera (the others read a surface of the cache only, or the probes' history). */
+export const visualizeTracesScene = (mode: number) =>
+  mode !== M.dedicatedReflectionRays && !VISUALIZE_HISTORY_MODES.includes(mode)
 
 /**
  * How the colour a mode gives goes to the image: `radiance` a light seen through the composition's table, `colour` a debug colour of the unit range that takes the exposure of the
