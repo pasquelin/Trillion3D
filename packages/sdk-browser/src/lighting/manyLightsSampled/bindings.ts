@@ -5,6 +5,8 @@ export const SAMPLED_BINDINGS = {
   params: 120,
   /** A word a tile of the view: the bits of what its pixels are (`TILE_BIT`). */
   tileBitmask: 121,
+  /** A word a tile of the view that the front layer's pass marked (`FrontTiles`), which the list of the layer's tiles is built from. */
+  frontMask: 168,
   /** The count of tiles each mode holds, the tiles of each mode, and the arguments of the dispatch over each, for the view's tiles... */
   tileAllocator: 122,
   tileData: 123,

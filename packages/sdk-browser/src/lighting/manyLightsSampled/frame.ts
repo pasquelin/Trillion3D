@@ -22,6 +22,7 @@ import { createPreviousRanks } from './previousRanks.ts'
 import { lightFunctionResources } from '../lightFunction/frame.ts'
 import { createSampledLights, type SampledSamples, type SampledSurface } from './sampledLights.ts'
 import { frontStamp } from '../reflections/frontLayer.ts'
+import type { FrontTiles } from '../reflections/frontTiles.ts'
 import { SAMPLED_GROUP } from './layout.ts'
 import {
   findRecord,
@@ -120,7 +121,7 @@ function sampledInputs(
   rt: WebgpuPagesRuntime,
   direct: DirectLightResources,
   values: SampledLightsSettings,
-  target?: { surface: SampledSurface; depth: GPUTextureView },
+  target?: { surface: SampledSurface; depth: GPUTextureView; tiles?: FrontTiles },
 ) {
   const { device, surfaces, deferred, depthView } = rt.gpu
   if (!device || !surfaces || !deferred || !depthView || !direct.lights) return undefined
@@ -141,6 +142,7 @@ function sampledInputs(
     inputs: {
       surface: target?.surface ?? surfaces,
       depth: target?.depth ?? depthView,
+      frontTiles: target?.tiles,
       view: deferred.uniform,
       lights: direct.lights,
       tiles: direct.tiles ?? placeholders.tiles,
@@ -185,7 +187,7 @@ const sampledLightSlots = (rt: WebgpuPagesRuntime) =>
   rt.lights.store.count + rt.lights.store.simple.capacity
 
 /** The strands' voxels the surfaces' rays are marched through (`sampledLightsHairVoxelTraces`), none where the view holds no hair or no volume of it. */
-function hairVoxelsOf(rt: WebgpuPagesRuntime, values: SampledLightsSettings) {
+export function hairVoxelsOf(rt: WebgpuPagesRuntime, values: SampledLightsSettings) {
   const hair = rt.gpu.hair
   const set = hair?.voxel.set
   const settings = hair?.inputs.voxel
@@ -219,6 +221,7 @@ function frontTarget(rt: WebgpuPagesRuntime) {
     surface,
     target: {
       depth: front.views.depth,
+      tiles: front.tiles,
       surface: {
         stores: () => [surface.coloursView, surface.wordsView] as const,
         views: () => opaque.views(),

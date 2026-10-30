@@ -44,6 +44,7 @@ import { TRANSLUCENCY_GI_RULES } from '../contracts/translucencyGiOptions.ts'
 import { SCREEN_PROBE_RULES } from '../bounce/screenProbeOptions.ts'
 import { REFLECTION_RULES } from '../contracts/reflectionOptions.ts'
 import { LIGHTING_DATA_FORMAT_RULES } from '../contracts/lightingDataFormatOptions.ts'
+import { RAY_TRACING_RULES } from '../contracts/rayTracingOptions.ts'
 import { MESH_DISTANCE_FIELD_TRACE_RULES } from '../contracts/meshDistanceFieldTraceOptions.ts'
 import { SCREEN_SPACE_TRACING_RULES } from '../contracts/screenSpaceTracingOptions.ts'
 import { SURFACE_CACHE_RULES } from '../contracts/surfaceCacheOptions.ts'
@@ -596,6 +597,11 @@ const MEDIUM_SETTING_TOOLS: Trillion3dTool[] = [
     'trillion3d_set_lighting_data_format',
     'Changes from the next frame the format the light is kept at between the passes of the indirect light (the screen probes, the radiance cache, the translucency volume): 11-11-10 floats (the default), half floats or single floats.',
     LIGHTING_DATA_FORMAT_RULES,
+  ),
+  /* @__PURE__ */ settingTool(
+    'trillion3d_set_ray_tracing',
+    "Changes from the next frame whether the world traces rays through the scene's triangles at all (on by default, as a new project has it). Off, every feature that casts them (the reflections, the screen probes and their radiance cache, the surface cache's direct light and radiosity, the translucency volume, the heterogeneous volumes, the scene view) marches the distance fields instead, whatever its own setting.",
+    RAY_TRACING_RULES,
   ),
   /* @__PURE__ */ settingTool(
     'trillion3d_set_mesh_distance_field_trace',

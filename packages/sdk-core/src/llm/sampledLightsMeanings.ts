@@ -155,6 +155,12 @@ export const SAMPLED_LIGHTS_MEANINGS: Readonly<Record<SampledLightsField, string
     'In the shadow caster quality view, how far in metres the surface the rays hit may lie behind the drawn one before it is painted missing (0.5, the default), relaxed at a grazing angle.',
   sampledLightsVisualizeShadowCasterPoorDistance:
     'In the shadow caster quality view, how far in metres the surface the rays hit may lie in front of the drawn one before it is painted mismatching (0.25, the default), relaxed at a grazing angle.',
+  sampledLightsHardwareRayTracing:
+    'Whether the shadow caster views (2 and 3, and the overview) cast one ray from the eye through each pixel against the scene’s triangles and paint what it meets, as the reference does with its hardware rays (true, the default; off with the project’s rayTracing switch). False, or while the scene has no triangles to trace, the views paint the surface alone. A setting of the sampled lights’ rays, not of the view: the debug views follow it.',
+  sampledLightsEvaluateMaterialMode:
+    'Whether the shadow caster views’ rays honour the surfaces’ cut-out masks (0, none, the default: the rays meet every triangle whole; 1 and 2 evaluate the masks, the reference’s any-hit and closest-hit evaluation, which meet the same surface here). A setting of the sampled lights’ rays, not of the view.',
+  sampledLightsForceTwoSided:
+    'Whether the shadow caster views’ rays meet the back of one-sided triangles as well as their front (true, the default); false culls the backs. A setting of the sampled lights’ rays, not of the view.',
   sampledLightsVisualizeTileClassification:
     'The tiles of the classification drawn over the image (0, none, the default): 1 the surfaces’ tiles, 2 the downsampled tiles, 3 and 4 the hair strands’, 5 and 6 the nearest translucent layer’s; each tile type has its colour and a count is written.',
   sampledLightsVisualizeLightComplexity:

@@ -6,6 +6,8 @@ import { TILE_CLASSES } from '../../lighting/deferred/tileClass.ts'
 import { clearResolvedWgsl } from '../../lighting/manyLightsSampled/clearResolvedWgsl.ts'
 import { filterHashWgsl, hashWgsl } from '../../lighting/manyLightsSampled/hashWgsl.ts'
 import { TILE_OVERLAY_WGSL } from '../../lighting/manyLightsSampled/debug/tileOverlay.ts'
+import { castersWgsl } from '../../lighting/manyLightsSampled/debug/casters/castersWgsl.ts'
+import { castersHairWgsl } from '../../lighting/manyLightsSampled/debug/casters/castersHairWgsl.ts'
 import { VISUALIZE_WGSL } from '../../lighting/manyLightsSampled/debug/visualizeWgsl.ts'
 import { clearSamplesWgsl, samplingWgsl } from '../../lighting/manyLightsSampled/samplingWgsl.ts'
 import { compactArgsWgsl, compactWgsl } from '../../lighting/manyLightsSampled/compactWgsl.ts'
@@ -30,6 +32,10 @@ import { shadingWgsl } from '../../lighting/manyLightsSampled/shadingWgsl.ts'
 import { vsmTraceSamplesWgsl } from '../../lighting/manyLightsSampled/vsmTraceWgsl.ts'
 import { screenTraceWgsl } from '../../lighting/manyLightsSampled/screenTraceWgsl.ts'
 import {
+  frontTileArgsWgsl,
+  frontTileListWgsl,
+} from '../../lighting/manyLightsSampled/frontTilesWgsl.ts'
+import {
   tileArgsWgsl,
   tileBitmaskWgsl,
   tileListsWgsl,
@@ -37,6 +43,9 @@ import {
 
 export const SAMPLED_LIGHTS_SHADERS: Record<string, string> = {
   SAMPLED_TILE_BITS: tileBitmaskWgsl(),
+  SAMPLED_FRONT_TILE_BITS: tileBitmaskWgsl(true),
+  SAMPLED_FRONT_TILE_LIST: frontTileListWgsl(),
+  SAMPLED_FRONT_TILE_ARGS: frontTileArgsWgsl(),
   SAMPLED_TILE_LISTS: tileListsWgsl(),
   SAMPLED_TILE_ARGS: tileArgsWgsl(),
   SAMPLED_CLEAR: clearSamplesWgsl(),
@@ -45,6 +54,8 @@ export const SAMPLED_LIGHTS_SHADERS: Record<string, string> = {
   SAMPLED_CLEAR_RESOLVED: clearResolvedWgsl(),
   SAMPLED_TILE_OVERLAY: TILE_OVERLAY_WGSL,
   SAMPLED_VISUALIZE: VISUALIZE_WGSL,
+  SAMPLED_CASTERS: castersWgsl(),
+  SAMPLED_CASTERS_HAIR: castersHairWgsl(),
   SAMPLED_SCREEN_TRACE: screenTraceWgsl(),
   SAMPLED_SOFTWARE_TRACE: softwareTraceWgsl(),
   SAMPLED_MAP_TRACE: vsmTraceSamplesWgsl(),

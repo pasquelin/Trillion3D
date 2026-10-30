@@ -1,4 +1,5 @@
 import { frontStamp, type FrontOutputs } from '../lighting/reflections/frontLayer.ts'
+import { beginFrontTiles, FRONT_TILE_GROUP } from '../lighting/reflections/frontTiles.ts'
 import type { WebgpuPagesRuntime } from '../frame/backend/runtime.ts'
 import { readHizSetting } from '../../../sdk-core/src/contracts/hizOptions.ts'
 import { drawBlendRuns, type BlendRuns } from './draw.ts'
@@ -75,7 +76,11 @@ export function encodeFrontPass(
   const descriptor = front.begin(frontStamp(run.frame), hizFront, outputs, gpu)
   // The surface written only for the sampled lighting is not one the reflections trace.
   if (!frontLayer) front.reflected = 0
+  // The tiles the layer lights start empty where the pass that marks them begins.
+  const tiles = outputs === 3 ? front.tiles : undefined
+  if (tiles) beginFrontTiles(encoder, tiles)
   const pass = encoder.beginRenderPass(descriptor)
+  if (tiles) pass.setBindGroup(FRONT_TILE_GROUP, tiles.maskGroup)
   pass.setViewport(0, 0, gpu.targetSize[0], gpu.targetSize[1], 0, 1)
   run.gpuDrawCalls += drawBlendRuns(rt, device, pass, set, FRONT_RUNS)
   pass.end()

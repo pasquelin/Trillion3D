@@ -25,6 +25,7 @@ import type { TemporalOptions } from '../../../../sdk-core/src/contracts/tempora
 import type { TessellationOptions } from '../../../../sdk-core/src/contracts/tessellationOptions.ts'
 import type { TextureFilteringOptions } from '../../../../sdk-core/src/contracts/textureFilteringOptions.ts'
 import type { LightingDataFormatOptions } from '../../../../sdk-core/src/contracts/lightingDataFormatOptions.ts'
+import type { RayTracingOptions } from '../../../../sdk-core/src/contracts/rayTracingOptions.ts'
 import type { MeshDistanceFieldTraceOptions } from '../../../../sdk-core/src/contracts/meshDistanceFieldTraceOptions.ts'
 import type { ScreenSpaceTracingOptions } from '../../../../sdk-core/src/contracts/screenSpaceTracingOptions.ts'
 import type { SingleLayerWaterOptions } from '../../../../sdk-core/src/contracts/singleLayerWaterOptions.ts'
@@ -278,6 +279,10 @@ export interface WorldImageSettings {
   /** The lighting data format's setting (`lightingDataFormat`, `r11g11b10` by default), resolved over the page: the format the light is kept at between the passes of the indirect light (`lightingDataFormatOptions.ts`). */
   get lightingDataFormat(): FamilyValues<'lightingDataFormat'>
   set lightingDataFormat(options: LightingDataFormatOptions)
+  /** The project's ray tracing switch (`rayTracingEnable`, on by default, as a new project has it), resolved over the page: off, every feature that traces the scene's triangles (the reflections, the screen probes and their radiance cache, the surface cache's direct light and radiosity, the translucency volume, the heterogeneous volumes, the scene view) reads its own ray tracing setting off and marches the distance fields instead (`rayTracingOptions.ts`).
+   *  `world.rayTracing = { rayTracingEnable: false } // every feature traces the distance fields, as a project with ray tracing off` */
+  get rayTracing(): FamilyValues<'rayTracing'>
+  set rayTracing(options: RayTracingOptions)
   /** The meshes' fields trace's settings, each by its field (`WorldOptions`), resolved over the page: whether the rays of the indirect light, the reflections and the surface cache's
    *  shadows march the meshes' own distance fields (`meshDistanceFieldTrace`, off by default), which of them do, how far, and the view grid the meshes are culled to (`meshDistanceFieldTraceOptions.ts`). */
   get meshDistanceFieldTrace(): FamilyValues<'meshDistanceFieldTrace'>

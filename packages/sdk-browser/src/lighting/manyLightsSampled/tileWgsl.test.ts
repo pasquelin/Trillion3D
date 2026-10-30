@@ -19,3 +19,14 @@ test('the kernels declare their entries, and the WGSL holds the same mode number
     assert.ok(lists.includes(`${mode}u`), String(mode))
   assert.ok(tileArgsWgsl().includes(`fn ${TILE_ARGS_ENTRY}(`))
 })
+
+test('the bits kernel of the layer runs one group a listed tile, the surfaces one a tile of the view', () => {
+  const listed = tileBitmaskWgsl(true)
+  assert.ok(listed.includes('listedTile(block)'))
+  assert.ok(listed.includes('listedIndex(block)<tileAllocator[0]'))
+  const whole = tileBitmaskWgsl()
+  assert.ok(!whole.includes('listedTile'))
+  assert.ok(!whole.includes('let live='))
+  assert.ok(whole.includes('@builtin(global_invocation_id) id:vec3u'))
+  assert.ok(whole.includes('if(id.x<u32(view.viewport.x)'))
+})

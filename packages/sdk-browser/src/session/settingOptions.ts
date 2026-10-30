@@ -34,6 +34,7 @@ import type { ScreenProbeOptions } from '../../../sdk-core/src/bounce/screenProb
 import type { ReflectionOptions } from '../../../sdk-core/src/contracts/reflectionOptions.ts'
 import type { VolumetricFogOptions } from '../../../sdk-core/src/contracts/volumetricFogOptions.ts'
 import type { LightingDataFormatOptions } from '../../../sdk-core/src/contracts/lightingDataFormatOptions.ts'
+import type { RayTracingOptions } from '../../../sdk-core/src/contracts/rayTracingOptions.ts'
 import type { MeshDistanceFieldTraceOptions } from '../../../sdk-core/src/contracts/meshDistanceFieldTraceOptions.ts'
 import type { ScreenSpaceTracingOptions } from '../../../sdk-core/src/contracts/screenSpaceTracingOptions.ts'
 import type { SingleLayerWaterOptions } from '../../../sdk-core/src/contracts/singleLayerWaterOptions.ts'
@@ -98,6 +99,7 @@ export interface SettingOptions
     ReflectionOptions,
     ScreenSpaceTracingOptions,
     LightingDataFormatOptions,
+    RayTracingOptions,
     MeshDistanceFieldTraceOptions,
     AmbientOcclusionOptions,
     AmbientCubemapOptions,

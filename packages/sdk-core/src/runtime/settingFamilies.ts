@@ -23,6 +23,7 @@ import { MOTION_BLUR_RULES } from '../contracts/motionBlurOptions.ts'
 import { RASTER_RULES } from '../contracts/rasterOptions.ts'
 import { REFLECTION_RULES } from '../contracts/reflectionOptions.ts'
 import { LIGHTING_DATA_FORMAT_RULES } from '../contracts/lightingDataFormatOptions.ts'
+import { RAY_TRACING_RULES } from '../contracts/rayTracingOptions.ts'
 import { MESH_DISTANCE_FIELD_TRACE_RULES } from '../contracts/meshDistanceFieldTraceOptions.ts'
 import { SCREEN_SPACE_TRACING_RULES } from '../contracts/screenSpaceTracingOptions.ts'
 import { SINGLE_LAYER_WATER_RULES } from '../contracts/singleLayerWaterOptions.ts'
@@ -123,6 +124,7 @@ export const SETTING_FAMILIES = {
   reflections: { rules: REFLECTION_RULES, group: 'indirectLight', world: 'image' },
   screenSpaceTracing: { rules: SCREEN_SPACE_TRACING_RULES, group: 'indirectLight', world: 'image' },
   lightingDataFormat: { rules: LIGHTING_DATA_FORMAT_RULES, group: 'indirectLight', world: 'image' },
+  rayTracing: { rules: RAY_TRACING_RULES, group: 'indirectLight', world: 'image' },
   meshDistanceFieldTrace: {
     rules: MESH_DISTANCE_FIELD_TRACE_RULES,
     group: 'indirectLight',

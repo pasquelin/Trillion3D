@@ -15,6 +15,12 @@ import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { wgslF32 } from '../../../math/src/wgsl/number.ts'
 import { REFLECTION_CONSTANTS_WGSL } from '../lighting/reflections/constantsWgsl.ts'
 import { FRONT_OUTPUTS, type FrontOutputs } from '../lighting/reflections/frontLayer.ts'
+import {
+  FRONT_TILE_BINDING,
+  FRONT_TILE_FORMAT,
+  FRONT_TILE_GROUP,
+  FRONT_TILE_SIZE,
+} from '../lighting/reflections/frontTiles.ts'
 import { fragmentMembers, fragmentZeros } from '../gpu/core/fragmentOutputs.ts'
 import type { VisMaterial } from '../visibility/materialType.ts'
 import { NO_VERTEX_WORDS } from './cloudVertexText.ts'
@@ -106,7 +112,9 @@ fn frontReflects(flags:u32)->bool{return blendLit(flags)&&surfaceReflects(modelF
       lights
         ? `
 /** Whether a blend of item flags \`flags\` is lit by the sampled lighting of the layer: lit by a lit view and not lit as a medium, of any model. */
-fn frontLit(flags:u32)->bool{return blendLit(flags)&&!translucencyMedium(flags);}`
+fn frontLit(flags:u32)->bool{return blendLit(flags)&&!translucencyMedium(flags);}
+/** The tile mask the sampled lighting lists the layer's tiles from: a texel a tile of the view, marked where a fragment of the layer is written. */
+@group(${FRONT_TILE_GROUP}) @binding(${FRONT_TILE_BINDING}) var frontTileMask:texture_storage_2d<${FRONT_TILE_FORMAT},write>;`
         : ''
     }
 @fragment fn fsFront(in:VSOut,@builtin(front_facing) front:bool)->FrontOut{
@@ -124,7 +132,7 @@ ${
  blendPhysicalBegin(in,g);
 ${lobes && graphs.length ? ' blendGraphLobes(g.graph);\n' : ''} let s=blendSurface(in,front,g,base);${
         lights
-          ? `\n let model=modelFlag(${graphs.length ? 'blendGraphFlags(in.ids.y,g.graph)' : 'in.ids.y'})|pixelModelFlag(pixelModelOf(${graphs.length ? 'blendGraphFlags(in.ids.y,g.graph)' : 'in.ids.y'}));`
+          ? `\n textureStore(frontTileMask,vec2u(in.position.xy)/${FRONT_TILE_SIZE}u,vec4u(1u,0u,0u,0u));\n let model=modelFlag(${graphs.length ? 'blendGraphFlags(in.ids.y,g.graph)' : 'in.ids.y'})|pixelModelFlag(pixelModelOf(${graphs.length ? 'blendGraphFlags(in.ids.y,g.graph)' : 'in.ids.y'}));`
           : ''
       }
 ${

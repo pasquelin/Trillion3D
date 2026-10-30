@@ -41,6 +41,7 @@ import { SCREEN_PROBE_RULES } from '../bounce/screenProbeOptions.ts'
 import { REFLECTION_RULES } from '../contracts/reflectionOptions.ts'
 import { MESH_DISTANCE_FIELD_TRACE_RULES } from '../contracts/meshDistanceFieldTraceOptions.ts'
 import { LIGHTING_DATA_FORMAT_RULES } from '../contracts/lightingDataFormatOptions.ts'
+import { RAY_TRACING_RULES } from '../contracts/rayTracingOptions.ts'
 import { SCREEN_SPACE_TRACING_RULES } from '../contracts/screenSpaceTracingOptions.ts'
 import { SURFACE_CACHE_RULES } from '../contracts/surfaceCacheOptions.ts'
 import { RASTER_RULES } from '../contracts/rasterOptions.ts'
@@ -166,6 +167,7 @@ test('a switch the host leaves out is set in the engine as the schema advertises
     ...SCREEN_SPACE_TRACING_RULES,
     ...MESH_DISTANCE_FIELD_TRACE_RULES,
     ...LIGHTING_DATA_FORMAT_RULES,
+    ...RAY_TRACING_RULES,
     ...SURFACE_CACHE_RULES,
     ...AMBIENT_OCCLUSION_RULES,
     ...AMBIENT_CUBEMAP_RULES,

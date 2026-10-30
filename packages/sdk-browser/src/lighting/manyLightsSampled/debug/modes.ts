@@ -128,12 +128,12 @@ export function tileRect(
   return [w * cx + OVERVIEW_MARGIN * (cx + 1), h * cy + OVERVIEW_MARGIN * (cy + 1), w, h]
 }
 
-/** The words written at the foot of a view; none for a view with no label. */
-export function visualizeLabel(view: number): string {
+/** The words written at the foot of a view; none for a view with no label. `materials` says the rays of the shadow casters evaluated the surfaces' masks and `hair` that they were also marched through the strands' voxels; the far field is never marched (0). */
+export function visualizeLabel(view: number, materials = false, hair = false): string {
   const V = VISUALIZE
   switch (view) {
     case V.shadowCasters:
-      return 'Shadow Casters, Materials:0, FarField:0, HairVoxels:0'
+      return `Shadow Casters, Materials:${materials ? 1 : 0}, FarField:0, HairVoxels:${hair ? 1 : 0}`
     case V.shadowCasterQuality:
       return 'Shadow Caster Quality, Red - missing shadow caster, Blue - mismatching shadow caster'
     case V.shadingConfidence:

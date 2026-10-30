@@ -158,6 +158,8 @@ export interface ExplorerRuleApi {
   setScreenSpaceTracing: FamilyWriter<'screenSpaceTracing'>
   /** Writes the lighting data format's setting `field` (`lightingDataFormatOptions.ts`): the format the light is kept at between the passes of the indirect light — one `null` gives it back to its default, one left out stays —; one a setting does not take is refused. */
   setLightingDataFormat: FamilyWriter<'lightingDataFormat'>
+  /** Writes the ray tracing switch's setting `field` (`rayTracingOptions.ts`): whether the features that trace the scene's triangles do, or all march the distance fields — one `null` gives it back to its default, one left out stays —; one a setting does not take is refused. */
+  setRayTracing: FamilyWriter<'rayTracing'>
   /** Writes the meshes' fields trace's setting `field` (`meshDistanceFieldTraceOptions.ts`): whether the rays march the meshes' own distance fields, which of them do, how far and the view grid the
    *  meshes are culled to — one `null` gives it back to it, one left out stays —; one a setting does not take is refused. */
   setMeshDistanceFieldTrace: FamilyWriter<'meshDistanceFieldTrace'>

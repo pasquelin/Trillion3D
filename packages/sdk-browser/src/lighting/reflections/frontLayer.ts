@@ -50,6 +50,7 @@ import { retire } from '../../gpu/core/frameRetire.ts'
 import { TRANSPARENT_FRONT_PASS } from '../../diagnostic/stage/passLabels.ts'
 import { createKernelTexture, createReflectionGrids, gridBytes } from './grids.ts'
 import { storageTextureLayout } from '../../gpu/core/computeBindings.ts'
+import { createFrontTiles, frontTileBytes, type FrontTiles } from './frontTiles.ts'
 
 /** The format of the front's traced radiance: the base's and the coat's words, then the bits of the front pass's depth at the pixel (`z`, written by
  *  the last pass, which the forward programs match a fragment's depth against: the front depth needs no texture of its own in their group), a word spare. */
@@ -104,6 +105,8 @@ type FrontHeld = {
   traced: GPUTexture
   /** The surface buffer the sampled lighting reads the layer as (`FrontSurface`), made at the view's size the first time a pass writes the base colour. */
   surface?: FrontSurface
+  /** The tiles the layer lights (`FrontTiles`), made with the surface. */
+  tiles?: FrontTiles
   grids: ReturnType<typeof createReflectionGrids>
   views: {
     depth: GPUTextureView
@@ -256,9 +259,12 @@ function growFrontHeld(
       retire(device, held.surface.colours)
       retire(device, held.surface.words)
     }
+    if (held.tiles) retire(device, held.tiles)
     held.surface = createFrontSurface(device, width, height)
+    held.tiles = createFrontTiles(device, width, height)
     bytes.targetBytes +=
-      width * height * (2 * texelBytesOf(SURFACE_FORMATS[0]!) + texelBytesOf(SURFACE_FORMATS[3]!))
+      width * height * (2 * texelBytesOf(SURFACE_FORMATS[0]!) + texelBytesOf(SURFACE_FORMATS[3]!)) +
+      frontTileBytes(width, height)
   }
 }
 
@@ -324,6 +330,7 @@ function destroyHeld(held: FrontHeld) {
     texture.destroy()
   held.surface?.colours.destroy()
   held.surface?.words.destroy()
+  held.tiles?.destroy()
   held.grids.destroy()
 }
 
@@ -352,6 +359,10 @@ export function createFrontLayer(
     /** The layer as a surface buffer's layers, once a pass wrote it. */
     get surface() {
       return held.surface
+    },
+    /** The tiles the layer lights, once a pass of `outputs` 3 made them. */
+    get tiles() {
+      return held.tiles
     },
     /** The front surface's grids (`grids.ts`): a texel until it first reflects. */
     get grids() {

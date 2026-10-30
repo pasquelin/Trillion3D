@@ -12,9 +12,16 @@ import { VIEW_WGSL } from '../../deferred/worldAtWgsl.ts'
 export const visualizeTonemapWgsl = (first: number) =>
   wgslBlock(
     `visualizeTonemap(${first})`,
+    [VIEW_WGSL, visualizeTonemapReadWgsl(first)],
+    `@group(0) @binding(${first}) var<uniform> view:View;`,
+  )
+
+/** The same function for a program that declares the view (`view:View`) itself, as the reflection group does: only the table's three bindings, from `first + 1`, are declared. */
+export const visualizeTonemapReadWgsl = (first: number) =>
+  wgslBlock(
+    `visualizeTonemapRead(${first})`,
     [VIEW_WGSL, toneReadWgsl(first + 1), linearToSrgb],
-    `@group(0) @binding(${first}) var<uniform> view:View;
-fn visualizeTonemap(light:vec3f,tonemap:bool)->vec3f{
+    `fn visualizeTonemap(light:vec3f,tonemap:bool)->vec3f{
  if(!tonemap){return linearToSrgb(light);}
  return toneShown(light*view.preExposure.y,u32(view.display.x));
 }`,

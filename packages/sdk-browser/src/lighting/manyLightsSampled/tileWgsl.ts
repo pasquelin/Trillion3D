@@ -15,6 +15,7 @@ import { SAMPLED_BINDINGS } from './bindings.ts'
 import { SAMPLED_PARAMS_WGSL } from './paramsWgsl.ts'
 import { SAMPLED_GROUP } from './layout.ts'
 import { SAMPLED_TILE, SAMPLED_TILE_MODES } from './parameters.ts'
+import { FRONT_TILE_LIST_WGSL } from './frontTilesWgsl.ts'
 
 /** The bits of a tile of the view: which classes of surface its pixels are, and whether a rectangle light reaches it. */
 const TILE_BIT = {
@@ -50,19 +51,27 @@ const NO_MODE:u32=0xFFu;`,
 /**
  * THE BITS OF EACH TILE OF THE VIEW: one group a tile of eight pixels across, a thread a pixel, which reads the class of its surface
  * (`pixelTileClass`: simple, single or complex) and whether a rectangle light is in the list of its cell of the light grid, and
- * writes the union of them as the tile's word (`TILE_BIT`).
+ * writes the union of them as the tile's word (`TILE_BIT`). With `listed` (the nearest translucent layer), a group is a tile of the list the front pass's
+ * marks made (`frontTilesWgsl.ts`), the dispatch indirect over it: the tiles the pass did not mark are not classified.
  */
 export const TILE_BITMASK_ENTRY = 'tileBitmaskMain'
-export const tileBitmaskWgsl = () =>
+export const tileBitmaskWgsl = (listed = false) =>
   wgslProgram(
     `
 @group(0) @binding(${B.tileBitmask}) var tileBitmask:texture_storage_2d<r32uint,write>;
 var<workgroup> tileBits:atomic<u32>;
 @compute @workgroup_size(${SAMPLED_GROUP},${SAMPLED_GROUP},1)
-fn ${TILE_BITMASK_ENTRY}(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_index) lane:u32,@builtin(workgroup_id) tile:vec3u){
+${
+  listed
+    ? `fn ${TILE_BITMASK_ENTRY}(@builtin(local_invocation_id) inTile:vec3u,@builtin(local_invocation_index) lane:u32,@builtin(workgroup_id) block:vec3u){
+ let live=listedIndex(block)<tileAllocator[0];
+ let tile=listedTile(block);
+ let id=tile*${SAMPLED_GROUP}u+inTile.xy;`
+    : `fn ${TILE_BITMASK_ENTRY}(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_index) lane:u32,@builtin(workgroup_id) tile:vec3u){`
+}
  if(lane==0u){atomicStore(&tileBits,0u);}
  workgroupBarrier();
- if(id.x<u32(view.viewport.x)&&id.y<u32(view.viewport.y)){
+ if(${listed ? 'live&&' : ''}id.x<u32(view.viewport.x)&&id.y<u32(view.viewport.y)){
   let coord=vec2i(id.xy);
   let found=pixelTileClass(textureLoad(words,coord,${SURFACE_WORDS.flags},0).r);
   if(found!=${PIXEL_CLASS.none}u){
@@ -76,7 +85,7 @@ fn ${TILE_BITMASK_ENTRY}(@builtin(global_invocation_id) id:vec3u,@builtin(local_
   }
  }
  workgroupBarrier();
- if(lane==0u){textureStore(tileBitmask,vec2i(tile.xy),vec4u(atomicLoad(&tileBits),0u,0u,0u));}
+ if(${listed ? 'lane==0u&&live' : 'lane==0u'}){textureStore(tileBitmask,${listed ? 'vec2i(tile)' : 'vec2i(tile.xy)'},vec4u(atomicLoad(&tileBits),0u,0u,0u));}
 }`,
     [
       TILE_BITS_WGSL,
@@ -89,6 +98,7 @@ fn ${TILE_BITMASK_ENTRY}(@builtin(global_invocation_id) id:vec3u,@builtin(local_
       PIXEL_TILE_CLASS_WGSL,
       LIGHTS_BINDING_WGSL,
       TILES_BINDING_WGSL,
+      ...(listed ? [FRONT_TILE_LIST_WGSL] : []),
     ],
   )
 

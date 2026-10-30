@@ -46,6 +46,7 @@ import { TRANSLUCENCY_GI_RULES } from '../../../../sdk-core/src/contracts/transl
 import { SCREEN_PROBE_RULES } from '../../../../sdk-core/src/bounce/screenProbeOptions.ts'
 import { REFLECTION_RULES } from '../../../../sdk-core/src/contracts/reflectionOptions.ts'
 import { LIGHTING_DATA_FORMAT_RULES } from '../../../../sdk-core/src/contracts/lightingDataFormatOptions.ts'
+import { RAY_TRACING_RULES } from '../../../../sdk-core/src/contracts/rayTracingOptions.ts'
 import { MESH_DISTANCE_FIELD_TRACE_RULES } from '../../../../sdk-core/src/contracts/meshDistanceFieldTraceOptions.ts'
 import { SCREEN_SPACE_TRACING_RULES } from '../../../../sdk-core/src/contracts/screenSpaceTracingOptions.ts'
 import { AMBIENT_OCCLUSION_RULES } from '../../../../sdk-core/src/contracts/ambientOcclusionOptions.ts'
@@ -143,6 +144,8 @@ const TODAY: Record<keyof typeof WORLD_SETTINGS, boolean | number | string> = {
   ...resolveSettings(SCREEN_SPACE_TRACING_RULES, {}),
   // The lighting data format: the reference's 11-11-10 floats.
   ...resolveSettings(LIGHTING_DATA_FORMAT_RULES, {}),
+  // The ray tracing switch: on, a new project's value.
+  ...resolveSettings(RAY_TRACING_RULES, {}),
   // The meshes' fields trace: off by default, the reference's project setting; its distances and grid are the reference's.
   ...resolveSettings(MESH_DISTANCE_FIELD_TRACE_RULES, {}),
   // The screen-space ambient occlusion: the reference's post-process defaults, in metres.

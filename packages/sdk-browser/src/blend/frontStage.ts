@@ -1,5 +1,6 @@
 import { preparedPipeline, type PreparedPipeline } from '../lighting/deferred/fullscreen.ts'
 import { FRONT_OUTPUTS, type FrontOutputs } from '../lighting/reflections/frontLayer.ts'
+import { frontTileLayout } from '../lighting/reflections/frontTiles.ts'
 import { fragmentTargets } from '../gpu/core/fragmentOutputs.ts'
 import { stageDescriptors, type FrontStagePipelines } from './stagePipelines.ts'
 import { blendFrontShader, blendReflects } from './frontStageWgsl.ts'
@@ -70,7 +71,15 @@ export function createFrontStages(
         entryPoint: 'fsFront',
         targets: fragmentTargets(FRONT_OUTPUTS[outputs]),
       }
-      return stageDescriptors(device, module, layout, fragment, true, [])
+      // The pass that lights the layer marks the tiles it writes (`FrontTiles`), through a group of its own.
+      return stageDescriptors(
+        device,
+        module,
+        layout,
+        fragment,
+        true,
+        outputs === 3 ? [frontTileLayout(device)] : [],
+      )
     })
   return (outputs: FrontOutputs) => (sets[outputs] ??= setOf(outputs))
 }

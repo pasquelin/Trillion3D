@@ -90,6 +90,8 @@ import { REFLECTION_RULES } from '../contracts/reflectionOptions.ts'
 import { REFLECTION_MEANINGS } from './reflectionMeanings.ts'
 import { SCREEN_SPACE_TRACING_RULES } from '../contracts/screenSpaceTracingOptions.ts'
 import { LIGHTING_DATA_FORMAT_RULES } from '../contracts/lightingDataFormatOptions.ts'
+import { RAY_TRACING_RULES } from '../contracts/rayTracingOptions.ts'
+import { RAY_TRACING_MEANINGS } from './rayTracingMeanings.ts'
 import { LIGHTING_DATA_FORMAT_MEANINGS } from './lightingDataFormatMeanings.ts'
 import { MESH_DISTANCE_FIELD_TRACE_RULES } from '../contracts/meshDistanceFieldTraceOptions.ts'
 import { MESH_DISTANCE_FIELD_TRACE_MEANINGS } from './meshDistanceFieldTraceMeanings.ts'
@@ -734,6 +736,7 @@ export const settingRuleProperties = () => ({
   ...ruleProperties(REFLECTION_RULES, REFLECTION_MEANINGS),
   ...ruleProperties(SCREEN_SPACE_TRACING_RULES, SCREEN_SPACE_TRACING_MEANINGS),
   ...ruleProperties(LIGHTING_DATA_FORMAT_RULES, LIGHTING_DATA_FORMAT_MEANINGS),
+  ...ruleProperties(RAY_TRACING_RULES, RAY_TRACING_MEANINGS),
   ...ruleProperties(MESH_DISTANCE_FIELD_TRACE_RULES, MESH_DISTANCE_FIELD_TRACE_MEANINGS),
   ...ruleProperties(SURFACE_CACHE_RULES, SURFACE_CACHE_MEANINGS),
   ...ruleProperties(AMBIENT_OCCLUSION_RULES, AMBIENT_OCCLUSION_MEANINGS),

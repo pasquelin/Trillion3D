@@ -5,6 +5,9 @@
  */
 import type { EngineCamera } from '../../../camera/engineCamera.ts'
 import type { WebgpuPagesRuntime } from '../../../frame/backend/runtime.ts'
+import { retire } from '../../../gpu/core/frameRetire.ts'
+import { oncePerDevice } from '../../../gpu/core/oncePerDevice.ts'
+import { computeTextureEntry, computeUniformEntry } from '../../../gpu/core/computeBindings.ts'
 import { createGpuPeriodicReadback } from '../../../gpu/core/periodicReadback.ts'
 import {
   drawScreenPass,
@@ -23,9 +26,11 @@ import {
   visualizeViewOf,
   isOverview,
 } from './modes.ts'
+import { castersTraced, encodeCasters, releaseCasters } from './casters/casters.ts'
 import { complexitySubmitted, disposeComplexity, drawComplexity } from './complexity/view.ts'
 import { debugPixelsOf, releaseDebugPixels, sampledOfFrame } from './state.ts'
 import { createTileOverlay, tileClassificationOf, writeTileTable } from './tileOverlay.ts'
+import { CASTER_HITS_FORMAT } from './casters/castersWgsl.ts'
 import { VISUALIZE_BLOCK_WORDS, VISUALIZE_ENTRY, VISUALIZE_WGSL } from './visualizeWgsl.ts'
 
 /** The pixels from the display's edge the tables start. */
@@ -42,7 +47,16 @@ const TILE_COUNT_BYTES = SAMPLED_TILE_MODES * 4
 
 interface DebugState {
   readonly text: ReturnType<typeof createTextOverlay>
-  visualize?: { pipeline: ReturnType<typeof screenPassPipeline>; block: GPUBuffer }
+  visualize?: {
+    pipeline: ReturnType<typeof screenPassPipeline>
+    block: GPUBuffer
+    /** Bound for the rays' hits where the image casts none (the views then paint the surface alone). */
+    idleHits: GPUTexture
+    idleHitsView: GPUTextureView
+    /** The words of a tile's block, written in place for each tile. */
+    words: Float32Array<ArrayBuffer>
+    flags: Uint32Array<ArrayBuffer>
+  }
   tiles?: ReturnType<typeof createTileOverlay>
   reader?: ReturnType<typeof createGpuPeriodicReadback>
   /** The last counts read back: the rays of the screen, the distance field and the shadow maps, then the tiles of the view and of the downsampled view by mode. */
@@ -69,15 +83,58 @@ const stateOf = (rt: WebgpuPagesRuntime, device: GPUDevice): DebugState => {
   return state
 }
 
+/** A tile's block as floats and as the words it shares them with. */
+function blockOf() {
+  const words = new Float32Array(VISUALIZE_BLOCK_WORDS)
+  return { words, flags: new Uint32Array(words.buffer) }
+}
+
+/** The layout of a view's bindings, in the order the program declares them: the opaque depth is level 0 of the depth pyramid (a float texture the layout derived from the program would call filterable). */
+const visualizeLayout = oncePerDevice((device: GPUDevice) => {
+  const fragment = GPUShaderStage.FRAGMENT
+  const float = (binding: number, dimension: GPUTextureViewDimension = '2d') =>
+    computeTextureEntry(binding, 'unfilterable-float', dimension, fragment)
+  return device.createBindGroupLayout({
+    label: 'Trillion3D sampled visualize',
+    entries: [
+      computeUniformEntry(0, {}, fragment),
+      float(1),
+      float(2),
+      float(3),
+      computeTextureEntry(4, 'uint', '2d', fragment),
+      float(5),
+      computeTextureEntry(6, 'uint', '2d', fragment),
+      computeUniformEntry(7, {}, fragment),
+      float(8, '2d-array'),
+      float(9, '2d-array'),
+      computeTextureEntry(10, 'uint', '2d-array', fragment),
+      computeTextureEntry(11, 'uint', '2d', fragment),
+    ],
+  })
+})
+
+/** The stand-in texture bound for the rays' hits, and its view. */
+function idleHitsOf(device: GPUDevice) {
+  const idleHits = device.createTexture({
+    label: 'Trillion3D sampled visualize idle hits',
+    size: [1, 1],
+    format: CASTER_HITS_FORMAT,
+    usage: GPUTextureUsage.TEXTURE_BINDING,
+  })
+  return { idleHits, idleHitsView: idleHits.createView() }
+}
+
 /** Gives the passes of a runtime's sampled lighting debug views back. */
 export function disposeSampledDebug(rt: WebgpuPagesRuntime) {
   const state = states.get(rt)
   state?.text.dispose()
   state?.visualize?.block.destroy()
+  if (state?.visualize && rt.gpu.device) retire(rt.gpu.device, state.visualize.idleHits)
   state?.tiles?.dispose()
   state?.reader?.dispose()
   states.delete(rt)
   releaseDebugPixels(rt)
+  releaseCasters(rt)
   disposeComplexity(rt)
 }
 
@@ -106,12 +163,15 @@ function drawVisualize(
       'Trillion3D sampled visualize',
       VISUALIZE_WGSL,
       VISUALIZE_ENTRY,
+      device.createPipelineLayout({ bindGroupLayouts: [visualizeLayout(device)] }),
     ),
     block: device.createBuffer({
       label: 'Trillion3D sampled visualize block',
       size: BLOCK_STRIDE * MAX_TILES,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     }),
+    ...idleHitsOf(device),
+    ...blockOf(),
   })
   const debugPixels = debugPixelsOf(rt)
   const pipeline = visualize.pipeline.get()
@@ -119,22 +179,38 @@ function drawVisualize(
   const layout = overviewLayout(view)
   const single = !isOverview(view)
   const size = gpu.displaySize
+  const deferred = gpu.deferred
+  const { surfaces } = gpu
+  // The depth of the opaque surfaces alone: level 0 of the depth pyramid, its first layer.
+  const opaqueDepth = rt.vis.gpuHiz?.depth()?.resources[0]
+  if (!deferred || !surfaces || !opaqueDepth) return
+  const [colours, surfaceWords] = surfaces.stores()
+  // One set of rays serves every tile: the tiles of an overview are of one size.
+  const [, , tileWidth, tileHeight] = tileRect(size, 0, layout.perRow, single)
+  const traced = castersTraced(rt)
+    ? encodeCasters(rt, device, encoder, [tileWidth, tileHeight])
+    : undefined
+  const hits = traced?.hits
   layout.tiles.forEach((tile, index) => {
     if (tile < 0) return
     const rect = tileRect(size, index, layout.perRow, single)
-    const label = visualizeLabel(tile)
-    const words = new Float32Array(VISUALIZE_BLOCK_WORDS)
-    words.set(rect, 0)
-    words.set(
-      [
-        samples.geometry.view[0],
-        samples.geometry.view[1],
-        values.sampledLightsTemporalMaxFrames,
-        values.sampledLightsSpatialHistoryDeviation,
-      ],
-      4,
+    const label = visualizeLabel(
+      tile,
+      hits !== undefined && values.sampledLightsEvaluateMaterialMode > 0,
+      traced?.hair !== undefined,
     )
-    new Uint32Array(words.buffer).set([tile, single ? 0 : 1], 8)
+    const { words, flags } = visualize
+    words.set(rect, 0)
+    words[4] = samples.geometry.view[0]
+    words[5] = samples.geometry.view[1]
+    words[6] = values.sampledLightsTemporalMaxFrames
+    words[7] = values.sampledLightsSpatialHistoryDeviation
+    words[12] = values.sampledLightsVisualizeShadowCasterMissingDistance
+    words[13] = values.sampledLightsVisualizeShadowCasterPoorDistance
+    flags[8] = tile
+    flags[9] = single ? 0 : 1
+    flags[10] = hits ? 1 : 0
+    flags[11] = traced?.hair ? 1 : 0
     // One block a tile: the writes land before the commands run, so a shared block would give every tile the last one's.
     const offset = index * BLOCK_STRIDE
     device.queue.writeBuffer(visualize.block, offset, words)
@@ -151,6 +227,12 @@ function drawVisualize(
           samples.filtered.specular,
           samples.filtered.frames,
           debugPixels,
+          hits ?? visualize.idleHitsView,
+          { buffer: deferred.uniform },
+          opaqueDepth,
+          colours,
+          surfaceWords,
+          traced?.hair ?? visualize.idleHitsView,
         ]),
       ],
       rect,

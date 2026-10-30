@@ -109,6 +109,13 @@ import {
   tileBitmaskWgsl,
   tileListsWgsl,
 } from './tileWgsl.ts'
+import {
+  FRONT_TILE_ARGS_ENTRY,
+  FRONT_TILE_LIST_ENTRY,
+  frontTileArgsWgsl,
+  frontTileListWgsl,
+} from './frontTilesWgsl.ts'
+import type { FrontTiles } from '../reflections/frontTiles.ts'
 
 const B = SAMPLED_BINDINGS
 const D = DEFERRED_BINDINGS
@@ -147,6 +154,8 @@ export interface SampledLightsInputs {
   noise: GPUTextureView
   /** The surfaces' motion vectors of the image (`screenProbeVectors`), none where the stage measured none: the surfaces are taken as still. */
   vectors?: GPUTextureView
+  /** The tiles the nearest translucent layer lights (the front pass's marks and their list): only these are classified; none, every tile of the view is. */
+  frontTiles?: FrontTiles
   /** The view-projection (no jitter) of the image before, zeros for none. */
   previousViewProjection: ArrayLike<number>
   /** The reflection group (`reflectionGroup`): the depth pyramid the screen trace marches and the view it reads; none, no screen trace. */
@@ -415,6 +424,21 @@ function tileLayouts(layout: (entries: GPUBindGroupLayoutEntry[]) => GPUBindGrou
   const pixel = [...geometryLayoutEntries(), computeBufferEntry(D.tiles, 'read-only-storage')]
   return {
     bitmask: layout([...pixel, computeStorageTextureEntry(B.tileBitmask, 'r32uint', 'write-only')]),
+    // The bits of the listed tiles of the layer: the same, and the count and the list read.
+    bitmaskListed: layout([
+      ...pixel,
+      computeStorageTextureEntry(B.tileBitmask, 'r32uint', 'write-only'),
+      computeBufferEntry(B.tileAllocator, 'read-only-storage'),
+      computeBufferEntry(B.tileData, 'read-only-storage'),
+    ]),
+    // The list's build: the front pass's marks, the bits cleared, the count and the list.
+    frontList: layout([
+      computeBufferEntry(B.params, 'uniform'),
+      computeStorageTextureEntry(B.frontMask, 'r32uint', 'read-only'),
+      computeStorageTextureEntry(B.tileBitmask, 'r32uint', 'write-only'),
+      computeBufferEntry(B.tileAllocator, 'storage'),
+      computeBufferEntry(B.tileData, 'storage'),
+    ]),
     lists: layout([
       computeBufferEntry(B.params, 'uniform'),
       computeTextureEntry(B.tileBitmask, 'uint'),
@@ -641,7 +665,7 @@ const SAMPLING_MODES: readonly { mode: number; tileClass: TileClass; rect: boole
 type Stage = PreparedPipeline<GPUComputePipeline>
 
 /** The pipelines of the tiles' classification, of the compaction of the rays and of the clearing of the samples. */
-function createTileStages(device: GPUDevice, layouts: Layouts, stage: StageMaker) {
+function createTileStages(device: GPUDevice, layouts: Layouts, stage: StageMaker, front: boolean) {
   const listsModule = device.createShaderModule({
     label: 'Trillion3D sampled tiles',
     code: tileListsWgsl(),
@@ -655,6 +679,38 @@ function createTileStages(device: GPUDevice, layouts: Layouts, stage: StageMaker
     code: compactArgsWgsl(),
   })
   return {
+    // The nearest translucent layer's: the list of the tiles its pass marked, the arguments over it and the bits of those tiles alone.
+    frontTiles: front
+      ? {
+          list: stage(
+            layouts.frontList,
+            device.createShaderModule({
+              label: 'Trillion3D sampled front tiles',
+              code: frontTileListWgsl(),
+            }),
+            FRONT_TILE_LIST_ENTRY,
+            'Trillion3D sampled front tiles',
+          ),
+          args: stage(
+            layouts.args,
+            device.createShaderModule({
+              label: 'Trillion3D sampled front tiles args',
+              code: frontTileArgsWgsl(),
+            }),
+            FRONT_TILE_ARGS_ENTRY,
+            'Trillion3D sampled front tiles args',
+          ),
+          bitmask: stage(
+            layouts.bitmaskListed,
+            device.createShaderModule({
+              label: 'Trillion3D sampled front tile bits',
+              code: tileBitmaskWgsl(true),
+            }),
+            TILE_BITMASK_ENTRY,
+            'Trillion3D sampled front tile bits',
+          ),
+        }
+      : undefined,
     fixed: {
       bitmask: stage(
         layouts.bitmask,
@@ -873,6 +929,9 @@ function createFrontLight(device: GPUDevice, stage: StageMaker) {
 function createGroups(device: GPUDevice, layouts: Layouts) {
   return {
     bitmask: createPassGroup(device, layouts.bitmask),
+    bitmaskListed: createPassGroup(device, layouts.bitmaskListed),
+    frontList: createPassGroup(device, layouts.frontList),
+    frontArgs: createPassGroup(device, layouts.args),
     listView: createPassGroup(device, layouts.lists),
     listDown: createPassGroup(device, layouts.lists),
     argsView: createPassGroup(device, layouts.args),
@@ -1191,7 +1250,9 @@ function encodeTiles(c: EncodeContext) {
       { binding: B.tileBitmask, resource: r.bitmaskView },
     ],
   )
-  run(fixed.bitmask, bitmaskGroup, g.tiles[0], g.tiles[1])
+  const listed = inputs.frontTiles && c.stages.frontTiles
+  if (listed) encodeFrontTiles(c, inputs.frontTiles!, listed)
+  else run(fixed.bitmask, bitmaskGroup, g.tiles[0], g.tiles[1])
   const listGroup = (kind: 'listView' | 'listDown', allocator: GPUBuffer, data: GPUBuffer) =>
     groups[kind].get([r.params, r.bitmaskView, allocator, data], () => [
       { binding: B.params, resource: { buffer: r.params } },
@@ -1225,6 +1286,61 @@ function encodeTiles(c: EncodeContext) {
   pass.setPipeline(clears.get()!)
   pass.setBindGroup(0, clearGroup)
   pass.dispatchWorkgroupsIndirect(r.downArgs, tileArgsAt(SAMPLED_TILE.empty))
+}
+
+/** The bits of the tiles the front layer's pass marked (`FrontTiles`), the others read as empty: the list of the marked tiles is built (the bits cleared), then the dispatch of the bits is indirect over it. */
+function encodeFrontTiles(
+  c: EncodeContext,
+  tiles: FrontTiles,
+  stages: NonNullable<EncodeContext['stages']['frontTiles']>,
+) {
+  const { pass, run, inputs, g, r, words, groups } = c
+  const listGroup = groups.frontList.get(
+    [r.params, tiles.maskView, r.bitmaskView, tiles.allocator, tiles.data],
+    () => [
+      { binding: B.params, resource: { buffer: r.params } },
+      { binding: B.frontMask, resource: tiles.maskView },
+      { binding: B.tileBitmask, resource: r.bitmaskView },
+      { binding: B.tileAllocator, resource: { buffer: tiles.allocator } },
+      { binding: B.tileData, resource: { buffer: tiles.data } },
+    ],
+  )
+  run(
+    stages.list,
+    listGroup,
+    ceilDiv(g.tiles[0], SAMPLED_GROUP),
+    ceilDiv(g.tiles[1], SAMPLED_GROUP),
+  )
+  const argsGroup = groups.frontArgs.get([tiles.allocator, tiles.args], () => [
+    { binding: B.tileAllocator, resource: { buffer: tiles.allocator } },
+    { binding: B.tileArgs, resource: { buffer: tiles.args } },
+  ])
+  run(stages.args, argsGroup, 1)
+  const bitsGroup = groups.bitmaskListed.get(
+    [
+      words,
+      inputs.depth,
+      inputs.view,
+      inputs.lights,
+      inputs.tiles,
+      r.bitmaskView,
+      tiles.allocator,
+      tiles.data,
+    ],
+    () => [
+      { binding: D.words, resource: words },
+      { binding: D.depth, resource: inputs.depth },
+      { binding: D.view, resource: { buffer: inputs.view } },
+      { binding: D.lights, resource: { buffer: inputs.lights } },
+      { binding: D.tiles, resource: { buffer: inputs.tiles } },
+      { binding: B.tileBitmask, resource: r.bitmaskView },
+      { binding: B.tileAllocator, resource: { buffer: tiles.allocator } },
+      { binding: B.tileData, resource: { buffer: tiles.data } },
+    ],
+  )
+  pass.setPipeline(stages.bitmask.get()!)
+  pass.setBindGroup(0, bitsGroup)
+  pass.dispatchWorkgroupsIndirect(tiles.args, 0)
 }
 
 /** The bindings of the uniform and the draw's lists of tiles, then the samples and rays it writes. */
@@ -1695,6 +1811,7 @@ function imageReady(
   ])
   return chainReady(
     ...Object.values(fixed),
+    ...(inputs.frontTiles && k.stages.frontTiles ? Object.values(k.stages.frontTiles) : []),
     clears,
     ...modeStages,
     ...(tracing
@@ -1888,7 +2005,7 @@ export function createSampledLights(
         failed,
       )),
     stages: {
-      ...createTileStages(device, layouts, stage),
+      ...createTileStages(device, layouts, stage, front),
       ...createTraceStages(device, failed, layouts, stage),
       ...createFilterStages(device, failed, layouts),
     },

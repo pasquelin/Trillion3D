@@ -2,6 +2,7 @@ import {
   choiceSetting,
   countSetting,
   flagSetting as flag,
+  gatedFlagSetting as gatedFlag,
   integerSetting as integer,
   nonNegativeSetting,
   numberSetting as number,
@@ -77,6 +78,7 @@ import {
  * - THE DEBUG VIEWS (diagnostic modes `sampled-lights-…`): `sampledLightsVisualize` (0, 1 to 16) the numbered view shown in place of a named mode — 1 the overview of the
  *   shadow casters, 2 the shadow casters, 3 their quality, 4 and 5 the denoiser's overviews, 6 to 16 the denoiser's own images, each view named in `docs/SDK.md` —;
  *   `sampledLightsVisualizeShadowCasterMissingDistance` (0.5 m) and `…PoorDistance` (0.25 m) how far a traced surface may lie from the drawn one before the quality view calls it missing or mismatching;
+ *   `sampledLightsHardwareRayTracing` (on, with the project's `rayTracingEnable` switch), `sampledLightsEvaluateMaterialMode` (0, 0 to 2) and `sampledLightsForceTwoSided` (on): whether the two shadow caster views cast one ray a pixel from the eye through the scene's triangles and paint what it meets, whether the rays honour the surfaces' cut-out masks (0 no, 1 and 2 yes), and whether they meet the back of one-sided triangles;
  *   `sampledLightsVisualizeTileClassification` (0, 1 to 6) the tiles of the classification drawn over the image — 1 the surfaces' tiles, 2 the downsampled tiles, 3 and 4 the hair strands', 5 and 6 the nearest
  *   translucent layer's —;
  *   `sampledLightsVisualizeLightComplexity` (0, 1 to 5: the surfaces, the hair strands, the nearest translucent layer, the volume, the translucency volume) the light complexity view of an input — the cell's lights under the cursor
@@ -171,6 +173,9 @@ export const SAMPLED_LIGHTS_RULES = /* @__PURE__ */ (() =>
     integer('sampledLightsVisualize', 0, [0, 16]),
     nonNegativeSetting('sampledLightsVisualizeShadowCasterMissingDistance', 0.5),
     nonNegativeSetting('sampledLightsVisualizeShadowCasterPoorDistance', 0.25),
+    gatedFlag('sampledLightsHardwareRayTracing', true, 'rayTracingEnable'),
+    integer('sampledLightsEvaluateMaterialMode', 0, [0, 2]),
+    flag('sampledLightsForceTwoSided', true),
     integer('sampledLightsVisualizeTileClassification', 0, [0, 6]),
     integer('sampledLightsVisualizeLightComplexity', 0, [0, 5]),
     countSetting('sampledLightsVisualizeLightComplexityMaxLights', 32, 0),

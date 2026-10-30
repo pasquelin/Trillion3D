@@ -157,6 +157,7 @@ export const ENGINE_SHADERS: Record<string, string> = {
   FRONT_STAGE_DEPTH: blendFrontShader(0),
   FRONT_STAGE_REFLECTING: blendFrontShader(1),
   FRONT_STAGE_LOBED: blendFrontShader(2),
+  FRONT_STAGE_LIT: blendFrontShader(3),
   // The translucent surfaces' radiance mark (`blend/radianceMarkStage.ts`).
   BLEND_RADIANCE_MARK: blendRadianceMarkShader(),
   SHADE_BINS_SHADER,

@@ -64,3 +64,22 @@ fn viewEyeDistance(P:vec3f)->f32{
  return abs(dot(P-view.display.yzw,normalize(view.camera.xyz)));
 }`,
 )
+
+/** The ray through a pixel of a display of `size` and where it starts: the eye under a perspective camera; under an orthographic one (camera.w 0) the view direction, from the point of the plane through the eye the pixel falls on. */
+export const VIEW_RAY_WGSL = wgslBlock(
+  'VIEW_RAY_WGSL',
+  [VIEW_WGSL, pixelToNdc, unprojectPoint],
+  `
+fn viewEye()->vec3f{return select(view.display.yzw,view.camera.xyz,view.camera.w!=0.0);}
+fn viewRay(pixel:vec2f,size:vec2f)->vec3f{
+ if(view.camera.w==0.0){return -normalize(view.camera.xyz);}
+ let on=unprojectPoint(view.inverseViewProjection,vec3f(pixelToNdc(pixel,size),0.5));
+ return normalize(on-view.camera.xyz);
+}
+fn viewRayStart(pixel:vec2f,size:vec2f)->vec3f{
+ if(view.camera.w!=0.0){return view.camera.xyz;}
+ let on=unprojectPoint(view.inverseViewProjection,vec3f(pixelToNdc(pixel,size),0.5));
+ let forward=viewRay(pixel,size);
+ return on-forward*dot(on-view.display.yzw,forward);
+}`,
+)

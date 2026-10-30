@@ -842,6 +842,19 @@ world.surfaceCache = { rayTracingExcludeSky: false } // the rays meet a sky dome
 world.surfaceCache = { surfaceCacheAtlasSize: null, surfaceCacheCardCapturesPerFrame: null } // back to the defaults
 ```
 
+**Ray tracing switch.** `rayTracingEnable` (`true`, the value of a new project) is the one switch the features that cast rays through the scene's
+triangles hang on. On, each takes its own setting; `false` makes every one of them read `false` whatever it is itself, so each marches the
+distance fields, as a project with ray tracing off does: `reflectionHardwareRayTracing`, `screenProbeHardwareRayTracing`,
+`screenProbeRadianceCacheHardwareRayTracing`, `screenProbeShortRangeAOHardwareRayTracing`, `surfaceCacheDirectLightingHardwareRayTracing`,
+`surfaceCacheRadiosityHardwareRayTracing`, `translucencyGiHardwareRayTracing`, `heterogeneousVolumesHardwareRayTracing`, `visualizeHardwareRayTracing` and
+`sampledLightsHardwareRayTracing`. The settings keep their values: `rayTracingEnable` back to `true` gives them back. It is a run-time setting, written
+by `world.rayTracing`, the session's `setRayTracing` or the `trillion3d_set_ray_tracing` tool.
+
+```ts
+world.rayTracing = { rayTracingEnable: false } // every feature traces the distance fields, as a project with ray tracing off
+world.rayTracing = { rayTracingEnable: null } // back to the default: each feature follows its own setting
+```
+
 **Ambient occlusion.** A crease, a corner or the foot of a wall receives less of the light that comes from all round than
 an open surface does. The engine finds that loss in the depth the image drew, by one of two methods, and leaves one byte a
 pixel, which the lighting multiplies in where it belongs: the emission of a surface (the light the base pass left in the
@@ -5141,8 +5154,8 @@ The sampled lighting (`sampledLights`) and the subsurface scattering have views 
 | `virtual-shadow-map-overdraw` | over the image in grey, how many times the shadow raster drew the texel the pixel reads this image, inferno from dark to bright, scaled by `shadowVisualizeOverdrawScale`; needs shadows and virtual shadow maps |
 | `rect-light-atlas` | over the image, the atlas of the rectangle lights' pictures drawn small at the mip level `rectLightAtlasDebugMipLevel`, a green border round each slot in use, red round the packing's horizon lines, yellow round the free rectangles, and the figures as text (the same as `rectLightAtlasDebug`) |
 | `sampled-lights-overview` | the shadow caster views side by side, in tiles with rounded corners, over the image |
-| `sampled-lights-shadow-casters` | the surface under each pixel in grey, with the label `Shadow Casters, Materials:0, FarField:0, HairVoxels:0` (the traces are made through the distance field, which has no scene of its own to colour) |
-| `sampled-lights-shadow-caster-quality` | the same, with the label that names red a missing caster and blue a mismatching one |
+| `sampled-lights-shadow-casters` | one ray a pixel from the eye through the scene's triangles (`sampledLightsHardwareRayTracing`), each instance it meets in a colour of its own lit by a fixed light, with the label `Shadow Casters, Materials:0, FarField:0, HairVoxels:0` (`Materials` is 1 with `sampledLightsEvaluateMaterialMode` above 0, `HairVoxels` is 1 while the strands' voxels are traced (`sampledLightsHairVoxelTraces`), the rays then marching them too, `FarField` is 0: the scene has no far field); without the rays, the surface under each pixel in grey |
+| `sampled-lights-shadow-caster-quality` | the drawn surface in grey with the label that names red a missing caster and blue a mismatching one: orange to red where the ray meets something farther than the drawn surface by more than `sampledLightsVisualizeShadowCasterMissingDistance`, blue where it meets something nearer by more than `sampledLightsVisualizeShadowCasterPoorDistance` (both relaxed at a grazing angle) |
 | `sampled-lights-complexity-opaque` | the light complexity of the surfaces: for the pixel under the debug cursor, the lights of its cell of the light grid sorted by the weight the sampling gives them, each as a row of text (its share of the sum, whether it was seen in the image before, its kind and its name) and a line and a symbol from the pixel to it (a sphere for a point light, an arc for a spot, two rectangles for a rectangle light, a line along its direction for a sun; the light under the mouse in orange), and the image in grey times a colour that goes from blue to red with the cost of sampling each pixel |
 | `sampled-lights-complexity-front-layer` | the same for the nearest translucent layer (needs `sampledLightsFrontLayer`) |
 | `sampled-lights-complexity-hair-strands`, `sampled-lights-complexity-volume`, `sampled-lights-complexity-translucency-volume` | the hair strands' and the volumes' light complexity: not drawn yet (the modes are refused, and the setting below writes that the input is not drawn) |
@@ -5153,6 +5166,9 @@ The sampled lighting (`sampledLights`) and the subsurface scattering have views 
 | `sampledLightsVisualize` | `0` | A numbered view in place of a mode: 1 the overview, 2 the shadow casters, 3 their quality, 4 and 5 the denoiser overviews (4 by 4 tiles of the views below), 6 the shading confidence, 7 the frames accumulated (red invalid, yellow the first), 8 the upsample mask (yellow: no history), 9 and 10 the diffuse and specular demodulation, 11 and 12 the deviation of each light over its mean (red a disocclusion, blue the spatial filter, violet both), 13 and 14 the history's own deviation (blue above the threshold `sampledLightsSpatialHistoryDeviation`), 15 and 16 the clamp of the history (yellow fully rejected). Each view is labelled at its foot. The setting wins over the mode. |
 | `sampledLightsVisualizeShadowCasterMissingDistance` | `0.5` | Metres a traced surface may lie behind the drawn one before it is called missing |
 | `sampledLightsVisualizeShadowCasterPoorDistance` | `0.25` | Metres it may lie in front before it is called mismatching |
+| `sampledLightsHardwareRayTracing` | `true` | The two shadow caster views (and the overview) cast one ray a pixel from the eye through the scene's triangles and paint what it meets: view 2 each instance in a colour of its own under a fixed light (the label gives `Materials`, `FarField` and `HairVoxels` as 0 or 1), view 3 the drawn surface in grey, orange to red where the ray meets something farther than the drawn surface (a missing caster) and blue where it meets something nearer (a mismatching one). `false`, or `rayTracingEnable` off, or a scene with no triangles to trace: the views paint the surface alone. The sky stays as the image shows it |
+| `sampledLightsEvaluateMaterialMode` | `0` | 0 the rays meet every triangle whole; 1 and 2 honour the surfaces' cut-out masks (the reference's any-hit and closest-hit evaluation, which meet the same surface here) |
+| `sampledLightsForceTwoSided` | `true` | The rays meet the back of one-sided triangles as well as their front; `false` culls the backs |
 | `sampledLightsVisualizeTileClassification` | `0` | The tiles of the classification over the image: 1 the surfaces' tiles, 2 the downsampled tiles (3 to 6 the hair strands' and the nearest layer's, drawn with their own images); each type in its colour with a count table |
 | `sampledLightsVisualizeLightComplexity` | `0` | The input of the light complexity view in place of a mode (a mode wins): 1 the surfaces, 2 the hair strands, 3 the nearest translucent layer, 4 the volume, 5 the translucency volume. Only 1 and 3 are drawn yet |
 | `sampledLightsVisualizeLightComplexityMaxLights` | `32` | The most lights the list shows, the heaviest first |
