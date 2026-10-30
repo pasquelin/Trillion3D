@@ -15,10 +15,14 @@ import {
   DEFERRED_BINDINGS,
   DEFERRED_LIGHT_FUNCTION_BINDINGS,
   DEFERRED_LIGHT_PROFILE_BINDINGS,
+  DEFERRED_TOON_TABLES,
 } from './bindings.ts'
 import { variantLabel, type ContractKey } from './contractCuts.ts'
 import {
   LIGHTS_BINDING_WGSL,
+  TOON_DATA_OUT_WGSL,
+  resultFrom,
+  resultOf,
   keyOfClass,
   litPassImports,
   withContactBend,
@@ -43,6 +47,7 @@ const PER_LIGHT_BINDINGS: LightingBindings = {
   perLightMask: DEFERRED_BINDINGS.perLightMask,
   lightFunction: DEFERRED_LIGHT_FUNCTION_BINDINGS,
   lightProfile: DEFERRED_LIGHT_PROFILE_BINDINGS,
+  toon: DEFERRED_TOON_TABLES,
 }
 
 /** The one light of the draw, on a pixel: the light term of the batched local loop (`LOCAL_LOOP_WGSL`) for the
@@ -64,6 +69,7 @@ fn perLightLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32
 export function perLightPassWgsl(key: ContractKey, tileClass: TileClass) {
   const lights = keyOfClass(key, tileClass, true)
   const { cut, head, tail } = litPassImports(lights, tileClass)
+  const data = !!cut.toonData
   return wgslBlock(
     `perLightPassWgsl(${variantLabel(lights)}, ${tileClass})`,
     [
@@ -81,11 +87,12 @@ export function perLightPassWgsl(key: ContractKey, tileClass: TileClass) {
       TILE_VERTEX_WGSL,
       PER_LIGHT_LOOP_WGSL,
       ...tail,
+      ...(data ? [TOON_DATA_OUT_WGSL] : []),
     ],
     `
-@fragment fn ${PER_LIGHT_ENTRY}(@builtin(position) pixel:vec4f)->@location(0) vec4f{${litPixelStatements(cut)}
+@fragment fn ${PER_LIGHT_ENTRY}(@builtin(position) pixel:vec4f)->${resultOf(data)}{${litPixelStatements(cut)}
  vsmMaskAt(coord);
- return lightOut(perLightLighting(albedo,base.a,normal.a,N,V,P,screenOcclusionAt(coord),perLight.rank));
+ return ${resultFrom(data, 'lightOut(perLightLighting(albedo,base.a,normal.a,N,V,P,screenOcclusionAt(coord),perLight.rank))')};
 }`,
   )
 }

@@ -103,7 +103,7 @@ function holdDecision(rt: WebgpuPagesRuntime) {
  * A view placed at a rectangle presents as before: the canvas around it is the main view's.
  */
 export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
-  const { run, gpu } = rt,
+  const { run } = rt,
     awaited = frameTargetsAwaited(rt),
     answered = !deviceAnswering(rt)
   if ((answered && !awaited) || rt.capture.capturing) {

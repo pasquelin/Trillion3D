@@ -11,7 +11,7 @@ import { PIXEL_MODEL } from '../../materials/surface/pixelModel.ts'
  * light, nothing. A program with no shadow code has no shadowed light: its terms are zero (`CATCHER_NONE`).
  *
  * The shading models a graph picks per pixel (`shadingModelWgsl.ts`): a pixel of one — skin, hair,
- * eye — takes the light from any side, so its shadow is read whichever side of its normal the light is on
+ * eye, toon — takes the light from any side, so its shadow is read whichever side of its normal the light is on
  * (`FACING_MODELS`), and its model's term joins the thin transmission's (`transmitted`), before the light's
  * colour and share multiply it; a hair gives that term alone (`hairOnly`). The split term of the
  * translucent layers holds none: none of its pixels wears a model.
@@ -76,6 +76,14 @@ export const scattered = (
   return diffuse+p[1]*share.y*${surface};
  }
  if(pixelModel==${PIXEL_MODEL.eye}u){scatterAdd(transmitted*share.x*${transmission});}`
+
+/** A toon pixel's whole term from a lamp (`toonLampLight`), its energy `strength`, the light's `color` and shares `share` (`toonLightOut`). */
+export const TOON_LAMP_TERM = `if(pixelModel==${PIXEL_MODEL.toon}u){return toonLightOut(toonLampLight(shading,rough,N,V,light,P,lamp,strength,terms),share,color);}`
+
+/** A toon pixel's whole term from a rectangle (`toonRectLight`), toward its centre `centre`, its colour times its light function `given` and its picture. */
+export const toonRectTerm = (out: Out) => `if(pixelModel==${PIXEL_MODEL.toon}u){
+   return ${out('toonLightOut(toonRectLight(light,r,shading,N,V,rough,centre,terms),share,light.colorIntensity.rgb*given*select(vec3f(1.0),rectColour(r,centre),r.slot.z>0.0))')};
+  }`
 
 /** The return of a hair's term alone, `give` the light's weight on it: a hair has neither diffuse nor
  *  specular lobe. */

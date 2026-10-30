@@ -44,7 +44,7 @@ import { shaderRun } from '../materials/texture/shaderRun.fixture.ts'
 // The vertex stage no longer leaves an item of another pass out (`otherPass`, the view's `translucencyPass` and the item's are gone): each draw expands its own items alone (`expand/expansionViews.ts`).
 // Retaken for the vertex stage's triangle word: the item's lighting channels and the material's facts it carries for the fragment (`TRI_LIGHTING_CHANNELS_SHIFT`, `TRI_MATERIAL_SHIFT`).
 // Retaken for the sky material's flag in the triangle word (`MATERIAL_FLAG.sky`): the opaque layer a sky surface writes (`blendSurface`).
-const VERTEX = 'c5b8547fd6c33381d3794e9f44ef7b59bce5de276873ef520cda9f83c90b59b2'
+const VERTEX = '205ac91f569c264ca5c4f879d3c6fb63c5fae0b4c892d52825eea6a06e99df73'
 // Retaken when the blend module took that vertex, the per-material responsiveness it writes for
 // the temporal pass where its material asks one, and the stored tangents' frame in a
 // module of its own (`tangentFrameWgsl.ts`) for the normal map and the lobes both, and then the
@@ -150,7 +150,7 @@ const VERTEX = 'c5b8547fd6c33381d3794e9f44ef7b59bce5de276873ef520cda9f83c90b59b2
 // Retaken for the simple lights' word (30/10): the lights' tile slice declares the simple light word, `sampledTakes` reads it, and its text holds no backtick.
 // Retaken for the sky meshes capture (29/10): a sky surface writes an opaque layer (`blendSurface`: its cutout alone reads the base alpha),
 // and the fog beyond a ray is worked out over any reach (`fogBeyondAlong`, `fogBeyondWith` its endless one).
-const BLEND = '233855545faa24e86c4a435cf9be28368043e879e4e5da7c7dd7d8798ebafb5d'
+const BLEND = '53daaeb25396232fbebed4eb8831c9ea6d37ec5899e0d355e5f0b5ee224997bc'
 
 const CUTS = ['narrow', 'unshadowed', 'rectless', 'sunless', 'localless', 'lobeless'] as const
 /** Every contract key: bit `k` of the rank sets `CUTS[k]`. */

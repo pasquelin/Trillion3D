@@ -10,6 +10,7 @@ import { FULL_CONTRACT } from './contractCuts.ts'
 import { MAX_10_BIT_FLOAT } from '../../../../math/src/constants.ts'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 import { LIT_PIXEL_WGSL } from './litSurfaceWgsl.ts'
+import { retryLanded } from './compileLedger.ts'
 
 const CLEAR = clearValueOf(0x204060)
 
@@ -175,20 +176,22 @@ test('the indirect pass names the screen probes result: a group is made for each
   const frame = (screenIndirect: GPUTextureView | undefined) => {
     lighting.bind(h.surface, depth, hdr, true, { ...bounced, screenIndirect })
     lighting.light(h.encoder, hdr)
+    // What the frame bound, read right after it.
+    return !!lighting.litProgram?.bounce
   }
   // The bounce program asked, and compiled: the frames before it are lit by the one without bounce.
-  frame(turns[0])
+  assert.equal(lighting.bounceReady(bounced), false, 'not yet the program lent')
+  assert.equal(frame(turns[0]), false, 'bound, not yet picked')
   await lighting.settle()
-  assert.equal(lighting.bouncing, false, 'bound, not yet picked')
-  frame(turns[0])
-  assert.equal(lighting.bouncing, true)
+  assert.equal(frame(turns[0]), true, 'compiled: the frame binds the bounce program')
+  assert.equal(lighting.bounceReady(bounced), true)
   const first = h.bindGroups.length
-  frame(turns[1])
+  assert.equal(frame(turns[1]), true)
   assert.equal(h.bindGroups.length, first + 1, 'another result: another group, the indirect pass’s')
-  frame(turns[0])
-  frame(turns[1])
+  assert.equal(frame(turns[0]), true)
+  assert.equal(frame(turns[1]), true)
   assert.equal(h.bindGroups.length, first + 1, 'each result finds its group held')
-  frame(undefined)
+  assert.equal(frame(undefined), true)
   assert.equal(h.bindGroups.length, first + 2, 'none cast: the stand-in, a group of its own')
   lighting.dispose()
 })
@@ -201,4 +204,31 @@ test('a light term in the lit image is multiplied by the pre-exposure and not he
   )
   // Above what the emission may be (`MAX_EMISSIVE`, half the 10-bit float's greatest) once multiplied.
   assert.deepEqual(lightOut([MAX_10_BIT_FLOAT, 1, 0]), [2 * MAX_10_BIT_FLOAT, 2, 0, 0])
+})
+
+test('a pipeline that lands on a retry redraws a view at rest, as a program that lands does; a lighting released hears no more', async () => {
+  const h = gpuHarness()
+  let redraws = 0
+  const lighting = await createDeferredLighting(h.device, () => redraws++)
+  retryLanded(h.device)
+  assert.equal(redraws, 1)
+  lighting.dispose()
+  retryLanded(h.device)
+  assert.equal(redraws, 1)
+})
+
+test('a lighting whose construction throws leaves no retry hearer behind', async () => {
+  const h = gpuHarness()
+  let redraws = 0
+  const create = h.device.createBuffer.bind(h.device)
+  h.device.createBuffer = (descriptor) => {
+    if (descriptor.label === 'Trillion3D tile draws') throw new Error('REFUSED')
+    return create(descriptor)
+  }
+  await assert.rejects(
+    createDeferredLighting(h.device, () => redraws++),
+    /REFUSED/,
+  )
+  retryLanded(h.device)
+  assert.equal(redraws, 0, 'nobody hears the retries of a lighting that was never made')
 })

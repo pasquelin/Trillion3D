@@ -10,7 +10,7 @@ import type { VisMaterial } from '../../visibility/materialType.ts'
 
 /**
  * THE SHADING MODEL OF A PIXEL, for the models beside the physical one that a graph picks per pixel
- * (`GRAPH_SHADING_MODELS`): the thin subsurface, the preintegrated skin, the subsurface profile, the hair and the eye. A pixel of one is lit as the
+ * (`GRAPH_SHADING_MODELS`): the thin subsurface, the preintegrated skin, the subsurface profile, the hair, the eye and the toon. A pixel of one is lit as the
  * physical model in everything the low three bits of its surface flags say (`MODEL_FLAG`): it reflects,
  * is classed and shadowed as one, and a program that knows nothing of the others lights it so. Its
  * model's number travels in the four bits above the first-person mark (`PIXEL_MODEL_SHIFT`), the
@@ -23,13 +23,18 @@ import type { VisMaterial } from '../../visibility/materialType.ts'
 export const PIXEL_MODEL_SHIFT = 25
 export const PIXEL_MODEL_MASK = 15
 
-/** The models a pixel carries, by the number of the graph's `shadingModel` output. */
+/** The number of the toon model: the next after the graph's own (`GRAPH_SHADING_MODELS`, 0 to 11), which no graph outputs. */
+const TOON_MODEL_NUMBER = 12
+
+/** The models a pixel carries, by the number of the graph's `shadingModel` output; the toon model's is the next one, the material's alone (its
+ *  parameters, `toonProfile`, no graph wires it). */
 export const PIXEL_MODEL = {
   subsurface: GRAPH_SHADING_MODELS.subsurface,
   skin: GRAPH_SHADING_MODELS.preintegratedSkin,
   profile: GRAPH_SHADING_MODELS.subsurfaceProfile,
   hair: GRAPH_SHADING_MODELS.hair,
   eye: GRAPH_SHADING_MODELS.eye,
+  toon: TOON_MODEL_NUMBER,
 } as const
 
 /** The models whose pixels the subsurface scattering works over, and whose light the lit image holds apart: the subsurface profile and the
@@ -95,6 +100,7 @@ const SHADING_MODEL_OF_NAME: ReadonlyMap<string | undefined, number> = new Map([
   ['subsurfaceProfile', PIXEL_MODEL.profile],
   ['eye', PIXEL_MODEL.eye],
   ['hair', PIXEL_MODEL.hair],
+  ['toon', PIXEL_MODEL.toon],
   ['unlit', GRAPH_SHADING_MODELS.unlit],
 ])
 
@@ -117,7 +123,7 @@ export const quantise8x2 = wgslFn(
 )
 
 /** The shading models' switches as the bits the passes read them by: an eye's iris with a normal of its own (`irisNormal`), a clear
- *  coat with a bottom normal (`clearCoatNormal`), the rough diffuse (`shadingRoughDiffuse`), the exact visibility of the specular lobes (`shadingAccurate`), and the two the subsurface scattering sets (`subsurfaceSwitches`): whether it runs
+ *  coat with a bottom normal (`clearCoatNormal`), the rough diffuse (`shadingRoughDiffuse`), the exact visibility of the specular lobes (`shadingAccurate`), the toon diffuse applied once to the sum of the lights (`toonUnifiedDiffuse`), the toon reflections quantised by the profile's ramp (`toonReflectionQuantization`), and the two the subsurface scattering sets (`subsurfaceSwitches`): whether it runs
  *  this image, and whether the lit image holds its checkerboard. */
 export const MODEL_SWITCH = {
   irisNormal: 1,
@@ -126,15 +132,19 @@ export const MODEL_SWITCH = {
   subsurfaceCheckerboard: 8,
   roughDiffuse: 16,
   accurate: 32,
+  toonUnified: 64,
+  toonQuantize: 128,
 } as const
 export type ModelSwitch = keyof typeof MODEL_SWITCH
 
-/** The settings' switches of the shading models (`irisNormal`, `clearCoatNormal`, `shadingRoughDiffuse`, `shadingAccurate`), as one word of `MODEL_SWITCH` bits. */
+/** The settings' switches of the shading models (`irisNormal`, `clearCoatNormal`, `shadingRoughDiffuse`, `shadingAccurate`, `toonUnifiedDiffuse`, `toonReflectionQuantization`), as one word of `MODEL_SWITCH` bits. */
 const modelSwitches = (rt: Parameters<typeof readShadingSetting>[0]) =>
   (readShadingSetting(rt, 'irisNormal') ? MODEL_SWITCH.irisNormal : 0) |
   (readShadingSetting(rt, 'clearCoatNormal') ? MODEL_SWITCH.clearCoatNormal : 0) |
   (readShadingSetting(rt, 'shadingRoughDiffuse') ? MODEL_SWITCH.roughDiffuse : 0) |
-  (readShadingSetting(rt, 'shadingAccurate') ? MODEL_SWITCH.accurate : 0)
+  (readShadingSetting(rt, 'shadingAccurate') ? MODEL_SWITCH.accurate : 0) |
+  (readShadingSetting(rt, 'toonUnifiedDiffuse') ? MODEL_SWITCH.toonUnified : 0) |
+  (readShadingSetting(rt, 'toonReflectionQuantization') ? MODEL_SWITCH.toonQuantize : 0)
 
 /** Whether the switch `name` is set in the word `switches`, as 1 or 0 (a uniform's value). */
 export const switchOn = (switches: number, name: ModelSwitch) =>

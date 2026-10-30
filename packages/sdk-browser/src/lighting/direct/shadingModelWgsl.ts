@@ -13,10 +13,11 @@ import { SHADING_MODEL_STATE_WGSL } from './shadingModelState.ts'
 import { PROFILE_TRANSMISSION_WGSL } from './profileModelWgsl.ts'
 import { SUBSURFACE_BXDF_WGSL } from './subsurfaceBxdfWgsl.ts'
 import { SHADOW_TERMS_WGSL } from './shadowTermsWgsl.ts'
+import { TOON_INDIRECT_WGSL } from './toonModelWgsl.ts'
 
 /**
  * THE SHADING MODELS A GRAPH PICKS PER PIXEL (`../../materials/surface/pixelModel.ts`): the
- * preintegrated skin, the subsurface profile, the hair and the eye, as the lighting holds them. A pixel of one reads its model
+ * preintegrated skin, the subsurface profile, the hair, the eye and the toon, as the lighting holds them. A pixel of one reads its model
  * and what the model needs once (`setPixelModel`, from its surface flags and the thin transmission's
  * target) and sets the state below, which the light term and the indirect light then read; a pixel of
  * none leaves it zero, and a program that never sets it runs every term as it was.
@@ -37,12 +38,14 @@ import { SHADOW_TERMS_WGSL } from './shadowTermsWgsl.ts'
  *   fibre — the normal is the fibre's direction, pointing to its root —, and a multiple scattering
  *   approximation, its scatter amount the metalness the pixel stored (`modelScatter`). Its indirect diffuse colour is the
  *   hair's response to the light from the direction its fibre is seen along (`hairEnvironment`), and it reflects nothing.
+ * - The toon: no diffuse or specular lobe of the physical model; the light is the toon closure (`toonLampLight`, `toonRectLight`,
+ *   `toonModelWgsl.ts`), read from the pixel's toon profile and pattern coordinates.
  * - The eye: the physical model's specular lobe on a dielectric whose grazing reflectance is one, and in
  *   place of its diffuse lobe a term that lights the sclera by the light's cosine and the iris by the
  *   cosine of the iris normal with a caustic (`eyeTransmission`), mixed by the iris mask, under what the
  *   specular lobe reflects.
  */
-const { subsurface, skin, profile, hair, eye } = PIXEL_MODEL
+const { subsurface, skin, profile, hair, eye, toon } = PIXEL_MODEL
 
 /** The preintegrated table, read as a texture of `SKIN_TABLE_SIZE` texels a side is: its colours in
  *  sRGB, decoded at each texel before the bilinear blend, the coordinates clamped to the edge. */
@@ -144,11 +147,20 @@ fn eyeTransmission(rgb:vec3f,N:vec3f,V:vec3f,L:vec3f,cosine:f32,sine:f32,rect:bo
  *   an eye's iris has a normal of its own (`irisDelta`), once a pixel; it gives back the base the pixel is lit with: the metalness a hair and an eye store
  *   (a scatter amount, an iris distance) is not a metal's.
  * - `modelDiffuse`: the diffuse colour of the indirect light of a pixel whose plain one is `d` (a colour and
- *   a metalness): a skin adds its subsurface colour, a hair is its response to the environment.
+ *   a metalness): a skin adds its subsurface colour, a hair is its response to the environment, a toon's is scaled by its profile's.
  */
 export const SHADING_MODEL_PIXEL_WGSL = wgslBlock(
   'SHADING_MODEL_PIXEL_WGSL',
-  [HAIR_WGSL, SUBSURFACE_BXDF_WGSL, octDecode, octEncode, SURFACE_F0_WGSL, quantise8x2, quantise8],
+  [
+    HAIR_WGSL,
+    SUBSURFACE_BXDF_WGSL,
+    TOON_INDIRECT_WGSL,
+    octDecode,
+    octEncode,
+    SURFACE_F0_WGSL,
+    quantise8x2,
+    quantise8,
+  ],
   `
 fn modelIsSkinLike(model:u32)->bool{return model==${skin}u||model==${subsurface}u;}
 fn setPixelModel(model:u32,data:vec4f,base:vec4f,N:vec3f,V:vec3f,rough:f32,irisDelta:bool)->vec4f{
@@ -162,6 +174,10 @@ fn setPixelModel(model:u32,data:vec4f,base:vec4f,N:vec3f,V:vec3f,rough:f32,irisD
  if(model==${profile}u){
   modelProfile=u32(max(round(data.x),0.0));
   modelOpacity=data.w;
+ }
+ if(model==${toon}u){
+  modelProfile=u32(max(round(data.x),0.0));
+  modelToonUv=data.yz;
  }
  if(model==${hair}u){
   modelScatter=base.a;
@@ -189,6 +205,7 @@ fn setPixelModel(model:u32,data:vec4f,base:vec4f,N:vec3f,V:vec3f,rough:f32,irisD
 fn modelDiffuse(d:vec4f)->vec4f{
  if(modelIsSkinLike(pixelModel)){return vec4f(d.rgb*(1.0-d.w)+modelColour,0.0);}
  if(pixelModel==${hair}u){return vec4f(modelEnvironment,0.0);}
+ if(pixelModel==${toon}u){return toonIndirectDiffuse(d);}
  return d;
 }`,
 )

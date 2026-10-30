@@ -1004,7 +1004,7 @@ explorer.removeReflectionCapture('hall')
 `gpuShadeStage` (`0`, the default: the whole shading kernel; `1` to `5`: a diagnostic that stops each class's shading after its binned pixel, its triangle's header and indices, its vertex fetch and transform, its interpolation and derivatives, its material and surface, writing no surface — the image is not the scene's —, each class compiled again; with `gpuTimingDetail`, the difference of two stages' `Trillion3D material shading <class key>` times is the stage's cost),
 `shadeBinningMode` (`'auto'`: each material's pixels binned as its shading asks — one by one for
 every material of the engine —, `'pixel'` one by one, `'quad'` by 2 × 2 quad), the image the same in
-each mode, `shadingRoughDiffuse` (`true`, the default: a lit surface's diffuse light is the energy-preserving rough diffuse of a new project, brighter against the light and darker at grazing views as the roughness grows, a rectangle light's and the indirect light's staying Lambert's; `false`: Lambert's diffuse whatever the roughness), `shadingAccurate` (`true`, the default: the visibility of the lit surfaces' specular lobes is the exact joint Smith term of the GGX lobe; `false`: its approximation), `irisNormal` (`false`, the default: an eye's iris is lit by the direction its `tangent` output gives; `true`: by an iris normal of its own, `clearCoatBottomNormal`) and `clearCoatNormal` (`false`, the default: a clear coat and its base share one normal; `true`: the base keeps the normal of a graph's `clearCoatBottomNormal` output or of a material's normal map, and the coat the `normal` output's or its own normal map's, their difference kept as the reference keeps it, in 8 bits, and the coat's highlight found without the Newton step). A write
+each mode, `toonReflectionQuantization` (`false`, the default: the reflections of a toon surface are smooth; `true`: where the toon profile's `specularIndirectRampRepetition` is above 0, the logarithm of the reflections has its value repeated that many times and the fraction of it read in the profile's `specularIndirectRamp`; the profile's `specularIndirectScale` applies either way), `toonUnifiedDiffuse` (`false`, the default: each light applies the diffuse ramp of a toon surface to its own diffuse light; `true`: each light's draw, with its own shadows, adds its diffuse light unramped, with its weight and the cosine it lit at, to two more targets of the lit image's pass — they exist only while the setting is on and a material is toon —, and a step after the lights applies the ramp once, at the weighted mean cosine, to the sum), `toonProfileResolution` (`64`, the default and the least; up to `512`, rounded up to a multiple of 8: the texels the ramps and the pattern images of the toon profiles are baked at), `shadingRoughDiffuse` (`true`, the default: a lit surface's diffuse light is the energy-preserving rough diffuse of a new project, brighter against the light and darker at grazing views as the roughness grows, a rectangle light's and the indirect light's staying Lambert's; `false`: Lambert's diffuse whatever the roughness), `shadingAccurate` (`true`, the default: the visibility of the lit surfaces' specular lobes is the exact joint Smith term of the GGX lobe; `false`: its approximation), `irisNormal` (`false`, the default: an eye's iris is lit by the direction its `tangent` output gives; `true`: by an iris normal of its own, `clearCoatBottomNormal`) and `clearCoatNormal` (`false`, the default: a clear coat and its base share one normal; `true`: the base keeps the normal of a graph's `clearCoatBottomNormal` output or of a material's normal map, and the coat the `normal` output's or its own normal map's, their difference kept as the reference keeps it, in 8 bits, and the coat's highlight found without the Newton step). A write
 names the settings it changes, `null` one's default; a value of another kind is refused by name
 ([ENGINE.md](ENGINE.md#material-surfaces)); changing `irisNormal`, `clearCoatNormal`, `shadingRoughDiffuse` or `shadingAccurate` redraws a still view
 from the next frame.
@@ -1019,6 +1019,9 @@ world.shading = { gpuShadeStage: 3 } // each class's shading stops after its ver
 world.shading = { clearCoatNormal: true } // a clear coat keeps the clearCoatBottomNormal output as its base's normal
 world.shading = { shadingRoughDiffuse: false } // Lambert's diffuse everywhere, whatever the roughness
 world.shading = { shadingAccurate: false } // the approximate specular visibility, a mobile project's
+world.shading = { toonReflectionQuantization: true } // the toon reflections quantised by their profile's specularIndirectRamp, where its repetition is above 0
+world.shading = { toonUnifiedDiffuse: true } // the toon diffuse ramp applied once to the sum of the lights, so overlapping lights give one set of bands
+world.shading = { toonProfileResolution: 128 } // the toon ramps and pattern images baked at 128 texels, finer bands and patterns
 ```
 
 `world.exposureSettings` holds the automatic exposure's settings, each an option of `createWorld`
@@ -1932,7 +1935,7 @@ g.set('tint', [1, 0.7, 0.5]) // the next image: only a value is written, nothing
 - **Fresnel.** `fresnel` is `pow(1 - max(0, n · v), exponent) × (1 - base) + base`, `n` the pixel's normal (or the wire `normal`), `v` the unit vector to the camera (`cameraVector`); the power's base is held to at least 0.0001. `desaturation` takes a colour (or a scalar, repeated) towards `dot(colour, luminance)`, the luminance weights of the sRGB working space (0.2126, 0.7152, 0.0722) unless named: by `fraction`, or, with none wired, to the grey itself (a scalar).
 - **Not read.** The outputs that move a pixel or change a shading model — a displacement, a pixel depth offset, a shading model, a front material, a surface thickness, the customized texture coordinates `0` to `7` and the packed material attributes — are not offered: they need the programmable raster this engine does not have yet. On a translucent surface the position of the object (`objectPosition`) reads zero and the pixel normal is the vertex normal.
 - **A graph the pass refuses** (a node or output it cannot compile) is named once (`material-graph-refused`) and the surface is drawn from the material's parameters. A scene wears at most 256 programs of the opaque resolve at once, each over its geometry's attributes (a program no surface wears gives its place back): past them a surface is drawn from its parameters and the engine says so.
-- **A pipeline the device refuses to compile** is named once for each refusal (`pipeline-refused`, with the pipelines it names): the pass that needs it is left out of the image, which stays as drawn without it, and the engine asks the device again every 240 frames.
+- **A pipeline the device refuses to compile** is named once per pipeline (`pipeline-refused`, with the pipelines it names): the pass that needs it is left out of the image, which stays as drawn without it, and the engine asks the device again after a wait that starts at 4 seconds and doubles at each refusal in a row (up to about 4 minutes, each wait spread by a quarter either way), for a pipeline still in use; a refusal that cannot pass (the shader or its layout is wrong, the device was lost) is not tried again.
 - **A graph that joins a running world** (a material assigned, a node, an output or a texture written into a graph a material wears) makes its surfaces wear another program. The engine compiles it while the frame waits, showing the previous image, and does not open the session again; the cutouts and offsets the rasters evaluate join the modules that hold them the same way, and the engine says so once (`material-graph-rasters-late`). A value written with `g.set` writes the values alone: nothing compiles. When an offset joins, the temporal anti-aliasing starts its history again.
 
 **Opacity mask (the cutout).** A graph that wires `opacityMask` makes a masked surface: a pixel is kept where `opacityMask` is not below the clip value, cut otherwise, in every pass that decides what a surface covers — the visibility rasters, the dicing of a displaced surface and the shadow maps (a leaf casts the shadow of its shape). The clip value is the material's `opacityMaskClipValue` (any number: the output is compared with it as it comes, 0 keeps every pixel whose output is not below 0, and the output of a graph is not held to a range), else its `alphaTest` where above 0 (a glTF material keeps its `alphaCutoff`), else 0.3333. The mask is the opaque class's: a translucent surface (`transparent: true`) reads `opacity`, never `opacityMask`.
@@ -2155,7 +2158,7 @@ so a view lit by the sun and one in shade land on the same average whatever the 
 number above zero is the manual multiplier, used as it is (`false` is 1). A view lit by no declared
 lamp shows its albedo as it is, with no exposure and no curve. `world.toneMapping` is `'filmic'` by
 default ([ENGINE.md](ENGINE.md#exposure-and-the-display-curve)). `meshNormal` and
-`meshDepth` surfaces are output as stored. A map a family never reads (a `meshToon` `gradientMap`,
+`meshDepth` surfaces are output as stored. A map a family never reads (a `meshStandard` `gradientMap`, which no model reads,
 a `meshMatcap` `map`, a `meshMatcap` or `meshNormal` `normalMap`) is refused by name;
 `meshMatcap`, `meshNormal` and `meshDepth` ignore an `aoMap`. Transparent surfaces follow another
 lighting rule: [ENGINE.md](ENGINE.md#transparent-surfaces).
@@ -4210,7 +4213,7 @@ const skin = material.meshPhysical({
 
 **The shading model of a material** (`shadingModel`, the reference's own names: `defaultLit` the default, `unlit`, `subsurface`,
 `preintegratedSkin`, `clearCoat`, `subsurfaceProfile`, `twoSidedFoliage`, `hair`, `cloth`, `eye`, `singleLayerWater`,
-`thinTranslucent`, and `fromMaterialExpression`, the model the `shadingModel` output of the material's graph gives each pixel; under any
+`thinTranslucent`, `toon` (the model of `material.meshToon`, no graph picks it: see below), and `fromMaterialExpression`, the model the `shadingModel` output of the material's graph gives each pixel; under any
 other name the graph's output is ignored, as the reference ignores it). With no graph, as material parameters: `unlit` shows `emissive`
 (times `emissiveIntensity`, and its map) alone; `preintegratedSkin` is lit by `subsurfaceColor` and `subsurfaceOpacity`; `subsurfaceProfile` by
 `subsurfaceProfile` and `subsurfaceOpacity`; `eye` by `irisMask` (the share that is iris, 1 by default), `irisDistance` (0.1 by default, the
@@ -4219,6 +4222,39 @@ the mesh stores none), `metalness` as its scatter amount, and `roughness`. The c
 `clearcoatRoughness`, `sheen`, `sheenColor`, `sheenRoughness`), the thin subsurface (`subsurface`, `twoSidedFoliage`) the `subsurfaceColor` of a
 double-sided surface. `singleLayerWater` and `thinTranslucent` stay node-driven, as in the reference: their inputs are the water's and the thin
 translucent's output nodes of the material's graph.
+
+**The toon material** (`material.meshToon`, a standard surface of the toon shading model: `color`, `metalness`, `roughness`, `specularIntensity`,
+`emissive`, the normal map and `anisotropy` are read as a standard surface's) lights its pixels in bands: the diffuse light goes through the ramp of
+its `toonProfile` at the cosine of the normal with the light, remapped from [-1, 1] to [0, 1], and the specular lobe, divided by its peak, through
+the specular ramp. The profile (`toonProfile`, any of its fields, the others the default profile's; none: the default profile) holds `diffuseRamp`
+and `specularRamp` (lists of `[time, value]` keys, a value a grey or `[r, g, b]`, linear between keys: the defaults are four diffuse bands at 0, 0.25,
+0.5 and 0.75 and a hard specular at the lobe's middle), `diffuseRampOffsetTexture` / `diffuseRampOffsetStrength` (0) / `diffuseRampOffsetSize` (1) and
+the same three for the specular (an image whose grey level, remapped to [-1, 1], moves the ramp's input over the surface, repeated `size` times
+over the fraction of the mesh's first texture coordinates), `shadowHatchingPatternTexture` (an image whose
+red, green, blue and alpha channels draw the shadow from light to dark), `shadowHatchingPatternDistributionRamp` (the shadow in, the weight out, a
+list of `[time, value]` keys; the default is the identity), `shadowHatchingPatternSize` (1) and `shadowHatchingPatternStrength` (1),
+`shadowExtinctionCoefficient` (10, per metre, 0 to 100: how deep light goes into the surface for the shadow maps — the light that survives an occluder distance
+of `d` centimetres is `exp(-d * shadowExtinctionCoefficient / 100)`, a value of 1 leaving 36% after a metre), `diffuseIndirectScale` (1),
+`specularIndirectScale` (1, the scale of the reflections), `specularIndirectRamp` (the keys `[time, value]` of the ramp that quantises the reflections; the default is the identity) with
+`specularIndirectRampRepetition` (0: no quantisation; above 0, how many times the ramp repeats over the range of the reflections' luminance, once the setting
+`toonReflectionQuantization` of `world.shading` is on) and `diffuseRampIncludesShadow` (`false`: the shadow multiplies the banded diffuse; `true`: it multiplies the ramp's
+input). The offset and hatching images repeat over ten times the fraction of the mesh's first texture coordinates (the repetition the sizes multiply). A profile
+is held while a material wears it and its row is free again when the material is disposed or declared with another profile: up to 255 distinct profiles at once, 16 of which may wear images.
+
+```js
+const toon = material.meshToon({
+  color: 0xe0a060,
+  roughness: 0.5,
+  toonProfile: {
+    // Three bands and a bright rim of specular, the middle band tinted.
+    diffuseRamp: [[0, 0.1], [0.4, 0.1], [0.41, [0.9, 0.6, 0.5]], [0.7, [0.9, 0.6, 0.5]], [0.71, 1], [1, 1]],
+    specularRamp: [[0, 0], [0.8, 0], [0.81, 1], [1, 1]],
+    diffuseRampOffsetTexture: halftone, // a Texture whose grey level offsets the bands over the surface
+    diffuseRampOffsetStrength: 0.15,
+    diffuseRampOffsetSize: 8,
+  },
+})
+```
 
 | Setting                                    | Meaning                                                                                                                   | Default |
 | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- | ------- |

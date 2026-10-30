@@ -126,10 +126,19 @@ function lightPassShaders() {
       [`INDIRECT_SKY_SHADOWING_CLASS_${name}`]: wgslModule(
         indirectPassWgsl({ bounce: false, skyShadowing: true, tileClass }),
       ),
+      // The program that writes the toon data (`ContractKey.toonData`, `toonUnifiedDiffuse`): the passes of the lights write it, the local one reads it back.
+      [`SUN_TOON_DATA_CLASS_${name}`]: wgslModule(sunPassWgsl(TOON_DATA_CONTRACT, tileClass)),
+      [`LOCAL_TOON_DATA_CLASS_${name}`]: wgslModule(localPassWgsl(TOON_DATA_CONTRACT, tileClass)),
+      [`PER_LIGHT_TOON_DATA_CLASS_${name}`]: wgslModule(
+        perLightPassWgsl(TOON_DATA_CONTRACT, tileClass),
+      ),
     })
   }
   return out
 }
+
+/** The key of the program that writes the toon data. */
+const TOON_DATA_CONTRACT = { ...FULL_CONTRACT, toonData: true }
 
 /** The lit image's passes: the classification of the surfaces into tiles, the first pass, the lights
  *  and the indirect light by key and by class, the fog. */

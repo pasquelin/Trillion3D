@@ -1,6 +1,7 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { DEFERRED_BINDINGS } from './bindings.ts'
 import {
+  TILE_CLASS,
   TILE_CLASS_NAMES,
   TILE_CLASSES,
   TILE_PIXELS,
@@ -40,6 +41,33 @@ const ADDITIVE_LIGHT: GPUBlendState = {
   alpha: { operation: 'add', srcFactor: 'one', dstFactor: 'one' },
 }
 
+/** The formats of the toon data the lights' passes add to beside the lit image, when the program writes it (`ContractKey.toonData`): the pre-exposed diffuse light of the
+ *  toon pixels, unramped, and their weight and weighted cosine. Half floats, which the sums of many lights stay inside of and which a target can blend. */
+export const TOON_DATA_FORMATS = {
+  diffuse: 'rgba16float',
+  weights: 'rg16float',
+} as const satisfies Record<string, GPUTextureFormat>
+
+/** The colour write mask of all four channels, and of none. */
+const WRITE_ALL = 0xf
+const WRITE_NONE = 0
+
+/**
+ * The targets of a pass of lights: the lit image, and, in a program that writes the toon data, its two targets — written by the passes of the classes that hold toon pixels
+ * (`writesToon`), held by the others, whose pipelines write none of it (a pipeline of the pass names every target the pass has).
+ */
+const lightTargets = (toon: boolean, writesToon: boolean): GPUColorTargetState[] => {
+  const targets: GPUColorTargetState[] = [{ format: HDR_FORMAT, blend: ADDITIVE_LIGHT }]
+  if (toon)
+    for (const format of Object.values(TOON_DATA_FORMATS))
+      targets.push({
+        format,
+        blend: ADDITIVE_LIGHT,
+        writeMask: writesToon ? WRITE_ALL : WRITE_NONE,
+      })
+  return targets
+}
+
 /**
  * The descriptor of the pipeline of one class of a tile pass: the fragment stage `entryPoint` of
  * `module`, over the tiles of `tileClass` (`TILE_VERTEX_WGSL`), on `layout`.
@@ -47,14 +75,14 @@ const ADDITIVE_LIGHT: GPUBlendState = {
 const tilePipelineDescriptor = (
   device: GPUDevice,
   module: GPUShaderModule,
-  layout: GPUBindGroupLayout,
+  layout: GPUBindGroupLayout | readonly GPUBindGroupLayout[],
   entryPoint: string,
   targets: GPUColorTargetState[],
   label: string,
   tileClass: TileClass,
 ): GPURenderPipelineDescriptor => ({
   label,
-  layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
+  layout: device.createPipelineLayout({ bindGroupLayouts: [layout].flat() }),
   vertex: { module, entryPoint: 'tile', constants: { TILE_CLASS: tileClass } },
   fragment: { module, entryPoint, targets },
   primitive: { topology: 'triangle-strip' },
@@ -68,22 +96,27 @@ export const moduleOfClass = <M>(modules: readonly M[], tileClass: TileClass) =>
 /**
  * The descriptor of the pipeline of a class of a lit pass named `label`, that adds its light to the lit image: the fragment stage `entry`
  * of the module `modules` give the class, over the tiles of the class, on `layout`. The one description of a lit program's
- * pipelines, built at once (`litProgram.ts`) or prepared (`perLightProgram.ts`).
+ * pipelines, built at once (`litProgram.ts`) or prepared (`perLightProgram.ts`). In a program that writes the toon data (`toon`) the pass has the toon targets
+ * too, written by the entries of the classes that hold the models (`toon.writes`, false for an entry that is not a light's, as the indirect light's or the shadows' view).
  */
 export const lightPipelineDescriptor = (
   device: GPUDevice,
   modules: readonly GPUShaderModule[],
-  layout: GPUBindGroupLayout,
+  layout: GPUBindGroupLayout | readonly GPUBindGroupLayout[],
   entry: string,
   label: string,
   tileClass: TileClass,
+  toon: { writes: boolean } | undefined = undefined,
 ) =>
   tilePipelineDescriptor(
     device,
     moduleOfClass(modules, tileClass),
     layout,
     entry,
-    [{ format: HDR_FORMAT, blend: ADDITIVE_LIGHT }],
+    lightTargets(
+      !!toon,
+      !!toon?.writes && Math.min(tileClass, modules.length - 1) !== TILE_CLASS.simple,
+    ),
     `${label}_${TILE_CLASS_NAMES[tileClass]}`,
     tileClass,
   )

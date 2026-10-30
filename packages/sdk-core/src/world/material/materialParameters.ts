@@ -1,6 +1,7 @@
 import type { Texture } from '../texture/texture.ts'
 import type { MaterialShadingModel } from './shadingModel.ts'
 import type { SubsurfaceProfileInput } from '../../lighting/subsurfaceProfile/profile.ts'
+import type { ToonProfileInput } from '../../lighting/toonProfile/profile.ts'
 import type { MaterialGraph } from './graph/api.ts'
 import type { GraphData } from './graph/graph.ts'
 import type { PhysicsMaterialPreset } from '../../physics/options.ts'
@@ -45,7 +46,7 @@ export interface MaterialParameters {
   /** Optional linear transmission tint, multiplied by subsurfaceColor. */
   subsurfaceMap?: Texture | null
   /** The shading model of the surface: `defaultLit` (the default), `unlit`, `subsurface`, `preintegratedSkin`, `clearCoat`, `subsurfaceProfile`,
-   *  `twoSidedFoliage`, `hair`, `cloth`, `eye`, `singleLayerWater`, `thinTranslucent`, or `fromMaterialExpression`, where the `shadingModel` output
+   *  `twoSidedFoliage`, `hair`, `cloth`, `eye`, `singleLayerWater`, `thinTranslucent`, `toon` (`material.meshToon`'s, no graph), or `fromMaterialExpression`, where the `shadingModel` output
    *  of the material's graph decides each pixel's. Without a graph, `preintegratedSkin` (lit by `subsurfaceColor` and `subsurfaceOpacity`),
    *  `subsurfaceProfile` (`subsurfaceProfile`, `subsurfaceOpacity`) and `eye` (`irisMask`) light their pixels as the model; `clearCoat` and `cloth` are
    *  the `clearcoat` and `sheen` parameters, `subsurface` and `twoSidedFoliage` the `subsurfaceColor` of a double-sided surface. A graph that wires
@@ -63,6 +64,13 @@ export interface MaterialParameters {
    *  `meanFreePathDistance`, `worldUnitScale`, `tint`, `transmissionTintColor`, `distanceScale`, `burley`, `meanFreePath`,
    *  `implementation`); the fields it leaves out are the default skin's. @defaultValue the default skin's */
   subsurfaceProfile?: SubsurfaceProfileInput | null
+  /** The toon profile of a `toon` surface (`material.meshToon`): the ramps that turn the light into bands, the images that offset them, the shadow's
+   *  hatching and the share of the indirect light kept (see `ToonProfile`: `diffuseRamp`, `diffuseRampOffsetTexture`, `diffuseRampOffsetStrength`,
+   *  `diffuseRampOffsetSize`, `specularRamp`, `specularRampOffsetTexture`, `specularRampOffsetStrength`, `specularRampOffsetSize`,
+   *  `shadowHatchingPatternDistributionRamp`, `shadowHatchingPatternTexture`, `shadowHatchingPatternSize`, `shadowHatchingPatternStrength`,
+   *  `diffuseIndirectScale`, `diffuseRampIncludesShadow`); the fields it leaves out are the default profile's.
+   *  A surface that names none wears the default profile. @defaultValue the default profile */
+  toonProfile?: ToonProfileInput | null
   /** How much light passes through, like glass: 0 to 1. */
   transmission?: number
   /** How much light bends going in: 1.5 for glass, 1.33 for water. */

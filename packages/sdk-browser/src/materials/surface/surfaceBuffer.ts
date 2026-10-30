@@ -53,8 +53,8 @@ export function frameTargetBytes(width: number, height: number, withHiz: boolean
  *   roughness; then, while `hasEmissiveAo`, RGB emission and A ambient occlusion; then, while
  *   `hasSubsurface`, the independent thin-surface transmission color;
  * - the words (`SURFACE_WORDS_FORMAT`): the flags — low three bits 0 background, 1 unlit (fogged),
- *   2 reads, 3 shown as-is: a diagnostic, a normal or depth view; 4 and 5 the diffuse and toon
- *   models (`./surfaceModel.ts`); above them, marks: 16 an emission-and-occlusion texel other than
+ *   2 reads, 3 shown as-is: a diagnostic, a normal or depth view; 4 the diffuse
+ *   model (`./surfaceModel.ts`); above them, marks: 16 an emission-and-occlusion texel other than
  *   (0, 0, 0, 1) (`./surfaceEmission.ts`), 32 a thin transmission, 64 an anisotropic or clear-coat
  *   lobe (`./physicalLobes.ts`), 128 no fog.
  * Its readers bind views, each one layer, the same formats whatever holds them.

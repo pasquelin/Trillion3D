@@ -16,6 +16,7 @@ import type { Color } from '../../../../sdk-core/src/world/math/color.ts'
 import type { Vector2 } from '../../../../sdk-core/src/world/math/vector2.ts'
 import type { MaterialGraph } from '../../../../sdk-core/src/world/material/graph/api.ts'
 import type { SubsurfaceProfileInput } from '../../../../sdk-core/src/lighting/subsurfaceProfile/profile.ts'
+import type { ToonProfileInput } from '../../../../sdk-core/src/lighting/toonProfile/profile.ts'
 /** A colour a surface declares: three linear components, read one by one and never converted. */
 export type SurfaceColour = Pick<Color, 'r' | 'g' | 'b'>
 
@@ -55,6 +56,8 @@ export type SurfaceDeclaration = {
   readonly subsurfaceOpacity?: number
   /** The subsurface profile of its pixels of the subsurface-profile and eye models (`SubsurfaceProfile`), the default skin's where unsaid. */
   readonly subsurfaceProfile?: SubsurfaceProfileInput | null
+  /** The toon profile of its pixels of the toon model (`ToonProfile`), the default profile's where unsaid. */
+  readonly toonProfile?: ToonProfileInput | null
   /** The shading model of the material (`MaterialShadingModel`), `defaultLit` where unsaid, and the iris share of an eye. */
   readonly shadingModel?: string
   readonly irisMask?: number

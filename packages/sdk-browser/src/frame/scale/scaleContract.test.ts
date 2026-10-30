@@ -5,6 +5,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { HZ120, HZ60, lowered, refreshControl, simulate } from './scaleFit.fixture.ts'
 import type { ScaleControl } from './scaleControl.ts'
+import { RETRY_MS } from '../../gpu/core/backoff.ts'
 
 /** A display at 120 Hz, measured over a few frames. */
 function at120(control: ScaleControl) {
@@ -56,17 +57,26 @@ test('a light page capped by the memory budget stays under the cap, then grows w
   assert.equal(control.wanted(), 1)
 })
 
-// The wait a refusal sets was kept in a table of its own beside the grant's retry frame.
-test('a refused size waits, twice as long at each refusal at its view size, the cap lifted after', () => {
+// The wait a refusal sets was kept in a table of its own beside the grant's retry time.
+test('a refused size waits, twice as long at each refusal at its view size, the cap lifted after', (t) => {
+  t.mock.method(Math, 'random', () => 0.5)
   const control = refreshControl('auto')
   at120(control)
-  assert.equal(control.memoryRefused('v', 0), 300)
-  assert.equal(control.memoryRefused('v', 300), 900, 'twice the wait at the same view size')
-  assert.equal(control.memoryRefused('w', 900), 1200, 'another view size waits the first again')
+  assert.equal(control.memoryRefused('v', 0), RETRY_MS)
+  assert.equal(
+    control.memoryRefused('v', RETRY_MS),
+    3 * RETRY_MS,
+    'twice the wait at the same view size',
+  )
+  assert.equal(
+    control.memoryRefused('w', 3 * RETRY_MS),
+    4 * RETRY_MS,
+    'another view size waits the first again',
+  )
   assert.equal(control.capMemory('w'), true)
-  control.liftMemoryCap(1199)
+  control.liftMemoryCap(4 * RETRY_MS - 1)
   assert.equal(control.memoryCapped, true, 'held until the wait is over')
-  control.liftMemoryCap(1200)
+  control.liftMemoryCap(4 * RETRY_MS)
   assert.equal(control.memoryCapped, false, 'lifted once it is')
 })
 

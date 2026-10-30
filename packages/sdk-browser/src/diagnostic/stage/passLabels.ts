@@ -17,6 +17,8 @@ export const TREE_LEAVES_PASS = 'Trillion3D placement tree leaves'
 export const TREE_REFIT_PASS = 'Trillion3D placement tree refit'
 /** The light functions' atlas render pass (`../../lighting/lightFunction/atlas.ts`). */
 export const LIGHT_FUNCTION_ATLAS_PASS = 'Trillion3D light function atlas'
+/** The bake of a toon profile's images into the patterns the lights read (`../../lighting/toon/bake.ts`). */
+export const TOON_PROFILE_BAKE_PASS = 'Trillion3D toon profile bake'
 /** The passes of the rectangle lights' source-texture atlas (`../../lighting/rectLightAtlas/`): a picture drawn into it, a slot moved
  *  to a new atlas, a level filtered, the atlas cleared, and the debug view made and drawn over the image. */
 export const RECT_ATLAS_ADD_PASS = 'Trillion3D rect light atlas add'
@@ -370,6 +372,7 @@ export const ENGINE_PASSES = [
   definePass({ label: HEIGHT_FOG_PASS, stage: 'lighting', block: 'other' }),
   definePass({ label: SKY_SURFACES_PASS, stage: 'lighting', block: 'other' }),
   definePass({ label: LIGHT_FUNCTION_ATLAS_PASS, stage: 'lighting', block: 'other' }),
+  definePass({ label: TOON_PROFILE_BAKE_PASS, stage: 'lighting', block: 'other' }),
   definePass({ label: RECT_ATLAS_ADD_PASS, stage: 'lighting', block: 'other' }),
   definePass({ label: RECT_ATLAS_COPY_PASS, stage: 'lighting', block: 'other' }),
   definePass({ label: RECT_ATLAS_FILTER_PASS, stage: 'lighting', block: 'other' }),

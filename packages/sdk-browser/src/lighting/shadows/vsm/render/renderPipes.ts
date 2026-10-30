@@ -184,8 +184,21 @@ export function madeLater(
       of().ask()
       return later
     },
+    start() {
+      of().start()
+      return later
+    },
     get ready() {
       return made?.ready ?? false
+    },
+    get pending() {
+      return made?.pending ?? false
+    },
+    get refused() {
+      return made?.refused ?? false
+    },
+    get unavailable() {
+      return made?.unavailable ?? false
     },
     get: () => of().get(),
   }

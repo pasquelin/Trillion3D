@@ -129,7 +129,7 @@ export type VisMaterial = {
   /** The opacity of its subsurface, 0 to 1, one where unsaid (`SUBSURFACE_OPACITY_MODEL_SHIFT`). */
   subsurfaceOpacity?: number
   /** The row of the subsurface profile table its pixels of the subsurface-profile and eye models scatter with, 0 to 255, the default skin's
-   *  where unsaid (`SUBSURFACE_PROFILE_MODEL_SHIFT`). */
+   *  where unsaid (`SUBSURFACE_PROFILE_MODEL_SHIFT`); on a toon material the row of its toon profile, the default profile's where unsaid. */
   subsurfaceProfile?: number
   /** The number of the shading model its pixels take without a graph (`PIXEL_MODEL`), none where unsaid. */
   shadingModel?: number

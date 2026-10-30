@@ -33,6 +33,21 @@ test('a device keeps what was made, never a failed build', async () => {
   assert.equal(calls, 3)
 })
 
+test('a key that is an object is kept by identity, as a key that is not is kept by value', () => {
+  const device = {} as GPUDevice
+  let calls = 0
+  const make = oncePerDeviceKey((_device, key: readonly number[] | string) => ({
+    key,
+    made: calls++,
+  }))
+  const one = [1],
+    same = [1]
+  assert.equal(make(device, one), make(device, one))
+  assert.notEqual(make(device, one), make(device, same), 'another object, another build')
+  assert.equal(make(device, 'a'), make(device, 'a'))
+  assert.equal(calls, 3)
+})
+
 test('a device keeps what was made for each key, and a failed build of one key is made again', async () => {
   const device = {} as GPUDevice
   const calls: string[] = []

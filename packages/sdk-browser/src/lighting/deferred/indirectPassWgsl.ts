@@ -10,7 +10,10 @@ import { PI } from '../../../../math/src/wgsl/constants.ts'
 import { wgslBlock, type WgslDecl } from '../../../../math/src/wgsl/decl.ts'
 import { lambertDiffuse } from '../../../../math/src/wgsl/lighting.ts'
 import { skyLightReadWgsl } from '../../modules/sky/skyLight/read.ts'
-import { skyLightOcclusionWgsl } from '../../modules/sky/skyLight/occlusionWgsl.ts'
+import {
+  skyLightDiffuseOcclusionWgsl,
+  skyLightOcclusionWgsl,
+} from '../../modules/sky/skyLight/occlusionWgsl.ts'
 import { SURFACE_MODEL_LIGHT_WGSL } from '../../materials/surface/surfaceModel.ts'
 import { scattersPixelModel } from '../../materials/surface/pixelModel.ts'
 import { SKY_DIFFUSE_READ_WGSL } from '../atmosphere/skyReadWgsl.ts'
@@ -26,6 +29,7 @@ import {
   LOBES_TARGET_WGSL,
 } from '../direct/lobesWgsl.ts'
 import { reflectionLobeWgsl } from '../lobeAxisWgsl.ts'
+import { PIXEL_MODEL } from '../../materials/surface/pixelModel.ts'
 import {
   NO_LOCAL_LIGHT_WGSL,
   reflectionResolveWgsl,
@@ -33,12 +37,14 @@ import {
 } from '../reflections/weight.ts'
 import { capturedLocalLightWgsl } from '../reflectionCapture/localLightWgsl.ts'
 import { STANDARD_LIGHTING_WGSL } from '../standardLighting.ts'
+import { TOON_TABLES_NONE_WGSL, toonTablesBinding } from '../toon/tablesWgsl.ts'
 import { ambientCubemapWgsl } from './ambientCubemapWgsl.ts'
 import { AMBIENT_OCCLUSION_READ_WGSL, AMBIENT_OCCLUSION_STATEMENT } from './ambientOcclusionWgsl.ts'
 import {
   DEFERRED_BINDINGS,
   DEFERRED_CAPTURE_BINDINGS,
   DEFERRED_SKY_LIGHT_BINDINGS,
+  DEFERRED_TOON_TABLES,
 } from './bindings.ts'
 import {
   CLASS_CUTS,
@@ -76,13 +82,15 @@ fn volumetricLightmapLighting(coord:vec2i,rgb:vec3f,metal:f32,ao:f32)->vec3f{
 )
 
 /** No bounced light: what a program without the probes answers where the lighting samples it — a
- *  thin surface's back (`thinBack`) — zero; the sky light's diffuse is the environment's, the
- *  sky nothing hides (`environmentSky`). */
+ *  thin surface's back (`thinBack`) — zero; the sky light's diffuse is the environment's
+ *  (`environmentSky`): the sky light's diffuse under the visibility and tint of a pixel whose bent normal is its normal
+ *  (`skyLightVisibility`), the occlusion `ao` of the others its only occlusion — the one function the program that reads the
+ *  distance fields' occlusion applies (`skyShadowingWgsl`) with the sky shadowing's term 1. */
 const NO_BOUNCE_WGSL = wgslBlock(
   'NO_BOUNCE_WGSL',
-  [SKY_DIFFUSE_READ_WGSL],
+  [SKY_DIFFUSE_READ_WGSL, skyLightDiffuseOcclusionWgsl(DEFERRED_SKY_LIGHT_BINDINGS), PI],
   `fn indirectIrradiance(P:vec3f,N:vec3f)->vec3f{return vec3f(0.0);}
-fn environmentSky(N:vec3f)->vec3f{return skyIrradiance(N);}`,
+fn environmentSky(N:vec3f,ao:f32)->vec3f{return PI*skyLightDiffuseOccluded(skyLightVisibility(N,ao,N));}`,
 )
 
 /**
@@ -92,19 +100,17 @@ fn environmentSky(N:vec3f)->vec3f{return skyIrradiance(N);}`,
  * scene's own environment, which keeps its occlusion, and the specular occlusion of the sky's
  * reflection (`skyLightSpecularOcclusion`).
  */
-const skyShadowingWgsl = (resolvedReflectionOccludedWgsl: WgslDecl) =>
+const skyShadowingWgsl = (occluded: WgslDecl) =>
   wgslBlock(
-    `SKY_SHADOWING_WGSL(${resolvedReflectionOccludedWgsl.name})`,
+    `SKY_SHADOWING_WGSL(${occluded.name})`,
     [
-      lambertDiffuse,
       PI,
       dfaoReadWgsl(0, DEFERRED_BINDINGS.dfaoBent, DEFERRED_BINDINGS.dfaoRead),
       skyLightOcclusionWgsl(DEFERRED_SKY_LIGHT_BINDINGS),
-      resolvedReflectionOccludedWgsl,
+      occluded,
     ],
     `fn environmentLightingOccluded(rgb:vec3f,metal:f32,N:vec3f,ao:f32,sky:SkyVisibility)->vec3f{
- let d=clothDiffuse(rgb,metal);
- return lambertDiffuse(d.rgb,d.w,environmentIrradiance(N),ao)+lambertDiffuse(d.rgb,d.w,PI*skyLightDiffuseOccluded(sky),1.0);
+ return environmentLightingWith(rgb,metal,N,ao,PI*skyLightDiffuseOccluded(sky));
 }`,
   )
 /**
@@ -142,6 +148,17 @@ const skyShadowingStatements = (lobes: boolean) => `var skyBent=N;
      : `
  let skyCoat=skySpec;`
  }`
+
+/** Whether the program lights the sky itself for a thin two-sided surface with the visibility of the pixel's normal: the one visibility its front and its back share (`skyVis`), computed once. */
+const sharesPlainVisibility = (bounce: boolean, skyShadowing: boolean, cut: LitPixelCut) =>
+  !bounce && !skyShadowing && cut.thin
+
+/** The sky light along the back of a thin two-sided surface (`thinSkyBack`), in the program that lights the sky itself (the bounce program's probes carry the sky): under the visibility the
+ *  front takes, the one `skyVis` of the variant that applies the distance fields' occlusion, else that of the pixel's normal as its bent normal, made here (`sharesPlainVisibility`). */
+const thinSkyBackStatement = (bounce: boolean, skyShadowing: boolean, cut: LitPixelCut) =>
+  bounce || !cut.thin
+    ? ''
+    : `${sharesPlainVisibility(bounce, skyShadowing, cut) ? '\n let skyVis=skyLightVisibility(N,occlusion.sky,N);' : ''}\n thinSkyBack=skyLightBackOccluded(skyVis,N);`
 
 /** The back of a thin surface the screen probes read (`thinBack`), where they answered and the view's mode is their
  *  light: their irradiance at its back under the short-range occlusion the front takes (`screenOcclusion`), zero staying zero — a back they
@@ -184,6 +201,7 @@ export function indirectModules(
     captured ? capturedLocalLightWgsl(DEFERRED_CAPTURE_BINDINGS) : NO_LOCAL_LIGHT_WGSL,
   )
   return [
+    cut.models ? toonTablesBinding(DEFERRED_TOON_TABLES) : TOON_TABLES_NONE_WGSL,
     STANDARD_LIGHTING_WGSL,
     LIGHTS_BINDING_WGSL,
     skyLightReadWgsl(DEFERRED_SKY_LIGHT_BINDINGS),
@@ -228,7 +246,9 @@ function indirectMainWgsl(
       : INDIRECT_TERMS.direct
   const sky = skyShadowing
     ? 'environmentLightingOccluded(albedo,base.a,N,occlusion.sky,skyVis)'
-    : 'environmentLighting(albedo,base.a,N,occlusion.sky)'
+    : sharesPlainVisibility(bounce, skyShadowing, cut)
+      ? 'environmentLightingWith(albedo,base.a,N,occlusion.sky,PI*skyLightDiffuseOccluded(skyVis))'
+      : 'environmentLighting(albedo,base.a,N,occlusion.sky)'
   const environment = captured ? `capturedAmbient(${sky},albedo,base.a,N,occlusion.both)` : sky
   const lightmap = 'volumetricLightmapLighting(coord,albedo,base.a,occlusion.sky)'
   const reflection = cubed ? '(indirect[1]+cube[1])' : 'indirect[1]'
@@ -245,7 +265,7 @@ function indirectMainWgsl(
  ${screenFoliageStatement(cut)}`
       : ''
   }
- ${AMBIENT_OCCLUSION_STATEMENT}${capsule ? '\n let capsuleFactor=capsuleIndirectAt(coord);' : ''}${skyShadowing ? `\n ${skyShadowingStatements(cut.lobes)}` : ''}${
+ ${AMBIENT_OCCLUSION_STATEMENT}${capsule ? '\n let capsuleFactor=capsuleIndirectAt(coord);' : ''}${skyShadowing ? `\n ${skyShadowingStatements(cut.lobes)}` : ''}${thinSkyBackStatement(bounce, skyShadowing, cut)}${
    bounce && cut.thin
      ? `
  ${THIN_SCREEN_BACK_STATEMENT}`
@@ -266,7 +286,13 @@ function indirectMainWgsl(
  if(${scattersPixelModel('pixelModelId')}){scatterAdd(${capsule ? '(bounceLight+ambientLight)*capsuleFactor' : 'bounceLight+ambientLight'});}`
      : ''
  }
- let rgb=litSurface(vec3f(0.0),bounceLight,ambientLight,${reflection},vec3f(0.0),N,P,occlusion.sky);
+ ${
+   cut.models
+     ? `var reflected=${reflection};
+ if(pixelModelId==${PIXEL_MODEL.toon}u){reflected=toonIndirectSpecular(reflected);}
+ `
+     : ''
+ }let rgb=litSurface(vec3f(0.0),bounceLight,ambientLight,${cut.models ? 'reflected' : reflection},vec3f(0.0),N,P,occlusion.sky);
  return lightOut(${capsule ? 'rgb*capsuleFactor' : 'rgb'});
 }`
 }

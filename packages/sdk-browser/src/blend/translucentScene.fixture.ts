@@ -176,6 +176,8 @@ export function replay(blendState: ReturnType<typeof prepared>['blendState'], gp
     capture: { capturing: false },
     lights: { buffer: {}, store: { count: 0, epoch: 0, unlit: false, simple: { capacity: 0 } } },
     bounce: { probes: undefined },
+    // No selected object: none casts a capsule shadow (`capsuleIndirectPlanned`).
+    layout: { selectionRoots: [] },
     views: { active: { overrides: NO_OVERRIDES } },
     context: {},
     // `lit` view with no light: the contract lights, so the pass binds its resources by default.

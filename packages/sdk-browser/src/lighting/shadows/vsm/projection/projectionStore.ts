@@ -27,6 +27,8 @@ export interface VsmProjectionState {
   /** The view uniform's image, uploaded each frame, and its words. */
   staging: ArrayBuffer
   words: ViewWords
+  /** The collection number of the toon extinctions the view uniform holds (`registeredToonProfiles`), none before they were uploaded. */
+  toonRevision?: number
   /** The engine's blue noise view (`blueNoiseNow`), once the device has made it. */
   blueNoiseView?: GPUTextureView
   /** The shadowed lights' grid (`lightGridWgsl.ts`) the local lights' pass writes and the lighting

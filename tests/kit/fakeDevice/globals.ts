@@ -40,11 +40,21 @@ export const transparentDraws = (draws: readonly FakeDraw[]) =>
 /** WebGPU's error classes, one each for the whole process: an error made before a later install is
  *  still an instance of the class the engine tests it against. */
 class GPUOutOfMemoryError extends Error {}
-class GPUPipelineError extends Error {}
+class GPUInternalError extends Error {}
+class GPUPipelineError extends Error {
+  readonly reason: string
+  constructor(message?: string, options?: { reason?: string }) {
+    super(message)
+    // As the specification's constructor: the `reason` is required.
+    if (options?.reason === undefined) throw new TypeError('GPUPipelineError needs a reason')
+    this.reason = options.reason
+  }
+}
 
 export function installGpuGlobals() {
   Object.assign(globalThis, {
     GPUOutOfMemoryError,
+    GPUInternalError,
     GPUPipelineError,
     GPUBufferUsage: BUFFER,
     GPUTextureUsage: TEXTURE,

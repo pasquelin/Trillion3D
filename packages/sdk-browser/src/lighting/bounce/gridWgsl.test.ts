@@ -24,7 +24,7 @@ test('a pixel the screen probes did not read has the sky light’s diffuse light
   let shining = true
   const { indirectIrradiance, environmentSky } = shaderRun<{
     indirectIrradiance: (P: number[], N: number[]) => number[]
-    environmentSky: (N: number[]) => number[]
+    environmentSky: (N: number[], ao: number) => number[]
   }>(wgslModule(BOUNCE_APPLY_WGSL), ['indirectIrradiance', 'environmentSky'], {
     skyLightApplied: () => shining,
     skyLightIrradiance: () => [0.5, 0.25, 0.125],
@@ -33,7 +33,7 @@ test('a pixel the screen probes did not read has the sky light’s diffuse light
     N = [0, 1, 0]
   assert.deepEqual(indirectIrradiance(P, N), [0.5, 0.25, 0.125])
   // The environment adds none of it beside the screen probes' light: a program that reads them never counts it twice.
-  assert.deepEqual(environmentSky(N), [0, 0, 0])
+  assert.deepEqual(environmentSky(N, 0.5), [0, 0, 0])
   // No light shining (no cube ready, or the view's sky lighting off): none at all.
   shining = false
   assert.deepEqual(indirectIrradiance(P, N), [0, 0, 0])
@@ -43,9 +43,12 @@ test('the sky light is the environment’s where no screen probe is read, the sc
   const direct = contractLightingShader(false),
     probed = contractLightingShader(true)
   // The program with no probes adds the sky light beside the environment, the sky nothing hides...
-  assert.match(direct, /fn environmentSky\(N:vec3f\)->vec3f\{return skyIrradiance\(N\);\}/)
+  assert.match(
+    direct,
+    /fn environmentSky\(N:vec3f,ao:f32\)->vec3f\{return PI\*skyLightDiffuseOccluded\(skyLightVisibility\(N,ao,N\)\);\}/,
+  )
   // ...the one that reads them takes it from them, and adds none beside them.
-  assert.match(probed, /fn environmentSky\(N:vec3f\)->vec3f\{return vec3f\(0\.0\);\}/)
+  assert.match(probed, /fn environmentSky\(N:vec3f,ao:f32\)->vec3f\{return vec3f\(0\.0\);\}/)
   assert.ok(probed.includes('fn indirectIrradiance('))
   assert.ok(!probed.includes('probeAt') && !probed.includes('cellTable'), 'no world probe is read')
 })

@@ -31,6 +31,7 @@ export function recorder(
     rectless?: boolean
     lobeless?: boolean
     skyShadowing?: { bent: GPUBuffer; params: GPUBuffer }
+    skyPlanned?: boolean
     bounceGrid?: GPUBuffer
     perLight?: PerLightLights
   }) => {

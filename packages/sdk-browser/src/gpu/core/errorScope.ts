@@ -13,6 +13,8 @@ export function destroyAll(resources: Iterable<{ destroy(): void } | undefined>)
 
 const none = () => null
 
+type GPUPipelineErrorReason = GPUPipelineError['reason']
+
 /**
  * `make` under a scope of `filter` that is popped before this returns, a throw included: the scope
  * code every caller shares. `popped` is the device's verdict, to read when it is wanted; one
@@ -31,18 +33,42 @@ function scopedNow<T>(device: GPUDevice, filter: GPUErrorFilter, make: () => T) 
   return { made, popped }
 }
 
-/** The refusal the scope `popped` holds, if any: its message wins over whatever its work settled to. */
-async function scopeRefusal(popped: Promise<GPUError | null>) {
-  const error = await popped
-  return error ? pipelineRefusedBy(error.message) : undefined
+/** A pipeline refusal for `message`: the host's `GPUPipelineError`, else (a host without the class) an `Error` named as it is with its `reason`, which is how a refusal is classified where the class is missing (`isPipelineError`, `../../lighting/deferred/fullscreen.ts`). */
+const pipelineError = (message: string, reason: GPUPipelineErrorReason): GPUPipelineError =>
+  typeof GPUPipelineError !== 'undefined'
+    ? new GPUPipelineError(message, { reason })
+    : (Object.assign(new Error(message), {
+        name: 'GPUPipelineError',
+        reason,
+      }) as unknown as GPUPipelineError)
+
+/** Whether `error` is a pipeline error: by its class where the host has one, else (a host without it) by its name, so that classifying a refusal never throws. */
+export const isPipelineError = (error: unknown): error is GPUPipelineError =>
+  typeof GPUPipelineError !== 'undefined'
+    ? error instanceof GPUPipelineError
+    : error instanceof Error && error.name === 'GPUPipelineError'
+
+/** Whether `error` is an instance of the host's error class `name`; false where the host lacks the class, so that classifying an error never throws. */
+function isGpuError(
+  name: 'GPUValidationError' | 'GPUOutOfMemoryError' | 'GPUInternalError',
+  error: unknown,
+) {
+  const host = (globalThis as Record<string, unknown>)[name]
+  return typeof host === 'function' && error instanceof host
 }
+
+/** What a scope of `filter` that caught an error says of a pipeline: only the validation scope tells a pipeline refused for what it is (its shader, entry point, layout or limits), which trying again answers the same; any other is tried again with the backoff. */
+const reasonOfScope = (filter: GPUErrorFilter): GPUPipelineErrorReason =>
+  filter === 'validation' ? 'validation' : 'internal'
 
 /**
  * A device's error scope — validation by default —, opened around a resource creation. The device's
  * scopes are one stack every session shares, so a scope covers synchronous creation only: it is
  * popped as soon as the synchronous part of `build` returns, and a creation after an `await` of
  * `build` is outside it. The promise `build` returns is awaited here and its rejection thrown, as
- * the refusal of the scope's error when the scope holds one.
+ * the scope's own error when the scope holds one, over the rejection. A resource build keeps the error type the scope gave (`GPUValidationError`, `GPUOutOfMemoryError`,
+ * `GPUInternalError`): only a pipeline build is mapped to `GPUPipelineError`, by `madeChecked`. The raw error is thrown as it is (it has no stack): `deviceOwners.ts` tells an
+ * out-of-memory refusal by `instanceof GPUOutOfMemoryError`, and a test pins that a resource keeps its type, so it is not wrapped.
  */
 export async function validationScope<T>(
   device: GPUDevice,
@@ -58,26 +84,42 @@ export async function validationScope<T>(
   } catch (error) {
     // A released session's abort stays an abort; a pop the device refuses leaves the build's own reason.
     if (error instanceof DOMException && error.name === 'AbortError') throw error
-    throw (await scopeRefusal(popped).catch(() => undefined)) ?? error
+    // The scope's own error wins over the build's rejection, as the error it is.
+    throw (await popped.catch(none)) ?? error
   }
   return { value, error: await popped }
 }
 
 /**
- * `make`, a synchronous creation made after an `await`, under a scope of its own closed before
- * `use(made)` starts. Resolves with `use`'s result; the scope's error, when it holds one, refuses
- * it as a pipeline (`GPUPipelineError`, answered `refused` by `validatedOrWhy`), over any rejection.
+ * `make`, a synchronous creation made after an `await`, under a validation scope of its own inside an out-of-memory one inside an internal one, all closed before `use(made)` starts. Resolves with `use`'s result; the error
+ * any scope holds refuses it as a pipeline (`GPUPipelineError`, answered `refused` by `validatedOrWhy`), over any rejection: `validation` (refused for good) where the validation scope caught it,
+ * `internal` (tried again) where the out-of-memory or the internal one did (a pipeline or its layout that the implementation fails to make is reported as an internal error).
+ * Three scopes are pushed and popped per call, deliberately: they are what tells the three verdicts apart, and the cost falls on the synchronous fallback path only.
  */
 export async function madeChecked<T, R>(
   device: GPUDevice,
   make: () => T,
   use: (made: T) => Promise<R>,
 ): Promise<R> {
-  const { made, popped } = scopedNow(device, 'validation', make)
+  const {
+    made: {
+      made: { made, popped: validation },
+      popped: memory,
+    },
+    popped: internal,
+  } = scopedNow(device, 'internal', () =>
+    scopedNow(device, 'out-of-memory', () => scopedNow(device, 'validation', make)),
+  )
   const used = use(made)
   used.catch(none)
-  const refusal = await scopeRefusal(popped)
-  if (refusal) throw refusal
+  // The three pops were issued together, innermost first: all are awaited, so that a pop the device rejects hides no error another scope captured.
+  const scopes = ['validation', 'out-of-memory', 'internal'] as const
+  const verdicts = await Promise.allSettled([validation, memory, internal])
+  for (const [rank, verdict] of verdicts.entries()) {
+    const error = verdict.status === 'fulfilled' ? verdict.value : null
+    if (error) throw pipelineError(error.message, reasonOfScope(scopes[rank]!))
+  }
+  for (const verdict of verdicts) if (verdict.status === 'rejected') throw verdict.reason
   return used
 }
 
@@ -102,17 +144,17 @@ export async function validatedOrWhy<T>(
     const { value, error } = await validationScope(device, build, filter)
     return error ? { refused: error.message } : { value }
   } catch (error) {
-    if (pipelineRefused(error)) return { refused: (error as GPUPipelineError).message }
+    // A pipeline refused, or a resource the scope of the asked filter caught (out of memory, internal): the device's answer, not a failure of the build.
+    if (
+      isGpuError('GPUValidationError', error) ||
+      isPipelineError(error) ||
+      isGpuError('GPUOutOfMemoryError', error) ||
+      isGpuError('GPUInternalError', error)
+    )
+      return { refused: (error as Error).message }
     throw error
   }
 }
-
-/** A pipeline the device refused to compile off the thread (`GPUPipelineError`). */
-const pipelineRefused = (error: unknown) => error instanceof GPUPipelineError
-
-/** The refusal of a pipeline the device's scope reported, as the device refuses one off the thread. */
-const pipelineRefusedBy = (message: string) =>
-  new GPUPipelineError(message, { reason: 'validation' })
 
 /**
  * What `make` allocates when the device grants it, now: made under an out-of-memory scope, and

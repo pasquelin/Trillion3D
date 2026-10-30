@@ -126,6 +126,17 @@ test('a frame held on targets the device has not granted draws nothing: it is no
   assert.equal(rt.run.frame, 0, 'three frames held on a grant advanced no image')
 })
 
+test('a run of held frames shows first before last, although none advances the image number', () => {
+  const h = deferredLightingHarness()
+  const rt = settledRt()
+  rt.gpu.device = h.device
+  ;(rt.gpu as { targetGrant?: unknown }).targetGrant = { mode: 'held' }
+  for (let i = 0; i < 3; i++) holdWebgpuFrame(rt, h.device)
+  const [total] = Object.values(lastHold(rt)!.byReason)
+  assert.deepEqual([total!.count, total!.first, total!.last], [3, 1, 3])
+  assert.equal(lastHold(rt)!.entered, 3)
+})
+
 test('a frame held on a compile in flight names what it waits for', async () => {
   const h = deferredLightingHarness()
   const rt = settledRt()

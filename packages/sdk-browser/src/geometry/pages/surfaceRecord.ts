@@ -10,11 +10,12 @@
  * (`surfaceWrites.ts`), so a holder sees the new fields with no lookup and a consumer visits only
  * the records written.
  *
- * What each family reads of a declaration is decided here once: Lambert and toon lit apart, Phong
+ * What each family reads of a declaration is decided here once: Lambert lit apart, Phong
  * as the physical model at the roughness of its exponent, the others unlit
  * (`../../materials/surface/surfaceModel.ts`); a field a family does not read is left at its silent value.
  */
 import { subsurfaceProfileRow } from '../../lighting/subsurface/registry.ts'
+import { holdToonProfile } from '../../lighting/toon/registry.ts'
 import { saturate } from '../../../../math/src/scalar/reals.ts'
 import { Color } from '../../../../sdk-core/src/world/math/color.ts'
 import {
@@ -94,6 +95,20 @@ const modelOf = (d: SurfaceDeclaration, { lit, standard }: Reading) => {
 const modelOpacity = (d: SurfaceDeclaration, model: number | undefined) =>
   saturate(model === PIXEL_MODEL.eye ? 1 - (d.irisMask ?? 1) : (d.subsurfaceOpacity ?? 1))
 
+/** The row of the profile table its pixels read: the toon profile's on the toon model, the subsurface profile's on any other. */
+const profileRow = (
+  into: PageSurface,
+  d: SurfaceDeclaration,
+  model: number | undefined,
+  lit: boolean,
+) => {
+  const toon = lit && model === PIXEL_MODEL.toon
+  // The toon row is held by the record (given back when it is declared again or disposed), the default profile's, 0, where the toon surface names none; the
+  // record counts as a user of the toon tables while it is toon. 0 where the surface is not toon.
+  const row = holdToonProfile(into, d.toonProfile, toon)
+  return toon ? row : lit ? subsurfaceProfileRow(d.subsurfaceProfile) : 0
+}
+
 /** Its fog, its translucency lighting and shadows, its cutout and its vertex offset. */
 const renderSettings = (d: SurfaceDeclaration) => ({
   fog: d.fog !== false,
@@ -115,7 +130,7 @@ const renderSettings = (d: SurfaceDeclaration) => ({
 
 /** Its colours, its glow scaled by its intensity, its metal and roughness — a Phong surface's
  *  read off its exponent —, its side and alpha. */
-function factors(d: SurfaceDeclaration, reader: Reading) {
+function factors(into: PageSurface, d: SurfaceDeclaration, reader: Reading) {
   const { lit, emits, side, standard, sheet } = reader
   const model = modelOf(d, reader)
   const emissive = emits ? d.emissive : undefined,
@@ -140,7 +155,7 @@ function factors(d: SurfaceDeclaration, reader: Reading) {
     shadingModel: model,
     irisDistance: model === PIXEL_MODEL.eye ? saturate(d.irisDistance ?? 0.1) : 0,
     modelFromGraph: d.shadingModel === 'fromMaterialExpression',
-    subsurfaceProfile: lit ? subsurfaceProfileRow(d.subsurfaceProfile) : 0,
+    subsurfaceProfile: profileRow(into, d, model, lit),
     vertexColors: d.vertexColors === true,
   }
 }
@@ -268,14 +283,7 @@ const raster = (d: SurfaceDeclaration) => ({
 
 /** The families that draw the material's colour, and so can wear a graph: a normal, depth, matcap or
  *  shadow surface shows something other than what a graph computes. */
-const GRAPH_FAMILIES = new Set<SurfaceFamily>([
-  'basic',
-  'standard',
-  'physical',
-  'lambert',
-  'phong',
-  'toon',
-])
+const GRAPH_FAMILIES = new Set<SurfaceFamily>(['basic', 'standard', 'physical', 'lambert', 'phong'])
 
 /** Its graph, on a family that draws the material's colour. */
 const graphOf = (d: SurfaceDeclaration) => ({
@@ -294,7 +302,7 @@ function fill(into: PageSurface, d: SurfaceDeclaration) {
   const read = reading(d)
   return Object.assign(
     into,
-    factors(d, read),
+    factors(into, d, read),
     slots(d, read),
     relief(d, read),
     lobes(d, read),

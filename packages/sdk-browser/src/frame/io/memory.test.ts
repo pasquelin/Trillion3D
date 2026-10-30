@@ -15,6 +15,7 @@ import {
   type PoolLane,
 } from '../../materials/texture/blockFormats.ts'
 import { noTails } from '../../materials/texture/noTails.fixture.ts'
+import { RETRY_MS } from '../../gpu/core/backoff.ts'
 
 // The engine changes pools mid-session — what an application slider calls — without preparing
 // again and without losing the image: the report says what it actually holds.
@@ -178,7 +179,11 @@ test('a geometry pool the device refuses mid-session shrinks, and the session go
 // (`followTexturePressure`): a pressed lane grows a layer at each image it is short, within the
 // share its budget gives it, the tiles kept; a growth the device refuses keeps the pool in place
 // and waits for its retry.
-test('a lane that ran out of places grows a layer at a time within the budget, a refused growth waits', async () => {
+test('a lane that ran out of places grows a layer at a time within the budget, a refused growth waits', async (t) => {
+  // The wait is time (`refusalNow`), advanced by hand.
+  let clock = 1_000_000
+  t.mock.method(performance, 'now', () => clock)
+  t.mock.method(Math, 'random', () => 0.5)
   const encoding = poolEncoding(undefined),
     budget = 512 * MIB
   // 20 000 tiles to stream: the budget's share is four layers a lane, the floor one.
@@ -234,10 +239,10 @@ test('a lane that ran out of places grows a layer at a time within the budget, a
   assert.equal(pools.pool.layers.color.lossless, 1)
   const probes = () => gpu.textures.filter(({ label }) => label === 'Trillion3D pool probe').length
   const asked = probes()
-  run.frame = 10
+  clock += RETRY_MS / 10
   await press()
   assert.equal(probes(), asked, 'not asked again every image')
-  run.frame = 1000
+  clock += RETRY_MS
   refused.value = false
   await press()
   assert.equal(pools.pool.layers.color.lossless, 2, 'asked again once its wait is over')

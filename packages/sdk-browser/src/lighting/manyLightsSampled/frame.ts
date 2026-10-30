@@ -145,6 +145,7 @@ function sampledInputs(
       lights: direct.lights,
       tiles: direct.tiles ?? placeholders.tiles,
       sunRanks: direct.sunRanks ?? placeholders.sunRanks,
+      toonTables: direct.toonTables ?? placeholders.toonTables,
       lightFunction: direct.lightFunction ?? placeholders.lightFunction,
       lightProfile: direct.lightProfile ?? placeholders.lightProfile,
       texturedRects: readRectLightAtlasSetting(rt, 'sampledLightsTexturedRectLights'),

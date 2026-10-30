@@ -82,7 +82,6 @@ test('a pixel is classed by the code its surface needs: none for the background,
     ['a plain physical surface', MODEL_FLAG.physical, 1],
     ['one that opts out of the fog', MODEL_FLAG.physical | FOG_FREE_SURFACE_FLAG, 1],
     ['a diffuse surface', MODEL_FLAG.diffuse, 2],
-    ['a toon surface', MODEL_FLAG.toon, 2],
     ['a shadow catcher', MODEL_FLAG.shadow, 2],
     ['a thin two-sided surface', MODEL_FLAG.physical | SUBSURFACE_FLAG, 2],
     ['a surface with a lobe', MODEL_FLAG.physical | PHYSICAL_SURFACE_FLAG, 3],
@@ -93,6 +92,32 @@ test('a pixel is classed by the code its surface needs: none for the background,
     ],
   ]
   for (const [what, flags, expected] of classes) assert.equal(pixelTileClass(flags), expected, what)
+})
+
+test('a thin surface’s back takes the sky light as the front does: its light on the subsurface colour, no 1/pi', () => {
+  const text = wgslProgram(
+    `fn skyBack(sky:vec3f,N:vec3f)->vec3f{
+ thinSubsurface=vec3f(0.5,0.25,1.0);
+ thinScreenBack=vec4f(0.0,0.0,0.0,1.0);
+ thinSkyBack=sky;
+ return thinBack(N,vec3f(0.0),1.0);
+}
+fn skyFront(sky:vec3f)->vec3f{return environmentLightingFrom(vec3f(0.5,0.25,1.0),0.0,PI*sky,1.0);}`,
+    [ENVIRONMENT_LIGHTING_WGSL],
+  )
+  const run = shaderRun<{
+    skyBack: (sky: number[], N: number[]) => number[]
+    skyFront: (sky: number[]) => number[]
+  }>(text, ['skyBack', 'skyFront'], {
+    directLights: { environment: Array.from({ length: 9 }, () => [0, 0, 0, 0]) },
+    indirectIrradiance: () => [0, 0, 0],
+    clothDiffuse: (rgb: number[], metal: number) => [...rgb, metal],
+    PI: Math.PI,
+  })
+  const sky = [2, 4, 8]
+  // The back equals subsurface * light, the front's diffuse colour * the same light: the reference's two terms.
+  near(run.skyBack(sky, [0, 1, 0]), [1, 1, 8], 'the back', 1e-6)
+  near(run.skyFront(sky), [1, 1, 8], 'the front', 1e-6)
 })
 
 test('a thin surface’s back takes the screen probes’ light where they left one, the world’s probes’ else', () => {

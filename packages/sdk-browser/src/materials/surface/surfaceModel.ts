@@ -4,14 +4,14 @@
  * The engine lights every surface with one model (`../../lighting/standardLighting.ts`). A surface of
  * another family is mapped onto it, never given a pipeline of its own:
  * - `diffuse` (a Lambert material): the diffuse lobe of the same lights, and no specular one;
- * - `toon`: that diffuse lobe quantised into two bands at `N·L = 0.4`, the cel look;
  * - `normal`, `matcap`, `depth`: materials that show something other than light — the view-space
  *   normal as a colour, a matcap sampled by that normal, the depth — computed in the surface
  *   pass and drawn unlit;
  * - `shadow`, the shadow catcher: always blended, its colour at its opacity times the share of its
  *   shadowed lights' light the shadows take away (`catcherAlpha`), so it is seen only where a
  *   shadow falls.
- * A Phong material is the physical model itself, its shininess read as a roughness.
+ * A Phong material is the physical model itself, its shininess read as a roughness, and a toon material is a standard one of the toon shading
+ * model, a pixel model beside the others (`./pixelModel.ts`, `../../lighting/toon/`).
  *
  * The rank travels in three bits of the page row (`MODEL_SHIFT`); the surface pass writes the
  * lit ones as the surface flag (`MODEL_FLAG`) the resolve reads.
@@ -83,7 +83,6 @@ export const shownAsIs = (model: number | undefined) =>
 /** The model a surface of `family` reads in; the physical model otherwise. */
 export function familyModel(family: SurfaceFamily): number {
   if (family === 'lambert') return SURFACE_MODEL.diffuse
-  if (family === 'toon') return SURFACE_MODEL.toon
   if (family === 'normal') return SURFACE_MODEL.normal
   if (family === 'matcap') return SURFACE_MODEL.matcap
   if (family === 'depth') return SURFACE_MODEL.depth
@@ -98,11 +97,7 @@ export const metalRoughFamily = (family: SurfaceFamily) =>
 /** True when the family's model is lit by the scene's lights: a Phong surface is the standard
  *  model; a shadow catcher reads their shadows. */
 export const litFamily = (family: SurfaceFamily) =>
-  family === 'lambert' ||
-  family === 'toon' ||
-  metalRoughFamily(family) ||
-  family === 'phong' ||
-  family === 'shadow'
+  family === 'lambert' || metalRoughFamily(family) || family === 'phong' || family === 'shadow'
 
 /**
  * Why a declaration names a map that its model never reads, or `undefined`: a tone ramp, which no
@@ -132,8 +127,6 @@ export const shininessRoughness = (shininess: number) =>
 // from the same text, never a restated copy.
 /** The diffuse lobe of a lamp's `energy`, its surface shadow's: the occlusion is not a second factor. */
 const MODEL_DIFFUSE = `lambertAlbedoMul(rgb,metal)*energy`
-/** Toon's two bands of the cosine `nl`, 0.7 and 1. */
-const TOON_BANDS = 'mix(0.7,1.0,smoothstep(0.69,0.71,nl*0.5+0.5))'
 /** A diffuse surface's cosine. */
 const DIFFUSE_COSINE = 'max(nl,0.0)'
 /** The matcap coordinate of the view-space normal `n`. */
@@ -146,9 +139,9 @@ export const NORMAL_VIEW_COLOR_WGSL = wgslBlock(
 )
 
 /**
- * What a declared lamp gives a pixel of a diffuse or toon surface, read by `declaredLight` through
- * the private `surfaceModel` the resolve sets from the surface flag. Toon keeps the lamp's energy —
- * range, cone, shadow — and replaces the cosine by its two bands, 0.7 and 1.
+ * What a declared lamp gives a pixel of a diffuse surface, read by `declaredLight` through
+ * the private `surfaceModel` the resolve sets from the surface flag: the albedo's diffuse of the
+ * lamp's energy — range, cone, shadow — at the cosine.
  */
 export const SURFACE_MODEL_LIGHT_WGSL = wgslBlock(
   'SURFACE_MODEL_LIGHT_WGSL',
@@ -156,10 +149,8 @@ export const SURFACE_MODEL_LIGHT_WGSL = wgslBlock(
   `
 var<private> surfaceModel:u32;
 fn modelLight(rgb:vec3f,metal:f32,N:vec3f,L:vec3f,energy:f32)->vec3f{
- let diffuse=${MODEL_DIFFUSE};
  let nl=dot(N,L);
- if(surfaceModel==${MODEL_FLAG.toon}u){return diffuse*${TOON_BANDS};}
- return diffuse*${DIFFUSE_COSINE};
+ return ${MODEL_DIFFUSE}*${DIFFUSE_COSINE};
 }`,
 )
 

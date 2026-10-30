@@ -18,8 +18,9 @@ import { TILE_CLASS } from './tileClass.ts'
 import { resolvedReflectionOccludedWgsl } from '../reflections/weight.ts'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 
+// The plain program holds the diffuse half of the occlusion (its sky light is lit by the same visibility, the bent normal being its normal) but not the specular half; what only the applying program holds is the read of the image and its calls.
 const CODE =
-  /dfaoBentNormal|skyLightVisibility|skyLightSpecularOcclusion|environmentLightingOccluded/
+  /dfaoBentNormal|skyLightVisibility\(N,occlusion\.sky,skyBent|skyLightSpecularOcclusion|environmentLightingOccluded/
 const BINDINGS = new RegExp(
   `@binding\\((?:${DEFERRED_BINDINGS.dfaoBent}|${DEFERRED_BINDINGS.dfaoRead})\\)`,
 )
@@ -61,13 +62,43 @@ test('the direct program that applies the occlusion reads the image into the sky
   )
 })
 
-test('the program without the occlusion is the text it was: its sky light and its reflection are read as they were', () => {
+test('a thin surface’s back takes the sky light along -N under the visibility of its front: the plain pixel’s, the applying program’s DFAO one', () => {
+  const plain = contractLightingShader(false, {})
+  const applying = contractLightingShader(false, {}, true)
+  assert.match(
+    plain,
+    /let skyVis=skyLightVisibility\(N,occlusion\.sky,N\);\n thinSkyBack=skyLightBackOccluded\(skyVis,N\);/,
+  )
+  assert.equal(
+    plain.match(/skyLightVisibility\(N,occlusion\.sky,N\)/g)?.length,
+    1,
+    'the front and the back share one visibility',
+  )
+  assert.match(
+    plain,
+    /environmentLightingWith\(albedo,base\.a,N,occlusion\.sky,PI\*skyLightDiffuseOccluded\(skyVis\)\)/,
+  )
+  assert.match(applying, /thinSkyBack=skyLightBackOccluded\(skyVis,N\);/)
+  assert.doesNotMatch(
+    contractLightingShader(true, {}),
+    /thinSkyBack=/,
+    'the bounce program: its probes carry the sky',
+  )
+  assert.doesNotMatch(plain, /environmentSky\(-N/, 'the back no longer adds the front’s tint')
+})
+
+test('the program without the occlusion reads its reflection as it did and its sky light under the one visibility of its front and back', () => {
   const plain = contractLightingShader(false, { lobeless: true })
   assert.match(
     plain,
     /mat2x3f\(vec3f\(0\.0\),resolvedReflection\(coord,base\.rgb,base\.a,occlusion\.both,N,V,normal\.a\)\)/,
   )
-  assert.equal(plain.match(/environmentLighting\(albedo,base\.a,N,occlusion\.sky\)/g)?.length, 1)
+  // The pixel's thin cut reads the sky light once for its front and its back (`skyVis`), the same sum `environmentLighting` makes.
+  assert.equal(
+    plain.match(/environmentLighting\(albedo,base\.a,N,occlusion\.sky\)/g)?.length ?? 0,
+    0,
+  )
+  assert.equal(plain.match(/environmentLightingWith\(albedo,base\.a,N,occlusion\.sky,/g)?.length, 1)
 })
 
 /** `resolvedReflectionOccluded` over a reflection target of two layers: 0 the rays' answer, its alpha the base
@@ -177,7 +208,7 @@ test('an image with the occlusion is lit by the program that applies it once rea
   const { labels, draw } = recorder(gpu, lighting)
   const bent = device.createBuffer({ size: 64, usage: GPUBufferUsage.STORAGE })
   const params = device.createBuffer({ size: 48, usage: GPUBufferUsage.UNIFORM })
-  const applied = { lobeless: true, skyShadowing: { bent, params } }
+  const applied = { lobeless: true, skyPlanned: true, skyShadowing: { bent, params } }
   draw({ lobeless: true })
   await lighting.settle()
   // The program that applies it is asked, and compiles; the image is lit without it meanwhile.
@@ -199,6 +230,30 @@ test('an image with the occlusion is lit by the program that applies it once rea
   lighting.dispose()
 })
 
+test('the program is picked from the tables planned for the frame, whatever buffers the encoding drew', async () => {
+  const gpu = fakeDevice(),
+    { device } = gpu
+  const lighting = await createDeferredLighting(device)
+  const { labels, draw } = recorder(gpu, lighting)
+  const bent = device.createBuffer({ size: 64, usage: GPUBufferUsage.STORAGE })
+  const params = device.createBuffer({ size: 48, usage: GPUBufferUsage.UNIFORM })
+  draw({ lobeless: true })
+  await lighting.settle()
+  // Buffers drawn, not planned: the plain program. Planned, none drawn: the program that applies it, bound to the stand-ins.
+  draw({ lobeless: true, skyShadowing: { bent, params } })
+  draw({ lobeless: true, skyPlanned: true })
+  await lighting.settle()
+  draw({ lobeless: true, skyShadowing: { bent, params } })
+  draw({ lobeless: true, skyPlanned: true })
+  assert.deepEqual(labels().slice(-4), [
+    'DIRECT_LOBELESS',
+    'DIRECT_LOBELESS',
+    'DIRECT_LOBELESS',
+    'DIRECT_LOBELESS_SKY_SHADOWING',
+  ])
+  lighting.dispose()
+})
+
 test('the bounce program is lit with no such program: the sky is its probes’, however the image was occluded', async () => {
   const gpu = fakeDevice(),
     { device } = gpu
@@ -209,6 +264,7 @@ test('the bounce program is lit with no such program: the sky is its probes’, 
   const grid = device.createBuffer({ size: 4096, usage: GPUBufferUsage.UNIFORM })
   const bounced = {
     ...{ lobeless: true, bounceGrid: grid },
+    skyPlanned: true,
     skyShadowing: { bent, params },
   }
   draw(bounced)

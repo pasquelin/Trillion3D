@@ -4,7 +4,7 @@ import type { WebgpuPagesRuntime } from '../../../../frame/backend/runtime.ts'
 import { castingCount, fullMapsFor, maskNeedsFor, sunMapsFor } from './vsmLightMaps.ts'
 import { ensureMasks, masksGrowth, sharedMaskSize } from './vsmMask.ts'
 import { ledgerTentative } from '../../../../gpu/core/deviceLedger.ts'
-import { deviceWaiting } from '../../../../gpu/core/refusal.ts'
+import { deviceWaiting, refusalNow } from '../../../../gpu/core/refusal.ts'
 import { vsmSetBytes } from './vsmBeside.ts'
 import { shadowHeldBytes } from './vsmStats.ts'
 import { shadowRowBytes } from '../../casters/rowBuffers.ts'
@@ -51,7 +51,7 @@ export function vsmReserveBytes(rt: WebgpuPagesRuntime) {
   if (vsm && vsm.res.layout.fullMapCapacity >= wanted) return 0
   const refused =
     vsmRefusal &&
-    deviceWaiting(vsmRefusal, rt.run.frame) &&
+    deviceWaiting(vsmRefusal, refusalNow()) &&
     vsmRefusal.wanted === wanted &&
     vsmRefusal.sunMaps === sunMapsFor(list)
   if (refused) return 0

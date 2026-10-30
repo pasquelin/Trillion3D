@@ -32,6 +32,12 @@ export type GpuDeviceClaim = { readonly tag: string; readonly device: GPUDevice;
 
 type Registry = { owners: Map<number, GpuDeviceOwner>; loss?: GpuDeviceLoss; pending?: string }
 const registries = new WeakMap<GPUDevice, Registry>()
+/** The devices that were lost, by their `lost` promise: a session's handle (`sessionHandle.ts`) shares its device's, so the handle and the device answer alike. */
+const losses = new WeakSet<object>()
+
+/** Whether `device`, or the handle of a session on it, was lost: heard by the one listener of the device (`claimGpuDevice`), so a device nobody claimed is never said lost. What it refused is then refused for good. */
+export const deviceLost = (device: GPUDevice) =>
+  typeof device.lost === 'object' && losses.has(device.lost)
 /** One sequence for every device: a tag never names two claims. */
 let lastId = 0
 
@@ -61,6 +67,7 @@ export function claimGpuDevice(device: GPUDevice, owner: GpuDeviceOwner): GpuDev
     })
     const lost = (loss: GpuDeviceLoss) => {
       entry.loss = loss
+      losses.add(device.lost)
       for (const owner of entry.owners.values()) owner.lost(loss)
     }
     device.lost.then(

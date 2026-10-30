@@ -10,6 +10,7 @@ const SHADING_MODEL_CODES = [
   PIXEL_MODEL.hair,
   GRAPH_SHADING_MODELS.unlit,
   PIXEL_MODEL.subsurface,
+  PIXEL_MODEL.toon,
 ] as const
 /** The code of a shading model's number in the record (0 for none, and for a number that is none of them). */
 export const shadingModelCode = (model: number | undefined) =>
@@ -26,6 +27,7 @@ export const shadingNumberOfModel = wgslFn(
  if(code==4u){return ${PIXEL_MODEL.hair}u;}
  if(code==5u){return ${GRAPH_SHADING_MODELS.unlit}u;}
  if(code==6u){return ${PIXEL_MODEL.subsurface}u;}
+ if(code==7u){return ${PIXEL_MODEL.toon}u;}
  return ${GRAPH_SHADING_MODELS.defaultLit}u;
 }`,
 )

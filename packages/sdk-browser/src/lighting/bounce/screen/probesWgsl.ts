@@ -78,7 +78,7 @@ fn spSurfaceAt(pix:vec2u)->SpSurface{
  let facing=dot(n,n)>0.5;
  // A pixel with light through its back: a thin double-sided sheet, or a subsurface surface whatever its colour.
  let foliage=(flags&${SUBSURFACE_FLAG}u)!=0u||pixelModelOf(flags)==${PIXEL_MODEL.subsurface}u;
- let lit=z>0.0&&facing&&(model==${MODEL_FLAG.physical}u||model==${MODEL_FLAG.diffuse}u||model==${MODEL_FLAG.toon}u);
+ let lit=z>0.0&&facing&&(model==${MODEL_FLAG.physical}u||model==${MODEL_FLAG.diffuse}u);
  return SpSurface(
   lit,worldAt(vec2f(pix)+vec2f(0.5),z),select(vec3f(0.0,0.0,1.0),normalize(n),facing),z,
   pixelModelOf(flags)==${PIXEL_MODEL.hair}u,foliage,spFlag(SP_FLAG_BACKFACE_DIFFUSE)&&foliage);

@@ -10,6 +10,9 @@ import { SPECULAR_FLAG_MASK } from '../../materials/surface/surfaceSpecular.ts'
 import { SUBSURFACE_FLAG } from '../../materials/surface/subsurface.ts'
 import { SUBSURFACE_MAP_BIT } from '../materialType.ts'
 
+/** The factor of a toon pixel's first texture coordinates before their fraction is kept as its pattern coordinates: the offset and hatching images repeat ten times over the surface by default. */
+const TOON_PATTERN_UV_SCALE = '10.0'
+
 /** The iris and caustic normals as differences of octahedral coordinates, an 8-bit channel each (as `shadeGraphWgsl.ts` stores them). */
 const delta = (v: string) => `quantise8x2((${v})*0.5+128.0/255.0)`
 
@@ -26,6 +29,8 @@ const delta = (v: string) => `quantise8x2((${v})*0.5+128.0/255.0)`
  *   surface's own.
  * - The hair: its fibre direction is the page's tangent, in the normal's place (the surface's normal where the page stores no tangent); its
  *   scatter amount the metalness.
+ * - The toon: its toon profile's row (`subsurfaceProfileOfModel`) and the pixel's pattern coordinates, the fraction of its first set of
+ *   texture coordinates times 10 (`TOON_PATTERN_UV_SCALE`, so that the offset and hatching images show by default; none held: zero), as the reference stores them.
  * - The unlit model shows the material's emission alone, as an unlit pixel of a graph does.
  * Only a class that holds `HAS_SHADING_MODEL` (the record names a shading model, `materialClassKey`) compiles any of it; the others hold `mmModel` 0
  * and none of these branches.
@@ -53,6 +58,9 @@ export const materialModelStatements = (graphDecides: boolean) =>
    if(any(mmThin>vec3f(0.0))){flag|=${SUBSURFACE_FLAG}u;}
   }
   if(mmModel==${PIXEL_MODEL.profile}u){mmThin=vec3f(subsurfaceProfileOfModel(m.model),0.0,0.0);}
+  if(mmModel==${PIXEL_MODEL.toon}u){
+   mmThin=vec3f(subsurfaceProfileOfModel(m.model),select(vec2f(0.0),fract(uv*${TOON_PATTERN_UV_SCALE}),HAS_UV));
+  }
   if(mmModel==${PIXEL_MODEL.eye}u){
    mmAlpha=quantise8(mmAlpha);
    if(uni.irisNormal==0u){

@@ -27,7 +27,7 @@ import type { CellFrameIo } from './cellsPrime.ts'
 import { summedNeeds, type PartitionShare } from './cellShare.ts'
 import { capacityOf, sizeRows, type PlacedMesh } from './rows.ts'
 import { SQRT3 } from '../../../../math/src/constants.ts'
-import { deviceRefusal, retryFrame, type Refusal } from '../../gpu/core/refusal.ts'
+import { deviceRefusal, refusalNow, retryAt, type Refusal } from '../../gpu/core/refusal.ts'
 
 /** The rounding a recomposed world matrix carries, far above a double's and far below any scale a
  *  page sets: a parent turned and moved back asks no wider rung. */
@@ -98,9 +98,8 @@ export function createRowSizing(
   let sized = -1,
     wanted = -1,
     short = 0
-  /** The frames seen, and the last growth the session refused, until it is granted. */
-  let frames = 0,
-    refused: Refusal | undefined
+  /** The last growth the session refused, until it is granted. */
+  let refused: Refusal | undefined
   /** Sizes the rows for `rung`, in place under `grow`; false, unsized, if refused. */
   const resize = (rung: number, grow?: PlacementGrowth) => {
     const before = share.needs.get(self)
@@ -120,8 +119,7 @@ export function createRowSizing(
     /** Before a frame whose view asks `rung`: the rows grown under `io` for it, or for the actors'
      *  rows found short since. */
     frame(rung: number, io: Pick<CellFrameIo, 'grow' | 'outgrown'>) {
-      frames++
-      if (refused && frames < retryFrame(refused)) return
+      if (refused && refusalNow() < retryAt(refused)) return
       const wider = rung > Math.max(sized, wanted)
       if (!wider && actors.shortage === short) return
       if (wider) wanted = rung
@@ -133,7 +131,7 @@ export function createRowSizing(
       io.outgrown?.()
       if (!io.grow) return
       // Refused: the same rung and shortage are asked again once the wait is over.
-      refused = deviceRefusal(frames, refused)
+      refused = deviceRefusal(refusalNow(), refused)
       wanted = sized
       short = -1
     },

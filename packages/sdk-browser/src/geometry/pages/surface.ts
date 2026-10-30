@@ -23,16 +23,7 @@ import type { PageMaterials } from './pageMesh.ts'
  *  others a world draws — the shadow catcher among them. The surface model reads the family
  *  (`../../materials/surface/surfaceModel.ts`). */
 export type SurfaceFamily =
-  | 'basic'
-  | 'standard'
-  | 'physical'
-  | 'lambert'
-  | 'phong'
-  | 'toon'
-  | 'normal'
-  | 'matcap'
-  | 'depth'
-  | 'shadow'
+  'basic' | 'standard' | 'physical' | 'lambert' | 'phong' | 'normal' | 'matcap' | 'depth' | 'shadow'
 
 /** The raster facts declared beside the shaded fields, and what a family keeps as declared. */
 export type SurfaceFacts = {

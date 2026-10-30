@@ -57,6 +57,23 @@ export const layoutStagesOf =
     }
   }
 
+/** The stage `entry` of `code` on the bind-group layouts `layouts`, group by group, labelled `label`, prepared off the frame and not yet started. */
+const stageOver = (
+  device: GPUDevice,
+  layouts: readonly GPUBindGroupLayout[],
+  code: string,
+  entry: string,
+  label: string,
+) =>
+  preparedComputeStage(
+    device,
+    device.createPipelineLayout({ bindGroupLayouts: layouts }),
+    device.createShaderModule({ label, code }),
+    entry,
+    undefined,
+    label,
+  )
+
 /** The stage `entry` of `code` on the bind-group layouts `layouts`, group by group, labelled
  *  `label`, asked now, off the frame; `failed` hears a failure to compile. */
 export function askedComputeStage(
@@ -67,17 +84,20 @@ export function askedComputeStage(
   label: string,
   failed: (error: unknown) => void,
 ) {
-  const stage = preparedComputeStage(
-    device,
-    device.createPipelineLayout({ bindGroupLayouts: layouts }),
-    device.createShaderModule({ label, code }),
-    entry,
-    undefined,
-    label,
-  ).ask()
+  const stage = stageOver(device, layouts, code, entry, label).ask()
   stage.prepare().catch(failed)
   return stage
 }
+
+/** The stage `entry` of `code` on the bind-group layouts `layouts`, started now off the thread and
+ *  held by no frame (`started`): a candidate compiled ahead of the pass that will bind it. */
+export const startedComputeStage = (
+  device: GPUDevice,
+  layouts: readonly GPUBindGroupLayout[],
+  code: string,
+  entry: string,
+  label: string,
+) => started(stageOver(device, layouts, code, entry, label))
 
 /** The stage `entry` of `code` on one bind-group layout made from `entries`, asked as
  *  `askedComputeStage` asks it; the layout comes with it, for the groups the stage runs over. */
@@ -194,11 +214,17 @@ export function startedComputeStages<E extends string>(
   return {
     /** The compiled pipeline of `stage`: read once every stage is `ready`. */
     pipelineOf: (stage: E) => stages.get(stage)!.get()!,
-    /** Whether every stage is compiled. */
+    /** Whether every stage is compiled: a pure read, it starts nothing — a stage refused is tried again by a timer (`retryAfter`). */
     get ready() {
       if (all) return true
       for (const stage of stages.values()) if (!stage.ready) return false
       return (all = true)
+    },
+    /** Whether a stage's compile is in flight. */
+    get pending() {
+      if (all) return false
+      for (const stage of stages.values()) if (stage.pending) return true
+      return false
     },
   }
 }

@@ -2,7 +2,7 @@
 // rectangle light, are compiled without that code, as the opaque resolve's
 // (`createForwardVariants`). The shipped light loop of the blend pass (`sliceLighting`) runs in f32 (`shaderRun`, `F32_SCOPE`), each variant against the program with
 // every code path, on random lamp sets the variant's key admits — points, spots and suns, in range
-// and past it, shadowed or not where the key keeps the shadow code, standard, diffuse and toon,
+// and past it, shadowed or not where the key keeps the shadow code, standard and diffuse,
 // thin or not, on a cell's list and on every lamp —: the sums are the same numbers, bit for bit.
 // The rectangle's term needs the LTC table: no lamp of these sets is one, and the program with
 // rectangle code holds the same text for it (`rectlessResolve.test.ts`).

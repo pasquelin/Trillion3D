@@ -1,6 +1,7 @@
 import { reflectionCaptureLayoutEntries } from '../reflectionCapture/compositeWgsl.ts'
 import {
   DEFERRED_BINDINGS,
+  TOON_DATA_BINDINGS,
   DEFERRED_CLOUD_SHADOW_BINDINGS,
   DEFERRED_CAPTURE_BINDINGS,
   DEFERRED_SKY_LIGHT_BINDINGS,
@@ -130,6 +131,16 @@ const contactBendEntries = (contact: boolean): GPUBindGroupLayoutEntry[] =>
 const volumeShadowEntry = (volume: boolean): GPUBindGroupLayoutEntry[] =>
   volume ? [computeBufferEntry(DEFERRED_BINDINGS.volumeShadow, 'read-only-storage', fragment)] : []
 
+/** The toon buffer, which the passes that light toon pixels read (`DEFERRED_TOON_TABLES`). */
+const toonTablesEntry = (): GPUBindGroupLayoutEntry =>
+  computeBufferEntry(DEFERRED_BINDINGS.toonTables, 'read-only-storage', fragment)
+
+/** The toon data the step after the lights reads (`toonMain`), the second group of its pass. */
+export const toonDataLayoutEntries = (): GPUBindGroupLayoutEntry[] => [
+  computeTextureEntry(TOON_DATA_BINDINGS.diffuse, 'unfilterable-float', '2d', fragment),
+  computeTextureEntry(TOON_DATA_BINDINGS.weights, 'unfilterable-float', '2d', fragment),
+]
+
 /** The sun's pass: the light buffer and the ranks of the directional lights in it, the shadows,
  *  the clouds' shade, and, where the program holds contact shadow code (`contact`), the screen-space
  *  contact shadows. */
@@ -142,6 +153,7 @@ export const sunLayoutEntries = (
   ...tileEntries(),
   lightsEntry(),
   computeBufferEntry(DEFERRED_BINDINGS.sunRanks, 'read-only-storage', fragment),
+  toonTablesEntry(),
   ...shadowEntries(),
   ...cloudShadowLayoutEntries(DEFERRED_CLOUD_SHADOW_BINDINGS, fragment),
   occlusionEntry(),
@@ -178,6 +190,7 @@ export const localLayoutEntries = (
   ...tileEntries(),
   lightsEntry(),
   computeBufferEntry(DEFERRED_BINDINGS.tiles, 'read-only-storage', fragment),
+  toonTablesEntry(),
   ...shadowEntries(),
   ...localMaskEntries(),
   occlusionEntry(),
@@ -216,6 +229,7 @@ export const perLightLayoutEntries = (
   ...tileEntries(),
   lightsEntry(),
   lightFunctionLayoutEntry(DEFERRED_BINDINGS.lightFunctionAtlas, fragment),
+  toonTablesEntry(),
   computeTextureEntry(DEFERRED_BINDINGS.perLightMask, 'unfilterable-float', '2d-array', fragment),
   occlusionEntry(),
   computeUniformEntry(
@@ -265,6 +279,7 @@ export const indirectLayoutEntries = ({
   ...pixelEntries(),
   ...tileEntries(),
   lightsEntry(),
+  toonTablesEntry(),
   occlusionEntry(),
   computeTextureEntry(DEFERRED_BINDINGS.volumetricLight, 'unfilterable-float', '2d', fragment),
   REFLECTION_TARGET.layoutEntry(),

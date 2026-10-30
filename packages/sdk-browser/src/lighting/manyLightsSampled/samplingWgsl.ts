@@ -26,6 +26,7 @@ import {
   DEFERRED_BINDINGS,
   DEFERRED_LIGHT_FUNCTION_BINDINGS,
   DEFERRED_LIGHT_PROFILE_BINDINGS,
+  DEFERRED_TOON_TABLES,
 } from '../deferred/bindings.ts'
 import { type ContractKey } from '../deferred/contractCuts.ts'
 import { LIGHTS_BINDING_WGSL, keyOfClass } from '../deferred/lightPassWgsl.ts'
@@ -83,9 +84,18 @@ const PLAIN_RECT_BINDINGS: LightingBindings = {
     sampler: DEFERRED_LIGHT_PROFILE_BINDINGS.sampler,
   },
 }
-/** What the sampling and the shading read of the light functions, the light profiles and, where `textured`, the rectangle lights' pictures. */
+/** What the kernels that evaluate a light read, the toon tables beside: a toon pixel is lit by its profile's closure there too. */
+const SAMPLING_LIGHT_BINDINGS: LightingBindings = {
+  ...SAMPLING_BINDINGS,
+  toon: DEFERRED_TOON_TABLES,
+}
+const PLAIN_RECT_LIGHT_BINDINGS: LightingBindings = {
+  ...PLAIN_RECT_BINDINGS,
+  toon: DEFERRED_TOON_TABLES,
+}
+/** What the sampling and the shading read of the light functions, the light profiles, the toon tables and, where `textured`, the rectangle lights' pictures. */
 export const samplingBindingsOf = (textured: boolean) =>
-  textured ? SAMPLING_BINDINGS : PLAIN_RECT_BINDINGS
+  textured ? SAMPLING_LIGHT_BINDINGS : PLAIN_RECT_LIGHT_BINDINGS
 
 export const TILES_BINDING_WGSL = wgslBlock(
   'SAMPLING_TILES_BINDING_WGSL',
@@ -391,12 +401,14 @@ ${SAMPLING_PART_3}  var rayType=${RAY_TYPE.default}u;
 ${SAMPLING_PART_1}`
 }
 
-/** The key of a class's lights, none shadowed and no contact shadow, and the cut of the pixel it reads: what the sampling and the shading of the class share. */
+/** The key of a class's lights, none shadowed and no contact shadow, and the cut of the pixel it reads: what the sampling and the shading of the class share.
+ *  The toon diffuse is ramped light by light here (`toonData` off): the lights' passes alone leave it unramped to the pass after them. */
 export function sampledClassOf(key: ContractKey, tileClass: TileClass, rect: boolean) {
   const lights: ContractKey = {
     ...keyOfClass(key, tileClass, rect),
     unshadowed: true,
     contactless: true,
+    toonData: false,
   }
   return { lights, cut: litCutOf(tileClass, lights) }
 }

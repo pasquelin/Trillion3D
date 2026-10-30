@@ -127,7 +127,16 @@ export const DEFERRED_BINDINGS = {
   captureCube: 85,
   captureSampler: 86,
   captureBlock: 87,
+  /** The toon buffer (`../toon/buffer.ts`): the profiles' rows, their baked patterns and the toon specular's peak table, one read-only storage buffer the lit passes that
+   *  light toon pixels bind (`toonTablesBinding`), a few bytes of header where no material is toon. */
+  toonTables: 88,
 } as const
+
+/** The toon data the pass after the lights reads, in its second group: the diffuse light and the weights (`toonMain`, `TOON_DATA_OUT_WGSL`). */
+export const TOON_DATA_BINDINGS = { diffuse: 0, weights: 1 } as const
+
+/** Where the passes that light toon pixels bind the toon buffer. */
+export const DEFERRED_TOON_TABLES = { group: 0, binding: DEFERRED_BINDINGS.toonTables } as const
 
 /** Where the programs that hold contact shadow code bind the screen-space shadows' array and the ranks of its layers (`contactBendWgsl`). */
 export const DEFERRED_CONTACT_BEND_BINDINGS = {

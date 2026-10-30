@@ -1,5 +1,5 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { hsvToRgb } from '../../../../math/src/wgsl/color.ts'
+import { hsvToRgb, rgbToHsv } from '../../../../math/src/wgsl/color.ts'
 import { INVERSE_PI } from '../../../../math/src/wgsl/constants.ts'
 import { SHADING_MODEL_STATE_WGSL } from './shadingModelState.ts'
 
@@ -20,16 +20,9 @@ import { SHADING_MODEL_STATE_WGSL } from './shadingModelState.ts'
  */
 export const SUBSURFACE_BXDF_WGSL = wgslBlock(
   'SUBSURFACE_BXDF_WGSL',
-  [SHADING_MODEL_STATE_WGSL, INVERSE_PI, hsvToRgb],
+  [SHADING_MODEL_STATE_WGSL, INVERSE_PI, hsvToRgb, rgbToHsv],
   `
 const SUBSURFACE_LEAST:f32=0.000000000001;
-fn rgbToHsv(c:vec3f)->vec3f{
- let p=select(vec4f(c.g,c.b,0.0,-1.0/3.0),vec4f(c.b,c.g,-1.0,2.0/3.0),c.g<c.b);
- let q=select(vec4f(c.r,p.y,p.z,p.x),vec4f(p.x,p.y,p.w,c.r),c.r<p.x);
- let chroma=q.x-min(q.w,q.y);
- let hue=abs((q.w-q.y)/(6.0*chroma+1e-10)+q.z);
- return vec3f(hue,chroma/(q.x+1e-10),q.x);
-}
 fn subsurfaceTransmittedColour(colour:vec3f)->vec3f{
  let extinction=-log(clamp(colour,vec3f(SUBSURFACE_LEAST),vec3f(1.0)))/max(SUBSURFACE_LEAST,modelTransmitDistance);
  let raw=exp(-extinction);

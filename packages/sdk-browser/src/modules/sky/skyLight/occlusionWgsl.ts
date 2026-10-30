@@ -19,6 +19,8 @@ import { skyLightReadWgsl, type SkyLightBindings } from './read.ts'
  *   what the visibility lost (`(1 - visibility) · tint`) to add, and the normal to read it along;
  * - `skyLightDiffuseOccluded(visibility)`: `scale · diffuse light(normal) + add`, what the surface's diffuse colour
  *   multiplies;
+ * - `skyLightBackOccluded(visibility, normal)`: a two-sided surface's back, `scale · diffuse light(-normal)` with the SAME scale as the
+ *   front's (the distance-field occlusion included) and no `add`: the tint belongs to the front's diffuse colour alone;
  * - `skyLightSpecularOcclusion(bent, reflection, roughness, twoSided)`: the specular occlusion, with a bent normal
  *   applied: the length of the bent normal in mode 0, else the intersection of the reflection cone (half angle
  *   `max(roughness, 0.1) · π`) with the unoccluded one (`length · π` over the strength), smoothed, and shadowed outright
@@ -26,11 +28,10 @@ import { skyLightReadWgsl, type SkyLightBindings } from './read.ts'
  *   lost as light to add. A two-sided surface takes the length in either mode. One and nothing without a bent normal.
  *   The cosine is held to -1 .. 1: a product rounded past one would make the angle undefined.
  */
-const OCCLUSION = wgslBlock(
-  'SKY_LIGHT_OCCLUSION_WGSL',
-  [PI],
+const DIFFUSE_OCCLUSION = wgslBlock(
+  'SKY_LIGHT_DIFFUSE_OCCLUSION_WGSL',
+  [],
   `struct SkyVisibility{scale:f32,add:vec3f,normal:vec3f,}
-struct SkySpecularOcclusion{specular:f32,add:vec3f,}
 fn skyLightVisibility(normal:vec3f,others:f32,bent:vec3f)->SkyVisibility{
  var visibility=1.0;
  var factor=1.0;
@@ -52,6 +53,17 @@ fn skyLightDiffuseOccluded(v:SkyVisibility)->vec3f{
  if(!skyLightApplied()){return vec3f(0.0);}
  return v.scale*skyLightDiffuse(v.normal)+v.add;
 }
+fn skyLightBackOccluded(v:SkyVisibility,normal:vec3f)->vec3f{
+ if(!skyLightApplied()){return vec3f(0.0);}
+ return v.scale*skyLightDiffuse(-normal);
+}`,
+)
+
+/** The specular half of the block: what only a program that applies the occlusion to the sky's reflection holds. */
+const SPECULAR_OCCLUSION = wgslBlock(
+  'SKY_LIGHT_SPECULAR_OCCLUSION_WGSL',
+  [PI],
+  `struct SkySpecularOcclusion{specular:f32,add:vec3f,}
 fn skyConeIntersection(first:f32,second:f32,between:f32)->f32{
  let difference=abs(first-second);
  return smoothstep(0.0,1.0,1.0-saturate((between-difference)/(first+second-difference)));
@@ -72,10 +84,18 @@ fn skyLightSpecularOcclusion(bent:vec3f,reflection:vec3f,roughness:f32,twoSided:
 }`,
 )
 
-/** The block over the light read of `bindings` (`skyLightApplied`, `skyLightDiffuse` and the uniform `skyLight` are its). */
+/** The diffuse half over the light read of `bindings` (`skyLightApplied`, `skyLightDiffuse` and the uniform `skyLight` are its): the visibility and the diffuse light under it, the front's and the back's. A program that lights the diffuse alone lists this. */
+export const skyLightDiffuseOcclusionWgsl = (bindings: SkyLightBindings) =>
+  wgslBlock(
+    `SKY_LIGHT_DIFFUSE_OCCLUSION_HOST_WGSL(${bindings.group}, ${bindings.params})`,
+    [skyLightReadWgsl(bindings), DIFFUSE_OCCLUSION],
+    '',
+  )
+
+/** The whole block over the light read of `bindings`: the diffuse half and the specular occlusion (`skyLightSpecularOcclusion`). */
 export const skyLightOcclusionWgsl = (bindings: SkyLightBindings) =>
   wgslBlock(
     `SKY_LIGHT_OCCLUSION_HOST_WGSL(${bindings.group}, ${bindings.params})`,
-    [skyLightReadWgsl(bindings), OCCLUSION],
+    [skyLightDiffuseOcclusionWgsl(bindings), SPECULAR_OCCLUSION],
     '',
   )

@@ -3,8 +3,8 @@
  * surface record (`../../../geometry/pages/surfaceRecord.ts`).
  *
  * A physical kind declares the engine's material parameters, on a standard or physical surface
- * (`physicalSurface.ts`). Every other kind is the family of the same name — basic, Lambert,
- * Phong, toon, normal, matcap, depth, the shadow catcher —, which the engine maps onto its one
+ * (`physicalSurface.ts`): the toon kind is one, of the toon shading model. Every other kind is the family of the same name — basic, Lambert,
+ * Phong, normal, matcap, depth, the shadow catcher —, which the engine maps onto its one
  * lighting model on the WebGPU path (`surfaceModel.ts`), where the bench witness draws each as it
  * is. Lines, points and sprites are unlit: they wear a basic surface.
  */
@@ -40,7 +40,6 @@ const FAMILY: Record<string, SurfaceFamily> = {
   shadow: 'shadow',
   meshLambert: 'lambert',
   meshPhong: 'phong',
-  meshToon: 'toon',
   meshNormal: 'normal',
   meshMatcap: 'matcap',
   meshDepth: 'depth',
@@ -60,6 +59,7 @@ function familyDeclaration(family: SurfaceFamily, material: Material, vertexColo
     side: material.side,
     vertexColors,
     subsurfaceProfile: material.subsurfaceProfile,
+    toonProfile: material.toonProfile,
     shadingModel: material.shadingModel,
     irisMask: material.irisMask,
     irisDistance: material.irisDistance,

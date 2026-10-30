@@ -11,6 +11,7 @@ import { packDagSelection } from '../../geometry/dag/pack/pack.ts'
 import { refusing } from './refusing.fixture.ts'
 import type { EngineDiagnostic } from '../../diagnostic/types.ts'
 import { graphDraws } from '../../geometry/selection/drawSource.ts'
+import { RETRY_MS } from '../../gpu/core/backoff.ts'
 
 /** The label of the Hi-Z pyramid's level 0 (`visibility/hiz/gpu/pyramid.ts`). */
 const HI_Z_LEVEL_0 = 'Trillion3D Hi-Z level 0'
@@ -135,7 +136,11 @@ test('frame targets refused at prepare are refused by name', async () => {
 // its wait (`ScaleControl.memoryRefused`), never every frame: then the frame is drawn complete. And
 // `world/session-startup`: the page reads `frameHeld` as "nothing more to draw", so a frame held
 // while the device answers must not say it.
-test('a refused target grant holds the frame, asks again after its wait, then draws it complete', async () => {
+test('a refused target grant holds the frame, asks again after its wait, then draws it complete', async (t) => {
+  // The wait is time (`refusalNow`): the clock is advanced by hand, a frame of a hundredth of the wait at a time.
+  let clock = 1_000_000
+  t.mock.method(performance, 'now', () => clock)
+  t.mock.method(Math, 'random', () => 0.5)
   let refusals = 1
   const s = await resized((raise) => refusals-- > 0 && raise('Out of memory'))
   try {
@@ -147,6 +152,7 @@ test('a refused target grant holds the frame, asks again after its wait, then dr
     assert.equal(s.said('frame-targets-refused').length, 1, 'refused by name, once')
     let frames = 0
     for (; frames < 1000 && s.gpu.draws.length === draws; frames++) {
+      clock += RETRY_MS / 100
       s.backend.render(s.cam)
       await s.backend.pendingFrame()
     }

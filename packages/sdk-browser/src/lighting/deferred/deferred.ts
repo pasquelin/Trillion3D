@@ -14,7 +14,9 @@ import { type ClearColor, ZERO_DIRECT, createDeferredView } from './view.ts'
 import { createToneLut } from '../toneLut.ts'
 import { createHeightFogPass, type FogPassResources } from '../fog/fogPass.ts'
 import { createVolumetricLightPass } from './volumetricLightPass.ts'
+import { createToonDataTargets, type ToonDataViews } from './toonData.ts'
 import { HDR_COMPOSITION_PASS, HDR_PRESENT_PASS } from '../../diagnostic/stage/passLabels.ts'
+import { onRetryLanded } from './compileLedger.ts'
 
 /** Whether these resources light with the bounce program. */
 const bounceOf = ({ bounceGrid }: DirectLightResources) => !!bounceGrid
@@ -22,6 +24,17 @@ const bounceOf = ({ bounceGrid }: DirectLightResources) => !!bounceGrid
 /** The key of the lit program a frame bound to `direct` asks: whether it bounces, the lists' width and the cuts of its light code. */
 const keyOf = (direct: DirectLightResources) =>
   [bounceOf(direct), !!direct.narrow, cutsIn(direct)] as const
+
+/** The whole ask of the lit program a frame bound to `direct` makes (`litResolver`), THE ONE KEY of `bind`, `awaited`, the per-light and bounce asks: its key, the failure hearer, the sky light's occlusion
+ *  and the capsule shadows as planned for the frame (`DirectLightResources.skyPlanned`), the toon data. */
+const litKeyOf = (direct: DirectLightResources, onFailure?: (error: unknown) => void) =>
+  [
+    ...keyOf(direct),
+    onFailure,
+    !!direct.skyPlanned,
+    !!direct.capsulePlanned,
+    !!direct.toonUnified,
+  ] as const
 
 type DeferredView = ReturnType<typeof createDeferredView>
 type ContractVariants = ReturnType<typeof createContractVariants>
@@ -60,6 +73,8 @@ type LightingParts = {
  *  image, `askFog`). */
 type Statics = {
   classification: ReturnType<typeof createTileClassification>
+  /** The toon data targets of the lit image, made at the first image whose program writes them (`ContractKey.toonData`). */
+  toonData: ReturnType<typeof createToonDataTargets>
   colour: Awaited<ReturnType<typeof createSurfaceColourPass>>
   unlit: Awaited<ReturnType<typeof createUnlitPass>>
   unlitComposer: Composer
@@ -136,17 +151,24 @@ export async function createDeferredLighting(
   const variants = createContractVariants(device, bindings, onReady, lit, litComposer.ready)
   // The program the first frame asks for, and its wide twin. Prepare waits for the one without
   // bounce, which lights any first frame; the bounce pair lands meanwhile.
-  const litReady = lit?.precompile ? variants.precompile(false, lit.key) : Promise.resolve()
-  if (lit?.precompile && lit.bounce) void variants.precompile(true, lit.key)
+  const litReady = lit?.precompile
+    ? variants.precompile(false, lit.key, lit.toon)
+    : Promise.resolve()
+  if (lit?.precompile && lit.bounce) void variants.precompile(true, lit.key, lit.toon)
   const classification = createTileClassification(device, failed)
+  const toonData = createToonDataTargets(device)
   const lazy = lazyPasses(device, view.buffer, lit, failed)
   if (lit?.precompile) lazy.askFog()
+  // A pipeline that lands on a retry redraws the view like a program that lands: the toon diffuse pipelines retried while the plain programs were lent. Heard only once the constructors above, which may throw, are through: nothing would stop it.
+  const stopLanded = onReady && onRetryLanded(device, onReady)
   const made = await Promise.all([
     createUnlitPass(device, view.buffer, 'DEFERRED'),
     createSurfaceColourPass(device, view.buffer),
     createComposer(device, UNLIT_COMPOSITIONS, bindings, 'UNLIT'),
   ]).catch((error: unknown) => {
+    stopLanded?.()
     classification.dispose()
+    toonData.release()
     lazy.fog()?.release()
     view.dispose()
     placeholders.dispose()
@@ -157,6 +179,7 @@ export async function createDeferredLighting(
   const [unlit, colour, unlitComposer] = made
   const statics: Statics = {
     classification,
+    toonData,
     colour,
     unlit,
     unlitComposer,
@@ -165,7 +188,9 @@ export async function createDeferredLighting(
     askFog: lazy.askFog,
     volumetricLight: lazy.volumetricLight,
     release() {
+      stopLanded?.()
       classification.dispose()
+      toonData.release()
       colour.release()
       unlit.release()
       unlitComposer.release()
@@ -206,27 +231,39 @@ function viewSetters(state: LightingState, view: DeferredView) {
 
 /** The lighting's calls that ask the lit programs of a variant table for what a frame lit with some resources needs. */
 function variantAsks(variants: ContractVariants) {
+  // The program a frame is lent with the probes named, as the bind will pick it (`litResolver`): the table of its capsule shadows and of the toon choice, no sky occlusion with a bounce.
+  const bounceProgram = (
+    direct: DirectLightResources,
+    toon: boolean,
+    resolve: ContractVariants['peek'] = variants.resolve,
+  ) =>
+    resolve(true, !!direct.narrow, cutsIn(direct), undefined, false, !!direct.capsulePlanned, toon)
+      .program
   return {
     /** What a frame lit with these resources waits for: the lit program's compile while no ready
      *  one can light it, else nothing (`contractVariants.ts`). */
-    awaited: (direct: DirectLightResources) => variants.awaited(...keyOf(direct)),
+    awaited: (direct: DirectLightResources) => variants.awaited(...litKeyOf(direct)),
     /** Starts the compile of the bounce program of the key these resources ask, before the probes it reads exist: the bounce wants it, and it compiles beside the probes' rigging
-     *  instead of after it. Nothing waits for it here (`awaited` does once the probes are there). */
-    askBounce: (direct: DirectLightResources) =>
-      void variants.exact(true, !!direct.narrow, cutsIn(direct)),
-    /** Asks the per-light path's pipelines (`PerLightProgram.ready`) of the program a frame lit with these resources will bind, once it
-     *  is compiled: their compile holds the frames, so that no image is drawn without the lights they draw (and
-     *  advances no history) while they compile. Returns the compile of that program while it is pending: the frames wait for it too. */
+     *  instead of after it. Always the program with no toon data, which the bounced light's view is lit with and `bounceReady` reads, and, where the one decision of the toon
+     *  program (`toonUnifiedOf`) says toon, the toon table's too. Nothing waits for it here (`awaited` does once the probes are there). */
+    askBounce: (direct: DirectLightResources) => {
+      bounceProgram(direct, false)
+      if (direct.toonUnified) bounceProgram(direct, true)
+    },
+    /** Whether the bounce program of the key these resources ask is the one a frame is lent with the probes named (`bounceGrid`): the bounced light's view is drawn only then
+     *  (`toonUnifiedOf`, `setLightView`), one rule for the view and for the toon choice. A pure read: it asks nothing and compiles nothing (`litResolver.peek`; the frame's own asks
+     *  are `awaited` and `bind`). */
+    bounceReady: (direct: DirectLightResources) =>
+      !!direct.bounceGrid && !!bounceProgram(direct, false, variants.peek)?.bounce,
+    /** Asks the per-light path's pipelines (`PerLightProgram.ready`) of the one program a frame lit with these resources binds (the one it is lent, else the toon program about to be lent, else the exact one), once the exact program is compiled. Their compile holds the
+     *  frames, so that no image is drawn without the lights they draw (and advances no history) while they compile. Returns the compile of the program of the key itself while it is pending: the frames wait for it too. */
     askPerLight: (direct: DirectLightResources) => {
-      // The program the image will bind once compiled, never the one lent while it compiles: what the frame waits for follows the lights'
-      // configuration, not which compile happened to land first. The compile pending, else the per-light pipelines asked (their ask holds the frames).
-      const exact = variants.exact(
-        ...keyOf(direct),
-        !!direct.skyShadowing,
-        !!direct.capsuleIndirect,
-      )
+      // The frame waits for the program the image will bind once compiled, never only for the one lent while it compiles: what it waits for follows the lights' configuration, not which compile happened to land first.
+      const { program, asking, exact } = variants.resolve(...litKeyOf(direct))
       if (!exact.program) return exact.pending
-      exact.program.perLightReady()
+      // Its pipelines are asked for the one program the frame binds, once: the one it is lent (from another table where the toon or sky table is not ready), else a toon program about to be lent (`asking`), else this one. The other is
+      // not asked (it waits for its turn, when it is the one lent), so that no stand-in's pipelines are compiled and awaited for nothing.
+      ;(program ?? asking ?? exact.program).perLightReady()
     },
   }
 }
@@ -283,10 +320,6 @@ function lightingOf({ view, placeholders, tone, variants, statics, litReady }: L
     /** The lit program the frame was bound to, none for the unlit view's: the strands' light is made over its layouts and groups. */
     get litProgram() {
       return state.active
-    },
-    /** Whether the frame is lit with the bounce program, which reads the probes' light. */
-    get bouncing() {
-      return !!state.active?.bounce
     },
     /** Writes the view uniform of this image (`view.ts`). */
     update: viewUpdate(state, view),
@@ -350,16 +383,10 @@ function programBind(
     direct: DirectLightResources = {},
     onFailure?: (error: unknown) => void,
   ) => {
-    // A program still compiling lends the frame the best one ready (`contractVariants.ts`).
-    state.active =
-      (wantsContract &&
-        variants.pick(
-          ...keyOf(direct),
-          onFailure,
-          !!direct.skyShadowing,
-          !!direct.capsuleIndirect,
-        )) ||
-      undefined
+    // A program still compiling lends the frame the best one ready, the toon one only once its pipelines are compiled, the frame waiting for it meanwhile (`awaited`):
+    // the one resolver of the frame's program (`litResolver`, `contractVariants.ts`).
+    const active = wantsContract ? variants.pick(...litKeyOf(direct, onFailure)) : undefined
+    state.active = active || undefined
     state.surface = surface
     state.depth = depth
     state.direct = direct
@@ -380,11 +407,12 @@ function lightPass(
   placeholders: ReturnType<typeof createDeferredPlaceholders>,
   uniform: GPUBuffer,
 ) {
-  return (encoder: GPUCommandEncoder, hdr: GPUTextureView) => {
+  return (encoder: GPUCommandEncoder, hdr: GPUTextureView, target?: readonly number[]) => {
     const { active, surface, depth, drawn, direct } = state
     if (!surface || !depth) throw new Error('SURFACE_NOT_BOUND')
     const [width, height] = drawn
     if (!active) {
+      statics.toonData.release()
       statics.unlit.draw(encoder, hdr, surface, width, height)
       return 1
     }
@@ -408,8 +436,13 @@ function lightPass(
     }
     active.bind(surface, depth, direct, classification.lists)
     const occlusion = direct.ambientOcclusion ?? placeholders.ambientOcclusion
-    const pass = statics.colour.begin(encoder, hdr, width, height)
-    statics.colour.record(pass, surface, occlusion)
+    // The toon data's targets are the size of the lit image's target, which the pass's attachments share.
+    // A program that writes no toon data gives the targets back (retired, so the frames in flight keep them).
+    let toon: ToonDataViews | undefined
+    if (active.toon) toon = statics.toonData.ensure(...sizeOf(target, drawn))
+    else statics.toonData.release()
+    const pass = statics.colour.begin(encoder, hdr, width, height, toon)
+    statics.colour.record(pass, surface, occlusion, !!toon)
     return (
       1 +
       drawLights(
@@ -422,10 +455,15 @@ function lightPass(
         state.lightView,
         perLightOf(state.lightView, direct),
         drawn,
+        toon,
       )
     )
   }
 }
+
+/** The size of the lit image's target: given by the caller, else the size drawn. */
+const sizeOf = (target: readonly number[] | undefined, drawn: readonly number[]) =>
+  [target?.[0] ?? drawn[0], target?.[1] ?? drawn[1]] as const
 
 /** The shadowed local lights the frame lights one by one (`DirectLightResources.perLight`), where the view shows the whole lighting;
  *  else none, and the batched loop lights them. */
@@ -437,7 +475,7 @@ const perLightOf = (lightView: number, direct: DirectLightResources) =>
  * began. On the batched path they are the indirect light's, the sun's and the local lights', one pass. With per-light lights
  * (`shadowOnePassProjection` false) the pass is ended before each light's draw and begun again over the image as it stands
  * (`resume`), the light's mask encoded between them (`PerLightLights.encodeMask`): the lights are drawn in the order of their
- * records, after the indirect light's draw, which the first pass holds with the sun's and the local lights'. While the path's pipelines compile
+ * records, after the indirect light's draw, which the first pass holds with the sun's and the local lights' and followed, where the toon diffuse is unified, by its step. While the path's pipelines compile
  * (`ready`) the local lights' step still leaves the shadowed lights out and no per-light step is drawn: no light reads a mask that
  * was not projected, and the frame is drawn again once they are compiled (`chainReady`). Returns the draws made.
  */
@@ -451,6 +489,7 @@ function drawLights(
   lightView: number,
   lights: PerLightLights | undefined,
   [width, height]: readonly number[],
+  toon: ToonDataViews | undefined,
 ) {
   const ready = !!lights && lights.ready() && active.perLightReady()
   let pass = first,
@@ -459,9 +498,15 @@ function drawLights(
     if (typeof step === 'number') {
       pass.end()
       lights!.encodeMask(encoder, step)
-      pass = colour.resume(encoder, hdr, width, height)
+      pass = colour.resume(encoder, hdr, width, height, toon)
     }
     made += active.drawStep(pass, draws, step, lights)
+  }
+  // The toon data the lights added, in a pass of the lit image's one target: the pass that wrote it cannot read it.
+  if (toon) {
+    pass.end()
+    pass = colour.resume(encoder, hdr, width, height)
+    made += active.drawStep(pass, draws, 'toon', lights, toon)
   }
   pass.end()
   return made

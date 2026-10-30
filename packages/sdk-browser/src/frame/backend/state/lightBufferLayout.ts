@@ -26,7 +26,8 @@ const SKIN_AT = LTC_BYTES + LTC_SIZE * LTC_SIZE * 32,
   ENERGY_AT = ENV_BRDF_AT + ENV_BRDF_TEXELS * 4,
   SHEEN_AT = ENERGY_AT + SHADING_ENERGY_SIZE * SHADING_ENERGY_SIZE * 4,
   PROFILES_AT = SHEEN_AT + SHEEN_LTC_SIZE * SHEEN_LTC_SIZE * 8,
-  TRANSMISSIONS_AT = PROFILES_AT + LIT_PROFILE_ROWS * 16
+  TRANSMISSIONS_AT = PROFILES_AT + LIT_PROFILE_ROWS * 16,
+  ITEMS_AT = TRANSMISSIONS_AT + LIT_PROFILE_ROWS * LIT_TRANSMISSION_VEC4S * 16
 /** Where each region of the buffer starts, in bytes: the atmosphere's regions, the
  *  fog volume's view block, the rectangles' lobe, the skin table, the environment BRDF, the GGX energy table, the sheen table, the subsurface profiles' rows and their transmission rows, then the light slots. */
 export const LIGHT_BUFFER_AT = {
@@ -49,5 +50,5 @@ export const LIGHT_BUFFER_AT = {
   profiles: PROFILES_AT,
   /** The subsurface profiles' transmission the lights read, `LIT_TRANSMISSION_VEC4S` `vec4f` a profile (`litRows.ts`), written with the rows above. */
   transmissions: TRANSMISSIONS_AT,
-  items: TRANSMISSIONS_AT + LIT_PROFILE_ROWS * LIT_TRANSMISSION_VEC4S * 16,
+  items: ITEMS_AT,
 } as const

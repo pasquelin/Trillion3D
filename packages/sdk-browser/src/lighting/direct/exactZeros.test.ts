@@ -73,7 +73,7 @@ test('the skipped thin transmission and back-facing lobes keep every sum, bit fo
           sphereNoNewton: false,
           clearCoatBottom: false,
           thinSubsurface: thin,
-          surfaceModel: [2, MODEL_FLAG.diffuse, MODEL_FLAG.toon][Math.floor(round / 3) % 3],
+          surfaceModel: [2, MODEL_FLAG.diffuse][Math.floor(round / 3) % 2],
           shadowFactor: () => 1,
           airTintOf: () => [1, 1, 1],
           cloudShadowOnSurface: () => 1,

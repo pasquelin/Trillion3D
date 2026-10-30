@@ -10,7 +10,7 @@ import { askRootPasses } from '../../placement/roots/rootPasses.ts'
 import { askBlendReach } from '../../blend/askReach.ts'
 import { askEntryCorners } from '../../blend/transparent/entryCorners.ts'
 import { wantsEmissiveAo } from '../prepare/emissiveAoLayer.ts'
-import { askLobedPrograms } from '../prepare/contractLight.ts'
+import { askLobedPrograms, planLitTables } from '../prepare/contractLight.ts'
 import { askPerLightLights } from '../../lighting/shadows/vsm/frame/vsmAskProjection.ts'
 import { wantsContractLighting } from '../prepare/lit.ts'
 import { askBounce } from '../prepare/bounce.ts'
@@ -20,7 +20,7 @@ import { askTranslucencyVolume } from '../../lighting/translucency/frame.ts'
 import { askTranslucencyGi } from '../../lighting/translucencyGi/frame.ts'
 import { askScreenProbes } from '../../lighting/bounce/screen/frame.ts'
 import { log } from '../../diagnostic/log.ts'
-import { takeRefusals, tickCompiles, track } from '../../lighting/deferred/compileLedger.ts'
+import { takeRefusals, track } from '../../lighting/deferred/compileLedger.ts'
 import {
   blueNoiseNow,
   blueNoiseRefused,
@@ -115,7 +115,6 @@ function askBlueNoise(rt: WebgpuPagesRuntime, device: GPUDevice) {
  */
 export function askFramePipelines(rt: WebgpuPagesRuntime) {
   if (rt.gpu.device) {
-    tickCompiles(rt.gpu.device)
     const refused = takeRefusals(rt.gpu.device)
     if (refused) {
       // Said on the console too: a refused pipeline leaves its pass undrawn, which with no
@@ -127,6 +126,8 @@ export function askFramePipelines(rt: WebgpuPagesRuntime) {
     }
   }
   stampAsked(rt)
+  // The lit program's tables are decided here, once for the frame, before any ask reads them.
+  planLitTables(rt)
   askAll(rt)
 }
 

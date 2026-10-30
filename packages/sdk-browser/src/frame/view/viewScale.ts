@@ -1,5 +1,5 @@
 import { clamp } from '../../../../math/src/scalar/reals.ts'
-import { deviceRefusal, retryFrame, type Refusal } from '../../gpu/core/refusal.ts'
+import { deviceRefusal, retryAt, type Refusal } from '../../gpu/core/refusal.ts'
 import { renderScaleBounds, type RenderScale } from '../scale/renderScaleOption.ts'
 import type { ScaleControl } from '../scale/scaleControl.ts'
 
@@ -47,9 +47,9 @@ export function createViewScale(
     wanted: () => (bounds.auto ? clamp(world.wanted(), bounds.min, bounds.max) : bounds.max),
     allocated: () => bounds.max,
     capMemory: () => false,
-    memoryRefused(_size: string, frame: number) {
-      refusal = deviceRefusal(frame, refusal)
-      return retryFrame(refusal)
+    memoryRefused(_size: string, now: number) {
+      refusal = deviceRefusal(now, refusal)
+      return retryAt(refusal)
     },
     liftMemoryCap: () => {},
     drew(drawn: number, steered: boolean) {

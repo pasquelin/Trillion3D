@@ -21,7 +21,7 @@ export const translucentGiWgsl = (volume: number, sampler: number) =>
 /** Whether the surface in hand reads the constant band alone (a material lit as a medium without direction), set with its other state. */
 var<private> translucentGiSingle:bool=false;
 /** What the environment adds of the sky light's diffuse: nothing, the volume carries it (the shared lighting helpers read it). */
-fn environmentSky(N:vec3f)->vec3f{return vec3f(0.0);}
+fn environmentSky(N:vec3f,ao:f32)->vec3f{return vec3f(0.0);}
 /** The sky light's irradiance on a surface of normal \`N\`, none where no sky light shines. */
 fn translucentSky(N:vec3f)->vec3f{return select(vec3f(0.0),skyIrradiance(N),skyLit());}
 /** The irradiance at \`P\` on a surface of normal \`N\`: the volume's, fading to the sky light's over the grid's last half slice. */

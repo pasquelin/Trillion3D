@@ -9,7 +9,7 @@ import { clamp } from '../../../../math/src/scalar/reals.ts'
 export const SURFACE_MODEL = {
   standard: 0,
   diffuse: 1,
-  toon: 2,
+  // Rank 2 is free.
   normal: 3,
   matcap: 4,
   depth: 5,
@@ -19,9 +19,9 @@ export const SURFACE_MODEL = {
 /** Bits of the page row's flags word that carry the model; below them, the material flags. */
 export const MODEL_SHIFT = 17
 /** Surface-buffer flags of the lit models: the physical one, the only one with a specular lobe (a
- *  reflection is traced for it alone), the two the resolve shades apart, and the shadow catcher,
+ *  reflection is traced for it alone), the diffuse one the resolve shades apart, and the shadow catcher,
  *  which only a blend fragment reads: it is always blended (`../../geometry/pages/surfaceRecord.ts`). */
-export const MODEL_FLAG = { physical: 2, diffuse: 4, toon: 5, shadow: 6 } as const
+export const MODEL_FLAG = { physical: 2, diffuse: 4, shadow: 6 } as const
 /** Surface-buffer flag of a debug view, a normal or depth surface: shown as-is, never fogged,
  *  and composed with neither exposure nor the display curve (`shownAsIs`). */
 export const AS_IS_FLAG = 3
@@ -31,7 +31,7 @@ export const UNLIT_FLAG = 1
 /** Low three G-buffer bits identify the surface model; higher bits are independent marks. */
 export const SURFACE_MODEL_MASK = 7
 /** The surface-buffer flag of a lit surface whose row or item flags `flags` carry its model lane
- *  (`MODEL_SHIFT`): the physical one, the diffuse, the toon or the shadow catcher's, as the lane
+ *  (`MODEL_SHIFT`): the physical one, the diffuse or the shadow catcher's, as the lane
  *  says. The one mapping of the opaque shade, the blend fragment and the front stage. */
 export const modelFlag = wgslFn(
   'modelFlag',
@@ -39,7 +39,6 @@ export const modelFlag = wgslFn(
   `fn modelFlag(flags:u32)->u32{
  let model=(flags>>${MODEL_SHIFT}u)&7u;
  if(model==${SURFACE_MODEL.diffuse}u){return ${MODEL_FLAG.diffuse}u;}
- if(model==${SURFACE_MODEL.toon}u){return ${MODEL_FLAG.toon}u;}
  if(model==${SURFACE_MODEL.shadow}u){return ${MODEL_FLAG.shadow}u;}
  return ${MODEL_FLAG.physical}u;
 }`,
@@ -143,7 +142,8 @@ export const subsurfaceOpacityOfModel = wgslFn(
 
 /** The record's model word holds, from here, eight bits more: the number of the material's subsurface profile
  *  (`VisMaterial.subsurfaceProfile`, the row of the profile table, 0 the default skin's), which the surface pass leaves in the data of a
- *  pixel of the subsurface-profile and eye models (`../../lighting/subsurface/litHook.ts`). */
+ *  pixel of the subsurface-profile and eye models (`../../lighting/subsurface/litHook.ts`); on a toon material the row of its toon profile
+ *  (`../../lighting/toon/registry.ts`, 0 the default profile), left in the data of its pixels. */
 export const SUBSURFACE_PROFILE_MODEL_SHIFT = MODEL_WORD.subsurfaceProfile.shift
 export const subsurfaceProfileOfModel = wgslFn(
   'subsurfaceProfileOfModel',
@@ -153,5 +153,5 @@ export const subsurfaceProfileOfModel = wgslFn(
 
 /** The record's model word holds, from here, three bits more: the code of the shading model the material gives its pixels without a graph
  *  (`VisMaterial.shadingModel`, the model's number): 1 the preintegrated skin, 2 the subsurface profile, 3 the eye, 4 the hair, 5 the
- *  unlit, 6 the thin subsurface, 0 none. */
+ *  unlit, 6 the thin subsurface, 7 the toon, 0 none. */
 export const SHADING_MODEL_MODEL_SHIFT = MODEL_WORD.shadingModel.shift

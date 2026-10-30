@@ -102,6 +102,8 @@ export interface ClassCut {
  *  program's lights test them, `ContractKey.channelless`; a pass that lights no pixel by a light's term reads none). */
 export interface LitPixelCut extends ClassCut {
   channels: boolean
+  /** Whether the pass writes the toon data (`ContractKey.toonData`): the toon diffuse of a toon pixel is left unramped to the pass after the lights. */
+  toonData?: boolean
 }
 
 /** The cut of each class: a tile is of the class of its most demanding pixel (`pixelTileClass`), so
@@ -116,10 +118,11 @@ export const CLASS_CUTS: Record<TileClass, ClassCut> = {
  *  lighting channels where the program's lights test them. */
 export const litCutOf = (
   tileClass: TileClass,
-  key: { readonly channelless: boolean },
+  key: { readonly channelless: boolean; readonly toonData?: boolean },
 ): LitPixelCut => ({
   ...CLASS_CUTS[tileClass],
   channels: !key.channelless,
+  toonData: !!key.toonData && CLASS_CUTS[tileClass].models,
 })
 
 /**
@@ -144,11 +147,11 @@ export const LIT_PIXEL_WGSL = wgslBlock(
     SSS_LIT_WGSL,
   ],
   `
-/** The view's switches of the shading models and of the lit image (\`views.w\`), read once for the pixel's statements and the light's term. */
+/** The view's switches of the shading models and of the lit image (views.w), read once for the pixel's statements and the light's term. */
 fn modelSwitchBits()->u32{return u32(view.views.w);}
 /** A light's term in the lit image: the light multiplied by the pre-exposure, not held (the base pass holds the emission
- *  alone, \`colourPassWgsl.ts\`); its alpha the pre-exposed luminance of the light the subsurface scattering spreads
- *  (\`scatterAdd\`), where the pass that spreads it runs (\`sssLitResult\`). */
+ *  alone, colourPassWgsl.ts); its alpha the pre-exposed luminance of the light the subsurface scattering spreads
+ *  (scatterAdd), where the pass that spreads it runs (sssLitResult). */
 fn lightOut(rgb:vec3f)->vec4f{
  let bits=modelSwitchBits();
  return sssLitResult(preExposed(rgb),scatterLuma*view.preExposure.x,sssLitPostprocess(bits),sssLitCheckerboard(bits));
@@ -176,7 +179,7 @@ export const LIT_CHANNELS_WGSL = wgslBlock(
  * the pixel is lit with.
  */
 export const litPixelStatements = (
-  { models, thin, lobes, channels }: LitPixelCut,
+  { models, thin, lobes, channels, toonData }: LitPixelCut,
   miss = 'discard;',
 ) => `
  let coord=vec2i(pixel.xy);
@@ -202,6 +205,7 @@ ${
   models
     ? `
  let pixelModelId=pixelModelOf(surfaceFlag);
+ ${toonData ? `toonUnified=(modelBits&${MODEL_SWITCH.toonUnified}u)!=0u;\n ` : ''}toonQuantize=(modelBits&${MODEL_SWITCH.toonQuantize}u)!=0u;
  if(pixelModelId!=0u){
   modelTransmitDistance=view.preExposure.w;
   if(pixelModelId==${PIXEL_MODEL.subsurface}u){thinSubsurface=vec3f(0.0);}

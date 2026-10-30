@@ -41,6 +41,7 @@ export function physicalDeclaration(material: Material, vertexColors: boolean) {
     family,
     subsurfaceColor: material.subsurfaceColor,
     subsurfaceProfile: material.subsurfaceProfile,
+    toonProfile: material.toonProfile,
     shadingModel: material.shadingModel,
     irisMask: material.irisMask,
     irisDistance: material.irisDistance,

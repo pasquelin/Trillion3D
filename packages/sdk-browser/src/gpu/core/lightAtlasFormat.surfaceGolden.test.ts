@@ -38,8 +38,8 @@ const digest = (value: unknown) =>
 // Re-pinned 30/10 for the simple lights' word (the tile slice's walk of the lights past the scene's, `DirectLights.simple`): every program that lists the lights' walk (the surface cache's direct light, shadow masks, shadow and radiosity traces, cull, the reflection traces, the translucency GI trace and the cache traces).
 // Re-pinned for the fog beyond a ray worked out over any reach (`fogBeyondAlong`, the sky meshes' capture): the reflection traces, which hold the fog's text.
 const WORD_PROGRAMS = {
-  REFLECTION_TRACE_SHADER: '74cc557dafb74866',
-  REFLECTION_TRACE_STATISTICS_SHADER: '8b1d62824da09d76',
+  REFLECTION_TRACE_SHADER: '6517aeb9c9228333',
+  REFLECTION_TRACE_STATISTICS_SHADER: 'a3827f21f407a288',
   SURFACE_CACHE_RESOLVE_WGSL: '3d49d6105d5fd6bf',
   SURFACE_CACHE_RESAMPLE_WGSL: '718df4696635dbd6',
   SURFACE_CACHE_RESAMPLE_COMPRESSED_WGSL: '07e6174f45994148',
@@ -80,11 +80,11 @@ const WORD_PROGRAMS = {
   SURFACE_CACHE_COMBINE_COMPRESSED: 'a201efe327f6d6c7',
   TRANSLUCENCY_GI_TRACE: '91366573820fe081',
   TRANSLUCENCY_GI_TRACE_PACKED: '130ac853363f4aaa',
-  REFLECTION_TRACE_HARDWARE_SHADER: '1f55e5d606001092',
-  REFLECTION_TRACE_NATIVE_SHADER: 'afc3ff8dd0989161',
-  REFLECTION_TRACE_NATIVE_STATISTICS_SHADER: '80df2d937e035bcd',
-  REFLECTION_TRACE_POLYFILL_SHADER: 'ccd4e2bc92127a0e',
-  REFLECTION_TRACE_POLYFILL_STATISTICS_SHADER: '9ce3c7471f8b5b9f',
+  REFLECTION_TRACE_HARDWARE_SHADER: 'bee4dc1281782de3',
+  REFLECTION_TRACE_NATIVE_SHADER: '684cfe37fb214960',
+  REFLECTION_TRACE_NATIVE_STATISTICS_SHADER: 'f425bc644aac7cbc',
+  REFLECTION_TRACE_POLYFILL_SHADER: '2775aeec6052b7b0',
+  REFLECTION_TRACE_POLYFILL_STATISTICS_SHADER: '5c542978b3907118',
   CACHE_TRACED_PROGRAM: 'de670f3385ef24de',
   CACHE_TRACE_PROGRAM: 'effc866b46f32cf8',
 }

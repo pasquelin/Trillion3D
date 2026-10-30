@@ -24,7 +24,7 @@ export const BOUNCE_APPLY_WGSL = wgslBlock(
   [lambertDiffuse, INDIRECT_WGSL, SCREEN_INDIRECT_WGSL],
   `
 /** What the environment adds of the sky light's diffuse: nothing, the screen probes carry it. */
-fn environmentSky(N:vec3f)->vec3f{return vec3f(0.0);}
+fn environmentSky(N:vec3f,ao:f32)->vec3f{return vec3f(0.0);}
 /** Diffuse radiance a pixel the screen probes did not read returns: the sky's. */
 fn bounceLighting(rgb:vec3f,metal:f32,N:vec3f,P:vec3f,ao:f32)->vec3f{
  return lambertDiffuse(rgb,metal,indirectIrradiance(P,N),ao);

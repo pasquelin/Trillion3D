@@ -120,7 +120,7 @@ test('every flag the resolve writes fits the flags word unchanged, in eight bits
     // is always blended.
     for (const model of Object.values(SURFACE_MODEL).filter((m) => m !== SURFACE_MODEL.shadow))
       for (const lit of [0, 1])
-        for (const flag of [1, 2, 4, 5])
+        for (const flag of [1, 2, 4])
           for (const mark of [0, EMISSIVE_AO_SURFACE_FLAG])
             written.add(
               run(
@@ -133,13 +133,13 @@ test('every flag the resolve writes fits the flags word unchanged, in eight bits
               ) as number,
             )
   }
-  // Background 0, unlit 1, lit 2, as-is 3, diffuse 4, toon 5: the whole documented set; a surface
+  // Background 0, unlit 1, lit 2, as-is 3, diffuse 4: the whole documented set; a surface
   // shown unlit or lit with its emission-and-occlusion mark; a held-out primitive's pixel, unlit with
   // its own mark above the eight bits.
-  const marked = [1, 2, 4, 5].map((flag) => flag | EMISSIVE_AO_SURFACE_FLAG)
+  const marked = [1, 2, 4].map((flag) => flag | EMISSIVE_AO_SURFACE_FLAG)
   assert.deepEqual(
     [...written].sort((a, b) => a - b),
-    [0, 1, 2, 3, 4, 5, ...marked, 1 | HOLDOUT_SURFACE_FLAG],
+    [0, 1, 2, 3, 4, ...marked, 1 | HOLDOUT_SURFACE_FLAG],
   )
   for (const value of written) {
     assert.equal(Uint32Array.of(value)[0], value, `${value} as the r32uint target held it`)

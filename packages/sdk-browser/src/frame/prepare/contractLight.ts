@@ -19,6 +19,7 @@ import type { DirectLightResources } from '../../lighting/deferred/program.ts'
 import type { LitPrograms } from '../../lighting/deferred/contractVariants.ts'
 import {
   FULL_CONTRACT,
+  cutsIn,
   type ContractKey,
   type LitPass,
 } from '../../lighting/deferred/contractCuts.ts'
@@ -37,6 +38,8 @@ import { shadowsOn } from '../../lighting/shadows/vsm/frame/vsmGates.ts'
 import { marksVolumeVoxels } from '../../blend/radianceMarkSetting.ts'
 import { skyOcclusionRead } from '../../lighting/distanceField/ao/state.ts'
 import { skyOcclusionPlanned } from '../render/encodeSkyOcclusion.ts'
+import { toonDataOn, toonTexelsOf } from '../../lighting/toon/buffer.ts'
+import { followToonProfiles } from '../../lighting/toon/follow.ts'
 import { capsuleIndirectPlanned, capsuleIndirectRead } from '../../lighting/capsuleShadows/host.ts'
 import { lobesHeld, rowsWearLobes } from './lobesTarget.ts'
 import { castsContactShadows } from '../../lighting/contactShadow/frame.ts'
@@ -47,7 +50,7 @@ import { readScreenProbeSetting } from '../../../../sdk-core/src/bounce/screenPr
 import { waterTraces } from '../../blend/water/waterReflection.ts'
 import { waterSeparates } from '../../blend/water/waterTargets.ts'
 import { track } from '../../lighting/deferred/compileLedger.ts'
-import { drawsLit, showsRaw } from '../../visibility/shader/shadeMode.ts'
+import { drawsLit, lightViewCode, showsRaw } from '../../visibility/shader/shadeMode.ts'
 import { unlitLights } from '../render/captureLights.ts'
 import { fogReadOf } from '../render/localFogGpu.ts'
 import { volumetricLightmapOf } from '../../lighting/volumetricLightmap/frame.ts'
@@ -97,6 +100,7 @@ export const litPrograms = (rt: WebgpuPagesRuntime): LitPrograms => ({
   precompile: wantsContractLighting(rt),
   bounce: rt.bounce.wanted,
   key: keyFor('opaque', rt),
+  toon: toonUnifiedOf(rt, wantsContractLighting(rt) && rt.views.active.overrides.lighting),
   onFailure: (error) => rt.diag.diagnosticFailure('direct-lighting-program-failed', error),
   localFog: rt.setup.localFog,
 })
@@ -181,14 +185,31 @@ function contractKey(
   return key as ContractKey
 }
 
+/** The ask each runtime's frame entry last made of the lit program (`askedOf`), by runtime. */
+const askedKeys = new WeakMap<WebgpuPagesRuntime, number>()
+
+/** The lit program's ask as one number: the lists' width, the bounce, the cuts, the tables planned and the toon choice. */
+const askedOf = (key: DirectLightResources) =>
+  ((cutsIn(key) * 2 + +!!key.narrow) * 2 + +!!key.bounceGrid) * 16 +
+  +!!key.skyPlanned * 8 +
+  +!!key.capsulePlanned * 4 +
+  +!!key.toonUnified
+
 /** The lit program the frame waits for (#1362): while the image wants the contract and no compiled
  *  program can light it, its compile — never the unlit stand-in meanwhile —, else nothing. */
 export function litProgramPending(rt: WebgpuPagesRuntime) {
   const { deferred } = rt.gpu
-  // A lit image already has its program: nothing to read (`deviceAnswering` asks every frame).
-  return deferred && !deferred.usesContract && wantsContractLighting(rt)
-    ? deferred.awaited(directLightResources(rt))
-    : undefined
+  if (!deferred || !wantsContractLighting(rt)) return
+  // A lit image already has its program: nothing to read (`deviceAnswering` asks every frame), unless a toon program is wanted or bound: a toon material or the setting turning on asks for
+  // it in the middle of the session, and a toon program bound when the toon leaves is not the plain one's, which the session may never have compiled (a table precompiled for the toon
+  // alone): the frame waits for the program the resolver lends for the key now (`toonUnifiedOf`).
+  if (deferred.usesContract && !toonDataOn(rt) && !deferred.litProgram?.toon) return
+  // The key is the pure planned one (`pickKeyOf`), the one `bind` and the asks read. A frame already lit by the toon program the choice wants, whose ask is the one last resolved, has nothing to wait for.
+  const key = pickKeyOf(rt),
+    asked = askedOf(key)
+  if (deferred.litProgram?.toon === !!key.toonUnified && askedKeys.get(rt) === asked) return
+  askedKeys.set(rt, asked)
+  return deferred.awaited(key)
 }
 
 /**
@@ -210,8 +231,10 @@ export function askLobedPrograms(rt: WebgpuPagesRuntime, device: GPUDevice) {
     !bounce.reason &&
     !lights.store.unlit &&
     lights.store.count
-  )
+  ) {
+    // The programs the image binds once the probes are there (`askBounce`): the one the bounced light's view reads, and the toon one where the decision says toon.
     deferred?.askBounce(pickKeyOf(rt))
+  }
   // The fog pass is asked now, the frames waiting for its compile, not at the first image it lays fog on.
   deferred?.askFog()
   if (deferred && rowsWearLobes(rt))
@@ -233,16 +256,51 @@ function litKeyInto(rt: WebgpuPagesRuntime, into: DirectLightResources, active: 
   } else Object.assign(into, FULL_CONTRACT)
 }
 
-const pickResources: DirectLightResources = {}
-/** The occlusion the image will read, named for the pick alone: the key reads whether one is named, never its buffers, which the encoding writes. */
-const PLANNED_OCCLUSION = {} as NonNullable<DirectLightResources['skyShadowing']>
+/** Whether the image shows the bounced light alone: the host asks for it (`lightingView` `'bounce'`) and the program that reads the probes is the one the frame is lent (`bounceReady`). The one rule
+ *  of the view code (`surfaceLighting`) and of the toon choice (`toonUnifiedOf`); `direct` is the key resources the frame binds. */
+export const bounceViewOf = (rt: WebgpuPagesRuntime, direct: DirectLightResources) =>
+  rt.lights.store.lightingView === 'bounce' && !!rt.gpu.deferred?.bounceReady(direct)
 
-/** The indirect capsule shadows the image will read, named for the pick alone as the occlusion is. */
-const PLANNED_CAPSULE = {} as NonNullable<DirectLightResources['capsuleIndirect']>
+/**
+ * THE ONE DECISION of the toon program, from the settings, read the same by the pick, the wait, the asks and the draw: the frame applies the toon diffuse once to
+ * the sum of the lights where the image is lit, a material is toon (`toonDataOn`) and the view shows the whole lighting (the lighting term of the diagnostic mode is
+ * 0 or 3, and not the bounced light's alone, `bounceViewOf`). `direct` is the key resources of the frame; none for the first frame's key, which has no probes.
+ */
+export function toonUnifiedOf(rt: WebgpuPagesRuntime, lit: boolean, direct?: DirectLightResources) {
+  if (!lit || !toonDataOn(rt) || (direct && bounceViewOf(rt, direct))) return false
+  const view = lightViewCode(rt.run.diagnostic)
+  return view === 0 || view === 3
+}
+
+const pickResources: DirectLightResources = {}
+
+/** The tables of the lit program as the frame planned them at its entry (`planLitTables`), by runtime. */
+const planned = new WeakMap<WebgpuPagesRuntime, { sky: boolean; capsule: boolean }>()
+
+/**
+ * Decides, once at the frame's entry, the tables the image's lit program holds: the sky light's occlusion and the indirect capsule shadows as the image will draw them
+ * (`skyOcclusionPlanned`, `capsuleIndirectPlanned`). The pick, the wait, the asks and the bind all read this decision (`plannedInto`), never the state as the encoding left it
+ * or as it stands at the draw: the program the frame is held for is the program it binds.
+ */
+export function planLitTables(rt: WebgpuPagesRuntime) {
+  const at = planned.get(rt) ?? { sky: false, capsule: false },
+    active = wantsContractLighting(rt)
+  at.sky = active && skyOcclusionPlanned(rt)
+  at.capsule = active && capsuleIndirectPlanned(rt)
+  planned.set(rt, at)
+}
+
+/** The tables planned for the frame (`planLitTables`), the one source of the lit program's tables for the pick, the wait, the asks and the bind alike (`DirectLightResources.skyPlanned`), whatever the encoding then
+ *  draws; read fresh only where no frame entered yet (the first program a session asks, before any frame). */
+function plannedInto(rt: WebgpuPagesRuntime, into: DirectLightResources, lit: boolean) {
+  const at = planned.get(rt)
+  into.skyPlanned = lit && (at ? at.sky : skyOcclusionPlanned(rt))
+  into.capsulePlanned = lit && (at ? at.capsule : capsuleIndirectPlanned(rt))
+}
 
 /**
  * What picks the lit program of the image (`bind`, `../../lighting/deferred/deferred.ts`) and nothing else: the key's cuts, the
- * lists' width, whether the probes' grid and the sky light's occlusion are named. A pure read, a scratch object of its own: the
+ * lists' width, whether the probes' grid is named, the tables planned (`plannedInto`). A pure read, a scratch object of its own: the
  * frame entry that warms the program the image will bind resolves none of the resources `directLightResources` hands the passes.
  */
 export function pickKeyOf(rt: WebgpuPagesRuntime) {
@@ -250,8 +308,8 @@ export function pickKeyOf(rt: WebgpuPagesRuntime) {
     lit = active && rt.views.active.overrides.lighting
   litKeyInto(rt, pickResources, active)
   pickResources.bounceGrid = lit && rt.bounce.wanted ? rt.bounce.probes?.uniform : undefined
-  pickResources.skyShadowing = lit && skyOcclusionPlanned(rt) ? PLANNED_OCCLUSION : undefined
-  pickResources.capsuleIndirect = lit && capsuleIndirectPlanned(rt) ? PLANNED_CAPSULE : undefined
+  plannedInto(rt, pickResources, lit)
+  pickResources.toonUnified = toonUnifiedOf(rt, lit, pickResources)
   return pickResources
 }
 
@@ -304,6 +362,10 @@ function litPassResources(rt: WebgpuPagesRuntime, lit: boolean) {
   contractResources.contactBend = lit ? bendResourcesOf(rt) : undefined
   // The shadows the heterogeneous volumes cast this image (`encodeHeterogeneousVolumes`, the `shadows` phase), none where it built none.
   contractResources.volumeShadowMaps = lit ? heterogeneousShadowBufferOf(rt.gpu) : undefined
+  // The toon profiles' rows, patterns and peak table (`../../lighting/toon/buffer.ts`), a header alone where no material is toon: the buffer is followed
+  // first (grown and written where the profiles changed), so that the one named here is the one the lights read this image.
+  contractResources.toonTables =
+    lit && rt.gpu.device ? followToonProfiles(rt.gpu.device, toonTexelsOf(rt), rt.run) : undefined
   // The ambient cubemap's cube, whole with its mips, and its colour (`../../lighting/deferred/ambientCubemapFrame.ts`).
   contractResources.ambientCubemap = ambientCubemapResources(rt, lit)
   // What the screen probes left of the pixels' indirect light this image (`../../lighting/bounce/screen/frame.ts`).
@@ -317,10 +379,13 @@ function litPassResources(rt: WebgpuPagesRuntime, lit: boolean) {
   // (`../../lighting/deferred/volumetricLightPass.ts`).
   contractResources.volumetricLightmap =
     lit && rt.gpu.device ? volumetricLightmapOf(rt, rt.gpu.device) : undefined
-  // The sky light's distance-field occlusion this image drew (`../render/encodeSkyOcclusion.ts`): the program that applies it.
+  // The tables the lit program is picked from, as planned (`plannedInto`), and the sky light's distance-field occlusion this image drew (`../render/encodeSkyOcclusion.ts`): the buffers the program that applies it reads.
+  plannedInto(rt, contractResources, lit)
   contractResources.skyShadowing = lit ? skyOcclusionRead(rt) : undefined
   // The indirect capsule shadows this image drew (`../../lighting/capsuleShadows/host.ts`).
   contractResources.capsuleIndirect = lit ? capsuleIndirectRead(rt) : undefined
+  // The toon diffuse applied once to the sum of the lights: the program that writes the toon data.
+  contractResources.toonUnified = toonUnifiedOf(rt, lit, contractResources)
   // The shadowed local lights lit one by one (`shadowOnePassProjection` false).
   contractResources.perLight = lit ? vsmPerLight(rt) : undefined
 }

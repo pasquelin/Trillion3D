@@ -5,6 +5,7 @@
 import { AS_IS_FLAG, SURFACE_MODEL_MASK } from '../../../../materials/surface/surfaceModelWord.ts'
 import { PHYSICAL_SURFACE_FLAG } from '../../../../materials/surface/physicalLobes.ts'
 import { PIXEL_MODEL } from '../../../../materials/surface/pixelModel.ts'
+import { TOON_PROFILE_ROWS } from '../../../../../../sdk-core/src/lighting/toonProfile/rows.ts'
 
 /** A projection group's half, which votes as one: its lanes (32, Z-order indices 0-31, 32-63) and
  *  their log2. */
@@ -81,6 +82,13 @@ fn vsmSurfaceOf(coord:vec2u,inRect:bool,normal:vec3f)->VsmSurfaceInfo{
  // A receiver that lets light through its shadow: its opacity, at most 0.99 — it never stops the light
  // whole —, the thin transmission's, in the target's alpha.
  r.opacity=select(-1.0,min(textureLoad(subsurfaceColor,vec2i(coord)).a,0.99),vsmTransmitsShadow(flag));
+ // A toon pixel stands for a medium of its profile's extinction (the view's table, by the profile row the thin transmission's first channel holds): its opacity is none.
+ r.toon=pixelModelOf(flag)==${PIXEL_MODEL.toon}u;
+ if(r.toon){
+  let row=min(u32(max(round(textureLoad(subsurfaceColor,vec2i(coord)).x),0.0)),${TOON_PROFILE_ROWS - 1}u);
+  r.opacity=0.0;
+  r.extinction=vsmView.toonExtinction[row>>2u][row&3u];
+ }
  r.firstPerson=isFirstPerson(flag);
  if(r.valid){r.worldNormal=normalize(normal);}
  return r;

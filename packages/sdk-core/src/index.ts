@@ -256,3 +256,4 @@ export type {
   SubsurfaceImplementation,
   SubsurfaceProfile,
 } from './lighting/subsurfaceProfile/profile.ts'
+export type { ToonColourKey, ToonCurveKey, ToonProfile } from './lighting/toonProfile/profile.ts'

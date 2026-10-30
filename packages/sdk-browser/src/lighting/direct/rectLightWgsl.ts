@@ -210,7 +210,7 @@ fn rectLtc(r:RectView,f:RectFrame,f0:vec3f)->vec3f{
 )
 
 /** The shading of a rectangle at a surface point \`s\` (\`lobeSurface\`), colour and intensity
- *  included, its view \`r\` from the point (\`rectView\`): on a diffuse or toon model, the model's
+ *  included, its view \`r\` from the point (\`rectView\`): on a diffuse model, the model's
  *  light of its exact irradiance, no lobe read; else the diffuse of that irradiance and the specular of
  *  its fitted lobe (\`rectBase\`, stretched where the pixel's lobes skew it; both under a cloth's
  *  fuzz, \`rectCloth\`); under a coat, the coat model's (\`coatedRect\`). The hooks are declared by the hook block that
@@ -227,17 +227,13 @@ fn rectLightSplit(light:DirectLight,r:RectView,s:LobeSurface,rgb:vec3f,metal:f32
  let incident=rectIrradianceOf(r,N);
  let intensity=lightStrength(light);
  let E=intensity*incident.w;
- // The picture's colour where the rectangle's mean direction meets it: what the diffuse light, the toon bands and the cloth's fuzz are multiplied by.
+ // The picture's colour where the rectangle's mean direction meets it: what the diffuse light and the cloth's fuzz are multiplied by.
  var picture=vec3f(1.0);
  if(r.slot.z>0.0&&incident.w>0.0){picture=rectColour(r,incident.xyz);}
- if(surfaceModel==${MODEL_FLAG.diffuse}u||surfaceModel==${MODEL_FLAG.toon}u){
+ if(surfaceModel==${MODEL_FLAG.diffuse}u){
   if(incident.w<=0.0){return mat2x3f(vec3f(0.0),vec3f(0.0));}
   // E already carries the cosine: the diffuse model takes it whole, at a unit N·L.
-  if(surfaceModel==${MODEL_FLAG.diffuse}u){return mat2x3f(modelLight(rgb,metal,N,N,E)*tint*picture,vec3f(0.0));}
-  // Toon bands the cosine toward the form factor, on the irradiance of a face turned to it:
-  // bounded by π, as a lamp's energy is by its falloff.
-  let facing=intensity*PI*polygonFormFactor(r.a,r.b,r.c,r.d,incident.xyz).w*r.window;
-  return mat2x3f(modelLight(rgb,metal,N,incident.xyz,facing)*tint*picture,vec3f(0.0));
+  return mat2x3f(modelLight(rgb,metal,N,N,E)*tint*picture,vec3f(0.0));
  }
  // A pixel under a clear coat is lit by the coat model whole (\`coatedRect\`): the coat lights from its own normal,
  // whatever the base's face.

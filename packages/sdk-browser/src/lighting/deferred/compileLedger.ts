@@ -4,13 +4,15 @@
 // classes compile is not among them: it does not join the session before they are ready
 // (`../../placement/append/classGate.ts`).
 
+import { deviceLost } from '../../gpu/core/deviceOwners.ts'
+
 /** The compiles in flight on a device — a session's handle, or the device itself —, each with
  *  whether its frames wait for it and the name it was tracked under, and how many they wait for. */
 type Ledger = {
   compiles: Map<Promise<unknown>, { held: boolean; label: string }>
   held: number
-  /** The frames that entered, which a refused compile's retry is counted in. */
-  frame: number
+  /** Who hears of a refused compile landing on a retry (`onRetryLanded`). */
+  landings: Set<() => void>
   /** The compiles the device refused, not yet said (`takeRefusals`). */
   refusals: string[]
 }
@@ -18,15 +20,38 @@ const ledgers = new WeakMap<GPUDevice, Ledger>()
 const ledgerOf = (device: GPUDevice) => {
   let ledger = ledgers.get(device)
   if (!ledger)
-    ledgers.set(device, (ledger = { compiles: new Map(), held: 0, frame: 0, refusals: [] }))
+    ledgers.set(
+      device,
+      (ledger = {
+        compiles: new Map(),
+        held: 0,
+        landings: new Set(),
+        refusals: [],
+      }),
+    )
   return ledger
 }
 
-/** A frame entered on `device`: the clock a refused compile waits its retry on. */
-export const tickCompiles = (device: GPUDevice) => void ledgerOf(device).frame++
+/** `retry` called once, `ms` from now, off the frame — a view at rest tries a refused compile again as well, and a frame's entry does no work for it —, unless it was collected meanwhile: it is held weakly, so a pipeline nothing names takes its retry with it, and `lost` is called in its place (whoever waits for the retry is not left waiting for ever).
+ *  A timer waits no process out (`unref`, where the host has one). */
+export function retryAfter(retry: () => void, ms: number, lost: () => void) {
+  const ref = new WeakRef(retry),
+    timer = setTimeout(() => (ref.deref() ?? lost)(), ms)
+  ;(timer as { unref?: () => void }).unref?.()
+}
 
-/** The frames that entered on `device` so far. */
-export const framesOf = (device: GPUDevice) => ledgers.get(device)?.frame ?? 0
+/** `heard` called each time a refused compile of `device` lands on a retry, until the returned function stops it: a retry holds no frame (nothing waits for it), so a view at rest would keep the stand-in
+ *  that was lent meanwhile; the hearer redraws it. */
+export function onRetryLanded(device: GPUDevice, heard: () => void) {
+  const { landings } = ledgerOf(device)
+  landings.add(heard)
+  return () => void landings.delete(heard)
+}
+
+/** A refused compile of `device` landed on a retry (`onRetryLanded`); none is heard of a device that was lost. */
+export function retryLanded(device: GPUDevice) {
+  if (!deviceLost(device)) for (const heard of [...ledgerOf(device).landings]) heard()
+}
 
 /** `device` refused a compile, `label` its pipeline: said once, by the next frame's entry. */
 export const refuse = (device: GPUDevice, label: string) =>

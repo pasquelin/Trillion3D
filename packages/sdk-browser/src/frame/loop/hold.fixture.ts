@@ -39,7 +39,7 @@ export function settledRt() {
     frame: 0,
     frameHeld: false,
     heldEmpty: false,
-    hold: { heldOn: undefined, last: undefined },
+    hold: { heldOn: undefined, entries: 0, last: undefined },
     imageRevision: 0,
     // Fields read by `sampleWebgpuFrame`: constant from frame to frame so `keep()` judges two
     // consecutive frames identical.

@@ -66,6 +66,14 @@ export function createLitVariants<P>(
       table.ask(bounce, narrow, set, onFailure)
       return table.lending(bounce, narrow, set)
     },
+    /** The program a frame that asks for this one would be lent, none if none is ready: a pure read, it asks and compiles nothing (`pick` does). */
+    lent(bounce: boolean, narrow: boolean, set: number) {
+      return table.lending(bounce, narrow, set)
+    },
+    /** The slot of this program as it stands (compiled, compiling, failed), a pure read: it asks and compiles nothing (`exact` does), and a failed one is not replaced by its stand-in. */
+    slot(bounce: boolean, narrow: boolean, set: number) {
+      return table.variant(narrow, set, bounce)
+    },
     /** The program of this set once compiled — its stand-in's if it failed —, asked now. */
     async ready(bounce: boolean, narrow: boolean, set: number) {
       const variant = table.ask(bounce, narrow, set)
@@ -194,18 +202,22 @@ export type LitPrograms = ContractVariantOptions & {
   precompile: boolean
   bounce: boolean
   key: ContractKey
+  /** The scene writes the toon data (`DirectLightResources.toonUnified`): the programs compiled from the start are the toon table's. */
+  toon?: boolean
   localFog?: boolean
 }
 /** One table of lit programs, over whether its programs hold the sky light's occlusion and the indirect capsule shadows. */
 function litTable(
   device: GPUDevice,
   bindings: DeferredBindings,
-  { skyShadowing, capsule }: { skyShadowing: boolean; capsule: boolean },
+  { skyShadowing, capsule, toon }: { skyShadowing: boolean; capsule: boolean; toon: boolean },
   { onReady, onFailure }: { onReady?: () => void } & ContractVariantOptions,
   ready?: () => Promise<unknown>,
 ) {
   return createLitVariants<LitProgram>(
-    async (bounce, key) => {
+    async (bounce, cuts) => {
+      // The toon data is no cut: the table that holds it makes its programs write it.
+      const key = toon ? { ...cuts, toonData: true } : cuts
       const [program] = await Promise.all([
         createLitProgram(
           device,
@@ -226,6 +238,90 @@ function litTable(
   )
 }
 
+/** The lit programs of one table. */
+type LitTable<P> = ReturnType<typeof createLitVariants<P>>
+
+/**
+ * THE ONE RESOLVER of the lit program a frame asks for: `pick`, `awaited` and the asks of the per-light and bounce programs all read it, so that the frame is held for exactly
+ * the program it will be lent. With `toon`, the toon table's program (that of the sky light's occlusion and the capsule shadows where one is ready, else the plain toon table's),
+ * lent only once its toon diffuse pipelines are compiled (`toonReady`): none before, the frame held on those pipelines (`asking`: the program whose pipelines `pick` and `awaited` ask held,
+ * `askToon`, the one the frame would be lent; a resolve that only warms a program holds nothing), never a program without the toon data that would show the per-light ramp and then switch. A toon table that can never light, or not yet — its compile failed, or the device refused a
+ * toon pipeline, for good or to be tried again (`toonRefused`) — gives way to the non-toon tables', with no toon data: declared by the refusal, never unlit nor black; the toon program
+ * takes over when it lands. Without toon, the table with the sky light's occlusion and the indirect capsule shadows asked where one is ready, else the plain one's; never a program that lacks
+ * them while another has them. `exact` is the program of this set itself in the first table `pick` reads: what the image will bind once compiled, never the one lent while it compiles. `peek` is the same rule as a pure read, for a question of whether a program is lent.
+ */
+export function litResolver<
+  P extends {
+    toonReady: boolean
+    toonRefused: boolean
+    askToon: () => void
+    /** Settles once the program's toon pipelines, those not already refused, have each landed or been refused, asking no frame to wait (a retry that lands is heard by the device: `onRetryLanded`). */
+    toonLanded?: () => Promise<unknown>
+  },
+>(
+  plain: LitTable<P>,
+  tableFor: (skyShadowing: boolean, capsule: boolean, toon: boolean) => LitTable<P>,
+  /** Heard when the toon pipelines of a program the resolve passed over (another toon program is lent meanwhile) have first landed or been refused: the view redraws with the program it prefers, as a view at rest asks nothing again. The watch is made once a program, and a pipeline refused later lands on a retry heard by the device (`onRetryLanded`, the one path of a retry): nothing is re-armed here. */
+  landed?: () => void,
+) {
+  const watched = new WeakSet<P>()
+  /** The one rule, read with `asks` (it asks the programs and starts their compile) or without (a pure read of what stands: `peek`). */
+  const resolverOf =
+    (asks: boolean) =>
+    (
+      bounce: boolean,
+      narrow: boolean,
+      set: number,
+      onFailure?: (error: unknown) => void,
+      skyShadowing = false,
+      capsule = false,
+      toon = false,
+    ) => {
+      const lend = (table: LitTable<P>) =>
+          asks ? table.pick(bounce, narrow, set, onFailure) : table.lent(bounce, narrow, set),
+        slotOf = (table: LitTable<P>) =>
+          asks ? table.exact(bounce, narrow, set) : table.slot(bounce, narrow, set)
+      const sky = skyShadowing && !bounce
+      if (toon) {
+        const own = tableFor(sky, capsule, true),
+          base = tableFor(false, false, true),
+          exact = slotOf(own)
+        let pending: Promise<unknown> | undefined,
+          asking: P | undefined,
+          waiting = false
+        for (let i = 0; i < (own === base ? 1 : 2); i++) {
+          const table = i ? base : own,
+            program = lend(table),
+            compile = i ? slotOf(table) : exact
+          if (program?.toonReady) return { program, exact, pending: undefined, asking: undefined }
+          if (asks && landed && program?.toonLanded && !watched.has(program)) {
+            watched.add(program)
+            void program.toonLanded().then(landed)
+          }
+          // Waited for while its compile, or its pipelines' first compile, is in flight; given up on once refused.
+          if (program ? program.toonRefused : compile.failed && !compile.program) continue
+          asking ??= program
+          pending ??= compile.pending
+          waiting = true
+        }
+        if (waiting) return { program: undefined, exact, pending, asking }
+      }
+      const table = sky || capsule ? tableFor(sky, capsule, false) : plain,
+        own = table === plain ? undefined : lend(table),
+        program = own ?? lend(plain)
+      return {
+        program,
+        exact: slotOf(table),
+        pending: program ? undefined : slotOf(plain).pending,
+        asking: undefined,
+      }
+    }
+  return Object.assign(resolverOf(true), {
+    /** The same resolution as a pure read: it asks no program, starts no compile and marks nothing asked (a failed compile's stand-in is not asked either). For a read of whether the program is lent. */
+    peek: resolverOf(false),
+  })
+}
+
 /**
  * The lighting passes' lit programs (`createLitVariants`): the sun's, the local lights' and the
  * indirect light's passes (`createLitProgram`) at each key. The program without bounce has a
@@ -241,40 +337,39 @@ export function createContractVariants(
   { onFailure }: ContractVariantOptions = {},
   ready?: () => Promise<unknown>,
 ) {
-  const tableOf = (skyShadowing: boolean, capsule: boolean) =>
-    litTable(device, bindings, { skyShadowing, capsule }, { onReady, onFailure }, ready)
-  const plain = tableOf(false, false)
-  // The tables that hold the code of the sky light's occlusion and of the indirect capsule shadows, by which of the two they hold, each made at the first image that asks.
+  const tableOf = (skyShadowing: boolean, capsule: boolean, toon: boolean) =>
+    litTable(device, bindings, { skyShadowing, capsule, toon }, { onReady, onFailure }, ready)
+  const plain = tableOf(false, false, false)
+  // The tables that hold the code of the sky light's occlusion, of the indirect capsule shadows and of the toon data, by which of the three they hold, each made at the first image that asks.
   const others = new Map<string, ReturnType<typeof tableOf>>()
-  const tableFor = (skyShadowing: boolean, capsule: boolean) => {
-    if (!skyShadowing && !capsule) return plain
-    const key = `${skyShadowing}${capsule}`
+  const tableFor = (skyShadowing: boolean, capsule: boolean, toon: boolean) => {
+    if (!skyShadowing && !capsule && !toon) return plain
+    const key = `${skyShadowing}${capsule}${toon}`
     let table = others.get(key)
-    if (!table) others.set(key, (table = tableOf(skyShadowing, capsule)))
+    if (!table) others.set(key, (table = tableOf(skyShadowing, capsule, toon)))
     return table
   }
+  const resolveLit = litResolver(plain, tableFor, onReady)
   return {
     ...plain,
-    /** The program to light this frame with (`createLitVariants`); with `skyShadowing` and no bounce, or with `capsule`, the one that
-     *  applies the occlusion or the capsule shadows where one is ready, else the first table's. */
-    pick(
-      bounce: boolean,
-      narrow: boolean,
-      set: number,
-      onFailure?: (error: unknown) => void,
-      skyShadowing = false,
-      capsule = false,
-    ) {
-      const sky = skyShadowing && !bounce
-      if (sky || capsule) {
-        const program = tableFor(sky, capsule).pick(bounce, narrow, set, onFailure)
-        if (program) return program
-      }
-      return plain.pick(bounce, narrow, set, onFailure)
+    resolve: resolveLit,
+    /** The resolution of `resolve` as a pure read (`litResolver`). */
+    peek: resolveLit.peek,
+    /** The program to light this frame with (`litResolver`). */
+    pick(...key: Parameters<typeof resolveLit>) {
+      const { program, asking } = resolveLit(...key)
+      asking?.askToon()
+      return program
     },
-    /** The program of this set itself (`createLitVariants`), in the table `pick` reads first. */
-    exact(bounce: boolean, narrow: boolean, set: number, skyShadowing = false, capsule = false) {
-      return tableFor(skyShadowing && !bounce, capsule).exact(bounce, narrow, set)
+    /** The compile a frame asking for this program must wait for (`litResolver`). */
+    awaited(...key: Parameters<typeof resolveLit>) {
+      const { pending, asking } = resolveLit(...key)
+      asking?.askToon()
+      return pending
+    },
+    /** Starts the first frame's program and its twin (`createLitVariants`), in the toon table where the scene is toon. */
+    precompile(bounce: boolean, key: ContractKey, toon = false) {
+      return tableFor(false, false, toon).precompile(bounce, key)
     },
     settle: () =>
       Promise.all([plain.settle(), ...[...others.values()].map((t) => t.settle())]).then(() => {}),

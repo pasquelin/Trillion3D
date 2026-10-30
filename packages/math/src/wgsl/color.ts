@@ -86,3 +86,16 @@ export const hsvToRgb = wgslFn(
   [hueToRgb],
   'fn hsvToRgb(hsv:vec3f)->vec3f{return ((hueToRgb(hsv.x)-1.0)*hsv.y+1.0)*hsv.z;}',
 )
+
+/** The hue, saturation and value of a linear colour (`hsvToRgb`'s inverse); the value is its largest channel, however small or negative. */
+export const rgbToHsv = wgslFn(
+  'rgbToHsv',
+  [],
+  `fn rgbToHsv(c:vec3f)->vec3f{
+ let p=select(vec4f(c.g,c.b,0.0,-1.0/3.0),vec4f(c.b,c.g,-1.0,2.0/3.0),c.g<c.b);
+ let q=select(vec4f(c.r,p.y,p.z,p.x),vec4f(p.x,p.y,p.w,c.r),c.r<p.x);
+ let chroma=q.x-min(q.w,q.y);
+ let hue=abs((q.w-q.y)/(6.0*chroma+1e-10)+q.z);
+ return vec3f(hue,chroma/(q.x+1e-10),q.x);
+}`,
+)

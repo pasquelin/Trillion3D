@@ -3,17 +3,16 @@
 import { textureExtent } from '../../../packages/sdk-browser/src/gpu/core/textureExtent.ts'
 import { texelBytesOf } from '../../../packages/sdk-browser/src/gpu/core/textureBytes.ts'
 import type { FakeDeviceOptions, FakeTexture } from './fakeRecords.ts'
-import { untag } from './fakeWebgpuDevice.ts'
+import { raiseOutOfMemory, untag, type ErrorScope } from './fakeWebgpuDevice.ts'
 
 /** What a creation that refuses leaves, by `refuse`: a throw, or an out-of-memory error in the
  *  innermost scope open. */
-export function refusing(refuse: FakeDeviceOptions['refuse'], scopes: Array<object | null>) {
+export function refusing(refuse: FakeDeviceOptions['refuse'], scopes: readonly ErrorScope[]) {
   return (descriptor: GPUBufferDescriptor | GPUTextureDescriptor) => {
     const refusal = refuse?.(descriptor)
     if (refusal === 'throw') throw new Error('NO_MEMORY')
     if (refusal !== 'oom') return
-    if (!scopes.length) throw new Error('fakeDevice: out of memory outside an error scope')
-    scopes[scopes.length - 1] ??= { message: 'Out of memory' }
+    raiseOutOfMemory(scopes, 'Out of memory')
   }
 }
 

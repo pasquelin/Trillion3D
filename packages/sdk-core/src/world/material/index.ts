@@ -13,7 +13,7 @@ const kind =
 /**
  * The `material` family: the matter alone. Every kind is lit by the engine's one surface model;
  * a kind is the values it starts from, and the family its name gives it in that model — unlit,
- * diffuse, toon, a view of normals, matcap or depth (`surfaceModel.ts`).
+ * diffuse, a view of normals, matcap or depth (`surfaceModel.ts`); the toon kind is a standard surface of the toon shading model.
  */
 export const material = {
   /** The usual material: a colour, how metallic it is and how rough it is. */
@@ -26,8 +26,8 @@ export const material = {
   meshPhong: kind('meshPhong', { shininess: DEFAULT_SHININESS }),
   /** A matte look, like chalk or paper. */
   meshLambert: kind('meshLambert'),
-  /** A cartoon look, lit in a few flat bands. */
-  meshToon: kind('meshToon'),
+  /** A cartoon look, lit in a few flat bands: the toon shading model, whose bands are the ramps of its `toonProfile`. */
+  meshToon: kind('meshToon', { shadingModel: 'toon' }),
   /** Colours each point by the way its surface faces. */
   meshNormal: kind('meshNormal'),
   /** Lit by a picture of a lit ball instead of the scene's lights. */

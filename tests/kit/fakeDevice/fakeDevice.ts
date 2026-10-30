@@ -9,7 +9,7 @@ import {
 } from './fakeRecords.ts'
 import { bundleMaker } from './fakeBundles.ts'
 import { WEBGPU_DEFAULT_LIMITS } from './limitRules.ts'
-import { asWebgpuDevice } from './fakeWebgpuDevice.ts'
+import { asWebgpuDevice, type ErrorScope } from './fakeWebgpuDevice.ts'
 import { readDescriptors, refusing, texture, withGroups, writeTexels } from './fakeResources.ts'
 import { fakeBuffers } from './fakeBuffers.ts'
 import { createFakeCommandEncoderFactory, type EncoderRecords } from './fakeEncoder.ts'
@@ -27,7 +27,7 @@ import '../../../packages/sdk-browser/src/gpu/noise/blueNoise.fixture.ts'
 export function fakeDevice(options: FakeDeviceOptions = {}) {
   const { limits, asyncPipelines = true, features = [] } = options
   installGpuGlobals()
-  const scopes: Array<object | null> = [],
+  const scopes: ErrorScope[] = [],
     // Every `destroy` call in order, the device's own included: a resource destroyed twice is twice.
     destroyed: Array<{ label?: string }> = [],
     allocate = refusing(options.refuse, scopes)

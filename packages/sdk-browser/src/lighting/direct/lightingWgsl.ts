@@ -1,4 +1,9 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import {
+  TOON_TABLES_NONE_WGSL,
+  toonTablesBinding,
+  type ToonTablesBinding,
+} from '../toon/tablesWgsl.ts'
 import { vsmTraceKindsOf } from '../shadows/vsm/trace/traceWgsl.ts'
 import { directLightWgsl, LIGHT_GRID_WGSL } from './lightWgsl.ts'
 import { lightUndrawn } from './lightReachWgsl.ts'
@@ -123,8 +128,8 @@ export const pixelCellWgsl = () =>
     'pixelCellWgsl',
     [],
     `
-/** The record of the pixel's cell at depth \`z\` on the deferred view's grid, \`TILE_NO_SLICE\` with
- *  no list (\`cellSlice\`): the view's columns are zero on an image whose lists were not encoded.
+/** The record of the pixel's cell at depth 'z' on the deferred view's grid, 'TILE_NO_SLICE' with
+ *  no list ('cellSlice'): the view's columns are zero on an image whose lists were not encoded.
  *  The pass reads it once, for its lights. */
 fn pixelCell(pixel:vec2f,z:f32)->u32{return gridCell(pixel,z,vec2u(view.lightParams.yz));}`,
   )
@@ -164,6 +169,8 @@ export type LightingBindings = {
   lightProfile?: LightProfileBindings
   /** The bindings of the screen-space contact shadows' array and of its layers' ranks (`contactBendWgsl`): a light with a layer in it takes its contact shadow from it. */
   contactBend?: ContactBendBindings
+  /** Where the toon buffer is bound (`toonTablesBinding`); left out, or in a program that holds no model, the toon tables answer zero (`TOON_TABLES_NONE_WGSL`). */
+  toon?: ToonTablesBinding
 }
 
 /** The bindings as a block name reads them, in their declared order, the defaults resolved. */
@@ -180,8 +187,9 @@ export const bindingsLabel = ({
   lightProfile,
   contactBend,
   perLightMask,
+  toon,
 }: LightingBindings) =>
-  `${vsmSunMask ?? null} ${vsmMask ?? null}${maskFallback ? ` + ${maskFallback.lightGrid} ${vsmBindingsLabel(maskFallback.vsm)} ${maskFallback.view}` : ''}, ${vsm ? vsmBindingsLabel(vsm) : null}${volumeShadow === undefined ? '' : ` volume ${volumeShadow}`}, ${trace ? vsmTraceBindingsLabel(trace) : null}, ${fog ? fogBindingsLabel(fog) : null}, ${lightFunctionBindingsLabel(lightFunction)}, ${cloudShadow ? `cloud ${cloudShadow.group}:${cloudShadow.block}` : null}${lightProfile ? `, profile ${lightProfileBindingsLabel(lightProfile)}` : ''}${contactBend ? `, contact bend ${contactBend.array} ${contactBend.ranks}` : ''}${perLightMask === undefined ? '' : `, per-light mask ${perLightMask}`}`
+  `${vsmSunMask ?? null} ${vsmMask ?? null}${maskFallback ? ` + ${maskFallback.lightGrid} ${vsmBindingsLabel(maskFallback.vsm)} ${maskFallback.view}` : ''}, ${vsm ? vsmBindingsLabel(vsm) : null}${volumeShadow === undefined ? '' : ` volume ${volumeShadow}`}, ${trace ? vsmTraceBindingsLabel(trace) : null}, ${fog ? fogBindingsLabel(fog) : null}, ${lightFunctionBindingsLabel(lightFunction)}, ${cloudShadow ? `cloud ${cloudShadow.group}:${cloudShadow.block}` : null}${lightProfile ? `, profile ${lightProfileBindingsLabel(lightProfile)}` : ''}${contactBend ? `, contact bend ${contactBend.array} ${contactBend.ranks}` : ''}${perLightMask === undefined ? '' : `, per-light mask ${perLightMask}`}${toon ? `, toon ${toon.group}:${toon.binding}` : ''}`
 
 /**
  * The state a surface is lit through, and what a program does with the thin two-sided surface:
@@ -189,7 +197,7 @@ export const bindingsLabel = ({
  * `thinScreenBack`, the irradiance at its back that the screen probes left in the pixel (`screenBackAt`,
  * `../bounce/screen/indirectWgsl.ts`) with its alpha 1 where they answered, or 2 with their front irradiance where the level gathers no
  * light at the back — set by the pass that reads them, zero in any other —, `thinCubeBack`, the irradiance the ambient cubemap gives its back
- * (`ambientCubemapBack`) — set by the pass that reads the cube, zero in any other —, and `thinSurface`, the one test every term of its back reads.
+ * (`ambientCubemapBack`) — set by the pass that reads the cube, zero in any other —, `thinSkyBack`, the sky light's diffuse light along '-N' under the visibility its front takes, with no tint added (`skyLightBackOccluded`) — set by the pass that applies the sky light itself, zero in any other —, and `thinSurface`, the one test every term of its back reads.
  */
 export const THIN_SURFACE_WGSL = wgslBlock(
   'THIN_SURFACE_WGSL',
@@ -198,6 +206,7 @@ export const THIN_SURFACE_WGSL = wgslBlock(
 var<private> thinSubsurface:vec3f=vec3f(0.0);
 var<private> thinScreenBack:vec4f=vec4f(0.0);
 var<private> thinCubeBack:vec3f=vec3f(0.0);
+var<private> thinSkyBack:vec3f=vec3f(0.0);
 /** Whether the surface is thin and two-sided, the one test every term of its back reads. */
 fn thinSurface()->bool{return any(thinSubsurface!=vec3f(0.0));}`,
 )
@@ -205,48 +214,54 @@ fn thinSurface()->bool{return any(thinSubsurface!=vec3f(0.0));}`,
 /**
  * The light a surface gets from the environment, and the one sum of a lit surface. The program that
  * lists it reads the light buffer by `directLights`, and lists the answers it asks of the probes and
- * the lobes: `environmentSky`, `indirectIrradiance`, `clothDiffuse`.
+ * the lobes: `environmentSky(N, ao)`, `indirectIrradiance`, `clothDiffuse`.
  */
 export const ENVIRONMENT_LIGHTING_WGSL = wgslBlock(
   'ENVIRONMENT_LIGHTING_WGSL',
   [THIN_SURFACE_WGSL, lambertDiffuse, INVERSE_PI],
   `
-/** The environment's irradiance at the normal N (\`packages/sdk-core/src/scene/core/environment.ts\`):
+/** The environment's irradiance at the normal N ('packages/sdk-core/src/scene/core/environment.ts'):
  *  what an ambient, a sky over a ground or a probe gives a surface, never shadowed. */
 fn environmentIrradiance(N:vec3f)->vec3f{
  let e=directLights.environment;
  return max(${irradianceShader((k) => `e[${k}].rgb`, 'N')},vec3f(0.0));
 }
-/** The diffuse light of a surface lit by \`irradiance\` (\`lambertDiffuse\`), on the pixel's diffuse colour (\`clothDiffuse\`: a
+/** The diffuse light of a surface lit by 'irradiance' ('lambertDiffuse'), on the pixel's diffuse colour ('clothDiffuse': a
  *  cloth's fuzz added to it): the one sum of every source of the surface's diffuse light, the environment's and the
  *  ambient cubemap's. */
 fn environmentLightingFrom(rgb:vec3f,metal:f32,irradiance:vec3f,ao:f32)->vec3f{
  let d=clothDiffuse(rgb,metal);
  return lambertDiffuse(d.rgb,d.w,irradiance,ao);
 }
-/** The environment's diffuse light on a surface: its irradiance and, in a program that reads no probes, the sky
- *  light's (\`environmentSky\`) — in one that does, the probes carry the sky (\`indirectIrradiance\`). */
-fn environmentLighting(rgb:vec3f,metal:f32,N:vec3f,ao:f32)->vec3f{
- return environmentLightingFrom(rgb,metal,environmentIrradiance(N)+environmentSky(N),ao);
+/** The environment's diffuse light on a surface lit by the sky light's 'sky' beside it: the environment's irradiance under the
+ *  occlusion 'ao', the sky light's already under its own visibility and tint (an irradiance that 'ao' is not applied to again). */
+fn environmentLightingWith(rgb:vec3f,metal:f32,N:vec3f,ao:f32,sky:vec3f)->vec3f{
+ return environmentLightingFrom(rgb,metal,environmentIrradiance(N),ao)+environmentLightingFrom(rgb,metal,sky,1.0);
 }
-/** A thin two-sided surface's back, the one sum of it: the light the probes give and the environment's,
- *  lit from \`-N\` on its subsurface colour (\`lambertDiffuse\`); the probes' light is the screen probes'
- *  where they left one in the pixel (\`thinScreenBack\`, a black back kept black), else the world's
- *  (\`indirectIrradiance\`: a pass with no bounce answers zero); a level that gathers no back light folds the
- *  subsurface colour, over pi, into the front diffuse instead. Zero on any other surface. */
+/** The environment's diffuse light on a surface: its irradiance and, in a program that reads no probes, the sky
+ *  light's ('environmentSky', under the occlusion 'ao') — in one that does, the probes carry the sky ('indirectIrradiance'). */
+fn environmentLighting(rgb:vec3f,metal:f32,N:vec3f,ao:f32)->vec3f{
+ return environmentLightingWith(rgb,metal,N,ao,environmentSky(N,ao));
+}
+/** A thin two-sided surface's back, the one sum of it: the light the probes give, the environment's and the sky light's ('thinSkyBack'),
+ *  lit from '-N' on its subsurface colour ('lambertDiffuse'); the probes' light is the screen probes'
+ *  where they left one in the pixel ('thinScreenBack', a black back kept black), else the world's
+ *  ('indirectIrradiance': a pass with no bounce answers zero); a level that gathers no back light folds the
+ *  subsurface colour, over pi, into the front diffuse instead. The sky light's back is its light on the subsurface colour with no 1/pi ('thinSkyBack'; the front's PI * 'skyLightDiffuseOccluded' meets the 1/pi of 'lambertDiffuse'). Zero on any other surface. */
 fn thinBack(N:vec3f,P:vec3f,ao:f32)->vec3f{
  if(!thinSurface()){return vec3f(0.0);}
+ let sky=thinSubsurface*thinSkyBack;
  if(thinScreenBack.a==2.0){
-  return lambertDiffuse(thinSubsurface*INVERSE_PI,0.0,thinScreenBack.rgb,1.0)+lambertDiffuse(thinSubsurface*INVERSE_PI,0.0,environmentIrradiance(N)+environmentSky(N)+thinCubeBack,ao);
+  return lambertDiffuse(thinSubsurface*INVERSE_PI,0.0,thinScreenBack.rgb,1.0)+lambertDiffuse(thinSubsurface*INVERSE_PI,0.0,environmentIrradiance(N)+thinCubeBack,ao)+sky;
  }
  var probes=thinScreenBack.rgb;
  if(thinScreenBack.a==0.0){probes=indirectIrradiance(P,-N);}
- return lambertDiffuse(thinSubsurface,0.0,probes+environmentIrradiance(-N)+environmentSky(-N)+thinCubeBack,ao);
+ return lambertDiffuse(thinSubsurface,0.0,probes+environmentIrradiance(-N)+thinCubeBack,ao)+sky;
 }
 /** The lit surface, one sum for every pass that lights one (the indirect light's pass, the translucent
- *  surfaces): its declared \`lights\`, its \`bounce\` and \`environment\` under the coat
- *  the \`reflection\` and what it \`emissive\`ly gives, added in this order, then a
- *  thin two-sided surface's back (\`thinBack\`) at the point \`P\` of normal \`N\`. A pass with no
+ *  surfaces): its declared 'lights', its 'bounce' and 'environment' under the coat
+ *  the 'reflection' and what it 'emissive'ly gives, added in this order, then a
+ *  thin two-sided surface's back ('thinBack') at the point 'P' of normal 'N'. A pass with no
  *  bounce gives zero. */
 fn litSurface(lights:vec3f,bounce:vec3f,environment:vec3f,reflection:vec3f,emissive:vec3f,N:vec3f,P:vec3f,ao:f32)->vec3f{
  return lights+bounce+environment+reflection+emissive+thinBack(N,P,ao);
@@ -318,6 +333,9 @@ export const lightingBase = (
     `lightingBase(${bindingsLabel(bindings)}, ${variantLabel(key)}, ${narrow}${translucentShadowLabel(translucentShadow)}${environment ? '' : ', direct light only'}${slices ? '' : ', no lists'}${cut ? `, ${cut.models}, ${cut.thin}` : ''}${airTintLabel(airTint)}${rays ? raysLabel(rays) : ''})`,
     [
       SURFACE_MODEL_LIGHT_WGSL,
+      bindings.toon && (cut?.models ?? true)
+        ? toonTablesBinding(bindings.toon)
+        : TOON_TABLES_NONE_WGSL,
       ...(key.lobeless
         ? [(cut?.models ?? true) ? LOBELESS_MODELS_LIGHTING_WGSL : LOBELESS_LIGHTING_WGSL]
         : [LOBES_LIGHTING_WGSL]),

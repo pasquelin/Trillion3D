@@ -19,7 +19,7 @@ import type { TexturePool } from '../../geometry/residency/memoryBudgets.ts'
 import { textureBudgetBeside, textureBytesBeside } from './besidePools.ts'
 import { ledgerReplacing } from '../../gpu/core/deviceLedger.ts'
 import { queueTableGrowth } from '../prepare/growthQueue.ts'
-import { deviceRefusal, retryFrame } from '../../gpu/core/refusal.ts'
+import { deviceRefusal, refusalNow, retryAt } from '../../gpu/core/refusal.ts'
 import type { AtlasLanes, PoolLane } from '../../materials/texture/blockFormats.ts'
 import { stopped } from './lost.ts'
 import type { GrownPages } from '../../geometry/pages/pool/resize.ts'
@@ -135,7 +135,7 @@ export function followTexturePressure(rt: WebgpuPagesRuntime) {
   const color = streamer.color.takePressure(),
     data = streamer.data.takePressure()
   if (pools.growing || (!color.length && !data.length)) return pools.growing
-  if (pools.refusal && run.frame < retryFrame(pools.refusal)) return
+  if (pools.refusal && refusalNow() < retryAt(pools.refusal)) return
   pools.growing = queueTableGrowth(rt, () => growTexturePool(rt, { color, data }))
     .catch((error) => rt.diag.diagnosticFailure('texture-pool-growth', error))
     .finally(() => (pools.growing = undefined))
@@ -166,7 +166,7 @@ async function growTexturePool(rt: WebgpuPagesRuntime, pressed: Pressed) {
       }
   if (!grows) return
   const pool = pools.poolFor(bytes, reach),
-    refuse = () => (pools.refusal = deviceRefusal(run.frame, pools.refusal))
+    refuse = () => (pools.refusal = deviceRefusal(refusalNow(), pools.refusal))
   const granted = await probed(
     grantedTexturePool(
       device,

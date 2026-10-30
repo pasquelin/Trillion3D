@@ -55,6 +55,40 @@ test('the per-light path waits for the program the image will bind, never for th
   assert.equal(lighting.askPerLight(later), undefined, 'compiled: its pipelines are asked')
 })
 
+test('the per-light path asks the pipelines of the one program the frame binds, once, and none of the stand-in lent while the exact program compiles', async () => {
+  const { device, renderPipelines } = fakeDevice()
+  const perLight = () =>
+    renderPipelines.filter((made) => /_LOCAL_UNBATCHED/.test(made.fragment?.module.label ?? ''))
+  const lighting = await createDeferredLighting(device, undefined, {
+    precompile: true,
+    bounce: false,
+    key: { ...FULL_CONTRACT, narrow: true },
+  })
+  await lighting.litReady
+  const later = {
+    lights: {} as GPUBuffer,
+    narrow: true,
+    rectless: true,
+    localless: true,
+    lobeless: true,
+  }
+  const compiling = lighting.askPerLight(later)
+  assert.ok(compiling, 'the exact program compiles, the frame waits for it')
+  await Promise.resolve()
+  assert.equal(
+    perLight().length,
+    0,
+    'the lent stand-in’s per-light pipelines are not compiled meanwhile',
+  )
+  await compiling
+  assert.equal(lighting.askPerLight(later), undefined)
+  await Promise.resolve()
+  const once = perLight().length
+  assert.ok(once > 0, 'the exact program’s per-light pipelines are asked')
+  assert.equal(lighting.askPerLight(later), undefined)
+  assert.equal(perLight().length, once, 'asked once, however often the frames ask')
+})
+
 test('an unshadowed program that fails holds the frame on its shadowed twin, never unlit', async () => {
   const { device } = fakeDevice()
   let release!: () => void

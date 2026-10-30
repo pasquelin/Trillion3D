@@ -21,6 +21,10 @@ export interface DirectLightResources extends Partial<ContractKey> {
   /** The shadows the heterogeneous volumes cast this image, packed in one buffer (`../heterogeneousVolumes/beerShadowMapPack.ts`); absent, the
    *  stand-in that casts none. Bound by a program that reads them (`ContractKey.volumeShadow`). */
   volumeShadowMaps?: GPUBuffer
+  /** The toon buffer (`../toon/buffer.ts`): the profiles' rows, patterns and peak table the toon pixels are lit with; absent, the stand-in of no toon material. */
+  toonTables?: GPUBuffer
+  /** The frame applies the toon diffuse once to the sum of the lights (`toonUnifiedDiffuse`) and a material is toon: the lit program that writes the toon data (`ContractKey.toonData`). */
+  toonUnified?: boolean
   /** How many directional lights and how many local lights the light buffer holds this image: the
    *  pass of a kind that has none is not drawn. Absent, both are. */
   suns?: number
@@ -94,6 +98,10 @@ export interface DirectLightResources extends Partial<ContractKey> {
   /** The indirect capsule shadows' factors this image drew (`../capsuleShadows/host.ts`): a buffer whose first word is a row's bytes and whose pixels
    *  begin at byte 256. Present, the indirect pass's program holding the code that applies them lights the image; absent, the stand-in and the program without it. */
   capsuleIndirect?: GPUBuffer
+  /** The lit program's tables, decided once for the frame from what it will draw (`skyOcclusionPlanned`, `capsuleIndirectPlanned`), not from what the encoding drew: the program the frame is held for
+   *  (`awaited`) and the one it binds (`bind`) read these, never `skyShadowing` and `capsuleIndirect`, which only name the buffers the program reads (the stand-ins when it drew none). */
+  skyPlanned?: boolean
+  capsulePlanned?: boolean
   /** The volumetric lightmap on the GPU, where the scene has one and the image reads it
    *  (`../volumetricLightmap/frame.ts`): what the pass that gathers its light is bound to; absent, no light
    *  is gathered. */

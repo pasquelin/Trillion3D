@@ -1,3 +1,4 @@
+import { TOON_TABLES_NONE_WGSL } from '../../toon/tablesWgsl.ts'
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { interleavedGradientNoise } from '../../../../../math/src/wgsl/sampling.ts'
@@ -148,6 +149,8 @@ ${KERNELS_WGSL}`,
     [
       directLightWgsl(),
       LOBES_LIGHTING_WGSL,
+      // Toon pixels are not lit here: the tables the toon code reads answer zero.
+      TOON_TABLES_NONE_WGSL,
       LOBES_DECODE_WGSL,
       reflectionLightViewWgsl(REFLECTION_GROUP),
       spCommon([1, 1]),

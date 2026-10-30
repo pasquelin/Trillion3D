@@ -1,4 +1,4 @@
-import test, { mock } from 'node:test'
+import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../scene/host/graph/graph.fixture.ts'
 import { collectClusterPages } from '../../geometry/selection/collect.ts'
@@ -10,10 +10,10 @@ import { backendOf, quadScene, camera } from './testScenes.fixture.ts'
 import { graphDraws } from '../../geometry/selection/drawSource.ts'
 import type { PageMesh } from '../../geometry/pages/pageMesh.ts'
 
-test('mixed GPU and transparent pages wait for initial coverage before validating the resident cut', async () => {
+test('mixed GPU and transparent pages wait for initial coverage before validating the resident cut', async (t) => {
   installGpuGlobals()
   // A still clock, or a loaded machine lands the uploads a task later (`MAIN_THREAD_FRAME_MS`).
-  mock.method(performance, 'now', () => 0)
+  t.mock.method(performance, 'now', () => 0)
   const fixture = quadScene(),
     blend = quadScene()
   const mesh = blend.source.children[0] as PageMesh
@@ -67,7 +67,6 @@ test('mixed GPU and transparent pages wait for initial coverage before validatin
     assert.equal(backend.metrics().transparentSubmittedTriangles, 2)
     assert.equal(backend.metrics().submittedTriangles, 4)
   } finally {
-    mock.restoreAll()
     await backend.dispose()
     fixture.geometry.dispose()
     fixture.material.dispose()

@@ -17,6 +17,7 @@ import {
   DEFERRED_LIGHT_PROFILE_BINDINGS,
   DEFERRED_CAPTURE_BINDINGS,
   DEFERRED_SKY_LIGHT_BINDINGS,
+  TOON_DATA_BINDINGS,
 } from './bindings.ts'
 import type { ContractKey } from './contractCuts.ts'
 import { indirectPassWgsl } from './indirectPassWgsl.ts'
@@ -25,10 +26,12 @@ import {
   indirectLayoutEntries,
   localLayoutEntries,
   sunLayoutEntries,
+  toonDataLayoutEntries,
 } from './layoutEntries.ts'
 import { localPassWgsl, sunPassWgsl } from './lightPassWgsl.ts'
 import { buildRenderPipeline, preparedPipeline, type PreparedPipeline } from './fullscreen.ts'
 import { createPassGroup } from './passGroup.ts'
+import type { ToonDataViews } from './toonData.ts'
 import { PER_LIGHT_RECORD_BINDING_BYTES } from '../shadows/vsm/projection/perLightRecord.ts'
 import type { DeferredBindings, DirectLightResources } from './program.ts'
 import { drawTileClasses, lightPipelineDescriptor, moduleOfClass } from './tilePass.ts'
@@ -64,6 +67,7 @@ async function passPipelines(
   entry: string,
   layout: GPUBindGroupLayout,
   label: string,
+  toon?: { writes: boolean },
 ) {
   const modules = await Promise.all(
     classes.map((tileClass) =>
@@ -78,7 +82,7 @@ async function passPipelines(
     TILE_CLASSES.map((tileClass) =>
       buildRenderPipeline(
         device,
-        lightPipelineDescriptor(device, modules, layout, entry, label, tileClass),
+        lightPipelineDescriptor(device, modules, layout, entry, label, tileClass, toon),
       ),
     ),
   )
@@ -132,6 +136,9 @@ export async function createLitProgram(
     label,
     localLayout: layouts.local,
   })
+  const toonDataLayout = key.toonData
+    ? device.createBindGroupLayout({ entries: toonDataLayoutEntries() })
+    : undefined
   const p: LitState = {
     device,
     uniform: bindings.uniform,
@@ -147,6 +154,9 @@ export async function createLitProgram(
     sampled,
     volume,
     label,
+    toon: !!key.toonData,
+    toonDataLayout,
+    toonGroup: createPassGroup(device, () => toonDataLayout!),
     key,
     layouts,
     ...passes,
@@ -156,10 +166,33 @@ export async function createLitProgram(
     // nothing (`createPassGroup`).
     named: { sun: [], local: [], indirect: [], perLight: [], hair: [] },
   }
+  // A program that writes the toon data is lent only once the pipelines of the toon diffuse pass are compiled (`toonReady`): they start now, no frame waiting (a twin or the bounce pair
+  // may never be lent); the frames wait for them (`askToon`) only when the variant table is about to lend this program (`litResolver`, `contractVariants.ts`). A refused compile
+  // (`toonRefused`), for good or to be tried again by the pipeline's own policy, has the variant table lend the plain programs meanwhile.
+  if (p.toon) for (const pipeline of toonPipelines(p)) pipeline?.start()
 
   return {
     /** Whether it reads the probes' light. */
     bounce,
+    /** Whether it writes the toon data: the lit image's pass has the toon targets (`ContractKey.toonData`). */
+    toon: p.toon,
+    /** Whether the pipelines of the toon diffuse pass are compiled (true for a program that writes no toon data): the lights it draws are not followed by a step that is missing. */
+    get toonReady() {
+      return !p.toon || toonPipelines(p).every((pipeline) => !pipeline || pipeline.ready)
+    },
+    /** Whether the device refused a pipeline of the toon diffuse pass and it has not landed since: this program is not lent as a toon one meanwhile. */
+    get toonRefused() {
+      return p.toon && toonPipelines(p).some((pipeline) => pipeline?.refused)
+    },
+    /** Settles once each pipeline of the toon diffuse pass that is not refused has landed or been refused, no frame waiting for it. A pipeline already refused is not waited for: its retry, when it lands, is heard by the device (`onRetryLanded`), the one path of a retry. */
+    toonLanded: () =>
+      Promise.allSettled(
+        toonPipelines(p).map((pipeline) => (pipeline?.refused ? undefined : pipeline?.prepare())),
+      ),
+    /** The frames wait for the pipelines of the toon diffuse pass, not yet compiled nor refused: the program a frame is about to be lent. */
+    askToon() {
+      if (p.toon) for (const pipeline of toonPipelines(p)) pipeline?.ask()
+    },
     ...litCalls(p),
   }
 }
@@ -251,8 +284,9 @@ function litCalls(p: LitState) {
       draws: GPUBuffer,
       step: LightStep,
       perLight?: PerLightLights,
+      toonData?: ToonDataViews,
     ) {
-      return drawLit(p, pass, draws, step, perLight)
+      return drawLit(p, pass, draws, step, perLight, toonData)
     },
     /** What the pass that lights the strands' samples is made over (`../../hair/hairLightPass.ts`): the layouts of its group 0 —
      *  the local lights' with the clouds' shade for the lights, the indirect pass's for the sky light —, and what its
@@ -270,6 +304,7 @@ function litCalls(p: LitState) {
     perLightReady: () => p.perLight.ready(),
     release() {
       for (const group of Object.values(p.groups)) group.release()
+      p.toonGroup.release()
       p.held = undefined
     },
   }
@@ -281,6 +316,8 @@ type LitLayouts = Record<'sun' | 'local' | 'indirect' | 'hair', GPUBindGroupLayo
 async function litPasses(device: GPUDevice, sources: LitSources, layouts: LitLayouts) {
   const { bounce, key, skyShadowing, capsule, label } = sources
   const classes = classesOf(key)
+  // A program that writes the toon data names its targets in every pass of the lit image; the light passes write them, the indirect light's does not.
+  const toon = key.toonData ? { writes: true } : undefined
   const [sun, local, indirect] = await Promise.all([
     passPipelines(
       device,
@@ -289,6 +326,7 @@ async function litPasses(device: GPUDevice, sources: LitSources, layouts: LitLay
       'sunMain',
       layouts.sun,
       `${label}_SUN`,
+      toon,
     ),
     passPipelines(
       device,
@@ -297,6 +335,7 @@ async function litPasses(device: GPUDevice, sources: LitSources, layouts: LitLay
       'localMain',
       layouts.local,
       `${label}_LOCAL`,
+      toon,
     ),
     passPipelines(
       device,
@@ -313,6 +352,7 @@ async function litPasses(device: GPUDevice, sources: LitSources, layouts: LitLay
       'indirectMain',
       layouts.indirect,
       `${label}_INDIRECT`,
+      key.toonData ? { writes: false } : undefined,
     ),
   ])
   return { sun, local, indirect }
@@ -357,6 +397,8 @@ interface LitState {
   /** Whether the passes of lights read the volumes' shadows (`ContractKey.volumeShadow`): they bind the packed buffer. */
   readonly volume: boolean
   readonly label: string
+  /** Whether the program writes the toon data (`ContractKey.toonData`): its passes name the toon targets, and the step after the lights applies the toon diffuse. */
+  readonly toon: boolean
   /** The key of the lights the program lights. */
   readonly key: ContractKey
   readonly layouts: LitLayouts
@@ -374,6 +416,37 @@ interface LitState {
   /** The pipelines of the shadows' view, made at the first image that shows it, from the module of
    *  the class that holds its code (`localPassWgsl`). */
   visibility?: PreparedPipeline<GPURenderPipeline>[]
+  /** The pipelines of the toon pixels' diffuse, applied once to the sum of the lights from the toon data (`toonMain`), for the tiles of the classes that hold toon pixels. */
+  toonApply?: (PreparedPipeline<GPURenderPipeline> | undefined)[]
+  /** The layout of the toon data's group, where the program writes it. */
+  readonly toonDataLayout?: GPUBindGroupLayout
+  readonly toonGroup: ReturnType<typeof createPassGroup>
+  /** The pipelines of the shading furnace test, made at the first image that runs it, for the samples it asks. */
+  furnace?: {
+    readonly samples: number
+    readonly modules: GPUShaderModule[]
+    readonly tiles: PreparedPipeline<GPURenderPipeline>[]
+    readonly sky: PreparedPipeline<GPURenderPipeline>
+  }
+}
+
+/** The pipelines of the toon diffuse pass (`toonMain`, the program of the shadows' view), in a pass of its own that reads the toon data: for the tiles of every class that holds a model, none for the plain ones. */
+function toonPipelines(p: LitState) {
+  return (p.toonApply ??= TILE_CLASSES.map((tileClass) =>
+    tileClass === TILE_CLASS.simple
+      ? undefined
+      : preparedPipeline(
+          p.device,
+          lightPipelineDescriptor(
+            p.device,
+            [moduleOfClass(p.local.modules, TILE_CLASS.single)],
+            [p.layouts.local, p.toonDataLayout!],
+            'toonMain',
+            `${p.label}_LOCAL_TOON`,
+            tileClass,
+          ),
+        ),
+  ))
 }
 
 function visibilityPipelines(p: LitState) {
@@ -387,6 +460,7 @@ function visibilityPipelines(p: LitState) {
         'visibilityMain',
         `${p.label}_LOCAL_VISIBILITY`,
         tileClass,
+        p.toon ? { writes: false } : undefined,
       ),
     ),
   ))
@@ -420,6 +494,7 @@ function resolveLightInputs(
     contactBend: direct.contactBend ?? placeholders.contactBend,
     sampledLight: direct.sampledLight ?? placeholders.volumetricLight,
     volumeShadowMaps: direct.volumeShadowMaps ?? placeholders.volumeShadowMaps,
+    toonTables: direct.toonTables ?? placeholders.toonTables,
   }
 }
 
@@ -478,13 +553,13 @@ function nameResources(
   const { sun: sunNamed, local: localNamed, indirect: indirectNamed } = p.named
   const { cloudShadow, sky, shadowing } = r
   sunNamed.length = 0
-  sunNamed.push(surface, depth, lights, tileList, r.sunRanks, r.sunMask)
+  sunNamed.push(surface, depth, lights, tileList, r.sunRanks, r.sunMask, r.toonTables)
   sunNamed.push(r.lightFunction, cloudShadow.block, cloudShadow.maps[0], cloudShadow.maps[1])
   sunNamed.push(cloudShadow.sampler, r.occlusion)
   if (p.contact) sunNamed.push(r.contactBend.view, r.contactBend.ranks)
   if (p.volume) sunNamed.push(r.volumeShadowMaps)
   localNamed.length = 0
-  localNamed.push(surface, depth, lights, tileList, r.tiles, r.mask, r.sunMask)
+  localNamed.push(surface, depth, lights, tileList, r.tiles, r.mask, r.sunMask, r.toonTables)
   localNamed.push(r.lightFunction, r.lightGrid, r.occlusion)
   // The atlas's view changes only when its texture is made: the group follows it.
   if (p.profiled) localNamed.push(r.lightProfile.view, r.lightProfile.rectView)
@@ -500,6 +575,7 @@ function nameResources(
   )
   indirectNamed.length = 0
   indirectNamed.push(surface, depth, lights, tileList, r.occlusion, r.reflection, sky.cube)
+  indirectNamed.push(r.toonTables)
   indirectNamed.push(r.lightmapLight)
   indirectNamed.push(sky.sampler, sky.harmonics, sky.params)
   if (p.bounce) indirectNamed.push(r.screen)
@@ -595,7 +671,7 @@ function perLightGroup(
   named.length = 0
   named.push(pixel.colours, pixel.emissiveAo, pixel.words, pixel.depth, pixel.subsurface)
   named.push(pixel.lobes, lights, tileList, r.lightFunction, perLight.mask, perLight.records)
-  named.push(r.occlusion)
+  named.push(r.occlusion, r.toonTables)
   if (p.profiled) named.push(r.lightProfile.view, r.lightProfile.rectView)
   if (p.contact) named.push(r.contactBend.view, r.contactBend.ranks)
   if (p.volume) named.push(r.volumeShadowMaps)
@@ -605,6 +681,7 @@ function perLightGroup(
       lightFunctionAtlas: r.lightFunction,
       ambientOcclusion: r.occlusion,
       perLightMask: perLight.mask,
+      toonTables: { buffer: r.toonTables },
       perLightRecord: { buffer: perLight.records, size: PER_LIGHT_RECORD_BINDING_BYTES },
     }),
     ...profileEntries(p, r),
@@ -619,6 +696,7 @@ function sunEntries(p: LitState, { pixel, shadows }: SharedBindings, r: Resolved
       ...pixel,
       ...shadows,
       sunRanks: { buffer: r.sunRanks },
+      toonTables: { buffer: r.toonTables },
       ambientOcclusion: r.occlusion,
     }),
     ...cloudShadowBindEntries(DEFERRED_CLOUD_SHADOW_BINDINGS, r.cloudShadow),
@@ -660,6 +738,7 @@ function localEntries(
       vsmMask: r.mask,
       vsmLightGrid: { buffer: r.lightGrid },
       tiles: { buffer: r.tiles },
+      toonTables: { buffer: r.toonTables },
       ambientOcclusion: r.occlusion,
     }),
     ...profileEntries(p, r),
@@ -675,6 +754,7 @@ function indirectEntries(p: LitState, { pixel }: SharedBindings, r: Resolved) {
   return [
     ...namedEntries(DEFERRED_BINDINGS, {
       ...pixel,
+      toonTables: { buffer: r.toonTables },
       ambientOcclusion: r.occlusion,
       volumetricLight: r.lightmapLight,
       reflection: r.reflection,
@@ -698,9 +778,9 @@ function indirectEntries(p: LitState, { pixel }: SharedBindings, r: Resolved) {
 }
 
 /** One step of the lit image's light, drawn over the tiles of the surfaces: the sun's pass, the local lights', the shadows' view
- *  (the share of the light they let through), the indirect light's, or, a number, the draw of that shadowed local light alone
+ *  (the share of the light they let through), the indirect light's, the toon diffuse's, applied once to the sum of the lights (`toonUnifiedDiffuse`), or, a number, the draw of that shadowed local light alone
  *  (`PerLightLights`, `shadowOnePassProjection` false). */
-export type LightStep = 'suns' | 'locals' | 'visibility' | 'indirect' | number
+export type LightStep = 'suns' | 'locals' | 'visibility' | 'toon' | 'indirect' | number
 
 /** The steps of a lit image in the order they are drawn, by what the view shows (`lightView`, `LIT_VIEWS`, and 4 for the
  *  irradiance the probes bounced, alone): the whole lighting (0, 3) is the indirect light's pass, laid on the image before every
@@ -730,6 +810,7 @@ function drawLit(
   draws: GPUBuffer,
   step: LightStep,
   perLight?: PerLightLights,
+  toonData?: ToonDataViews,
 ) {
   const { held } = p
   if (!held) throw new Error('SURFACE_NOT_BOUND')
@@ -757,6 +838,21 @@ function drawLit(
         held.local,
         visibilityPipelines(p).map((pipeline) => pipeline.get()),
       )
+    // The toon data the lights added, in a pass of its own: it reads what the pass of the lights wrote.
+    case 'toon': {
+      if (!toonData || !p.toonDataLayout) throw new Error('the program writes no toon data')
+      pass.setBindGroup(
+        1,
+        p.toonGroup.get([toonData.diffuse, toonData.weights], () => [
+          { binding: TOON_DATA_BINDINGS.diffuse, resource: toonData.diffuse },
+          { binding: TOON_DATA_BINDINGS.weights, resource: toonData.weights },
+        ]),
+      )
+      return draw(
+        held.local,
+        toonPipelines(p).map((pipeline) => pipeline?.get()),
+      )
+    }
     case 'indirect':
       return draw(held.indirect, p.indirect.pipelines)
   }

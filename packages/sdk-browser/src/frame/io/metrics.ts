@@ -14,6 +14,7 @@ import { disposeClusterStats } from '../../lighting/shadows/vsm/debug/clusterSta
 import { disposeClipmapVirtualSpace } from '../../lighting/shadows/vsm/debug/clipmapVirtual.ts'
 import { disposeVsmVisualizeView } from '../../lighting/shadows/vsm/debug/visualizeView.ts'
 import { releaseAmbientCubemap } from '../../lighting/deferred/ambientCubemapFrame.ts'
+import { releaseToonTables } from '../../lighting/toon/buffer.ts'
 import { disposeRootWorlds } from '../../placement/roots/rootWorlds.ts'
 import { disposeRootBoxes } from '../../placement/roots/rootBoxes.ts'
 import { disposeTreeLeaves } from '../../placement/tree/treeLeaves.ts'
@@ -255,6 +256,7 @@ function disposeLighting(rt: WebgpuPagesRuntime) {
   disposeCloudShadowDebug(rt)
   disposeLightGridDebug(rt)
   releaseAmbientCubemap(rt)
+  releaseToonTables(rt.run)
   rt.lights.buffer?.destroy()
 }
 

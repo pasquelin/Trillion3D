@@ -13,6 +13,8 @@ import {
   UNLIT_SURFACE_WGSL,
 } from './colourPassWgsl.ts'
 import { clearedColourTarget, makeFullscreenPipeline } from './fullscreen.ts'
+import { TOON_DATA_FORMATS } from './tilePass.ts'
+import type { ToonDataViews } from './toonData.ts'
 import { colourLayoutEntries, unlitLayoutEntries } from './layoutEntries.ts'
 import { createPassGroup } from './passGroup.ts'
 
@@ -21,7 +23,8 @@ import { createPassGroup } from './passGroup.ts'
  * writes every pixel of `hdr` — the background, the surfaces shown as they are, the emission of the
  * lit ones — before the draws of the lights add to it. It opens the lit image's one render pass
  * (`begin`, which clears the image): the image is held in tile memory from this draw to the indirect
- * light's (`createLitProgram`), loaded and stored once.
+ * light's (`createLitProgram`), loaded and stored once. Where the lights write the toon data (`ContractKey.toonData`) the pass has its two targets
+ * as well, cleared with the image: a draw of the pass names every target the pass has, the toon ones held (a write mask of none) by this one.
  */
 export async function createSurfaceColourPass(device: GPUDevice, view: GPUBuffer) {
   const layout = device.createBindGroupLayout({ entries: colourLayoutEntries() })
@@ -30,35 +33,74 @@ export async function createSurfaceColourPass(device: GPUDevice, view: GPUBuffer
     wgslModule(SURFACE_COLOUR_WGSL),
     'SURFACE_COLOUR',
   )
-  const pipeline = await makeFullscreenPipeline(device, module, layout, SURFACE_COLOUR_ENTRY, [
-    { format: HDR_FORMAT },
-  ])
+  const [pipeline, toonPipeline] = await Promise.all(
+    [false, true].map((toon) =>
+      makeFullscreenPipeline(device, module, layout, SURFACE_COLOUR_ENTRY, [
+        { format: HDR_FORMAT },
+        ...(toon
+          ? Object.values(TOON_DATA_FORMATS).map((format) => ({ format, writeMask: 0 }))
+          : []),
+      ]),
+    ),
+  )
   const group = createPassGroup(device, layout)
   const { target, descriptor } = clearedColourTarget(SURFACE_COLOUR_PASS)
   // The same image's pass begun again, the image kept as it is: after a draw the pass could not hold.
   const resumed = clearedColourTarget(SURFACE_COLOUR_PASS)
   resumed.target.loadOp = 'load'
+  // The passes with the toon data's two targets, which the lights add to: cleared with the image, or kept as they are.
+  const withToon = (loadOp: GPULoadOp) => {
+    const own = clearedColourTarget(SURFACE_COLOUR_PASS)
+    own.target.loadOp = loadOp
+    const data = [0, 1].map(() => ({ ...own.target }))
+    own.descriptor.colorAttachments = [own.target, ...data]
+    return { ...own, data }
+  }
+  const plainBegun = { target, descriptor }
+  const toonBegun = withToon('clear'),
+    toonResumed = withToon('load')
   return {
     /** Begins the lit image's render pass on `hdr` again, loaded and stored, its viewport the `width` × `height`
      *  pixels drawn: the lights' draws that follow work the pass could not hold between them (the per-light
-     *  draws of `shadowOnePassProjection` false, which a projection separates). */
-    resume(encoder: GPUCommandEncoder, hdr: GPUTextureView, width: number, height: number) {
-      resumed.target.view = hdr
-      const pass = encoder.beginRenderPass(resumed.descriptor)
+     *  draws of `shadowOnePassProjection` false, which a projection separates). With `toon`, the toon data's targets are kept as they are too. */
+    resume(
+      encoder: GPUCommandEncoder,
+      hdr: GPUTextureView,
+      width: number,
+      height: number,
+      toon?: ToonDataViews,
+    ) {
+      const own = toon ? toonResumed : resumed
+      own.target.view = hdr
+      if (toon) toonViews(toonResumed.data, toon)
+      const pass = encoder.beginRenderPass(own.descriptor)
       pass.setViewport(0, 0, width, height, 0, 1)
       return pass
     },
     /** Begins the lit image's render pass on `hdr`, cleared, its viewport the `width` × `height`
      *  pixels drawn; the caller records the draws into it and ends it. */
-    begin(encoder: GPUCommandEncoder, hdr: GPUTextureView, width: number, height: number) {
-      target.view = hdr
-      const pass = encoder.beginRenderPass(descriptor)
+    begin(
+      encoder: GPUCommandEncoder,
+      hdr: GPUTextureView,
+      width: number,
+      height: number,
+      toon?: ToonDataViews,
+    ) {
+      const own = toon ? toonBegun : plainBegun
+      own.target.view = hdr
+      if (toon) toonViews(toonBegun.data, toon)
+      const pass = encoder.beginRenderPass(own.descriptor)
       pass.setViewport(0, 0, width, height, 0, 1)
       return pass
     },
     /** Draws the pixels of `pass`'s viewport from `surface`, the emission under the ambient
      *  occlusion `occlusion` (`ambientOcclusionApplied`). */
-    record(pass: GPURenderPassEncoder, surface: SurfaceBuffer, occlusion: GPUTextureView) {
+    record(
+      pass: GPURenderPassEncoder,
+      surface: SurfaceBuffer,
+      occlusion: GPUTextureView,
+      toon = false,
+    ) {
       const [colours, words] = surface.stores()
       const bound = group.get([surface, occlusion], () =>
         namedEntries(DEFERRED_BINDINGS, {
@@ -69,12 +111,18 @@ export async function createSurfaceColourPass(device: GPUDevice, view: GPUBuffer
           ambientOcclusion: occlusion,
         }),
       )
-      pass.setPipeline(pipeline)
+      pass.setPipeline(toon ? toonPipeline : pipeline)
       pass.setBindGroup(0, bound)
       pass.draw(3)
     },
     release: () => group.release(),
   }
+}
+
+/** Sets the views of the toon data's two attachments. */
+function toonViews(attachments: GPURenderPassColorAttachment[], toon: ToonDataViews) {
+  attachments[0].view = toon.diffuse
+  attachments[1].view = toon.weights
 }
 
 /**

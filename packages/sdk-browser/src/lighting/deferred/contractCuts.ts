@@ -38,12 +38,15 @@ export type ContractKey = {
   /** The image holds the shadows the heterogeneous volumes cast (`heterogeneousVolumesShadows` on, a volume in the scene): the opaque lit
    *  passes read them (`beerShadowReadWgsl.ts`) and bind their buffer. Left out, false: no read, no binding. */
   volumeShadow?: boolean
+  /** The lit passes write the toon data (`toonUnifiedDiffuse`): the diffuse light of each toon pixel, unramped, with its weight and weighted cosine, in two more targets
+   *  of the lit image's pass, which the step after the lights applies the ramp to. Not a cut: a program of its own, made when the frame asks (`createContractVariants`). Left out, false. */
+  toonData?: boolean
 }
 
 /** The passes whose programs are keyed on a `ContractKey`: the opaque lit passes', and the forward
  *  one (`contractVariants.ts`). */
 export type LitPass = 'opaque' | 'blend'
-type Cut = Exclude<keyof ContractKey, 'narrow'>
+type Cut = Exclude<keyof ContractKey, 'narrow' | 'toonData'>
 
 /** What a program can leave out besides its lists' width — bit `k` of a set is `CUTS[k]` —: every
  *  pass, opaque or blend, makes every cut, each read off what that pass lights
@@ -78,7 +81,7 @@ export const withoutContactSet = (set: number) => set | CONTACTLESS
 
 /** The suffix of the name of a program that leaves out what `key` says. */
 export const variantLabel = (key: Partial<ContractKey>) =>
-  `${key.narrow ? '_NARROW' : ''}${CUTS.map((name) => (key[name] ? `_${name.toUpperCase()}` : '')).join('')}`
+  `${key.narrow ? '_NARROW' : ''}${CUTS.map((name) => (key[name] ? `_${name.toUpperCase()}` : '')).join('')}${key.toonData ? '_TOON_DATA' : ''}`
 
 /** The key of a program with every code path but the lobes and the contact shadows (which need the lit
  *  passes' depth): what a lighting builder compiles when handed no key. A key's missing cut is code

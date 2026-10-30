@@ -1,4 +1,4 @@
-import test from 'node:test'
+import test, { type TestContext } from 'node:test'
 import assert from 'node:assert/strict'
 import { buildComputeStage, buildComputeStages } from './computeStages.ts'
 import { deviceMadeNow, madeChecked, validatedOrWhy, validationScope } from './errorScope.ts'
@@ -93,25 +93,96 @@ test("madeChecked closes its scope before use starts; the scope's own message wi
   assert.equal(gpu.scopes.length, 0)
 })
 
-test("a build that rejects while the scope holds an error is refused with the scope's message", async () => {
+/** The validation error class a browser has and the fake device does not: an instance is what a validation scope holds. */
+class FakeValidationError extends Error {}
+
+/** Sets the fake class for the test, put back as it was when the test ends. */
+function withFakeValidationError(t: TestContext) {
+  const had = Object.hasOwn(globalThis, 'GPUValidationError')
+  const real = (globalThis as { GPUValidationError?: unknown }).GPUValidationError
+  Object.assign(globalThis, { GPUValidationError: FakeValidationError })
+  t.after(() => {
+    if (had) Object.assign(globalThis, { GPUValidationError: real })
+    else delete (globalThis as { GPUValidationError?: unknown }).GPUValidationError
+  })
+}
+
+test("a resource build that rejects while the scope holds a validation error is refused with the scope's own error, not mapped to a pipeline", async (t) => {
+  withFakeValidationError(t)
   const gpu = fakeDevice()
   const refusing = validationScope(gpu.device, async () => {
-    gpu.raise('[Device] the scope holds this')
+    gpu.raise('[BindGroupLayout] refused', new FakeValidationError('[BindGroupLayout] refused'))
     await Promise.resolve()
     throw new Error('the build failed')
   })
   await assert.rejects(refusing, (error: Error) => {
-    assert.ok(error instanceof GPUPipelineError)
-    assert.equal(error.message, '[Device] the scope holds this')
+    assert.ok(error instanceof FakeValidationError)
+    assert.ok(!(error instanceof GPUPipelineError))
+    assert.equal(error.message, '[BindGroupLayout] refused')
     return true
   })
   assert.deepEqual(
     await validatedOrWhy(gpu.device, async () => {
-      gpu.raise('[Device] the scope holds this')
+      gpu.raise('[BindGroupLayout] refused', new FakeValidationError('[BindGroupLayout] refused'))
       throw new Error('the build failed')
     }),
-    { refused: '[Device] the scope holds this' },
+    { refused: '[BindGroupLayout] refused' },
   )
+  assert.equal(gpu.scopes.length, 0)
+})
+
+test('a bind group layout the device refuses is a validation error of the scope, a pipeline is the only one mapped', async (t) => {
+  withFakeValidationError(t)
+  const gpu = fakeDevice()
+  const create = gpu.device.createBindGroupLayout.bind(gpu.device)
+  gpu.device.createBindGroupLayout = (descriptor) => {
+    gpu.raise('[BindGroupLayout] refused', new FakeValidationError('[BindGroupLayout] refused'))
+    return create(descriptor)
+  }
+  const { value, error } = await validationScope(gpu.device, () =>
+    gpu.device.createBindGroupLayout({ entries: [] }),
+  )
+  assert.ok(value)
+  assert.ok(error instanceof FakeValidationError)
+  await assert.rejects(
+    madeChecked(
+      gpu.device,
+      () => gpu.device.createBindGroupLayout({ entries: [] }),
+      async () => 'used',
+    ),
+    (refusal: unknown) => refusal instanceof GPUPipelineError && refusal.reason === 'validation',
+  )
+})
+
+test('a pipeline refusal is built without the host class: named as it is, with its reason', async (t) => {
+  withFakeValidationError(t)
+  const gpu = fakeDevice()
+  const real = globalThis.GPUPipelineError
+  delete (globalThis as { GPUPipelineError?: unknown }).GPUPipelineError
+  try {
+    await assert.rejects(
+      madeChecked(
+        gpu.device,
+        () => gpu.raise('[Pipeline] refused'),
+        async () => 'used',
+      ),
+      (error: Error & { reason?: string }) => {
+        assert.equal(error.name, 'GPUPipelineError')
+        assert.equal(error.reason, 'validation')
+        assert.equal(error.message, '[Pipeline] refused')
+        return true
+      },
+    )
+    assert.deepEqual(
+      await validatedOrWhy(gpu.device, async () => {
+        gpu.raise('[Pipeline] refused', new FakeValidationError('[Pipeline] refused'))
+        throw new Error('the build failed')
+      }),
+      { refused: '[Pipeline] refused' },
+    )
+  } finally {
+    globalThis.GPUPipelineError = real
+  }
 })
 
 test('a device without the async variant builds its compute pipeline on a scope of its own', async () => {
@@ -134,7 +205,7 @@ test('a device without the async variant builds its compute pipeline on a scope 
   })
 })
 
-test('the stages of one module share one pipeline layout, made in one scope', async () => {
+test('the stages of one module share one pipeline layout, made in one set of three scopes', async () => {
   const gpu = fakeDevice()
   const { device } = gpu
   let opened = 0
@@ -144,7 +215,11 @@ test('the stages of one module share one pipeline layout, made in one scope', as
   const stages = await buildComputeStages(device, [], module, ['a', 'b', 'c'])
   assert.deepEqual(Object.keys(stages), ['a', 'b', 'c'])
   assert.equal(gpu.pipelineLayouts.length, 1)
-  assert.equal(opened, 1)
+  assert.equal(
+    opened,
+    3,
+    'one validation scope inside one out-of-memory scope inside one internal scope, for the three stages',
+  )
   assert.equal(gpu.computePipelines.length, 3)
   assert.equal(new Set(gpu.computePipelines.map(({ layout }) => layout)).size, 1)
 })
@@ -180,5 +255,130 @@ test('a pipeline layout the device refuses after an await refuses the build, wit
   })
   assert.deepEqual(answer, { refused: '[PipelineLayout] refused' })
   assert.deepEqual(uncaptured, [])
+  assert.equal(gpu.scopes.length, 0)
+})
+
+test('a resource refused by its out-of-memory scope keeps its own error type, only a pipeline is mapped to GPUPipelineError', async () => {
+  const gpu = fakeDevice()
+  const refusing = validationScope(
+    gpu.device,
+    async () => {
+      gpu.raise('[Device] out of memory', new GPUOutOfMemoryError('[Device] out of memory'))
+      throw new Error('the build failed')
+    },
+    'out-of-memory',
+  )
+  await assert.rejects(refusing, (error: unknown) => {
+    assert.ok(error instanceof GPUOutOfMemoryError)
+    assert.ok(!(error instanceof GPUPipelineError))
+    assert.equal(error.message, '[Device] out of memory')
+    return true
+  })
+  assert.deepEqual(
+    await validatedOrWhy(
+      gpu.device,
+      async () => {
+        gpu.raise('[Device] out of memory', new GPUOutOfMemoryError('[Device] out of memory'))
+        throw new Error('the build failed')
+      },
+      'out-of-memory',
+    ),
+    { refused: '[Device] out of memory' },
+    'still a refusal for the caller that asks why',
+  )
+  assert.equal(gpu.scopes.length, 0)
+})
+
+test('a scope refusal is for good only where the validation scope caught it', async () => {
+  const gpu = fakeDevice()
+  const reasonOf = async (error: object) => {
+    try {
+      await madeChecked(
+        gpu.device,
+        () => gpu.raise('[Scope] refused', error),
+        async () => 'used',
+      )
+    } catch (error) {
+      return (error as GPUPipelineError).reason
+    }
+  }
+  assert.equal(await reasonOf({ message: 'a validation error' }), 'validation')
+  assert.equal(
+    await reasonOf(new GPUOutOfMemoryError('out of memory')),
+    'internal',
+    'tried again with the backoff',
+  )
+  assert.equal(
+    await reasonOf(new GPUInternalError('implementation failure')),
+    'internal',
+    'a pipeline the implementation fails to make is tried again too',
+  )
+  assert.equal(gpu.scopes.length, 0)
+})
+
+test('a pop the device rejects hides no error another scope captured, and is thrown when none did', async () => {
+  const gpu = fakeDevice()
+  const pop = gpu.device.popErrorScope.bind(gpu.device)
+  let failFirst = true
+  gpu.device.popErrorScope = () => {
+    const popped = pop()
+    if (!failFirst) return popped
+    failFirst = false
+    return popped.then(() => Promise.reject(new DOMException('NO', 'OperationError')))
+  }
+  await assert.rejects(
+    madeChecked(
+      gpu.device,
+      () => gpu.raise('[Memory] refused', new GPUOutOfMemoryError('out of memory')),
+      async () => 'used',
+    ),
+    (error: Error) => {
+      assert.ok(error instanceof GPUPipelineError)
+      assert.equal(error.message, 'out of memory', 'the captured error, not the rejected pop')
+      assert.equal(error.reason, 'internal')
+      return true
+    },
+  )
+  failFirst = true
+  await assert.rejects(
+    madeChecked(
+      gpu.device,
+      () => 'made',
+      async () => 'used',
+    ),
+    (error: unknown) => error instanceof DOMException,
+  )
+  assert.equal(gpu.scopes.length, 0, 'all three scopes were popped')
+})
+
+test('an error the internal scope caught is a refusal for the caller that asks why, as the out-of-memory one is', async () => {
+  const gpu = fakeDevice()
+  assert.deepEqual(
+    await validatedOrWhy(
+      gpu.device,
+      async () => {
+        gpu.raise('[Device] implementation failure', new GPUInternalError('implementation failure'))
+        throw new Error('the build failed')
+      },
+      'internal',
+    ),
+    { refused: 'implementation failure' },
+  )
+  assert.equal(gpu.scopes.length, 0)
+})
+
+test('a host without the error classes classifies a refusal without throwing', async (t) => {
+  const gpu = fakeDevice()
+  for (const name of ['GPUValidationError', 'GPUOutOfMemoryError', 'GPUInternalError'] as const) {
+    const real = (globalThis as Record<string, unknown>)[name]
+    t.after(() => Object.assign(globalThis, { [name]: real }))
+    delete (globalThis as Record<string, unknown>)[name]
+  }
+  await assert.rejects(
+    validatedOrWhy(gpu.device, async () => {
+      throw new Error('the build failed')
+    }),
+    /the build failed/,
+  )
   assert.equal(gpu.scopes.length, 0)
 })

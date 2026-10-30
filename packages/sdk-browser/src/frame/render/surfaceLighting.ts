@@ -21,7 +21,7 @@ import {
   encodeResolvedEffects,
 } from './encodeEffects.ts'
 import { clearResponsive } from '../prepare/responsiveTarget.ts'
-import { directLightResources, readsAsIs } from '../prepare/contractLight.ts'
+import { bounceViewOf, directLightResources, readsAsIs } from '../prepare/contractLight.ts'
 import { wantsContractLighting } from '../prepare/lit.ts'
 import { SHADING } from '../../materials/surface/pixelModel.ts'
 import {
@@ -181,19 +181,22 @@ function lightSurfaces(
   const { gpu, run } = rt
   const deferred = gpu.deferred!
   const [width, height] = gpu.targetSize
+  const resources = directLightResources(rt)
   deferred.bind(
     gpu.surfaces!,
     gpu.depthView!,
     gpu.hdrView!,
     wantsContractLighting(rt),
-    directLightResources(rt),
+    resources,
     (error) => rt.diag.diagnosticFailure('direct-lighting-program-failed', error),
   )
   // The jitter the raster drew this image with: the shadow level reads it.
   const taa = gpu.temporal?.frame
   deferred.setJitter(taa?.active ? taa.jitter : null, lightingPhase(rt))
-  const bounced = rt.lights.store.lightingView === 'bounce' && deferred.bouncing
-  deferred.setLightView(bounced ? BOUNCE_LIGHT_VIEW : lightViewCode(run.diagnostic))
+  // The bounced light's view and the toon choice are one decision (`bounceViewOf`).
+  deferred.setLightView(
+    bounceViewOf(rt, resources) ? BOUNCE_LIGHT_VIEW : lightViewCode(run.diagnostic),
+  )
   deferred.setModelSwitches(run.shading[SHADING.switches] | subsurfaceSwitches(rt))
   deferred.setSubsurfaceDistance(subsurfaceTransmittanceDistance(rt))
   deferred.update(inverseViewProj, cameraWorldArray, width, height, clear, raw, direct)
@@ -202,7 +205,11 @@ function lightSurfaces(
   encodeSampledLights(rt, encoder, sampledDirect)
   // The nearest translucent layer, written by the transparents' front pass (`encodeFrontPass`), lit by the same lighting with its own histories.
   encodeSampledFront(rt, encoder, sampledDirect)
-  if (draw) run.gpuDrawCalls += deferred.light(encoder, gpu.hdrView!)
+  if (draw) {
+    // The size of the lit image's target, which the toon data's targets share (`ContractKey.toonData`).
+    const { width: targetWidth, height: targetHeight } = gpu.hdrTexture!
+    run.gpuDrawCalls += deferred.light(encoder, gpu.hdrView!, [targetWidth, targetHeight])
+  }
 }
 
 /** What is drawn over the lit surfaces, in its order: the sky surfaces, the sky, the fog over the whole image, the haze on the

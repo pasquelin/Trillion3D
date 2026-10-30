@@ -2,15 +2,39 @@ import { validating } from './validation.ts'
 import { installGpuGlobals } from './globals.ts'
 import type { FakeDeviceOptions, LostInfo } from './fakeRecords.ts'
 
-/** A device's error scopes, innermost last, each with the first error raised under it: `push` opens
- *  one, `pop` closes the innermost and gives its error, and refuses with none open as WebGPU does. */
-const errorScopes = (scopes: Array<object | null> = []) => ({
-  pushErrorScope: () => void scopes.push(null),
+/** One open error scope: the filter it was opened with and the first error raised under it. */
+export type ErrorScope = { filter: GPUErrorFilter; error: object | null }
+
+/** The kind of scope that catches an error: its class decides, as WebGPU's does. */
+const filterOf = (error: object): GPUErrorFilter =>
+  error instanceof GPUOutOfMemoryError
+    ? 'out-of-memory'
+    : error instanceof GPUInternalError
+      ? 'internal'
+      : 'validation'
+
+/** A device's error scopes, one stack, innermost last: `push` opens one, `pop` closes the innermost and gives its error, and refuses with none open as WebGPU does. */
+const errorScopes = (scopes: ErrorScope[]) => ({
+  pushErrorScope: (filter: GPUErrorFilter) => void scopes.push({ filter, error: null }),
   popErrorScope: async () => {
     if (!scopes.length) throw new DOMException('No error scope to pop', 'OperationError')
-    return scopes.pop() ?? null
+    return scopes.pop()!.error
   },
 })
+
+/** `error` caught by the innermost scope of its kind; whether one caught it. */
+export function catchError(scopes: readonly ErrorScope[], error: object) {
+  const filter = filterOf(error)
+  const scope = scopes.findLast((open) => open.filter === filter)
+  if (scope) scope.error ??= error
+  return scope !== undefined
+}
+
+/** An out-of-memory error with `message`, raised in the innermost out-of-memory scope open; an error no scope catches throws, as a test that forgot its scope, not a silent `uncapturederror`. */
+export function raiseOutOfMemory(scopes: readonly ErrorScope[], message: string) {
+  if (!catchError(scopes, new GPUOutOfMemoryError(message)))
+    throw new Error('fakeDevice: out of memory outside an out-of-memory error scope')
+}
 
 /**
  * A device as WebGPU writes one, around the members `fakeDevice` provides: an `EventTarget` (a
@@ -22,7 +46,7 @@ const errorScopes = (scopes: Array<object | null> = []) => ({
  */
 export function asWebgpuDevice(
   members: Record<string, unknown>,
-  scopes: Array<object | null> = [],
+  scopes: ErrorScope[] = [],
   { strictScopes = false }: Pick<FakeDeviceOptions, 'strictScopes'> = {},
 ) {
   // WebGPU's globals, its error classes among them: what the engine tests a raised error against.
@@ -55,13 +79,10 @@ export function asWebgpuDevice(
     given,
     labels,
     scopes,
-    /** Raises an error: caught by the innermost scope open, dispatched as `uncapturederror`
-     *  otherwise; returns whether a listener cancelled it. */
+    /** Raises an error: caught by the innermost scope open of its kind (`catchError`), dispatched as
+     *  `uncapturederror` otherwise; returns whether a listener cancelled it. */
     raise(message: string, error: object = { message }) {
-      if (scopes.length) {
-        scopes[scopes.length - 1] ??= error
-        return false
-      }
+      if (catchError(scopes, error)) return false
       const event = Object.assign(new Event('uncapturederror', { cancelable: true }), { error })
       return !target.dispatchEvent(event)
     },

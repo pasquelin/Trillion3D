@@ -202,6 +202,13 @@ function createLightInputStandIns(device: GPUDevice) {
     4,
     GPUBufferUsage.STORAGE,
   )
+  // A header of four words: the toon buffer where no material is toon (`toon/buffer.ts`).
+  const toonTables = standInBuffer(
+    device,
+    'Trillion3D empty toon tables',
+    16,
+    GPUBufferUsage.STORAGE,
+  )
   // One texel of zero on each of the six faces, and a colour of zero: the ambient cubemap where the image sets none, bound by
   // the twin programs that hold the cube code (`twinOf`): it lights nothing.
   const ambientCube = standInTexture(device, 'Trillion3D empty ambient cubemap', 'rgba16float', {
@@ -227,6 +234,7 @@ function createLightInputStandIns(device: GPUDevice) {
       },
       contactBend: { view: arrayView(contactBend), ranks: contactBendRanks },
       volumeShadowMaps,
+      toonTables,
     },
     destroy() {
       ambientCube.destroy()
@@ -235,6 +243,7 @@ function createLightInputStandIns(device: GPUDevice) {
       contactBend.destroy()
       contactBendRanks.destroy()
       volumeShadowMaps.destroy()
+      toonTables.destroy()
     },
   }
 }

@@ -42,7 +42,6 @@ const SURFACE_MODEL_NAMES: Readonly<Record<number, string>> = {
   [MODEL_FLAG.physical]: 'Physical',
   [AS_IS_FLAG]: 'Debug view',
   [MODEL_FLAG.diffuse]: 'Diffuse',
-  [MODEL_FLAG.toon]: 'Toon',
   [MODEL_FLAG.shadow]: 'Shadow catcher',
 }
 
@@ -53,6 +52,7 @@ const PIXEL_MODEL_NAMES: Readonly<Record<number, string>> = {
   [PIXEL_MODEL.profile]: 'Subsurface profile',
   [PIXEL_MODEL.hair]: 'Hair',
   [PIXEL_MODEL.eye]: 'Eye',
+  [PIXEL_MODEL.toon]: 'Toon',
 }
 
 const LOBES_NONE = 0

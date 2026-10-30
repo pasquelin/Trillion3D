@@ -1,4 +1,5 @@
 import { MODEL_FLAG } from '../../materials/surface/surfaceModelWord.ts'
+import { PIXEL_MODEL } from '../../materials/surface/pixelModel.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { LOBELESS_KEY, type ContractKey, variantLabel } from '../deferred/contractCuts.ts'
 import { LAMP_SEEN, REACH, irradianceTerm } from './lightTermsWgsl.ts'
@@ -8,12 +9,15 @@ import { LAMP_WGSL } from './lampSeenWgsl.ts'
 import { THIN_TRANSMISSION_WGSL } from './thinTransmissionWgsl.ts'
 import { SHADING_MODEL_LIGHT_WGSL } from './shadingModelWgsl.ts'
 import { PROFILE_LIGHT_WGSL, PROFILE_RECT_WGSL } from './profileModelWgsl.ts'
+import { TOON_LAMP_WGSL, TOON_RECT_WGSL } from './toonModelWgsl.ts'
 import {
   CATCHER_NONE,
   CATCHER_SHADOWED,
   FACING_MODELS,
   hairOnly,
   lampModelTerm,
+  TOON_LAMP_TERM,
+  toonRectTerm,
   rectModelTerm,
   scattered,
   type Out,
@@ -29,7 +33,7 @@ import {
 import { SHADOW_TERMS_WGSL } from './shadowTermsWgsl.ts'
 
 /**
- * What a program's light term holds of the surface models: `models`, the diffuse and toon models, the
+ * What a program's light term holds of the surface models: `models`, the diffuse model, the
  * shadow catcher (`surfaceModel`) and the shading models a graph picks per pixel (`pixelModel`), `thin`, the thin two-sided surface's transmission
  * (`thinSurface`). A program that lights tiles of plain physical surfaces alone
  * (`../deferred/tileClass.ts`) leaves both out: the branches they guard never run on its pixels, so
@@ -93,8 +97,8 @@ const lightDeps = (
   SHADOW_TERMS_WGSL,
   shadowBitsOf,
   ...(key.channelless ? [] : [lightChannelsOf, SURFACE_CHANNELS_WGSL]),
-  ...(held.models ? [SHADING_MODEL_LIGHT_WGSL, PROFILE_LIGHT_WGSL] : []),
-  ...(held.models && !key.rectless ? [PROFILE_RECT_WGSL] : []),
+  ...(held.models ? [SHADING_MODEL_LIGHT_WGSL, PROFILE_LIGHT_WGSL, TOON_LAMP_WGSL] : []),
+  ...(held.models && !key.rectless ? [PROFILE_RECT_WGSL, TOON_RECT_WGSL] : []),
   ...(held.rays ? [contactShadowWgsl(held.rays, held.bend)] : []),
 ]
 
@@ -226,7 +230,8 @@ const WHOLE_HEAD =
 const wholeTail = (cut: LightCut) => ` let share=sharesOf(light);${
   cut.models
     ? `
- if(surfaceModel==${MODEL_FLAG.diffuse}u||surfaceModel==${MODEL_FLAG.toon}u){return (modelLight(rgb,metal,N,lamp.toward,surfaceEnergy)+transmitted)*(color*share.x);}
+ if(surfaceModel==${MODEL_FLAG.diffuse}u){return (modelLight(rgb,metal,N,lamp.toward,surfaceEnergy)+transmitted)*(color*share.x);}
+ ${TOON_LAMP_TERM}
  ${hairOnly('transmitted*(color*share.y)')}
  ${scattered('color', 'color', 'profileLampLight(shading,N,V,light,P,lamp,surfaceEnergy,rough)')}`
     : ''
@@ -239,7 +244,7 @@ const wholeTail = (cut: LightCut) => ` let share=sharesOf(light);${
 const SPLIT_HEAD = `struct LightSplit{diffuse:vec3f,specular:vec3f,}
 fn declaredLightSplit(rank:u32,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,shading:LobeSurface)->LightSplit{`
 const SPLIT_TAIL = ` let share=sharesOf(light);
- if(surfaceModel==${MODEL_FLAG.diffuse}u||surfaceModel==${MODEL_FLAG.toon}u){return LightSplit(modelLight(rgb,metal,N,lamp.toward,surfaceEnergy)*(color*share.x),transmitted*(color*share.x));}
+ if(surfaceModel==${MODEL_FLAG.diffuse}u){return LightSplit(modelLight(rgb,metal,N,lamp.toward,surfaceEnergy)*(color*share.x),transmitted*(color*share.x));}
  let split=lampLightSplit(shading,N,V,light,P,lamp,surfaceEnergy);
  return LightSplit(split[0]*(color*share.x),(split[1]*share.y+transmitted*share.x)*color);`
 
@@ -281,7 +286,7 @@ const rectBranch = (
       ? `
   if(thinSurface()){transmitted=thinSubsurface*(thinTransmission(N,V,centre)*rectWindowed(r)*lightStrength(light))*light.colorIntensity.rgb*rectColour(r,centre);}`
       : ''
-  }${rectModelTerm(models)}${models ? `\n  ${hairOnly('transmitted*share.y*transmissionGiven')}\n  ${nested(scattered('surfaceGiven', 'transmissionGiven', 'profileRectLight(light,r,shading,N,V,rough)'))}` : ''}
+  }${rectModelTerm(models)}${models ? `\n  ${hairOnly('transmitted*share.y*transmissionGiven')}\n  ${toonRectTerm(out)}\n  ${nested(scattered('surfaceGiven', 'transmissionGiven', 'profileRectLight(light,r,shading,N,V,rough)'))}` : ''}
   let t=rectLightSplit(light,r,shading,rgb,metal,rough,N,V);${
     split
       ? `
@@ -303,7 +308,7 @@ const nested = (text: string) => text.replace(/\n/g, '\n ')
  */
 const shadeRead = (out: Out, normal: string, facing: string, energy: string, cut: LightCut) => `
  let shade=shadowFactor(i32(light.params.y),light,P,${normal},${facing});${catcherOf(cut, CATCHER_SHADOWED(out, energy))}
- if(shade<=0.0){return ${out(ZERO)};}`
+ if(shade<=0.0${cut.models ? `&&pixelModel!=${PIXEL_MODEL.toon}u` : ''}){return ${out(ZERO)};}`
 
 /** A rectangle's shadow read (\`rectBranch\`): the surface faces it where the projection does not
  *  cull it, as it sees it from the point (\`vsmFacesAwayFromLocal\`); its energy a catcher's is the
@@ -311,16 +316,16 @@ const shadeRead = (out: Out, normal: string, facing: string, energy: string, cut
 const rectShadeRead = (out: Out, cut: LightCut) => `
  let toward=light.positionRange.xyz-P;
  let back=${cut.thin ? 'thinSurface()&&dot(N,toward)<0.0' : 'false'};
- let facing=back${cut.models ? `||surfaceModel==${MODEL_FLAG.toon}u||surfaceModel==${MODEL_FLAG.shadow}u${FACING_MODELS}` : ''}||!vsmFacesAwayFromLocal(toward,N,length(light.shape.xyz));${shadeRead(out, 'select(N,-N,back)', 'facing', 'rectWindowed(r)', cut)}`
+ let facing=back${cut.models ? `||surfaceModel==${MODEL_FLAG.shadow}u${FACING_MODELS}` : ''}||!vsmFacesAwayFromLocal(toward,N,length(light.shape.xyz));${shadeRead(out, 'select(N,-N,back)', 'facing', 'rectWindowed(r)', cut)}`
 
 const shadeStatement = (out: Out, cut: LightCut) => `
  // A surface facing away from the light gets its exact zero whatever the shadow: the shadow's
- // trace is skipped (\`shadowFactor\`). Toon bands light it, a shadow catcher reads the shadow
+ // trace is skipped (\`shadowFactor\`). A shadow catcher reads the shadow
  // whatever its side, and a thin surface, which the light crosses from either side, whichever one
  // it is on (read at the normal turned to the light, \`back\`); a lamp of size lights a surface a
  // little past its horizon (\`lampSeen\`). The direction is unit as it comes.
  let back=${cut.thin ? 'thinSurface()&&lamp.side<0.0' : 'false'};
- let facing=${cut.thin ? 'thinSurface()||' : ''}${cut.models ? `surfaceModel==${MODEL_FLAG.toon}u||surfaceModel==${MODEL_FLAG.shadow}u${FACING_MODELS}||` : ''}lamp.side>0.0||lamp.cosine>0.0;${shadeRead(out, 'select(N,-N,back)', 'facing', 'lamp.falloff', cut)}`
+ let facing=${cut.thin ? 'thinSurface()||' : ''}${cut.models ? `surfaceModel==${MODEL_FLAG.shadow}u${FACING_MODELS}||` : ''}lamp.side>0.0||lamp.cosine>0.0;${shadeRead(out, 'select(N,-N,back)', 'facing', 'lamp.falloff', cut)}`
 
 /** The shading every walk of the lights opens with: the pixel's lobes and cloth, handed to each light's term; `surface` is the expression of the lobed surface. */
 export const SHADING_TEXT = (surface = 'clothSurface(lobeSurface(rgb,metal,rough,N,V))') =>

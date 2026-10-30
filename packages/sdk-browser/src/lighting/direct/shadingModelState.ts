@@ -2,7 +2,7 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { luminance } from '../../../../math/src/wgsl/color.ts'
 
 /** The state of a pixel's model: its number, the skin's and the thin subsurface's subsurface colour and opacity (and the distance at which that colour is the light's transmittance, `modelTransmitDistance`, and the transmitted colour the thin subsurface makes of it once, `modelTransmitted`), a subsurface profile's number
- *  (its opacity is the skin's), the hair's scatter and its response to the environment, the eye's iris mask, normal and caustic
+ *  (its opacity is the skin's; a toon pixel's is its toon profile's row, and `modelToonUv` its pattern coordinates), the hair's scatter and its response to the environment, the eye's iris mask, normal and caustic
  *  normal; and the luminance of the light the subsurface scattering spreads over the pixel, summed by the lights
  *  (`scatterAdd`) and written in the lit image's alpha (`lightOut`). */
 export const SHADING_MODEL_STATE_WGSL = wgslBlock(
@@ -14,6 +14,15 @@ var<private> modelOpacity:f32;
 var<private> modelTransmitDistance:f32;
 var<private> modelTransmitted:vec3f;
 var<private> modelProfile:u32;
+var<private> modelToonUv:vec2f;
+/** Whether the toon diffuse is applied once to the sum of the lights (toonUnified, the setting) and the sum it accumulates for that: the lights' diffuse
+ *  light unramped, their weights and their weighted cosines (toonLightOut). */
+var<private> toonUnified:bool=false;
+var<private> toonDiffuse:vec3f;
+var<private> toonWeight:f32;
+var<private> toonWeightedNoL:f32;
+/** Whether the toon pixels' specular indirect light is quantised by their profile's ramp (toonReflectionQuantization, the setting). */
+var<private> toonQuantize:bool=false;
 var<private> scatterLuma:f32;
 var<private> modelScatter:f32;
 var<private> modelEnvironment:vec3f;

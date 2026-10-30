@@ -112,7 +112,7 @@ export async function finishPreparation(
   gpuDevice: GPUDevice,
   step: PrepareStep,
 ) {
-  const { gpu, run, context, diag, capabilities, services } = rt
+  const { gpu, run, diag, capabilities, services } = rt
   // What the first frame binds, asked as a frame entry asks it (`askFramePipelines`): compiled
   // beside the steps below, awaited at the end.
   askFramePipelines(rt)

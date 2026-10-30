@@ -70,7 +70,7 @@ export function releaseSet(gpu: TargetSet['gpu'], vis: TargetSet['vis']) {
 export type AskedTargets = FrameSize & { requestedBytes: number }
 
 /** Targets asked the held way (`targetGrant.ts`): those in place released, the frames held until
- *  the device answers; refused, `retryAt` is the frame this size may be asked again at. */
+ *  the device answers; refused, `retryAt` is the time (`refusalNow`) this size may be asked again at. */
 export type HeldTargets = AskedTargets & { mode: 'held'; retryAt?: number }
 
 /** Targets asked beside those in place (`targetsAside.ts`): the set and the Hi-Z pyramid made —

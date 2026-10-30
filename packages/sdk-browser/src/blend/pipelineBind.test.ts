@@ -105,6 +105,8 @@ function joue(items: ReturnType<typeof item>[]) {
       store: { count: 0, epoch: 0, unlit: false, simple: { capacity: 0 } },
     },
     bounce: { probes: undefined },
+    // No selected object: none casts a capsule shadow (`capsuleIndirectPlanned`).
+    layout: { selectionRoots: [] },
     views: { active: { overrides: NO_OVERRIDES } },
     context: {},
     // `lit` view with no light: the contract lights, so the pass binds its default resources.

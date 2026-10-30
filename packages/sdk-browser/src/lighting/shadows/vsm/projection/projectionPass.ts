@@ -17,6 +17,7 @@ import type { HizDepth } from '../../../../visibility/hiz/gpu/types.ts'
 import {
   sunCount,
   VSM_PROJECTION_CLASSIC_BYTES,
+  VSM_PROJECTION_TOON_BYTES,
   VSM_PROJECTION_MAX_PASS_LIGHTS,
   VSM_PROJECTION_VIEW_WORD,
   type VsmTraceCounts,
@@ -37,6 +38,7 @@ import type { onePassMaskFormat } from './maskFormat.ts'
 import { vsmProjectionReserve, type VsmProjectionState } from './projectionStore.ts'
 import type { HeldGroup } from '../../../../gpu/bind/bindIdentity.ts'
 import { writeVsmProjectionView } from './projectionViewWrite.ts'
+import { registeredToonProfiles, toonShadowExtinctions } from '../../../toon/registry.ts'
 import { PER_LIGHT_RECORD_BINDING_BYTES } from './perLightRecord.ts'
 import type { VsmVisualizeRequest } from './visualizePass.ts'
 
@@ -337,6 +339,15 @@ export function writeVsmProjectionFrame(res: VsmResources, frame: VsmProjectionF
   if (frame.classic) {
     const at = 4 * VSM_PROJECTION_VIEW_WORD.classic
     device.queue.writeBuffer(state.uniform!, at, state.staging, at, VSM_PROJECTION_CLASSIC_BYTES)
+  }
+  // The toon profiles' extinctions lie after them: uploaded when the collection changed, while a material is toon.
+  const extinctions = toonShadowExtinctions()
+  const { revision } = registeredToonProfiles()
+  if (extinctions && state.toonRevision !== revision) {
+    const at = 4 * VSM_PROJECTION_VIEW_WORD.toonExtinction
+    state.words.f.set(extinctions, VSM_PROJECTION_VIEW_WORD.toonExtinction)
+    device.queue.writeBuffer(state.uniform!, at, state.staging, at, VSM_PROJECTION_TOON_BYTES)
+    state.toonRevision = revision
   }
 }
 

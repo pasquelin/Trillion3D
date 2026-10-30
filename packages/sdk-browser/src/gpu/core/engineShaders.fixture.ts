@@ -48,6 +48,7 @@ import { HETEROGENEOUS_VOLUME_SHADERS } from './engineShaders.heterogeneousVolum
 import { CAPSULE_SHADOW_SHADERS } from './engineShaders.capsuleShadows.fixture.ts'
 import { PATH_TRACING_SHADERS } from './engineShaders.pathTracing.fixture.ts'
 import { RECT_LIGHT_ATLAS_SHADERS } from './engineShaders.rectLightAtlas.fixture.ts'
+import { TOON_SHADERS } from './engineShaders.toon.fixture.ts'
 import { SAMPLED_LIGHTS_SHADERS } from './engineShaders.manyLights.fixture.ts'
 import { SCREEN_SPACE_TRACING_SHADERS } from './engineShaders.screenSpaceTracing.fixture.ts'
 import { BLEND_SHADER } from './shaderTexts.fixture.ts'
@@ -247,6 +248,7 @@ export const ENGINE_SHADERS: Record<string, string> = {
   ...CAPSULE_SHADOW_SHADERS,
   ...PATH_TRACING_SHADERS,
   ...RECT_LIGHT_ATLAS_SHADERS,
+  ...TOON_SHADERS,
   ...SAMPLED_LIGHTS_SHADERS,
   ...SCREEN_SPACE_TRACING_SHADERS,
   BLEND_EXPAND_SHADER,

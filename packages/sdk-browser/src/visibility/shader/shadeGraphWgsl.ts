@@ -233,7 +233,7 @@ function pixelModels(g: CompiledGraph, held: Held, call: OutputCall) {
   // The iris and caustic normals as differences of octahedral coordinates, an 8-bit channel each.
   const delta = (v: string) => `quantise8x2((${v})*0.5+128.0/255.0)`
   const scatters = `!(mgModel==${PIXEL_MODEL.profile}&&${held.opacity}<=${wgslF32(SUBSURFACE_OPACITY_THRESHOLD)})`
-  return `  if(isPixelModel(u32(mgModel))&&${scatters}&&(flag&${SURFACE_MODEL_MASK}u)==${MODEL_FLAG.physical}u){
+  return `  if(isPixelModel(u32(mgModel))&&u32(mgModel)!=${PIXEL_MODEL.toon}u&&${scatters}&&(flag&${SURFACE_MODEL_MASK}u)==${MODEL_FLAG.physical}u){
    flag|=pixelModelFlag(u32(mgModel));
    if(mgModel==${PIXEL_MODEL.subsurface}){
     thinOut=clamp(${call('subsurfaceColor')},vec3f(0.0),vec3f(1.0));thinOpacity=${held.opacity};

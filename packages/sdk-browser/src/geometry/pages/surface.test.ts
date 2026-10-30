@@ -65,7 +65,7 @@ test('a list wears its first surface, and an empty one a shared front, opaque re
 
 test('a declared map its model never reads is refused by name', () => {
   const ramp = G.dataTexture()
-  assert.throws(() => G.familySurface('toon', { gradientMap: ramp }), /gradientMap/)
+  assert.throws(() => G.familySurface('standard', { gradientMap: ramp }), /gradientMap/)
   assert.throws(() => G.familySurface('matcap', { map: ramp }), /declares a map/)
   assert.throws(() => G.familySurface('normal', { normalMap: ramp }), /normalMap/)
 })

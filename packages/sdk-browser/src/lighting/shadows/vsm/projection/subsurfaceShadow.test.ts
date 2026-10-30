@@ -9,7 +9,14 @@ import { VSM_CM_PER_UNIT } from '../constants.ts'
 import { PROJECTION_CODE as CODE } from './projectionRun.fixture.ts'
 
 type Trace = { shadowFactor: number; rayCount: number; occluderDistance: number }
-type Info = { valid: boolean; subsurface: boolean; worldNormal: number[]; opacity: number }
+type Info = {
+  valid: boolean
+  subsurface: boolean
+  worldNormal: number[]
+  opacity: number
+  toon?: boolean
+  extinction?: number
+}
 const { vsmSubsurfaceShadow } = shaderRun<{
   vsmSubsurfaceShadow: (r: Trace, info: Info) => Trace
 }>(CODE, ['vsmSubsurfaceShadow'], {})
@@ -44,5 +51,22 @@ test('the light through the material follows the distance, the opacity and the s
     const transmission = Math.min(1, Math.exp(-distance * VSM_CM_PER_UNIT * density))
     const through = transmission + (1 - transmission) * missed
     assert.ok(Math.abs(r.shadowFactor - through * through) < 1e-5, `${opacity} ${distance}`)
+  }
+})
+
+test('a toon receiver lets through the light its profile’s extinction leaves over the occluder distance', () => {
+  for (const [extinction, distance, missed] of [
+    [0.1, 0.01, 0],
+    [0.1, 0.2, 0.25],
+    [0.5, 0.05, 0.5],
+    [0, 1, 0],
+  ]) {
+    const r = vsmSubsurfaceShadow(
+      { shadowFactor: missed, rayCount: 4, occluderDistance: distance },
+      { ...info(0), toon: true, extinction },
+    )
+    const transmission = Math.min(1, Math.exp(-distance * VSM_CM_PER_UNIT * extinction))
+    const through = transmission + (1 - transmission) * missed
+    assert.ok(Math.abs(r.shadowFactor - through * through) < 1e-5, `${extinction} ${distance}`)
   }
 })

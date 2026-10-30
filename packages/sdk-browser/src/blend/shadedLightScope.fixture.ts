@@ -28,7 +28,7 @@ function shadedLightScope(
     tileLights: [7, 7, ...[...Array(count).keys()].filter(() => r() < 0.7)],
     ...NO_SHADING_MODEL,
     thinSubsurface: r() < 0.5 ? [0, 0, 0] : [u(0, 1), u(0, 1), u(0, 1)],
-    surfaceModel: [MODEL_FLAG.physical, MODEL_FLAG.diffuse, MODEL_FLAG.toon][round % 3],
+    surfaceModel: [MODEL_FLAG.physical, MODEL_FLAG.diffuse][round % 2],
     shadowFactor: (slice: number) => (slice < 0 ? 1 : shades[slice]),
     airTintOf: () => [1, 1, 1],
   }

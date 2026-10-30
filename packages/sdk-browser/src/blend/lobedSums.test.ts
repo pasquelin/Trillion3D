@@ -1,7 +1,7 @@
 // A blend pass's lobed program (`physicalWgsl.ts`, a key without `lobeless`) lights a fragment that
 // carries no lobe as the program without lobe code: its light loop (`sliceLighting`) runs in f32
 // (`shaderRun`, `F32_SCOPE`) on random lamp sets — points, spots and suns, in range and past it,
-// standard, diffuse and toon, thin or not, on a cell's list and on every lamp —, lobes off, and
+// standard and diffuse, thin or not, on a cell's list and on every lamp —, lobes off, and
 // lobes set with neither a strength nor a coat (what `setLobes` leaves of maps that zeroed both):
 // the sums are the same numbers, bit for bit. A lobed fragment is proved on the GPU
 // (`tests/gpu/blend/lobes.gpu.ts`).

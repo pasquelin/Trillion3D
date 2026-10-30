@@ -137,6 +137,8 @@ export interface SampledLightsInputs {
   lights: GPUBuffer
   tiles: GPUBuffer
   sunRanks: GPUBuffer
+  /** The toon buffer (`toonTablesBinding`), the profiles the toon pixels' lights are shaped by. */
+  toonTables: GPUBuffer
   lightFunction: GPUTextureView
   lightProfile?: LightProfileResources
   /** Whether the rectangle lights' pictures are read (`sampledLightsTexturedRectLights`); else a rectangle is plain. */
@@ -558,6 +560,7 @@ function weighingLayoutEntries(key: ContractKey): GPUBindGroupLayoutEntry[] {
     ...shadedLayoutEntries(),
     computeBufferEntry(D.tiles, 'read-only-storage'),
     computeBufferEntry(D.sunRanks, 'read-only-storage'),
+    computeBufferEntry(D.toonTables, 'read-only-storage'),
     lightFunctionLayoutEntry(D.lightFunctionAtlas),
     ...(key.profileless
       ? []
@@ -916,7 +919,8 @@ function createSamplingCache(device: GPUDevice, stage: StageMaker, front: boolea
     },
     /** `held` is the family the asking view still holds: a pruned family it still reads is registered again, never rebuilt beside it. */
     samplingFor(key: ContractKey, textured: boolean, held?: SamplingFamily): SamplingFamily {
-      const label = `${variantLabel(key)}${textured ? '' : ' plain rectangles'}`
+      // The toon data is left out of the label: the sampling is ramped light by light under either key, its code and layouts the same.
+      const label = `${variantLabel({ ...key, toonData: false })}${textured ? '' : ' plain rectangles'}`
       const made =
         families.get(label) ?? (held?.label === label ? { family: held, askedAt: 0 } : undefined)
       if (made) {
@@ -1092,6 +1096,7 @@ const lightGridKeys = (c: EncodeContext) => {
   return [
     inputs.tiles,
     inputs.sunRanks,
+    inputs.toonTables,
     inputs.lightFunction,
     inputs.lightProfile?.view,
     inputs.lightProfile?.rectView,
@@ -1102,6 +1107,7 @@ const lightGridEntries = (c: EncodeContext): GPUBindGroupEntry[] => {
   return [
     { binding: D.tiles, resource: { buffer: inputs.tiles } },
     { binding: D.sunRanks, resource: { buffer: inputs.sunRanks } },
+    { binding: D.toonTables, resource: { buffer: inputs.toonTables } },
     { binding: D.lightFunctionAtlas, resource: inputs.lightFunction },
     ...(!key.profileless && inputs.lightProfile
       ? [

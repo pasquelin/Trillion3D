@@ -69,6 +69,16 @@ struct Lobes{cloth:f32,fuzz:vec3f,sheen:SheenView,on:bool,skewed:bool,T:vec3f,B:
 var<private> lobes:Lobes;
 fn hasCloth()->bool{return lobes.on&&lobes.cloth>0.0;}
 fn hasSkew()->bool{return lobes.on&&lobes.skewed;}
+/** The anisotropic distribution of the pixel's lobe at the half vector H for the width alpha, the pixel's anisotropy (skewedAnisotropy) spreading it along the axis and across it
+ *  as the lobe does (lobeAxis, lobeAcross): the toon specular's (toonLampLight), which reads it at its own safe width. */
+fn skewedDistribution(N:vec3f,H:vec3f,alpha:f32)->f32{
+ let s=skewedAnisotropy();
+ let at=max(alpha*(1.0+s),0.001);let ab=max(alpha*(1.0-s),0.001);
+ let h=vec3f(dot(lobes.T,H)/at,dot(lobes.B,H)/ab,max(dot(N,H),0.0));
+ let q=dot(h,h);
+ return 1.0/(PI*at*ab*q*q);
+}
+fn skewedAnisotropy()->f32{return (lobes.at-lobes.ab)/(lobes.at+lobes.ab);}
 fn hasCoat()->bool{return lobes.on&&lobes.coat>0.0;}
 /** A pixel's lobes: its lobe axis \`axis\` (\`lobeAxis\`: the direction kept orthogonal to the normal the
  *  lighting reads and the width along it, or the round lobe), \`alpha\` the width across it
@@ -236,6 +246,9 @@ const LOBELESS_HOOKS_WGSL = wgslBlock(
   'LOBELESS_HOOKS_WGSL',
   [SURFACE_LIGHT_WGSL, LAMP_SURFACE_LIGHT_WGSL],
   `fn hasCoat()->bool{return false;}
+fn hasSkew()->bool{return false;}
+fn skewedDistribution(N:vec3f,H:vec3f,alpha:f32)->f32{return 0.0;}
+fn skewedAnisotropy()->f32{return 0.0;}
 fn coatedPoint(s:LobeSurface,N:vec3f,V:vec3f,L:vec3f,energy:f32)->mat2x3f{return mat2x3f();}
 fn coatedLamp(s:LobeSurface,N:vec3f,V:vec3f,look:Look,lamp:Lamp,energy:f32)->mat2x3f{return mat2x3f();}
 fn coatLayerKeep()->f32{return 1.0;}

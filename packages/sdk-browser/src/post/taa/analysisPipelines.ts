@@ -108,8 +108,12 @@ const preparedOn = (
 const built = (pipeline: GPUComputePipeline): Built => {
   const made: Built = {
     prepare: () => Promise.resolve(),
+    start: () => made,
     ask: () => made,
     ready: true,
+    pending: false,
+    refused: false,
+    unavailable: false,
     get: () => pipeline,
   }
   return made

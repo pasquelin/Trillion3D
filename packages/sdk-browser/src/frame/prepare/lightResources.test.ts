@@ -34,6 +34,8 @@ function harness() {
     store,
     rt: {
       lights: { store },
+      // No selected object: none casts a capsule shadow (`capsuleIndirectPlanned`).
+      layout: { selectionRoots: [] },
       // No root and no transparent item in a channel but the default's (`channelledFor`).
       vis: { rootOffsets: createRootOffsets() },
       blendState: { channelled: false },

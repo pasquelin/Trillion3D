@@ -37,7 +37,7 @@ export interface PerLightSources {
  *  classes the program holds no code for use the highest it holds (`moduleOfClass`). */
 function classPipelines(
   device: GPUDevice,
-  { classes, label }: Pick<PerLightSources, 'classes' | 'label'>,
+  { classes, label, toon }: Pick<PerLightSources, 'classes' | 'label'> & { toon: boolean },
   wgsl: (tileClass: TileClass) => WgslDecl,
   entry: string,
   groupLayout: GPUBindGroupLayout,
@@ -50,7 +50,15 @@ function classPipelines(
   return TILE_CLASSES.map((tileClass) =>
     preparedPipeline(
       device,
-      lightPipelineDescriptor(device, modules, groupLayout, entry, `${label}_${name}`, tileClass),
+      lightPipelineDescriptor(
+        device,
+        modules,
+        groupLayout,
+        entry,
+        `${label}_${name}`,
+        tileClass,
+        toon ? { writes: true } : undefined,
+      ),
     ),
   )
 }
@@ -91,7 +99,8 @@ export function createPerLightProgram(device: GPUDevice, sources: PerLightSource
     entry: string,
     groupLayout: GPUBindGroupLayout,
     name: string,
-  ) => classPipelines(device, { classes, label }, wgsl, entry, groupLayout, name)
+  ) =>
+    classPipelines(device, { classes, label, toon: !!key.toonData }, wgsl, entry, groupLayout, name)
   let unbatched: ClassPipelines | undefined, lights: ClassPipelines | undefined
   const compiledBatched: (GPURenderPipeline | undefined)[] = [],
     compiledLights: (GPURenderPipeline | undefined)[] = []

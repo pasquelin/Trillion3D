@@ -1,7 +1,7 @@
 import { gpuDeviceLedgerOf } from '../../gpu/core/deviceLedger.ts'
 import { grantPending } from '../../gpu/core/errorScope.ts'
+import { refusalNow } from '../../gpu/core/refusal.ts'
 import {
-  framesOf,
   heldCompiles,
   pipelinesCompiling,
   pipelinesSettled,
@@ -83,6 +83,8 @@ function noted(rt: WebgpuPagesRuntime, name: string | undefined) {
 /** What a view keeps of its frames' holds, for a trace of why frames were drawn or held (`noteHold`): the answer the last frame was held on, none once it answered (`deviceAnswering`; a frame held with none was held on the targets' refused size, waiting to ask it again, `frameTargetsAwaited`), and the last frame's record, written in place. */
 export type HoldLog = {
   heldOn: string | undefined
+  /** The frames this view entered, drawn or held (`noteHold` counts one per entry): a held frame moves no image number, so `entered`, `first` and `last` count here. */
+  entries: number
   last:
     | {
         drawn: boolean
@@ -90,10 +92,11 @@ export type HoldLog = {
         heldEmpty: boolean
         /** `drawn`, `still` (nothing moved: the previous image shown), the answer held on (`deviceAnswering`), or the targets' grant: in flight, or refused and waiting to be asked again. */
         reason: string
-        /** For a refused grant, the frame (counted in frames entered) it is asked again at, else 0. */
-        retryAt: number
+        /** For a refused grant, the milliseconds left before it is asked again (0 once due), else 0. */
+        retryInMs: number
+        /** The entry number of this frame (`HoldLog.entries`). */
         entered: number
-        /** Every frame that entered since the device opened, by `reason`: how many, the frame entered first and last, and how many of them reported a still image (`frameHeld`)
+        /** Every frame that entered since the view started, by `reason`: how many, the frame entered first and last, and how many of them reported a still image (`frameHeld`)
          *  or no image at all (`heldEmpty`). The page sees only the frames it was told of; these are all. */
         byReason: Record<
           string,
@@ -118,7 +121,7 @@ export function noteHold(
     frameHeld: false,
     heldEmpty: false,
     reason: '',
-    retryAt: 0,
+    retryInMs: 0,
     entered: 0,
     byReason: {},
   })
@@ -126,8 +129,9 @@ export function noteHold(
   record.drawn = drawn
   record.frameHeld = rt.run.frameHeld
   record.heldEmpty = rt.run.heldEmpty
-  record.entered = framesOf(device)
-  record.retryAt = awaited ? (grant?.retryAt ?? 0) : 0
+  record.entered = ++log.entries
+  record.retryInMs =
+    awaited && grant?.retryAt !== undefined ? Math.max(0, grant.retryAt - refusalNow()) : 0
   record.reason = drawn
     ? 'drawn'
     : !answered

@@ -1,4 +1,5 @@
 import { BACKEND, type FakeDeviceOptions } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
+import { raiseOutOfMemory } from '../../../../../tests/kit/fakeDevice/fakeWebgpuDevice.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 
 type Made = { label?: string; size?: { width: number; height: number } }
@@ -9,7 +10,7 @@ const sizeOf = (size: unknown): Made['size'] =>
 
 /** The shared test device (`options`), answering each `kind` creation whose label holds `label`
  *  with `answer` — its size read as a dictionary —, inside the scope it is made in: by default
- *  refused as out of memory. */
+ *  refused as out of memory; what it raises is a `GPUOutOfMemoryError`, caught by an out-of-memory scope: a raise no scope catches throws. */
 export function refusing(
   kind: 'createTexture' | 'createBuffer',
   label: string,
@@ -23,7 +24,10 @@ export function refusing(
   device[kind] = function (this: unknown, descriptor: Made) {
     const made = make.call(this, descriptor)
     if (descriptor.label?.includes(label))
-      answer((message) => gpu.raise(message), { ...descriptor, size: sizeOf(descriptor.size) })
+      answer((message) => raiseOutOfMemory(gpu.scopes, message), {
+        ...descriptor,
+        size: sizeOf(descriptor.size),
+      })
     return made
   }
   return gpu

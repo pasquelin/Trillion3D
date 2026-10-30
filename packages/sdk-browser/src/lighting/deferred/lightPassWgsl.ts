@@ -18,6 +18,7 @@ import {
   DEFERRED_CONTACT_BEND_BINDINGS,
   DEFERRED_LIGHT_FUNCTION_BINDINGS,
   DEFERRED_LIGHT_PROFILE_BINDINGS,
+  DEFERRED_TOON_TABLES,
 } from './bindings.ts'
 import { variantLabel, type ContractKey } from './contractCuts.ts'
 import { SCREEN_OCCLUSION_WGSL } from './ambientOcclusionWgsl.ts'
@@ -33,6 +34,9 @@ import {
 import { TILE_VERTEX_WGSL } from './tilePass.ts'
 import type { TileClass } from './tileClass.ts'
 import { DECLARED_TERM_TEXT, SHADING_TEXT } from '../direct/lightLoopWgsl.ts'
+import { TOON_APPLY_WGSL } from '../direct/toonModelWgsl.ts'
+import { TOON_DATA_BINDINGS } from './bindings.ts'
+import { PIXEL_MODEL } from '../../materials/surface/pixelModel.ts'
 import { LOBES_TARGET_WGSL } from '../direct/lobesWgsl.ts'
 import { lightingBase, pixelCellWgsl, type LightingBindings } from '../direct/lightingWgsl.ts'
 import { SIMPLE_HEADER } from '../../../../sdk-core/src/scene/light/fields.ts'
@@ -65,6 +69,7 @@ const SUN_BINDINGS: LightingBindings = {
   vsmSunMask: CONTRACT_SHADOW_BINDINGS.vsmSunMask,
   lightFunction: DEFERRED_LIGHT_FUNCTION_BINDINGS,
   cloudShadow: DEFERRED_CLOUD_SHADOW_BINDINGS,
+  toon: DEFERRED_TOON_TABLES,
 }
 /** The local lights' pass: no clouds' shade — the air's lights are directional. */
 const LOCAL_BINDINGS: LightingBindings = {
@@ -73,6 +78,7 @@ const LOCAL_BINDINGS: LightingBindings = {
   maskFallback: CONTRACT_SHADOW_BINDINGS.fallback,
   lightFunction: DEFERRED_LIGHT_FUNCTION_BINDINGS,
   lightProfile: DEFERRED_LIGHT_PROFILE_BINDINGS,
+  toon: DEFERRED_TOON_TABLES,
 }
 /** The view of the shadows sums the suns of the cell too, so its program reads the sun's distance-field
  *  shadow as the sun's pass does. */
@@ -149,6 +155,35 @@ const PIXEL_CELL = `
  vsmMaskAt(coord,record);`
 
 /**
+ * THE TOON DATA a pass of lights writes beside the light, where the program holds it (`ContractKey.toonData`): the diffuse light of the pixel's toon
+ * light terms, unramped and pre-exposed, and their weight and weighted cosine (`toonLightOut`), added to two more targets of the lit image's pass
+ * as the light is added to the image; the pass after the lights reads them (`toonMain`). `litOut` is a pass's result: the light, and that data.
+ */
+export const TOON_DATA_OUT_WGSL = wgslBlock(
+  'TOON_DATA_OUT_WGSL',
+  [],
+  `
+struct LitOut{@location(0) light:vec4f,@location(1) toon0:vec4f,@location(2) toon1:vec2f,}
+fn litOut(light:vec4f)->LitOut{
+ let exposure=view.preExposure.x;
+ return LitOut(light,vec4f(toonDiffuse*exposure,0.0),vec2f(toonWeight,toonWeightedNoL)*exposure);
+}`,
+)
+
+/** The toon data the pass after the lights reads (`toonMain`): the diffuse light and the weights, in the group after the pass's own. */
+const TOON_DATA_READ_WGSL = wgslBlock(
+  'TOON_DATA_READ_WGSL',
+  [],
+  `
+@group(1) @binding(${TOON_DATA_BINDINGS.diffuse}) var toonData0:texture_2d<f32>;
+@group(1) @binding(${TOON_DATA_BINDINGS.weights}) var toonData1:texture_2d<f32>;`,
+)
+
+/** The type of a pass's result, with its location when it is the light alone, and how it makes it from the light `light`: the light alone, or with the toon data (`TOON_DATA_OUT_WGSL`). */
+export const resultOf = (data: boolean) => (data ? 'LitOut' : '@location(0) vec4f')
+export const resultFrom = (data: boolean, light: string) => (data ? `litOut(${light})` : light)
+
+/**
  * The key of the lights a pass lights, for the class `tileClass`: the lobes are the class's
  * (`CLASS_CUTS`), whatever the frame's key says of the lobes — the key says whether the program holds
  * the class —, and the sun's pass holds no rectangle code.
@@ -190,6 +225,7 @@ export function litPassImports(lights: ContractKey, tileClass: TileClass) {
 export function sunPassWgsl(key: ContractKey, tileClass: TileClass) {
   const lights = keyOfClass(key, tileClass, false)
   const { cut, head, tail } = litPassImports(lights, tileClass)
+  const data = !!cut.toonData
   return wgslBlock(
     `sunPassWgsl(${variantLabel(lights)}, ${tileClass})`,
     [
@@ -205,11 +241,12 @@ export function sunPassWgsl(key: ContractKey, tileClass: TileClass) {
       TILE_VERTEX_WGSL,
       SUN_LOOP_WGSL,
       ...tail,
+      ...(data ? [TOON_DATA_OUT_WGSL] : []),
     ],
     `
-@fragment fn sunMain(@builtin(position) pixel:vec4f)->@location(0) vec4f{${litPixelStatements(cut)}
+@fragment fn sunMain(@builtin(position) pixel:vec4f)->${resultOf(data)}{${litPixelStatements(cut)}
  vsmMaskAt(coord);
- return lightOut(sunLighting(albedo,base.a,normal.a,N,V,P,screenOcclusionAt(coord)));
+ return ${resultFrom(data, 'lightOut(sunLighting(albedo,base.a,normal.a,N,V,P,screenOcclusionAt(coord)))')};
 }`,
   )
 }
@@ -218,7 +255,9 @@ export function sunPassWgsl(key: ContractKey, tileClass: TileClass) {
  * The local lights' pass for the tiles of `tileClass`, under the key's cuts: the entry `localMain`,
  * which adds the pre-exposed light of the lights of the pixel's cell to the pixel, those the maps shadow left out under
  * `skipHeld` (the per-light path). The program of the
- * `single` class (the models, no lobe) holds `visibilityMain` besides, which the view of the shadows
+ * `single` class (the models, no lobe) holds `toonMain` besides where the program writes the toon data (`ContractKey.toonData`, `toonUnifiedDiffuse`),
+ * which the pass after the lights draws the tiles of the toon pixels with: the toon data every light's draw added (`TOON_DATA_OUT_WGSL`) read, the ramp
+ * applied once to the sum of the diffuse light (`toonApplyDiffuse`); and `visibilityMain`, which the view of the shadows
  * (`LIT_VIEWS`) draws the tiles of every class with: it sums every light of the cell, the directional
  * ones too, as a shadow catcher reads them (`MODEL_FLAG.shadow`, `CATCHER_SHADOWED`) and shows the
  * share of their light the shadows let through, white
@@ -233,7 +272,7 @@ const SAMPLED_LIGHT_BINDING_WGSL = wgslBlock(
 /** The body of the local lights' pass where the sampled lighting lights them (`ContractKey.sampled`): no walk of the scene's lights, the light the sampled lighting left for
  *  the pixel, un-exposed to go through `lightOut`'s pre-exposure again, and its scattering luminance in `scatterLuma`; and the walk of the simple lights it leaves
  *  to this pass (not `sampledTakes`, the setting `sampledSimpleLights`), where the image has any. */
-const SAMPLED_LOCAL_BODY = `
+const sampledLocalBody = (data: boolean) => `
  let left=textureLoad(sampledLight,coord,0);
  let exposure=max(view.preExposure.x,1e-20);
  scatterLuma=left.a/exposure;
@@ -242,7 +281,7 @@ const SAMPLED_LOCAL_BODY = `
   classicSimpleOnly=true;${PIXEL_CELL}
   lit+=localLighting(albedo,base.a,normal.a,N,V,P,screenOcclusionAt(coord),cell);
  }
- return lightOut(lit);`
+ return ${resultFrom(data, 'lightOut(lit)')};`
 
 export function localPassWgsl(
   key: ContractKey,
@@ -252,6 +291,7 @@ export function localPassWgsl(
   const lights = keyOfClass(key, tileClass, true)
   const { cut, head, tail } = litPassImports(lights, tileClass)
   const visibility = cut.models && !cut.lobes && !skipHeld
+  const data = !!cut.toonData
   return wgslBlock(
     `localPassWgsl(${variantLabel(lights)}, ${tileClass}${skipHeld ? ', unbatched' : ''})`,
     [
@@ -275,17 +315,27 @@ export function localPassWgsl(
       TILES_BINDING_WGSL,
       TILE_VERTEX_WGSL,
       localLoopWgsl(skipHeld),
+      ...(visibility && data ? [TOON_APPLY_WGSL, TOON_DATA_READ_WGSL] : []),
+      ...(data ? [TOON_DATA_OUT_WGSL] : []),
       ...(key.sampled ? [SAMPLED_LIGHT_BINDING_WGSL] : []),
       ...tail,
     ],
     `
-@fragment fn localMain(@builtin(position) pixel:vec4f)->@location(0) vec4f{${litPixelStatements(cut)}${
+@fragment fn localMain(@builtin(position) pixel:vec4f)->${resultOf(data)}{${litPixelStatements(cut)}${
       key.sampled
-        ? SAMPLED_LOCAL_BODY
+        ? sampledLocalBody(data)
         : `${PIXEL_CELL}
- return lightOut(localLighting(albedo,base.a,normal.a,N,V,P,screenOcclusionAt(coord),cell));`
+ return ${resultFrom(data, 'lightOut(localLighting(albedo,base.a,normal.a,N,V,P,screenOcclusionAt(coord),cell))')};`
     }
 }${
+      visibility && data
+        ? `
+@fragment fn toonMain(@builtin(position) pixel:vec4f)->@location(0) vec4f{${litPixelStatements(cut)}
+ if(pixelModelId!=${PIXEL_MODEL.toon}u){discard;}
+ return vec4f(toonApplyDiffuse(textureLoad(toonData0,coord,0).rgb,textureLoad(toonData1,coord,0).rg),0.0);
+}`
+        : ''
+    }${
       visibility
         ? `
 @fragment fn visibilityMain(@builtin(position) pixel:vec4f)->@location(0) vec4f{${litPixelStatements(cut)}

@@ -16,7 +16,6 @@ const FAMILIES: SurfaceFamily[] = [
   'physical',
   'lambert',
   'phong',
-  'toon',
   'normal',
   'matcap',
   'depth',

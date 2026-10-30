@@ -32,3 +32,26 @@ test('asking the bounce program starts its compile with no probe grid, and the p
   h.finishCompilation()
   await pending
 })
+
+test('asking the bounce program warms the one with no toon data too, where the decision says toon', async () => {
+  const h = deferredLightingHarness()
+  const started: string[] = []
+  const compile = h.device.createRenderPipelineAsync.bind(h.device)
+  h.device.createRenderPipelineAsync = (descriptor) => (
+    started.push(descriptor.fragment?.module.label ?? ''),
+    compile(descriptor)
+  )
+  const lighting = await createDeferredLighting(h.device, () => {})
+  lighting.askBounce({ lights: {} as GPUBuffer, toonUnified: true })
+  await new Promise((resolve) => setImmediate(resolve))
+  const bounce = started.filter((label) => label.startsWith('BOUNCE'))
+  assert.ok(
+    bounce.some((label) => !label.includes('TOON')),
+    'the program bounceReady reads',
+  )
+  assert.ok(
+    bounce.some((label) => label.includes('TOON')),
+    'and the toon table’s',
+  )
+  h.finishCompilation()
+})

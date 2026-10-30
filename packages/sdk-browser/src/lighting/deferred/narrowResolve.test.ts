@@ -97,7 +97,13 @@ test('the opaque resolve binds the ambient occlusion and applies it by the viewâ
       'the reflection the field answered goes under the occlusion, in either program',
     )
     assert.match(code, /emissive\.rgb\*occlusion\.emission/)
-    assert.match(code, /environmentLighting\(albedo,base\.a,N,occlusion\.sky\)/)
+    // The direct program lights the sky under the one visibility its thin back shares (`skyVis`), the same sum `environmentLighting` makes.
+    assert.match(
+      code,
+      bounce
+        ? /environmentLighting\(albedo,base\.a,N,occlusion\.sky\)/
+        : /environmentLightingWith\(albedo,base\.a,N,occlusion\.sky,PI\*skyLightDiffuseOccluded\(skyVis\)\)/,
+    )
   }
   // The four factors by mode: none, the scene's (emission by the share, the sky by the smaller), the probes'; the
   // specular's is the material's and the image's together wherever one is drawn.

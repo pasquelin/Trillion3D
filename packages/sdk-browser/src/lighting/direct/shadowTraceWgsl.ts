@@ -60,15 +60,15 @@ export const vsmFragmentTraceWgsl = (
     ],
     `
 var<private> vsmTracePixel:vec2u=vec2u(0u);
-/** The fragment the lights that follow are traced at (\`pixel\`, its framebuffer position). */
+/** The fragment the lights that follow are traced at (pixel, its framebuffer position). */
 fn vsmTraceAt(pixel:vec2f){vsmTracePixel=vec2u(pixel);}
-/** Light \`channel\`'s share at \`P\`, of normal \`N\`: the share of its rays that missed, dithered
- *  (\`vsmFilterShadow\`). */
+/** Light channel's share at P, of normal N: the share of its rays that missed, dithered
+ *  (vsmFilterShadow). */
 fn vsmTraceFactor(channel:u32,P:vec3f,N:vec3f)->f32{
  var r:VsmPixel;
  r.pos=vsmTracePixel;
  r.inRect=true;
- r.info=VsmSurfaceInfo(true,thinSurface(),false,false,normalize(N),-1.0,false);
+ r.info=VsmSurfaceInfo(true,thinSurface(),false,false,normalize(N),-1.0,false,false,0.0);
  r.shifted=(P+vsmView.originShiftHigh)+vsmView.originShiftLow;
  r.sceneDepth=(vsmView.shiftedToView*vec4f(r.shifted,1.0)).z;
  r.screenRayWorld=(vsmView.screenRayScale.xy*(vsm.screenRayLength*r.sceneDepth)+vsmView.screenRayScale.zw).y;
@@ -102,7 +102,7 @@ export const vsmFragmentSampleWgsl = (
       ...(pixel ? [VSM_NO_PIXEL_WGSL] : []),
     ],
     `
-/** Light \`channel\`'s share at \`P\`, one sample of its map. */
+/** Light channel's share at P, one sample of its map. */
 fn vsmSampleFactor(channel:u32,P:vec3f)->f32{
  return vsmSampleLight(vsmView.lights[channel],(P+vsmView.originShiftHigh)+vsmView.originShiftLow);
 }`,
@@ -129,7 +129,7 @@ export const vsmMaskWgsl = (sun: number, local?: number, grid?: number) =>
 @group(0) @binding(${sun}) var vsmSunMask:${SUN_MASK_TYPE};
 /** The resolve's pixel: the masks are read there; (−1, −1) in a pass that reads none. */
 var<private> vsmMaskPixel:vec2i=vec2i(-1);
-/** Sun \`layer\`'s share of its shadow at the pixel. */
+/** Sun layer's share of its shadow at the pixel. */
 fn vsmSunFactor(layer:u32)->f32{
  return textureLoad(vsmSunMask,vsmMaskPixel,layer).r;
 }${
@@ -140,7 +140,7 @@ fn vsmMaskAt(coord:vec2i){vsmMaskPixel=coord;}`
         : `
 @group(0) @binding(${local}) var vsmLocalMask:texture_2d<u32>;
 @group(0) @binding(${grid}) var<storage,read> vsmLightGrid:array<u32>;
-/** The record of the pixel's cell of the light grid (\`pixelCell\`), and its shadowed lights' list and its
+/** The record of the pixel's cell of the light grid (pixelCell), and its shadowed lights' list and its
  *  word of the local mask, each read when a light first asks. */
 var<private> vsmMaskBase:u32=TILE_NO_SLICE;
 var<private> vsmMaskList:vec2u=vec2u(TILE_NO_SLICE,0u);
@@ -149,8 +149,8 @@ var<private> vsmMaskWord:vec4u=vec4u(0u);
 var<private> vsmMaskRead:bool=false;
 /** The pixel the masks are read at and the record of its cell. */
 fn vsmMaskAt(coord:vec2i,base:u32){vsmMaskPixel=coord;vsmMaskBase=base;vsmMaskListed=false;vsmMaskRead=false;}
-/** The lane of the shadowed local light of slice \`slice\`: its place among the first lanes the mask
- *  keeps of the shadowed lights of the pixel's cell (\`vsmShadowedList\`), \`vsm.onePassMaxLights\`
+/** The lane of the shadowed local light of slice slice: its place among the first lanes the mask
+ *  keeps of the shadowed lights of the pixel's cell (vsmShadowedList), vsm.onePassMaxLights
  *  for a light past them. */
 fn vsmMaskLaneOf(slice:i32)->u32{
  if(!vsmMaskListed){vsmMaskList=vsmShadowedList(vsmMaskBase);vsmMaskListed=true;}
@@ -160,8 +160,8 @@ fn vsmMaskLaneOf(slice:i32)->u32{
  }
  return vsm.onePassMaxLights;
 }
-/** The share of the shadowed local light of slice \`slice\` at \`P\`: its four bits of the pixel's mask, or,
- *  past the lanes the mask keeps (\`vsm.onePassMaxLights\`), one sample of its own map. */
+/** The share of the shadowed local light of slice slice at P: its four bits of the pixel's mask, or,
+ *  past the lanes the mask keeps (vsm.onePassMaxLights), one sample of its own map. */
 fn vsmLocalFactor(slice:i32,P:vec3f)->f32{
  let lane=vsmMaskLaneOf(slice);
  if(lane<vsm.onePassMaxLights){

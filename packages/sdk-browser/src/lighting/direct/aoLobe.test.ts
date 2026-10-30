@@ -4,7 +4,7 @@
 // code (then its shadow is 1); the transmission shadow stays 1. The shipped loop runs in f32 (`shaderRun`), in the program with the shadow code
 // and in the one without, on lamps around a point: a lamp that casts no shadow is multiplied by `ao` on its
 // lobes alone — the thin back's transmission is not —, a lamp that casts one is not, with a slot or without,
-// the diffuse and toon models take the occlusion as the others do (once, and not on a shadowed light), and
+// the diffuse model takes the occlusion as the others do (once, and not on a shadowed light), and
 // the two programs give the same sum bit for bit where no lamp casts.
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -220,8 +220,8 @@ test('the thin back’s transmission takes no occlusion: only the lobes do', () 
   )
 })
 
-test('the diffuse and toon models take the occlusion as the lobes do: from a lamp that casts none, once', () => {
-  for (const model of [MODEL_FLAG.diffuse, MODEL_FLAG.toon]) {
+test('the diffuse model takes the occlusion as the lobes do: from a lamp that casts none, once', () => {
+  for (const model of [MODEL_FLAG.diffuse]) {
     const whole = sumOf(UNSHADOWED, { ao: 1, model })
     assert.ok(whole.some((v) => v > 0))
     const half = scaled(whole, 0.5)

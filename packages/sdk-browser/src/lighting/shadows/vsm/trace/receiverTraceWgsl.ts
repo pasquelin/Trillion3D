@@ -38,7 +38,7 @@ fn vsmCameraDistance(v:vec3f)->f32{
  if(vsmView.isOrtho!=0u){d*=d/dot(v,vsmView.viewForward);}
  return d;
 }
-/** The normal bias length of a receiver \`fromEye\` from the eye (0.02 cm floor =
+/** The normal bias length of a receiver fromEye from the eye (0.02 cm floor =
  *  VSM_NORMAL_OFFSET_FLOOR). */
 fn vsmNormalOffset(fromEye:vec3f)->f32{
  return vsmNormalOffsetLength(vsm.normalBias,vsmCameraDistance(fromEye),vsmView.inverseHalfFovTangent);
@@ -60,24 +60,25 @@ export const vsmReceiverTraceWgsl = (host: VsmTraceHost) =>
       vsmTraceWgsl(host),
     ],
     /* wgsl */ `
-/** \`worldNormal\`: the shading normal, which the receiver's biases follow (normal bias,
- *  receiver-plane depth slope); \`hair\`: the pixel is a hair strand's, whose receiver plane faces the
+/** worldNormal: the shading normal, which the receiver's biases follow (normal bias,
+ *  receiver-plane depth slope); hair: the pixel is a hair strand's, whose receiver plane faces the
  *  light (the slope reads the direction to the light in place of the normal; a hair pixel is a
- *  subsurface one, which the normal bias does not move); \`opacity\`: a subsurface receiver's, at most 0.99, which sets how much
- *  light its shadow lets through (\`vsmSubsurfaceShadow\`) and how wide a sun's disk is for it; −1 for a
- *  receiver that has none; \`coated\`: the pixel wears a clear coat (a coat weight above zero, merged or a
- *  lobe), which the back-face cull spares; \`firstPerson\`: the pixel is a first-person object's, which the suns'
+ *  subsurface one, which the normal bias does not move); opacity: a subsurface receiver's, at most 0.99, which sets how much
+ *  light its shadow lets through (vsmSubsurfaceShadow) and how wide a sun's disk is for it; −1 for a
+ *  receiver that has none; toon: the pixel is a toon one, whose shadow lets through the light that survives its profile's extinction (per
+ *  centimetre) over the occluder distance, its opacity 0; coated: the pixel wears a clear coat (a coat weight above zero, merged or a
+ *  lobe), which the back-face cull spares; firstPerson: the pixel is a first-person object's, which the suns'
  *  first-person clipmaps do not shadow. */
-struct VsmSurfaceInfo{valid:bool,subsurface:bool,coated:bool,hair:bool,worldNormal:vec3f,opacity:f32,firstPerson:bool,}
+struct VsmSurfaceInfo{valid:bool,subsurface:bool,coated:bool,hair:bool,worldNormal:vec3f,opacity:f32,firstPerson:bool,toon:bool,extinction:f32,}
 /** What a receiver brings to its lights: its pixel, whether it is in the view rect and its shading
- *  info; where a light can shade it (\`info.valid\`), its view depth, its shifted point, its screen
+ *  info; where a light can shade it (info.valid), its view depth, its shifted point, its screen
  *  ray length and its blue noise — zero elsewhere, where no light reads them (the projection's
- *  \`vsmLightParticipates\`, the traces' \`participating\`). */
+ *  vsmLightParticipates, the traces' participating). */
 struct VsmPixel{pos:vec2u,inRect:bool,info:VsmSurfaceInfo,deviceZ:f32,sceneDepth:f32,shifted:vec3f,screenRayWorld:f32,noise:f32,}
-/** What a receiver brings to every light, read once (\`vsmReceiverOf\`): its point \`P\`, pushed
+/** What a receiver brings to every light, read once (vsmReceiverOf): its point P, pushed
  *  along its shading normal by the normal bias (a thin-subsurface one is not), and, where it has a
- *  screen segment, what that segment reads there (\`vsmScreenRayStart\`). Set where
- *  \`participating\`. */
+ *  screen segment, what that segment reads there (vsmScreenRayStart). Set where
+ *  participating. */
 struct VsmReceiver{P:vec3f,screen:VsmScreenStart,}
 fn vsmReceiverOf(pixel:VsmPixel,participating:bool)->VsmReceiver{
  var r:VsmReceiver;
@@ -88,8 +89,8 @@ fn vsmReceiverOf(pixel:VsmPixel,participating:bool)->VsmReceiver{
  }
  return r;
 }
-/** Light k's shadow at a receiver (\`vsmView.lights[k]\`), a fragment's: its receiver
- *  (\`vsmReceiverOf\`), traced (\`vsmTraceLight\`). */
+/** Light k's shadow at a receiver (vsmView.lights[k]), a fragment's: its receiver
+ *  (vsmReceiverOf), traced (vsmTraceLight). */
 fn vsmProjectLight(k:u32,pixel:VsmPixel,participating:bool)->VsmTraceResult{
  return vsmTraceLight(vsmView.lights[k],pixel,vsmReceiverOf(pixel,participating),participating);
 }

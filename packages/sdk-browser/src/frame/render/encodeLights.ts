@@ -94,7 +94,7 @@ function writeExposureWords(rt: WebgpuPagesRuntime) {
   directParams[DIRECT_AT.preExposure] = pre.now
   directParams[DIRECT_AT.shown] = pre.shown
 }
-/** The tables the lights read, written into the light buffer as they are ready: the skin's and the subsurface profiles'. */
+/** The tables the lights read, written as they are ready: the skin's and the subsurface profiles' into the light buffer (the toon profiles' are followed where the lit passes' resources are resolved, `litPassResources`). */
 function followLitTables(rt: WebgpuPagesRuntime, device: GPUDevice, buffer: GPUBuffer) {
   followSkinTable(rt, device, buffer)
   followSubsurfaceProfiles(rt, device, buffer)

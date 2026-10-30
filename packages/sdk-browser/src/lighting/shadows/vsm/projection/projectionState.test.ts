@@ -7,6 +7,12 @@ import { fakeDevice } from '../../../../../../../tests/kit/fakeDevice/fakeDevice
 import { installGpuDeviceLedger } from '../../../../gpu/core/deviceLedger.ts'
 import { blueNoiseTextures } from '../../../../gpu/noise/blueNoiseTextures.ts'
 import { createVsmResources } from '../resources.ts'
+import { fakeHizDepth } from '../hizDepth.fixture.ts'
+import { holdToonProfile } from '../../../toon/registry.ts'
+import { writeVsmProjectionFrame } from './projectionPass.ts'
+import { projectionKit } from './projectionKit.fixture.ts'
+import { camera } from './projectionScene.fixture.ts'
+import { VSM_PROJECTION_VIEW_WORD } from './projectionView.ts'
 import {
   releaseVsmProjection,
   vsmProjectionBytesToMake,
@@ -42,4 +48,31 @@ test('two sets on one device hold their own projection, each freed with its set,
     Object.keys(ledger.snapshot().byLabel).filter((l) => /^vsm\.(projection\.|blueNoise)/.test(l)),
     [],
   )
+})
+
+test('the toon profiles’ extinctions are uploaded to the view uniform once, and again only when the collection changes', () => {
+  const owner = { released: new Set<() => void>() }
+  holdToonProfile(owner, { shadowExtinctionCoefficient: 30 }, true)
+  const kit = projectionKit()
+  const at = 4 * VSM_PROJECTION_VIEW_WORD.toonExtinction
+  const toonWrites = () =>
+    kit.writes.filter((w) => w.buffer.label === 'vsm.projection.view' && w.offset === at).length
+  const frame = {
+    device: kit.device,
+    hizDepth: fakeHizDepth,
+    width: 64,
+    height: 32,
+    camera,
+    frameIndex: 1,
+    lights: [],
+  }
+  writeVsmProjectionFrame(kit.res, frame)
+  writeVsmProjectionFrame(kit.res, frame)
+  assert.equal(toonWrites(), 1, 'one upload for two frames')
+  const second = { released: new Set<() => void>() }
+  holdToonProfile(second, { shadowExtinctionCoefficient: 50 }, true)
+  writeVsmProjectionFrame(kit.res, frame)
+  assert.equal(toonWrites(), 2, 'again after the collection changed')
+  for (const hook of owner.released) hook()
+  for (const hook of second.released) hook()
 })

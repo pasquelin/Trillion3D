@@ -15,7 +15,7 @@ struct Rewritten{@location(0) base:vec4f,@location(1) normal:vec4f,}
  out.base=textureLoad(copied,at,0,0);
  out.normal=textureLoad(copied,at,1,0);
  let model=textureLoad(flags,at,0).r&${SURFACE_MODEL_MASK}u;
- if(model!=${MODEL_FLAG.physical}u&&model!=${MODEL_FLAG.diffuse}u&&model!=${MODEL_FLAG.toon}u){return out;}
+ if(model!=${MODEL_FLAG.physical}u&&model!=${MODEL_FLAG.diffuse}u){return out;}
  out.base=vec4f(out.base.rgb*rewrite.diffuse.w+rewrite.diffuse.xyz,out.base.a);
  if(rewrite.roughness.z!=0.0){out.normal.a=saturate(out.normal.a)*rewrite.roughness.y+rewrite.roughness.x;}
  return out;

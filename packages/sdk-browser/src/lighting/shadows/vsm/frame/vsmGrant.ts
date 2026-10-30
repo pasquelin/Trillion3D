@@ -10,6 +10,7 @@ import { halvings, outOfMemoryContext } from '../../../../session/memory/outOfMe
 import {
   budgetRefusal,
   deviceRefusal,
+  refusalNow,
   retryDue,
   type Refusal,
 } from '../../../../gpu/core/refusal.ts'
@@ -129,11 +130,12 @@ export function grantEngineVsm(
     { ...settings, poolPages },
     mapSlotsPast,
   )
-  const { frame } = rt.run
+  const { frame } = rt.run,
+    now = refusalNow()
   const refusal = (record: Refusal) => refuseSet(rt, list, fullMapCapacity, poolPages, record)
   const asked = vsmLayout(options)
   const room = ledgerRoom(device) - bytesBeside(rt, device, list, heldLists)
-  if (same && !retryDue(refused, room, frame)) return undefined
+  if (same && !retryDue(refused, room, now)) return undefined
   const first = vsmPoolWithin(room, options)
   if (!first) {
     refuseNoPool(rt, refusal, options, asked)
@@ -151,7 +153,7 @@ export function grantEngineVsm(
   const { error } = granted
   // Not the budget's room, which was measured: the device refused even the floor, asked again
   // after its refusal's wait, or at once for other lights.
-  refusal(deviceRefusal(frame, same ? refused : undefined))
+  refusal(deviceRefusal(now, same ? refused : undefined))
   lights.shadowReason = `${UNAVAILABLE} unavailable: ${String(error)}`
   return undefined
 }
@@ -178,7 +180,7 @@ function refuseNoPool(
   asked: ReturnType<typeof vsmLayout>,
 ) {
   const smallest = { ...options, poolPages: vsmPoolFloor(options) }
-  refusal(budgetRefusal(vsmResourceBytes(vsmLayout(smallest)), rt.run.frame))
+  refusal(budgetRefusal(vsmResourceBytes(vsmLayout(smallest)), refusalNow()))
   rt.lights.shadowReason = `${UNAVAILABLE} refused: no page pool fits the GPU budget`
   noteShadowPressure(rt.lights.memory, 'pool-refused')
   rt.diag.engineDiagnostic(
@@ -221,8 +223,7 @@ export function madeSet(
     device,
     () => createEngineVsm(device, options),
     (vsm) => {
-      const { lights } = rt,
-        { frame } = rt.run
+      const { lights } = rt
       if (lights.vsm !== vsm) return
       destroyEngineVsm(vsm)
       lights.vsm = undefined
@@ -230,8 +231,8 @@ export function madeSet(
       rt.run.gate.resourcesChanged()
       const { fullMapCapacity } = options
       if (pages / 2 >= vsmPoolFloor({ ...options, poolPages: asked }))
-        return refuseSet(rt, list, fullMapCapacity, pages / 2, budgetRefusal(0, frame))
-      refuseSet(rt, list, fullMapCapacity, pages, deviceRefusal(frame))
+        return refuseSet(rt, list, fullMapCapacity, pages / 2, budgetRefusal(0, refusalNow()))
+      refuseSet(rt, list, fullMapCapacity, pages, deviceRefusal(refusalNow()))
       lights.shadowReason = `${UNAVAILABLE} unavailable: the device refused the smallest page pool`
     },
   )

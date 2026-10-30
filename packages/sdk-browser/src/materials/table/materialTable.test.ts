@@ -155,7 +155,7 @@ test('a record holds the lightless rank in its model lane for a standard surface
     'the thin subsurface is lit by the volume',
   )
   assert.equal(lane({}), 0, 'the default lit model')
-  assert.equal(lane({ shadingModel: hair, model: 2 }), 2, 'a toon surface keeps its model')
+  assert.equal(lane({ shadingModel: hair, model: 1 }), 1, 'a diffuse surface keeps its model')
 })
 
 test('a surface whose version and atlas held is not written again; a new one is', () => {
