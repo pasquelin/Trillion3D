@@ -1,9 +1,13 @@
 import { buildComputeStages } from '../../../gpu/core/computeStages.ts'
 import type { LightAtlasFormat } from '../../../gpu/core/lightAtlasFormat.ts'
 import {
-  REFLECTION_DENOISE_PASS,
+  REFLECTION_BILATERAL_PASS,
+  REFLECTION_CLEAR_PASS,
   REFLECTION_HIT_LIGHTING_PASS,
+  REFLECTION_KEEP_DEPTH_PASS,
+  REFLECTION_RESOLVE_PASS,
   REFLECTION_SCENE_PASS,
+  REFLECTION_TEMPORAL_PASS,
   REFLECTION_TRACE_PASS,
 } from '../../../diagnostic/stage/passLabels.ts'
 import { ceilDiv } from '../../../../../math/src/scalar/integers.ts'
@@ -127,7 +131,11 @@ const PASSES = [
   { label: REFLECTION_TRACE_PASS, kernels: ['clearTracing', 'generate', 'screen'] },
   { label: REFLECTION_SCENE_PASS, kernels: ['scene'] },
   { label: REFLECTION_HIT_LIGHTING_PASS, kernels: [] },
-  { label: REFLECTION_DENOISE_PASS, kernels: ['clear', 'resolve', 'temporal', 'bilateral'] },
+  { label: REFLECTION_CLEAR_PASS, kernels: ['clear'] },
+  { label: REFLECTION_RESOLVE_PASS, kernels: ['resolve'] },
+  { label: REFLECTION_TEMPORAL_PASS, kernels: ['temporal'] },
+  { label: REFLECTION_BILATERAL_PASS, kernels: ['bilateral'] },
+  { label: REFLECTION_KEEP_DEPTH_PASS, kernels: [] },
 ] as const satisfies readonly { label: string; kernels: readonly (typeof KERNELS)[number][] }[]
 
 /** The list each kernel is dispatched over. */
@@ -463,7 +471,7 @@ export function encodeReflectionTrace(
       if (label === REFLECTION_SCENE_PASS) cache?.reads(pass, grids.tracing)
     }
     // The opaque depth of this image, kept after every kernel that reads the last image's, for the next image's hits.
-    if (label === REFLECTION_DENOISE_PASS) {
+    if (label === REFLECTION_KEEP_DEPTH_PASS) {
       pass.setPipeline(stages.keepDepth)
       pass.setBindGroup(0, groups.keepDepth)
       pass.dispatchWorkgroups(ceilDiv(size[0], REFLECTION_SIDE), ceilDiv(size[1], REFLECTION_SIDE))

@@ -15,7 +15,6 @@ import {
   REFLECTION_PENDING_BYTES,
   REFLECTION_RAY_BYTES,
 } from '../../../packages/sdk-browser/src/lighting/reflections/grids.ts'
-import { REFLECTION_TARGET_LAYERS } from '../../../packages/sdk-browser/src/lighting/reflections/weight.ts'
 import { HDR_FORMAT } from '../../../packages/sdk-browser/src/scene/targetFormats.ts'
 import type { Work } from './floor.ts'
 
@@ -135,7 +134,7 @@ export const MARCH_ITERATIONS = 16,
  *  texel, depth and normal, four history texels and 21 fresh ones; the last pass the pixel's flags,
  *  depth, normal, lobes and base colour and its neighbours' history texels where its history is short;
  *  the reuse writes a resolved texel (`GRID_BYTES`), the accumulation a history texel (`HISTORY_BYTES`), the last pass
- *  the reflection target's layers (`REFLECTION_TARGET_LAYERS`) of `HDR_FORMAT` each. */
+ *  the reflection target's layer 0 of `HDR_FORMAT` (layer 1 only for a coated pixel). */
 export const TRACE_SHARE = REFLECTION_LEVEL_KNOBS[DEFAULT_REFLECTION_LEVEL].downsample ** 2,
   TRACE_LOADS = 4,
   HIT_LOADS = 2 + 1,
@@ -147,7 +146,7 @@ export const TRACE_SHARE = REFLECTION_LEVEL_KNOBS[DEFAULT_REFLECTION_LEVEL].down
   SPATIAL_LOADS = 3 + REFLECTION_LEVEL_KNOBS[DEFAULT_REFLECTION_LEVEL].reconstructionSamples * 4,
   TEMPORAL_LOADS = 3 + 4 + 21,
   BILATERAL_LOADS = 5 + REFLECTION_RULES.reflectionBilateralSamples.default,
-  TARGET_BYTES = REFLECTION_TARGET_LAYERS * texelBytesOf(HDR_FORMAT)
+  TARGET_BYTES = texelBytesOf(HDR_FORMAT)
 /** The size of a P-pixel 16:9 image. */
 const sizeOf = (P: number) => {
   const w = Math.round(Math.sqrt(P * (16 / 9)))

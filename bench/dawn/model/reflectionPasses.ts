@@ -6,7 +6,11 @@ import {
   REFLECTION_PASS,
   REFLECTION_TRACE_PASS,
   REFLECTION_SCENE_PASS,
-  REFLECTION_DENOISE_PASS,
+  REFLECTION_CLEAR_PASS,
+  REFLECTION_RESOLVE_PASS,
+  REFLECTION_TEMPORAL_PASS,
+  REFLECTION_BILATERAL_PASS,
+  REFLECTION_KEEP_DEPTH_PASS,
 } from '../../../packages/sdk-browser/src/diagnostic/stage/passLabels.ts'
 import { passKey } from '../report/summary.ts'
 import * as K from './passConstants.ts'
@@ -57,20 +61,63 @@ export const REFLECTION_PASSES: K.PassModel[] = [
     ],
   },
   {
-    label: passKey(REFLECTION_DENOISE_PASS),
-    formula: `P·reflecting/${K.TRACE_SHARE} grid texels reused (${K.SPATIAL_LOADS} loads) and accumulated (${K.TEMPORAL_LOADS} loads), ${K.GRID_BYTES} + ${K.HISTORY_BYTES} B written; P·reflecting traced pixels widened from the grid (${K.BILATERAL_LOADS} loads at most), ${K.TARGET_BYTES} B written; the field the untraced pixels read unmodelled`,
+    label: passKey(REFLECTION_CLEAR_PASS),
+    formula: `the untraced pixels' flags, depth, normal and lobes read for the coat, a resolved texel and a history texel emptied and the target's layer 0 set (${K.GRID_BYTES} + ${K.HISTORY_BYTES} + ${K.TARGET_BYTES} B); unmodelled: a lower bound of the reads`,
     work: (f) => ({
-      texels:
-        ((f.P * f.reflecting) / K.TRACE_SHARE) * (K.SPATIAL_LOADS + K.TEMPORAL_LOADS) +
-        f.P * f.reflecting * K.BILATERAL_LOADS,
-      bytes:
-        ((K.GRID_BYTES + K.HISTORY_BYTES) * f.P * f.reflecting) / K.TRACE_SHARE +
-        K.TARGET_BYTES * f.P * f.reflecting,
+      bytes: (K.GRID_BYTES + K.HISTORY_BYTES + K.TARGET_BYTES) * f.P * (1 - f.reflecting),
       passes: 1,
     }),
     sources: [
       K.engine('lighting/reflections/trace/traceEncode.ts', 'encodeReflectionTrace'),
-      K.engine('lighting/reflections/trace/trace.ts', 'reflectionTraceShader'),
+      K.engine('lighting/reflections/bilateralWgsl.ts', 'REFLECTION_BILATERAL_WGSL'),
+    ],
+  },
+  {
+    label: passKey(REFLECTION_RESOLVE_PASS),
+    formula: `P·reflecting/${K.TRACE_SHARE} grid texels reused (${K.SPATIAL_LOADS} loads), ${K.GRID_BYTES} B written`,
+    work: (f) => ({
+      texels: ((f.P * f.reflecting) / K.TRACE_SHARE) * K.SPATIAL_LOADS,
+      bytes: (K.GRID_BYTES * f.P * f.reflecting) / K.TRACE_SHARE,
+      passes: 1,
+    }),
+    sources: [
+      K.engine('lighting/reflections/trace/traceEncode.ts', 'encodeReflectionTrace'),
+      K.engine('lighting/reflections/resolveWgsl.ts', 'REFLECTION_RESOLVE_WGSL'),
+    ],
+  },
+  {
+    label: passKey(REFLECTION_TEMPORAL_PASS),
+    formula: `P·reflecting/${K.TRACE_SHARE} grid texels accumulated (${K.TEMPORAL_LOADS} loads), ${K.HISTORY_BYTES} B written`,
+    work: (f) => ({
+      texels: ((f.P * f.reflecting) / K.TRACE_SHARE) * K.TEMPORAL_LOADS,
+      bytes: (K.HISTORY_BYTES * f.P * f.reflecting) / K.TRACE_SHARE,
+      passes: 1,
+    }),
+    sources: [
+      K.engine('lighting/reflections/trace/traceEncode.ts', 'encodeReflectionTrace'),
+      K.engine('lighting/reflections/temporalWgsl.ts', 'REFLECTION_TEMPORAL_WGSL'),
+    ],
+  },
+  {
+    label: passKey(REFLECTION_BILATERAL_PASS),
+    formula: `P·reflecting traced pixels widened from the grid (${K.BILATERAL_LOADS} loads at most), ${K.TARGET_BYTES} B written (the coat's layer only for a coated pixel: a lower bound)`,
+    work: (f) => ({
+      texels: f.P * f.reflecting * K.BILATERAL_LOADS,
+      bytes: K.TARGET_BYTES * f.P * f.reflecting,
+      passes: 1,
+    }),
+    sources: [
+      K.engine('lighting/reflections/trace/traceEncode.ts', 'encodeReflectionTrace'),
+      K.engine('lighting/reflections/bilateralWgsl.ts', 'REFLECTION_BILATERAL_WGSL'),
+    ],
+  },
+  {
+    label: passKey(REFLECTION_KEEP_DEPTH_PASS),
+    formula: 'the opaque depth of every pixel copied to the next image\'s history (one read, 4 B written)',
+    work: (f) => ({ texels: f.P, bytes: 4 * f.P, passes: 1 }),
+    sources: [
+      K.engine('lighting/reflections/trace/traceEncode.ts', 'encodeReflectionTrace'),
+      K.engine('lighting/reflections/past.ts', 'reflectionPastWgsl'),
     ],
   },
 ]

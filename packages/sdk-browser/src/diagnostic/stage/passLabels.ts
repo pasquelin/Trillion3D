@@ -7,6 +7,8 @@ import { definePass, definePassFamily, type PassFiling } from './passDeclaration
 /** What every pass of the virtual shadow maps' label opens with (`../../lighting/shadows/vsm/`): all of them are timed
  *  with the Shadows stage, whatever their chunk or light. */
 export const VSM_PASS_PREFIX = 'vsm.'
+/** The virtual shadow maps' shadow mask denoise (`../../lighting/shadows/vsm/denoise/`): every pass of its filter, the suns', the local lights' and each per-light layer's, carries this label, so the bench times them as one. */
+export const VSM_DENOISE_PASS = `${VSM_PASS_PREFIX}denoise`
 /** The placement's compute passes: the roots' world matrices (`../../placement/compose/gpuCompose.ts`); their
  *  world boxes and stretches (`../../placement/roots/rootBoxes.ts`), then the rows'; the leaf boxes of the
  *  placement tree (`../../placement/tree/treeLeaves.ts`) and its refit (`../../geometry/dag/tree/treeRefit.ts`). */
@@ -141,10 +143,15 @@ export const REFLECTION_PASS = 'Trillion3D reflections'
 export const REFLECTION_TRACE_PASS = 'Trillion3D reflection trace'
 /** The reflections' scene stage, the rays the screen left, both surfaces'. */
 export const REFLECTION_SCENE_PASS = 'Trillion3D reflection scene'
-/** The reflections' spatial reuse, temporal accumulation and last pass, both surfaces'. */
-export const REFLECTION_DENOISE_PASS = 'Trillion3D reflection denoise'
 /** The reflections' hit lighting, both surfaces': the traces collected, sorted by material and lit again. */
 export const REFLECTION_HIT_LIGHTING_PASS = 'Trillion3D reflection hit lighting'
+/** The reflections' denoising, each kernel timed alone, both surfaces': the clear of the tiles that trace nothing, the spatial reuse (the resolve), the
+ *  temporal accumulation, the last pass over the resolve tiles (the bilateral filter), and the opaque depth kept for the next image. */
+export const REFLECTION_CLEAR_PASS = 'Trillion3D reflection clear'
+export const REFLECTION_RESOLVE_PASS = 'Trillion3D reflection resolve'
+export const REFLECTION_TEMPORAL_PASS = 'Trillion3D reflection temporal'
+export const REFLECTION_BILATERAL_PASS = 'Trillion3D reflection bilateral'
+export const REFLECTION_KEEP_DEPTH_PASS = 'Trillion3D reflection keep depth'
 /** The lighting's passes, in their order (`../../lighting/deferred/deferred.ts`), all timed with the
  *  Lighting stage: the classification of the surfaces into tiles, the lit image's one
  *  pass, which draws the background, the surfaces as they are, the emission, then the directional
@@ -399,7 +406,11 @@ export const ENGINE_PASSES = [
   definePass({ label: REFLECTION_TRACE_PASS, stage: 'reflections', block: 'other' }),
   definePass({ label: REFLECTION_SCENE_PASS, stage: 'reflections', block: 'other' }),
   definePass({ label: REFLECTION_HIT_LIGHTING_PASS, stage: 'reflections', block: 'other' }),
-  definePass({ label: REFLECTION_DENOISE_PASS, stage: 'reflections', block: 'other' }),
+  definePass({ label: REFLECTION_CLEAR_PASS, stage: 'reflections', block: 'other' }),
+  definePass({ label: REFLECTION_RESOLVE_PASS, stage: 'reflections', block: 'other' }),
+  definePass({ label: REFLECTION_TEMPORAL_PASS, stage: 'reflections', block: 'other' }),
+  definePass({ label: REFLECTION_BILATERAL_PASS, stage: 'reflections', block: 'other' }),
+  definePass({ label: REFLECTION_KEEP_DEPTH_PASS, stage: 'reflections', block: 'other' }),
   definePass({ label: PARTICLES_PASS, stage: 'physics', block: 'other' }),
   definePass({ label: TILE_CLASSIFICATION_PASS, stage: 'lighting', block: 'other' }),
   definePass({ label: SURFACE_COLOUR_PASS, stage: 'lighting', block: 'other' }),
