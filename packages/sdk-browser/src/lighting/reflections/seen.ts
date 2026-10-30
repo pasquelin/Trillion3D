@@ -123,20 +123,21 @@ fn reflectionDistant(P:vec3f,N:vec3f,lobe:ReflectionLobe,coord:vec2u)->RadianceA
  * image, is out of the setting's range, or the settings turn the far trace off.
  *
  * `stored`: how the depth the last image kept is bound (`reflectionPastWgsl`). `lanes`: how the march counts the lanes still walking (`screenMarchLanes.ts`),
- * for the minimum occupancy (`ReflectionView.taps.z`) under which it gives the ray up; `none`, no such test.
+ * for the minimum occupancy (`ReflectionView.taps.z`) under which it gives the ray up; `none`, no such test. `probe`: the march keeps where its last miss behind a surface
+ * stopped (`screenMarchStop`, `screenMarchReference.ts`), for the counting program (`reflectionStatistics`) alone.
  */
-export const reflectionSeenWgsl = (group: number, stored = false, lanes: MarchLanes = 'none') =>
+export const reflectionSeenWgsl = (group: number, stored = false, lanes: MarchLanes = 'none', probe = false) =>
   wgslBlock(
-    `reflectionSeenWgsl(${group},${stored},${lanes})`,
+    `reflectionSeenWgsl(${group},${stored},${lanes}${probe ? ',probe' : ''})`,
     [
       RADIANCE_ANSWER,
       REFLECTION_CLAMP_WGSL,
       REFLECTION_LOBE_WGSL,
-      reflectionRayWgsl(group, lanes),
+      reflectionRayWgsl(group, lanes, probe),
       reflectionRayLightWgsl(group, stored),
       reflectionPastWgsl(group, stored),
       REFLECTION_REACH_WGSL,
-      SCREEN_MARCH_WGSL(group, REFLECTION_DEPTH_BINDING, lanes),
+      SCREEN_MARCH_WGSL(group, REFLECTION_DEPTH_BINDING, lanes, undefined, false, probe),
       REFLECTION_CONSTANTS_WGSL,
       slabPerspective,
     ],

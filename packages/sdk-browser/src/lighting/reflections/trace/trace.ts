@@ -43,12 +43,51 @@ const COUNTING = `/** The screen stage's tally of a ray (\`reflectionCensus\`): 
 fn countScreen(hit:bool){
  tallyAdd(select(REFLECTION_CENSUS_LEFT,REFLECTION_CENSUS_SCREEN,hit),1u);
 }
+/** The screen stage's tally of why a ray ended as it did (\`REFLECTION_SCREEN_ENDS\`, \`censusWgsl.ts\`), the words of the one reason it counts adding up to the rays cast.
+ *  \`begun\` the cast, \`marched\` its march, \`hit\` whether the screen answered it, \`g\` the texel. A hit the screen refused is told by the checks
+ *  \`reflectionSeenAnswer\` makes, in its order, from the same values. */
+fn countScreenEnded(begun:ReflectionScreenTexel,marched:ScreenHit,hit:bool,g:vec2u){
+ var why=REFLECTION_ENDED_ACCEPTED;
+ if(!begun.aimed.live){
+  why=REFLECTION_ENDED_SCREENS_OFF;
+  if(reflectionView.traced.x==0u){why=REFLECTION_ENDED_NO_TRACE;}
+  else if(!reflectionOriginOnScreen(begun.own.P,begun.own.topN,begun.aimed.bias)){why=REFLECTION_ENDED_NO_ORIGIN;}
+ }else if(!hit){
+  if(marched.t<0.0){
+   // The walk's misses: past the end of its span (its above is the end, or it never walked), out of iterations, else behind a surface.
+   why=REFLECTION_ENDED_BEHIND;
+   if(marched.steps>=reflectionView.scene.x){why=REFLECTION_ENDED_EXHAUSTED;}
+   if(marched.steps==0u||marched.above>=begun.aimed.ray.end){why=REFLECTION_ENDED_LEFT_SCREEN;}
+  }else if(marched.plane.x<=0.0){why=REFLECTION_ENDED_REJ_PLANE;}
+  else{
+   let H=begun.aimed.ray.o+begun.aimed.ray.d*marched.t;
+   let depth=reflectionPlaneDepth(H.xy,marched.pixel,marched.plane);
+   let past=reflectionPast(worldAt(H.xy,depth),H.xy,depth);
+   let noise=reflectionEdgeNoise(g);
+   why=REFLECTION_ENDED_REJ_HISTORY;
+   if(!past.valid){why=REFLECTION_ENDED_REJ_PAST;}
+   else if(reflectionHitVignette(H.xy,past.pixel)<noise){why=REFLECTION_ENDED_REJ_VIGNETTE;}
+  }
+ }
+ tallyAdd(REFLECTION_CENSUS_ENDED+why,1u);
+ // Why the march's misses ended as they did: where behind the surface (\`screenMarchStop\`, kept by the march when it ends behind one; the rays the walk gave up
+ // for want of lanes ended behind none and are in no bucket), and whether a ray that left the screen ever stepped.
+ if(why==REFLECTION_ENDED_BEHIND&&screenMarchStop.x>=1.0){
+  let gap=screenMarchStop.x;
+  tallyAdd(REFLECTION_CENSUS_BEHIND_GAP+select(select(select(0u,1u,gap>=2.0),2u,gap>=8.0),3u,gap>=32.0),1u);
+  tallyAdd(REFLECTION_CENSUS_BEHIND_MIP+min(u32(screenMarchStop.y),3u),1u);
+  tallyAdd(REFLECTION_CENSUS_BEHIND_STEP+select(select(0u,1u,marched.steps>=4u),2u,marched.steps>=11u),1u);
+ }
+ if(why==REFLECTION_ENDED_LEFT_SCREEN){tallyAdd(REFLECTION_CENSUS_LEFT_SCREEN+select(1u,0u,marched.steps==0u),1u);}
+}
 /** The scene stage's tally of a ray: how its march through the field ended, and the steps it took where
  *  it marched. */
 fn countScene(){
  tallyAdd(REFLECTION_CENSUS_FATES+reflectionFate,1u);
  if(reflectionFate!=REFLECTION_FATE_NO_FIELD&&reflectionFate!=REFLECTION_FATE_BOUND){
   tallyAdd(REFLECTION_CENSUS_WORK+censusWorkBucket(reflectionWork),1u);
+  tallyAdd(REFLECTION_CENSUS_WORK_SUM,reflectionWork);
+  tallyMax(REFLECTION_CENSUS_WORK_MAX,reflectionWork);
  }
 }`
 
@@ -141,7 +180,7 @@ const screenEndWgsl = (
  *  ray missed, returned as its pending entry. */
 fn traceScreenEnd(begun:ReflectionScreenTexel,marched:ScreenHit,g:vec2u)->ReflectionMissed{
  let b=reflectionScreenEnd(begun.own.P,begun.own.topN,begun.stored.ray,begun.aimed,marched,g);
- ${statistics ? 'countScreen(b.hit);' : ''}
+ ${statistics ? 'countScreen(b.hit);countScreenEnded(begun,marched,b.hit,g);' : ''}
  if(b.hit){
   textureStore(traceOut,vec2i(g),freshPack(b.radiance,b.distance));
   return ReflectionMissed(vec2u(0u),false);
@@ -209,7 +248,9 @@ fn traceSceneRay(missed:vec2u){
  let own=reflectingPointAt(REFLECTION_LAYER,coord);
  // The ray the ray generation stored, read as the storage the screen stage reads it through.
  let stored=reflectionStoredRay(texel);
+ // @cut fetch keep: if(f32(own.P.x)+f32(own.topN.x)+f32(stored.ray.R.x)+f32(stored.ray.axis.w)+f32(stored.cone)+f32(missed.y)+f32(g.x)+f32(coord.x)<-1e30){textureStore(traceOut,texel,vec4u(1u));}
  let b=reflectionSceneStage(own.P,own.topN,stored.ray,bitcast<f32>(missed.y),g,stored.cone,stored.firstPerson);
+ // @cut scene keep: if(f32(b.radiance.x)+f32(b.radiance.y)+f32(b.radiance.z)+f32(b.distance)+select(0.0,1.0,b.hit)+f32(own.P.x)+f32(stored.cone)<-1e30){textureStore(traceOut,texel,vec4u(1u));}
  textureStore(traceOut,texel,freshPack(${hardware ? 'makeFinite3(b.radiance)' : 'b.radiance'},b.distance));
  // A ray that reads the radiance cache and met nothing within its distance is left to cacheReads: its distance kept as it was with its lowest bit set.
  if(reflectionCached&&!b.hit){textureStore(surfaceRays,texel,REFLECTION_RAY_DISTANCE,vec4u(bitcast<u32>(-reflectionFar())|1u,0u,0u,0u));}
@@ -400,6 +441,7 @@ export const reflectionTraceShader = (
           : reflectionSceneTraceWgsl(light, filterableMip),
         hardware,
         lanes,
+        statistics,
       ),
       REFLECTION_LOBE_RAYS_WGSL,
       REFLECTION_SURFACES_WGSL,

@@ -18,15 +18,15 @@ import type { MarchLanes } from '../../visibility/hiz/gpu/screenMarchLanes.ts'
  * `reflectionReach`: the world distance along a reflected ray, from its origin `A` (clip) along
  * `toward` (clip), to which the screen can answer: where it meets the near plane, or `REFLECTION_FAR`.
  */
-export const reflectionRayWgsl = (group: number, lanes: MarchLanes = 'none') =>
+export const reflectionRayWgsl = (group: number, lanes: MarchLanes = 'none', probe = false) =>
   wgslBlock(
-    `reflectionRayWgsl(${group},${lanes})`,
+    `reflectionRayWgsl(${group},${lanes}${probe ? ',probe' : ''})`,
     [
       reflectionBindingsWgsl(group),
       REFLECTION_CONSTANTS_WGSL,
       REFLECTION_LOBE_WGSL,
       clipToFramebuffer,
-      SCREEN_MARCH_WGSL(group, REFLECTION_DEPTH_BINDING, lanes),
+      SCREEN_MARCH_WGSL(group, REFLECTION_DEPTH_BINDING, lanes, undefined, false, probe),
     ],
     `fn reflectionReach(A:vec4f,toward:vec4f)->f32{
  let grow=toward.z-toward.w;

@@ -251,3 +251,13 @@ test('the field’s coarse mip is a filterable texture sampled once through the 
   const polyfill = program(false)
   assert.ok(polyfill.includes('textureLoad(gdfMip') && !polyfill.includes('textureSampleLevel(gdfMip'))
 })
+
+test('the counting program declares no function, constant or variable twice, whatever the lanes (a march block included in two variants)', () => {
+  for (const lanes of ['none', 'native', 'polyfill'] as const) {
+    const text = reflectionTraceShader(true, false, lanes) as unknown as string
+    const names = [...String(text).matchAll(/^(?:fn|const|struct|var<[a-z]+(?:,[a-z_]+)?>|var) +([A-Za-z_]\w*)/gm)].map((m) => m[1])
+    const twice = names.filter((n, i) => names.indexOf(n) !== i)
+    assert.ok(names.length > 100, 'the declarations are read')
+    assert.deepEqual(twice, [], `${lanes}: declared twice`)
+  }
+})

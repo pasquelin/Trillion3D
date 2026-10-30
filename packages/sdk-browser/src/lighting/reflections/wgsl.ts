@@ -89,14 +89,17 @@ const SCENE_STAGE_TEXT = `/** The scene stage of a ray the screen missed, which 
  *  first-person object (\`reflectionSceneTrace\` then leaves out the stand-ins of first-person objects). */
 fn reflectionSceneStage(P:vec3f,N:vec3f,lobe:ReflectionLobeRay,begin:f32,coord:vec2u,cone:f32,firstPerson:bool)->ReflectionEnd{
  let traced=reflectionSceneTrace(P,N,reflectionRayLobe(lobe),begin,coord,cone,firstPerson);
+ // @cut traced -> ReflectionEnd(vec3f(0.0),false,0.0) keep: if(f32(traced.answer.color.x)+f32(traced.answer.distance)+select(0.0,1.0,traced.answer.hit)+select(0.0,1.0,traced.open)+f32(P.x)+f32(N.x)<-1e30){textureStore(traceOut,vec2i(coord),vec4u(1u));}
  if(traced.answer.hit){return ReflectionEnd(traced.answer.color,true,traced.answer.distance);}
  if(traced.open){
   let far=reflectionDistant(P,N,reflectionRayLobe(lobe),coord);
+  // @cut distant -> ReflectionEnd(vec3f(0.0),false,0.0) keep: if(f32(far.color.x)+select(0.0,1.0,far.hit)+f32(traced.answer.color.x)+f32(traced.answer.distance)+f32(P.x)<-1e30){textureStore(traceOut,vec2i(coord),vec4u(1u));}
   if(far.hit){
    reflectionFate=select(reflectionFate,REFLECTION_FATE_DISTANT,reflectionFate==REFLECTION_FATE_OPEN);
    return ReflectionEnd(reflectionClampRay(far.color+reflectionSkylightLeak(vec3f(0.0))),true,reflectionView.march.w);
   }
   let sky=reflectionFogged(reflectionEnvironment(lobe.R,0.0)+reflectionSkylightLeak(vec3f(0.0)),P,lobe.R*max(reflectionView.light.w,reflectionView.march.w));
+  // @cut sky -> ReflectionEnd(vec3f(0.0),false,0.0) keep: if(f32(sky.x)+f32(sky.y)+f32(far.color.x)+select(0.0,1.0,far.hit)+f32(traced.answer.color.x)+f32(traced.answer.distance)<-1e30){textureStore(traceOut,vec2i(coord),vec4u(1u));}
   return ReflectionEnd(reflectionClampRay(sky),false,reflectionFar());
  }
  return ReflectionEnd(reflectionField(reflectionRayLobe(lobe)),false,reflectionFar());
@@ -128,11 +131,12 @@ export const reflectionStagesWgsl = (
   sceneTrace: WgslDecl,
   stored = false,
   lanes: MarchLanes = 'none',
+  probe = false,
 ) =>
   wgslBlock(
-    `reflectionStagesWgsl(${group},${sceneTrace.name},${stored},${lanes})`,
+    `reflectionStagesWgsl(${group},${sceneTrace.name},${stored},${lanes}${probe ? ',probe' : ''})`,
     [
-      reflectionSeenWgsl(group, stored, lanes),
+      reflectionSeenWgsl(group, stored, lanes, probe),
       REFLECTION_FIRST_PERSON_WGSL,
       REFLECTION_CONSTANTS_WGSL,
       REFLECTION_FIELD_STAGE_WGSL,

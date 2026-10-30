@@ -40,12 +40,13 @@ export const SCREEN_MARCH_WGSL = (
   lanes: MarchLanes = 'none',
   threads?: number,
   smooth = false,
+  probe = false,
 ) =>
   wgslBlock(
-    `SCREEN_MARCH_WGSL(${group}, ${binding}, ${lanes}${threads === undefined ? '' : `, ${threads}`}${smooth ? ', smooth' : ''})`,
+    `SCREEN_MARCH_WGSL(${group}, ${binding}, ${lanes}${threads === undefined ? '' : `, ${threads}`}${smooth ? ', smooth' : ''}${probe ? ', probe' : ''})`,
     [
       SCREEN_MARCH_PLANES_WGSL(group, binding),
-      SCREEN_MARCH_REFERENCE_WGSL(group, binding, lanes, threads, smooth),
+      SCREEN_MARCH_REFERENCE_WGSL(group, binding, lanes, threads, smooth, probe),
     ],
     `fn screenMarch(o:vec3f,d:vec3f,end:f32,pixels:f32,relative:f32,slab:vec4f,cap:u32,full:bool${lanes === 'none' ? '' : ',occupancy:u32'})->ScreenHit{
  if(hizTracePlanes()){return screenMarchPlanes(o,d,end,pixels,slab,cap);}

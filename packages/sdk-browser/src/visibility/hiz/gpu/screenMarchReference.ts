@@ -15,6 +15,7 @@ const REFERENCE_RAMP = 10
  *  base level (`edge` is then the tile's edge alone): a plane there makes a surface shadow itself. */
 const walkStep = (
   smooth: boolean,
+  probe: boolean,
 ) => `  let tile=screenTileDepth(ray.xy,mip,top)*select(mix(REFERENCE_START_SCALE,1.0,saturate(time*REFERENCE_RAMP)),1.0,full);
   var zTime=1.0;
   if(dir.z<0.0){zTime=(tile-o.z)/dir.z;}
@@ -29,7 +30,7 @@ ${
   let above=ray.z>tile;
   let skipped=above&&edge!=zTime;`
 }
-  if(skipped){lastAbove=edge;}
+  if(skipped){lastAbove=edge;${probe ? 'lastMip=mip;' : ''}}
   if(above){time=edge;}
   ray=o+dir*min(time,1.0);
   mip+=select(-1,1,skipped);
@@ -38,8 +39,8 @@ ${
 /** The loop of the walk by how it counts its lanes (`screenMarchLanes.ts`). Native: the lanes that reach the loop's condition vote, and a ray
  *  gives up when no more than `occupancy` lanes of the subgroup are left. Polyfill: while `occupancy` is above zero every thread of the workgroup
  *  goes round the same rounds (`screenMarchRound`; a thread with no ray calls the walk with an end of zero), a thread walking only while it has not given up. */
-const walkLoop = (lanes: MarchLanes, smooth: boolean) => {
-  const WALK_STEP = walkStep(smooth)
+const walkLoop = (lanes: MarchLanes, smooth: boolean, probe: boolean) => {
+  const WALK_STEP = walkStep(smooth, probe)
   const plain = (extra: string) => ` for(var j=0u;j<cap;j++){
   if(mip<base||time>=1.0${extra}){break;}
 ${WALK_STEP}
@@ -104,14 +105,22 @@ export const SCREEN_MARCH_REFERENCE_WGSL = (
   lanes: MarchLanes = 'none',
   threads?: number,
   smooth = false,
+  probe = false,
 ) =>
   wgslBlock(
-    `SCREEN_MARCH_REFERENCE_WGSL(${group}, ${binding}, ${lanes}${threads === undefined ? '' : `, ${threads}`}${smooth ? ', smooth' : ''})`,
+    `SCREEN_MARCH_REFERENCE_WGSL(${group}, ${binding}, ${lanes}${threads === undefined ? '' : `, ${threads}`}${smooth ? ', smooth' : ''}${probe ? ', probe' : ''})`,
     [SCREEN_MARCH_BASE_WGSL(group, binding), ...screenMarchLanesWgsl(lanes, threads)],
     `const REFERENCE_OFFSET:f32=${wgslF32(REFERENCE_OFFSET)};
 const REFERENCE_START_SCALE:f32=${wgslF32(REFERENCE_START_SCALE)};
 const REFERENCE_RAMP:f32=${wgslF32(REFERENCE_RAMP)};
 ${
+  probe
+    ? `/** The counting program's view of the last miss behind a surface (\`probe\`): x how far behind the tile the ray stopped, in thicknesses (negative where the
+ *  miss was not behind a surface), y the pyramid level of the last tile the ray passed above (the mip plus one, the depth image 0). */
+var<private> screenMarchStop:vec4f;
+`
+    : ''
+}${
   smooth
     ? `/** The four pixels around p (pixel units, a pixel's centre at half) filtered bilinearly. */
 fn screenBilinearDepth(p:vec2f)->f32{
@@ -150,11 +159,13 @@ fn screenMarchReference(o:vec3f,d:vec3f,end:f32,thickness:f32,slab:vec4f,cap:u32
  var ray=select(o,o+dir*time,time<1.0);
  var mip=base;
  var lastAbove=0.0;
- var k=0u;
-${walkLoop(lanes, smooth)}
+${probe ? ' var lastMip=base;\n screenMarchStop=vec4f(-1.0,0.0,0.0,0.0);\n' : ''} var k=0u;
+${walkLoop(lanes, smooth, probe)}
  if(mip>=base||time>=1.0){return screenMarchMissed(k,select(min(time,1.0),0.0,stepped)*end);}
  let tile=${smooth ? 'select(screenTileDepth(ray.xy,base,top),hizFrontDepth(vec2i(floor(ray.xy))),base<0)' : 'screenTileDepth(ray.xy,base,top)'};
- if(ray.z<=screenRelativeBack(tile,thickness,slab)){return screenMarchMissed(k,lastAbove*end);}
+ if(ray.z<=screenRelativeBack(tile,thickness,slab)){
+${probe ? '  let band=tile-screenRelativeBack(tile,thickness,slab);\n  screenMarchStop=vec4f(select(1.0,(tile-ray.z)/band,band>0.0),f32(lastMip+1),0.0,0.0);\n' : ''}  return screenMarchMissed(k,lastAbove*end);
+ }
  let texel=exp2(f32(base+1));
  let centre=(floor(ray.xy/texel)+vec2f(0.5))*texel;
  return ScreenHit(time*end,vec3f(tile,0.0,0.0),centre,hizFrontOver(vec2i(floor(ray.xy))),k,lastAbove*end);
