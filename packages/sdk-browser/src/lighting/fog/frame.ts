@@ -104,6 +104,8 @@ export interface FogVolumeImage {
   sunRank: number
   /** The columns and rows of the light grid the lights of a cell are read from. */
   lightCells: readonly [number, number]
+  /** The words of 32 ranks of the light buffer (`FOG_TRACED_WORD_BITS`) whose lights have their ray traced shadow in this image's volume: none where no volume of them is made. */
+  tracedWords: number
   /** The image's number, which moves the jitter. */
   frameIndex: number
   /** The pre-exposure the volume's light is written multiplied by (`../../post/exposure/pre.ts`). */
@@ -270,8 +272,8 @@ export function writeFogVolumeFrame(out: Float32Array, image: FogVolumeImage) {
   writeGrid(out, image)
   writeHistory(out, image)
   writeMedium(out, image)
-  bits[0] = image.frameIndex & 7
-  out[at.frame] = asFloat[0]
+  putInteger(out, at.frame, image.frameIndex & 7)
+  putInteger(out, at.traced, image.tracedWords)
   return out
 }
 

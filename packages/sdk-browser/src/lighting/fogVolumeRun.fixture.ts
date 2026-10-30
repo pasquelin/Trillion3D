@@ -125,6 +125,7 @@ export function image(
     sunRank: 0,
     lightCells: [0, 0],
     frameIndex: 0,
+    tracedWords: 0,
     voxels: false,
     lightingOnly: false,
     // No baked light; the sky light lights the volume by its harmonics, as a movable one does.

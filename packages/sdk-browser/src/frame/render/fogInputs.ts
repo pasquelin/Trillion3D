@@ -23,6 +23,7 @@ import { cloudShadowOf } from './encodeCloudShadow.ts'
 import { skyLightReadOf } from './skyLightState.ts'
 import { fogSkyField } from './encodeSkyOcclusion.ts'
 import { fogGraphMaps } from './fogGraphMaps.ts'
+import { writeFogTracedLights } from './fogTraced.ts'
 import { fogReadOf } from './localFogGpu.ts'
 
 /** The matrices and vectors of the image's camera the volume reads: the inverse view-projection and
@@ -54,6 +55,10 @@ const inputs: Scratch<FogVolumeInputs> = {
   settings: undefined,
   sunRank: -1,
   lightCells,
+  tracedLights: new Uint32Array(0),
+  tracedOwners: [],
+  tracedWords: 0,
+  rays: undefined,
   frameIndex: 0,
   preExposure: 1,
   exposure: 1,
@@ -164,6 +169,7 @@ export function fogInputsOf(
   inputs.medium = fog.medium
   inputs.settings = fog.settings
   inputs.cubemap = fog.cubemap
+  writeFogTracedLights(rt, device, fog.settings, inputs)
   const pre = preExposureOf(rt)
   inputs.preExposure = pre.now
   inputs.exposure = pre.exposure
@@ -197,6 +203,8 @@ export function clearFogInputs() {
     inputs.sky =
     inputs.lightmap =
     inputs.translucencyGi =
+    inputs.rays =
+    inputs.tracedKernel =
       undefined
   inputs.vsm = undefined
   vsmInputs.pageTable = vsmInputs.projectionData = vsmInputs.uniforms = undefined

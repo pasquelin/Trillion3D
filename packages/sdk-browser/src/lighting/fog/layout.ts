@@ -99,6 +99,10 @@ export const volumeUvMax = (width: number, height: number, grid: FogGrid) => {
 /** The format of the static term's volume: three single-precision floats a cell (and one unused), so that
  *  the mean of the samples' baked light reaches the scatter as the scatter would have summed it. */
 export const FOG_STATIC_FORMAT = 'rgba32float' as const satisfies GPUTextureFormat
+/** The format of the volume of the lights' ray traced shadows: a word a cell for each 32 lights of the light buffer, a bit a rank, the words of a cell one above the other (the word `w` of a cell is at its place plus `w` times the textures' depth). */
+export const FOG_TRACED_FORMAT = 'r32uint' as const satisfies GPUTextureFormat
+/** The ranks of the light buffer a word of the traced volume holds a bit for. */
+export const FOG_TRACED_WORD_BITS = 32
 /** How many lighting samples a cell takes where the volume holds no history: 16 is the most. */
 const MAX_REBUILD_SAMPLES = 16
 /** The offsets within a cell the lighting samples are taken at, one per sample, as the images pass,
@@ -132,7 +136,7 @@ export function writeSampleOffsets(
  * where its cells end) and blended, the lights it takes, the tuning, the medium, the baked light it takes (`FogStaticLight`), the pre-exposure its light is
  * written multiplied by — with the ratio of it to the history's, its reciprocal and the exposure of the image before, which the lights' blend with its inverse is taken at —, the translucency volume
  * the cells read (its slices in `giGrid.z`, whether one is made in `giGrid.w`, the slices' law in `giZ`) and the
- * offsets of the samples. Every field is written by `writeFogVolumeFrame`; what a surface reads of it is the view
+ * offsets of the samples, the words of the lights whose ray traced shadow the volume holds (`traced.x`: how many words of 32 ranks of the light buffer, whose bits `tracedHeld` holds). Every field is written by `writeFogVolumeFrame`; what a surface reads of it is the view
  * block (`viewSlots.ts`).
  */
 export const FOG_VOLUME_FRAME = fieldLayout('FogVolumeFrame', [
@@ -161,6 +165,7 @@ export const FOG_VOLUME_FRAME = fieldLayout('FogVolumeFrame', [
   ['giGrid', 'vec4f'],
   ['giZ', 'vec4f'],
   ['offsets', vec4Array(MAX_REBUILD_SAMPLES)],
+  ['traced', 'vec4u'],
   ['frame', 'vec4u'],
 ] as const)
 /** The frame's words. */

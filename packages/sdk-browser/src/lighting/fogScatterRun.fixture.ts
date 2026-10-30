@@ -115,6 +115,7 @@ export function scatter(
       previous,
       resource: image(CAM).grid,
       translucencyGi: world.translucencyGi,
+      tracedWords: heldWords.length,
     },
   )
   const block = emptyLights({ fog: FOG_SLOTS, atmosphere: ATMOSPHERE_SLOTS })
@@ -143,6 +144,14 @@ export function scatter(
     fogVoxelEmitIn: table(),
     // The static term's volume is not read: the frame says no pass wrote it.
     fogStaticIn: table(),
+    // The lights the volume holds a shadow of, and the words of them the cell holds (one above the other, the textures' depth apart).
+    fogTracedHeldWords: heldWords,
+    fogTracedIn: table((at) => [
+      ~(seenWords[Math.floor(at[2]! / img.resource.z)] ?? 0xffffffff) >>> 0,
+      0,
+      0,
+      0,
+    ]),
     fogGiVolume: giVolume,
     mat2x3f: (ambient: number[], directional: number[]) => [ambient, directional],
     shadowFactor: (_slice: number, light: Light) => (

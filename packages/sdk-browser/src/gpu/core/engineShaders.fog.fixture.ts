@@ -20,6 +20,7 @@ import { resolveFogVolume } from '../../../../sdk-core/src/scene/volume/contract
 import {
   FOG_PROGRAMS,
   fogProgramsFor,
+  fogTracedProgram,
   fogGraphProgram,
   fogProgramsWithoutLocal,
 } from '../../lighting/fog/programs.ts'

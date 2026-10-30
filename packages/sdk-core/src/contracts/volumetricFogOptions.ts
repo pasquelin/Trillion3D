@@ -107,6 +107,9 @@ export const VOLUMETRIC_FOG_FILTERS = ['trilinear', 'bicubic', 'tricubic'] as co
  *  `volumetricFogLocalShadows`, on — a point, spot or rectangle light whose shadow darkens the fog (its
  *  `shadowsFog`) reads its shadow map in the volume; off, every local light lights it whole, the sun
  *  keeping its own;
+ *  `volumetricFogInjectRaytracedLights`, off — the sun and the local lights that cast their shadow by rays (`rayTracedShadows`,
+ *  `castRayTracedShadow`) are shadowed in the volume by a ray from each cell's first sample through the scene's triangles (the first 32 lights of the light buffer),
+ *  the sun's ray multiplying its other shadows, a local light's replacing its shadow map;
  *  `volumetricFogRectLightTexture`, off — a rectangle light that names a picture (`SceneLight.sourceTexture`) tints its light in the
  *  volume by the picture's colour where the ray from the cell meets the face;
  *  `localFogVolumeSupport`, on — the project switch of the local fog volumes (`../scene/localFog/contracts.ts`),
@@ -174,6 +177,7 @@ export const VOLUMETRIC_FOG_RULES = /* @__PURE__ */ (() =>
     number('volumetricFogReadJitter', 0, ANY_NUMBER),
     flag('volumetricFogLocalShadows', true),
     flag('volumetricFogRectLightTexture', false),
+    flag('volumetricFogInjectRaytracedLights', false),
     flag('localFogVolumeSupport', true),
     flag('localFogVolumes', true),
     flag('localFogVolumeInVolume', true),

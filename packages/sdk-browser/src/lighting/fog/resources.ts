@@ -1,4 +1,6 @@
 import { preparedComputeStage } from '../../gpu/core/computeStages.ts'
+import { heldBuffers } from '../../gpu/core/heldBuffers.ts'
+import { writeChanged } from '../../gpu/core/writeChanged.ts'
 import { uniformBlock } from '../../gpu/core/uniformBlock.ts'
 import {
   allocatedTextures,
@@ -8,7 +10,12 @@ import {
 } from '../../gpu/core/heldTextures.ts'
 import type { ResourceAllocator } from '../../gpu/core/resourceAllocator.ts'
 import { standInTexture } from '../../gpu/core/standIns.ts'
-import { FOG_STATIC_FORMAT, FOG_VOLUME_FRAME_WORDS, type FogGrid } from './layout.ts'
+import {
+  FOG_STATIC_FORMAT,
+  FOG_TRACED_FORMAT,
+  FOG_VOLUME_FRAME_WORDS,
+  type FogGrid,
+} from './layout.ts'
 import { type FogProgramName } from './bindings.ts'
 import { graphLayoutEntries, layoutEntries } from './layoutEntries.ts'
 import { fogGraphProgram, fogProgramsFor } from './programs.ts'
@@ -34,6 +41,8 @@ const ENTRY_POINT = {
   voxelize: 'voxelizeMain',
 } as const satisfies Record<FogProgramName, string>
 
+const TRACED_HELD_LABEL = 'Trillion3D fog traced lights'
+
 /** The textures of one grid, asked of `allocator`: the volume of the scatter twice — this image's, the previous —, the
  *  integrated volume, and the furthest depth twice; where `voxels` holds, the two volumes the
  *  objects of the volume material domain are voxelised into (their scattering with the extinction,
@@ -55,6 +64,23 @@ function volumeTextures(
     furthest: [plane('depth 0'), plane('depth 1')],
     voxel: voxels ? ([volume('voxel medium'), volume('voxel emissive')] as const) : undefined,
     baked: baked ? volume('static term', FOG_STATIC_FORMAT) : undefined,
+  }
+}
+
+/** The volume of the lights' ray traced shadows (`FOG_TRACED_FORMAT`), kept apart from the others so that its growth with the lights costs the scatter's history nothing: `words` words
+ *  of the light buffer's ranks, one above the other in depth, each as deep as the grid. */
+function tracedTextures(allocator: ResourceAllocator, grid: FogGrid, words: number) {
+  return {
+    grid,
+    words,
+    volume: allocator.texture(
+      'traced shadows',
+      [grid.x, grid.y, grid.z * words],
+      FOG_TRACED_FORMAT,
+      {
+        dimension: '3d',
+      },
+    ),
   }
 }
 
@@ -147,10 +173,10 @@ function createFogPrograms(device: GPUDevice, failed: (error: unknown) => void, 
 const holds = (held: VolumeTextures, grid: FogGrid, voxels: boolean, baked: boolean) =>
   held.grid === grid && !!(held.voxel || !voxels) && !!(held.baked || !baked)
 
-/** The static term's volume of an image that has no such pass: one cell the scatter does not read (the
+/** The volume of `format` an image that has no such pass binds: one cell the scatter does not read (the
  *  frame says so). */
-function createBakedStandIn(device: GPUDevice) {
-  const texture = standInTexture(device, 'Trillion3D fog no static term', FOG_STATIC_FORMAT, {
+function createVolumeStandIn(device: GPUDevice, label: string, format: GPUTextureFormat) {
+  const texture = standInTexture(device, label, format, {
     dimension: '3d',
     storage: true,
   })
@@ -178,7 +204,21 @@ function createFogTextures(device: GPUDevice) {
         }
       },
     )
-  return { held, texturesOf }
+  const tracedHeld = createHeldTextures<ReturnType<typeof tracedTextures>>(device)
+  /** The traced shadows' volume of `grid` holding `words` words at least, made again (and only it) where the held one holds fewer or is another grid's; none where the budget refuses it. */
+  const tracedOf = (grid: FogGrid, words: number) =>
+    tracedHeld.texturesOf(
+      (textures) => textures.grid === grid && textures.words >= words,
+      () => {
+        const list = (allocator: ResourceAllocator) => tracedTextures(allocator, grid, words)
+        return {
+          asked: listedBytes(list),
+          what: 'the fog traced shadows',
+          make: () => allocatedTextures(device, 'Trillion3D fog traced', list),
+        }
+      },
+    )
+  return { held, texturesOf, tracedHeld, tracedOf }
 }
 
 /**
@@ -199,7 +239,13 @@ export function createFogVolumeResources(
     local,
   )
   const textures = createFogTextures(device)
-  let standIn: ReturnType<typeof createBakedStandIn> | undefined
+  let standIn: ReturnType<typeof createVolumeStandIn> | undefined
+  let tracedStandIn: ReturnType<typeof createVolumeStandIn> | undefined
+  const buffers = heldBuffers()
+  const release = () => {
+    textures.held.release()
+    textures.tracedHeld.release()
+  }
   return {
     /** The frame the passes read: its words, written each image, and its buffer, sent by what
      *  changed (`uniformBlock`). */
@@ -219,18 +265,44 @@ export function createFogVolumeResources(
       return textures.held.generation
     },
     get bytes() {
-      return textures.held.bytes
+      return textures.held.bytes + textures.tracedHeld.bytes
     },
     /** The static term's volume of an image that has no such pass, made at the first call. */
     get bakedStandIn() {
-      return (standIn ??= createBakedStandIn(device)).view
+      return (standIn ??= createVolumeStandIn(
+        device,
+        'Trillion3D fog no static term',
+        FOG_STATIC_FORMAT,
+      )).view
+    },
+    /** The traced shadows' volume of an image that holds none, made at the first call. */
+    get tracedStandIn() {
+      return (tracedStandIn ??= createVolumeStandIn(
+        device,
+        'Trillion3D fog no traced shadows',
+        FOG_TRACED_FORMAT,
+      )).view
+    },
+    /** The buffer of the lights whose ray traced shadow the volume holds, a bit a rank (`FOG_TRACED_WORD_BITS` a word): with `words`, the first `count` of them written into it, grown as the light buffer is. */
+    tracedHeld(words?: Uint32Array<ArrayBuffer>, count = 0) {
+      const buffer = buffers.grow(
+        device,
+        TRACED_HELD_LABEL,
+        Math.max(count, 1) * 4,
+        GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+      )
+      if (words) writeChanged(device, buffer, words, 0, count)
+      return buffer
     },
     texturesOf: textures.texturesOf,
-    release: textures.held.release,
+    tracedOf: textures.tracedOf,
+    release,
     dispose() {
-      textures.held.release()
+      release()
       frame.buffer.destroy()
       standIn?.texture.destroy()
+      tracedStandIn?.texture.destroy()
+      buffers.drop(device, TRACED_HELD_LABEL)
     },
   }
 }

@@ -92,6 +92,11 @@ export const FOG_BINDING = {
   /** The rectangle lights' atlas and its sampler (`rectSourceWgsl`), read by the scatter's local lights. */
   rectAtlas: 76,
   rectSampler: 77,
+  /** The ray traced shadows of the volume's lights (`tracedWgsl.ts`): the word of each cell, a bit a rank of the light buffer, written by the pass that traces them and read by the scatter. */
+  tracedOut: 120,
+  tracedIn: 121,
+  /** The lights of the light buffer whose ray traced shadow the volume holds: a bit a rank, 32 ranks a word. */
+  tracedHeld: 122,
   /** The sampled lighting's volume (`manyLightsSampled/volumeBindings.ts`), read by the scatter: its uniform and its samples. */
   mlParams: ML_BINDING.params,
   mlSamplesIn: ML_BINDING.samplesIn,
@@ -132,6 +137,8 @@ const SCATTER_BINDINGS = {
   localTiles: true,
   rectAtlas: true,
   rectSampler: true,
+  tracedIn: true,
+  tracedHeld: true,
 } as const
 
 /** The bindings of the programs. */
@@ -166,6 +173,16 @@ export const FOG_PROGRAM_BINDINGS = {
     voxelEmitOut: true,
   },
 } as const satisfies Record<string, FogBindings>
+
+/** What the pass that traces the volume's lights' shadows binds in its group 0 (the cut's tables it walks are bound beside, `tracedPass.ts`). */
+export const FOG_TRACED_BINDINGS = {
+  frame: true,
+  depth: true,
+  furthest: true,
+  lights: true,
+  tracedOut: true,
+  tracedHeld: true,
+} as const satisfies FogBindings
 
 /** What the voxelisation of the objects that wear a graph binds beside its own (`voxelize`): the
  *  graphs' values, and the colour atlas where one reads a texture. */

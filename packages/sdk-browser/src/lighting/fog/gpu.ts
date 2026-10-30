@@ -39,6 +39,10 @@ export interface FogVolumeInputs
   graphMaps?: VoxelGraphMaps
   /** The clocks their graphs read, in seconds: the image's (`WebgpuRun.graphClocks`). */
   graphClocks?: GraphClocks
+  /** The words of the lights whose ray traced shadow the volume holds, a bit a rank (`tracedWords` of them count, `FOG_TRACED_WORD_BITS` ranks a word). */
+  tracedLights: Uint32Array<ArrayBuffer>
+  /** The ids of those lights, in the order they were named. */
+  tracedOwners: string[]
   /** A camera cut: the image before is no history for this one. */
   cut?: boolean
   /** The size the targets were made for, pixels: the textures follow it, the camera's size being the
@@ -81,7 +85,28 @@ interface History {
   ping: number
   made: number
   resource: { key: number[]; grid: FogGrid }
+  /** The traced shadows' volume the last trace wrote, the light words (a copy) and the ids of the lights (a copy) it was written for: an image with no scene trace names the lights only against these. */
+  traced: { volume: unknown; words: Uint32Array; owners: readonly string[] } | undefined
   view: { -readonly [K in keyof FogGrid]: FogGrid[K] }
+}
+
+/** Whether `volume` holds the shadows of exactly the `count` words of lights `words` names, the lights being those of ids `owners` (a rank can hold another light than it did), as the last trace left it. */
+export const tracedFor = (
+  history: History,
+  volume: unknown,
+  words: Uint32Array,
+  count: number,
+  owners: readonly string[],
+) => {
+  const held = history.traced
+  return (
+    held !== undefined &&
+    held.volume === volume &&
+    held.words.length === count &&
+    held.words.every((word, i) => word === words[i]) &&
+    held.owners.length === owners.length &&
+    held.owners.every((id, i) => id === owners[i])
+  )
 }
 
 /** This image's frame written, where a volume is built: the history the previous image left, if it
@@ -94,6 +119,7 @@ function writeFrame(
   skipHidden: boolean,
   voxels: boolean,
   staticBuilt: boolean,
+  tracedWords: number,
 ) {
   const { previous } = history
   const kept = history.known && !input.cut && previous.skipHidden === skipHidden
@@ -101,6 +127,7 @@ function writeFrame(
   image.medium = input.medium
   image.settings = input.settings
   image.sunRank = input.sunRank
+  image.tracedWords = tracedWords
   image.lightCells = input.lightCells
   image.frameIndex = input.frameIndex
   image.preExposure = input.preExposure
@@ -138,6 +165,17 @@ function buildVolume(parts: Parts, history: History, steps: ComputeRun, input: F
   )
   parts.context.graph = graphPass(parts.voxel, parts.resources, parts.groups, input.graphMaps)
   const staticBuilt = !!input.lightmap && staticTermWanted(input.staticLight)
+  // The traced shadows' volume stacks its words in depth: a device that cannot hold them all leaves the last lights' to their maps.
+  const wanted = Math.min(input.tracedWords, Math.floor(maxDimension / history.resource.grid.z))
+  const asked = wanted > 0 ? resources.tracedOf(history.resource.grid, wanted) : undefined
+  // An image with no scene trace leaves the volume as it is: it names the lights as traced only if the last trace wrote their shadows into this allocation, else their maps stand.
+  const traced =
+    asked &&
+    (input.rays || tracedFor(history, asked.volume, input.tracedLights, wanted, input.tracedOwners))
+      ? asked
+      : undefined
+  const tracedWords = traced ? wanted : 0
+  resources.tracedHeld(input.tracedLights, tracedWords)
   const textures = resources.texturesOf(history.resource.grid, voxels > 0, staticBuilt)
   if (!textures) return void ((history.known = false), (history.frames = 0))
   if (resources.generation !== history.made) {
@@ -146,15 +184,37 @@ function buildVolume(parts: Parts, history: History, steps: ComputeRun, input: F
   }
   // Cells are held hidden where the setting says and the frame built the pyramid they are read from.
   const skipHidden = input.settings.volumetricFogSkipHidden && !!input.hiz
-  const kept = writeFrame(parts, history, input, knobs, skipHidden, voxels > 0, staticBuilt)
+  const kept = writeFrame(
+    parts,
+    history,
+    input,
+    knobs,
+    skipHidden,
+    voxels > 0,
+    staticBuilt,
+    tracedWords,
+  )
   history.frames = kept ? history.frames + 1 : 1
   history.horizon = historyHorizon(input.settings)
   context.voxelObjects = voxels
   context.staticBuilt = staticBuilt
+  context.traced = traced?.volume
   context.ping = history.ping
   context.cells = history.view
   context.whiteCubemap = none.cubemap
   encodeFogPasses(steps, context, input, textures, skipHidden)
+  // The volume is held as traced only where the trace pass was encoded (`encodeFogTraced`): a refused texture set or a missing pass leaves it as it was. The copies of the words and the ids are made where they changed, not at every image.
+  if (
+    traced &&
+    input.rays &&
+    input.tracedKernel &&
+    !tracedFor(history, traced.volume, input.tracedLights, wanted, input.tracedOwners)
+  )
+    history.traced = {
+      volume: traced.volume,
+      words: input.tracedLights.slice(0, wanted),
+      owners: input.tracedOwners.slice(),
+    }
   const { previous } = history
   previous.viewProj.set(camera.viewProj)
   previous.width = camera.width
@@ -191,6 +251,7 @@ function newParts(device: GPUDevice, resources: FogVolumeResources, none: FogRea
       translucencyGi: undefined,
       sunRank: -1,
       lightCells: [0, 0],
+      tracedWords: 0,
       frameIndex: 0,
       preExposure: 1,
       exposure: 1,
@@ -206,6 +267,7 @@ function newParts(device: GPUDevice, resources: FogVolumeResources, none: FogRea
       voxel,
       voxelObjects: 0,
       staticBuilt: false,
+      traced: undefined,
     },
     voxel,
   }
@@ -226,6 +288,7 @@ const newHistory = (): History => ({
   ping: 0,
   made: 0,
   resource: { key: [0, 0, 0, 0], grid: NO_GRID },
+  traced: undefined,
   view: { ...NO_GRID },
 })
 

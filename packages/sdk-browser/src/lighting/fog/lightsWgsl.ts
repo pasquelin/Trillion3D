@@ -7,6 +7,7 @@ import { FOG_SLOT } from '../../../../sdk-core/src/scene/core/fog.ts'
 import { VOLUME_LAMP_WGSL } from '../direct/lampSeenWgsl.ts'
 import { REACH } from '../direct/lightTermsWgsl.ts'
 import { FOG_VOLUME_FLAG } from './frame.ts'
+import { FOG_TRACED_WORD_BITS } from './layout.ts'
 import { FOG_SKY_LIGHT_WGSL } from './skyLightWgsl.ts'
 import { FOG_GI_WGSL } from './translucencyGiWgsl.ts'
 import { ML_SHADE_WGSL } from '../manyLightsSampled/volumeWgsl.ts'
@@ -44,7 +45,8 @@ import { ML_SHADE_WGSL } from '../manyLightsSampled/volumeWgsl.ts'
  * with no normal (`rectFormOf`), times the colour of its picture where the cell sees it (`fogRectPicture`, `rectSourceAt`) while the setting
  * `volumetricFogRectLightTexture` is on (`FOG_VOLUME_FLAG.rectTexture`). A local light whose `shadowsFog` is set and that holds a shadow
  * slot is shadowed by one sample of its map at the cell's point, as the sun is, while the setting
- * `volumetricFogLocalShadows` is on (`FOG_VOLUME_FLAG.localShadows`). The edge of a spot's
+ * `volumetricFogLocalShadows` is on (`FOG_VOLUME_FLAG.localShadows`, which also lets a ray traced shadow darken it); where the light is one the volume holds a ray traced shadow of (`volumetricFogInjectRaytracedLights`, `fogTracedHeld`),
+ * the cell's bit of it (`fogTracedSeen`, whatever the light's rank) replaces that sample for a local light and multiplies the sun's other shadows. The edge of a spot's
  * cone and of a rectangle's plane fade over a number of cells (`frame.blend.z`, none by default), so
  * that they flicker less. An orthographic view's rays are parallel: the eye's direction is the
  * view's own, its distance the one along the forward.
@@ -64,6 +66,19 @@ const fogLightTermsWgsl = (sampled: boolean) =>
       sinFromCosUnclamped,
     ],
     `
+// The cell being lit, set by fogLightAt: the traced volume is read at it.
+var<private> fogLitCell:vec3u;
+// Whether the light of rank 'rank' has its shadow in the volume by a ray traced from the cell (the lights the buffer names, within the words the frame holds).
+fn fogTracedHeld(rank:u32)->bool{
+ let word=rank/${FOG_TRACED_WORD_BITS}u;
+ return word<frame.traced.x&&((fogTracedHeldWords[word]>>(rank%${FOG_TRACED_WORD_BITS}u))&1u)!=0u;
+}
+// 1 unless the ray from the cell's first sample was stopped by the scene before it reached the light of rank 'rank' (the traced volume holds a bit where it was).
+fn fogTracedSeen(rank:u32)->f32{
+ let word=rank/${FOG_TRACED_WORD_BITS}u;
+ let at=vec3i(i32(fogLitCell.x),i32(fogLitCell.y),i32(fogLitCell.z+word*u32(frame.texture.z)));
+ return f32(1u-((textureLoad(fogTracedIn,at).x>>(rank%${FOG_TRACED_WORD_BITS}u))&1u));
+}
 /** The sun's light at \`P\`: its colour, its shadow, the phase function. */
 fn fogSun(P:vec3f,toEye:vec3f${sampled ? ',shadowed:bool' : ''})->vec3f{
  if(frame.lighting.x<0.0){return vec3f(0.0);}
@@ -77,6 +92,7 @@ fn fogSun(P:vec3f,toEye:vec3f${sampled ? ',shadowed:bool' : ''})->vec3f{
  if(${sampled ? 'shadowed&&' : ''}shadowsFog(light)){
   shade=shadowFactor(i32(light.params.y),light,P,vec3f(0.0),true);
   shade*=cloudShadowOnSurface(u32(frame.lighting.x),P);
+  if(fogTracedHeld(u32(frame.lighting.x))){shade*=fogTracedSeen(u32(frame.lighting.x));}
  }${sampled ? '\n // The samples decide the shadow; the clouds above the point still shade the sun.\n else if(!shadowed){shade=cloudShadowOnSurface(u32(frame.lighting.x),P);}' : ''}
  if(shade<=0.0){return vec3f(0.0);}
  return colour*(shade*hgPhase(frame.medium.x,dot(-light.directionCone.xyz,toEye)));
@@ -112,7 +128,10 @@ ${REACH('vec3f(0.0)')}
   if(isRect(light)){seen.w*=saturate(dot(P-light.positionRange.xyz,light.directionCone.xyz)/fade);}
   else if(isSpot(light)){seen.w*=fogSpotFade(light,P,fade);}
  }
- if(seen.w>0.0&&${sampled ? 'shadowed&&' : ''}shadowsFog(light)&&(u32(frame.medium.w)&${FOG_VOLUME_FLAG.localShadows}u)!=0u){seen.w*=shadowFactor(i32(light.params.y),light,P,vec3f(0.0),true);}
+ if(seen.w>0.0&&${sampled ? 'shadowed&&' : ''}shadowsFog(light)&&(u32(frame.medium.w)&${FOG_VOLUME_FLAG.localShadows}u)!=0u){
+  if(fogTracedHeld(rank)){seen.w*=fogTracedSeen(rank);}
+  else{seen.w*=shadowFactor(i32(light.params.y),light,P,vec3f(0.0),true);}
+ }
  var colour=light.colorIntensity.rgb*lightFunctionFogLocalOf(light,P);
  if(seen.w>0.0&&isRect(light)&&(u32(frame.medium.w)&${FOG_VOLUME_FLAG.rectTexture}u)!=0u){colour*=fogRectPicture(light,P);}
  return colour*(lightStrength(light)*light.params.z)*(seen.w*hgPhase(frame.medium.x,dot(seen.xyz,toEye)));

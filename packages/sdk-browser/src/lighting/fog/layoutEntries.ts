@@ -14,10 +14,11 @@ import {
   FOG_BINDING,
   FOG_GRAPH_BINDINGS,
   FOG_PROGRAM_BINDINGS,
+  FOG_TRACED_BINDINGS,
   type FogBindings,
   type FogProgramName,
 } from './bindings.ts'
-import { FOG_STATIC_FORMAT } from './layout.ts'
+import { FOG_STATIC_FORMAT, FOG_TRACED_FORMAT } from './layout.ts'
 import { FOG_VOLUME_FORMAT } from './read.ts'
 
 const rectEntries = rectAtlasLayoutEntries({
@@ -97,6 +98,14 @@ const ENTRY: Record<
   localTiles: computeBufferEntry(FOG_BINDING.localTiles, 'read-only-storage'),
   rectAtlas: rectEntries[0],
   rectSampler: rectEntries[1],
+  tracedOut: computeStorageTextureEntry(
+    FOG_BINDING.tracedOut,
+    FOG_TRACED_FORMAT,
+    'write-only',
+    '3d',
+  ),
+  tracedHeld: computeBufferEntry(FOG_BINDING.tracedHeld, 'read-only-storage'),
+  tracedIn: computeStorageTextureEntry(FOG_BINDING.tracedIn, FOG_TRACED_FORMAT, 'read-only', '3d'),
   mlParams: computeUniformEntry(FOG_BINDING.mlParams),
   mlSamplesIn: computeStorageTextureEntry(FOG_BINDING.mlSamplesIn, 'r32uint', 'read-only', '3d'),
 }
@@ -113,6 +122,9 @@ const entriesOf = (names: FogBindings) =>
   (Object.keys(names) as Exclude<keyof typeof FOG_BINDING, 'hiz' | 'field' | 'lightmap'>[]).map(
     (n) => ENTRY[n],
   )
+
+/** The entries of the group 0 of the pass that traces the volume's lights' shadows (`FOG_TRACED_BINDINGS`). */
+export const tracedLayoutEntries = () => entriesOf(FOG_TRACED_BINDINGS)
 
 /** The layout of a program: the entries of what it binds. The pyramid's three, the field's six and the
  *  lightmap's eleven are made where a program names them; `filterableMip` is whether the field's coarse mip is read through

@@ -38,6 +38,8 @@ function volumeInput(
   void [previous, grid, resource, rebuildSamples, skipHidden, translucencyGi]
   return {
     ...rest,
+    tracedLights: new Uint32Array(0),
+    tracedOwners: [],
     allocated: [160, 90],
     hiz: hiz ? fakeHizDepth : undefined,
     depth: gpu.device

@@ -13,15 +13,17 @@ import { volumetricLightmapWgsl } from '../volumetricLightmap/sampleWgsl.ts'
 import {
   FOG_BINDING,
   FOG_PROGRAM_BINDINGS,
+  FOG_TRACED_BINDINGS,
   type FogBindings,
   type FogProgramName,
 } from './bindings.ts'
 import { fogGridWgsl, FOG_CELLS_WGSL, FOG_SURFACE_WGSL } from './gridWgsl.ts'
 import { FOG_FURTHEST_WGSL, FOG_INTEGRATE_WGSL } from './integrateWgsl.ts'
-import { FOG_STATIC_FORMAT } from './layout.ts'
+import { FOG_STATIC_FORMAT, FOG_TRACED_FORMAT } from './layout.ts'
 import { FOG_FRAME_STRUCT_WGSL, fogBlockOf } from './readWgsl.ts'
 import { fogScatterWgsl } from './scatterWgsl.ts'
 import { FOG_STATIC_WGSL } from './staticWgsl.ts'
+import { fogTracedWgsl } from './tracedWgsl.ts'
 import { FOG_NO_SKY_VISIBILITY_WGSL, FOG_SKY_VISIBILITY_WGSL } from './skyVisibilityWgsl.ts'
 import {
   FOG_VOXEL_PREPARE_WGSL,
@@ -56,6 +58,9 @@ const DECLARATIONS = {
   voxelEmitIn: `@group(0) @binding(${b.voxelEmitIn}) var fogVoxelEmitIn:texture_3d<f32>;`,
   translucencyGi: `@group(0) @binding(${b.translucencyGi}) var fogGiVolume:texture_3d<f32>;`,
   staticOut: `@group(0) @binding(${b.staticOut}) var fogStaticOut:texture_storage_3d<${FOG_STATIC_FORMAT},write>;`,
+  tracedOut: `@group(0) @binding(${b.tracedOut}) var fogTracedOut:texture_storage_3d<${FOG_TRACED_FORMAT},write>;`,
+  tracedHeld: `@group(0) @binding(${b.tracedHeld}) var<storage,read> fogTracedHeldWords:array<u32>;`,
+  tracedIn: `@group(0) @binding(${b.tracedIn}) var fogTracedIn:texture_storage_3d<${FOG_TRACED_FORMAT},read>;`,
   staticIn: `@group(0) @binding(${b.staticIn}) var fogStaticIn:texture_storage_3d<${FOG_STATIC_FORMAT},read>;`,
 } as const
 
@@ -143,6 +148,15 @@ const scatterProgram = (
     visibility,
     fogScatterWgsl(sampled),
     fogGridWgsl(local),
+  ])
+
+/** The pass that traces the shadows of the lights the volume holds (`tracedWgsl.ts`): the frame, the depth and the light buffer beside the cut's tables and the scene trace, whose rays cut the surfaces by the graph masks `programs`. */
+export const fogTracedProgram = (programs: SceneMaskPrograms) =>
+  wgslProgram(`${declarations(FOG_TRACED_BINDINGS)}\n`, [
+    DIRECT_LIGHT_WGSL,
+    FOG_FRAME_STRUCT_WGSL,
+    FOG_SURFACE_WGSL,
+    fogTracedWgsl(programs),
   ])
 
 /** The static term's pass: the lightmap beside the sky light's read and the fog's text. */

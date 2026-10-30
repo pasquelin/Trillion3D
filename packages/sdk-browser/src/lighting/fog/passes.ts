@@ -22,6 +22,8 @@ import type { VoxelBuffers } from './voxelGpu.ts'
 import { encodeStatic } from './staticPass.ts'
 import { encodeVoxels, type VoxelGraphPass } from './voxelPasses.ts'
 import type { SampledVolumeBinding } from '../manyLightsSampled/volume.ts'
+import type { SceneRays } from '../surfaceCache/lighting/surfaceLighting.ts'
+import { encodeFogTraced, type FogTracedKernel } from './tracedPass.ts'
 
 /** What one image gives the volume's passes: the scene's depth and, where this image built the depth
  *  pyramid's farthest layer of the finished opaque depth before the volume (after the raster's rest
@@ -68,6 +70,10 @@ export interface FogPassInputs {
   /** The global distance field, where each sample of a cell finds the sky's visibility in it (`distanceFieldSkyOcclusion`
    *  gives it under its gate); none, the sky is wholly visible. */
   field?: GlobalFieldRead
+  /** The scene trace the image made, where the volume holds the ray traced shadows of lights (`FogVolumeFrame.traced`): the pass that traces them runs over it. */
+  rays?: SceneRays
+  /** The pass that traces them over `rays`, ready (asked of the scene trace's hold once for the image). */
+  tracedKernel?: FogTracedKernel
   /** The volumetric lightmap, where the image reads one (`volumetricLightmapOf`): the static term's pass
    *  reads it. */
   lightmap?: VolumetricLightmapGpu
@@ -85,6 +91,7 @@ export function createFogGroups() {
     static: createProgramGroups(),
     integrate: createProgramGroups(),
     prepare: createProgramGroups(),
+    traced: createProgramGroups(),
     voxelize: createProgramGroups(),
     voxelizeGraph: createProgramGroups(),
   }
@@ -111,6 +118,8 @@ export interface FogPassContext {
   graph?: VoxelGraphPass
   /** Whether the static term's pass runs this image (`FogVolumeImage.staticBuilt`). */
   staticBuilt: boolean
+  /** The volume of the lights' ray traced shadows (`resources.tracedOf`), none where this image names no light of them. */
+  traced: GPUTextureView | undefined
 }
 
 /** The entries of the furthest depth's group: the frame, the pyramid, the plane written. */
@@ -162,6 +171,8 @@ function scatterEntries(context: FogPassContext, input: FogPassInputs, textures:
     skyParams: { buffer: input.sky.params },
     translucencyGi: input.translucencyGi?.fogView ?? context.emptyVolume,
     staticIn: textures.baked ?? resources.bakedStandIn,
+    tracedIn: context.traced ?? resources.tracedStandIn,
+    tracedHeld: { buffer: resources.tracedHeld() },
   })
 }
 
@@ -293,8 +304,10 @@ function encodeScatter(
   next[26] = volume?.samplesRead
   next[27] = input.rectAtlas.view
   next[28] = input.rectAtlas.sampler
-  next[29] = input.sunFunction.view
-  next[30] = input.sunFunction.block
+  next[29] = context.traced ?? null
+  next[30] = context.resources.tracedHeld()
+  next[31] = input.sunFunction.view
+  next[32] = input.sunFunction.block
   pass.setPipeline(pipeline)
   pass.setBindGroup(
     0,
@@ -344,7 +357,7 @@ function encodeIntegrate(
 /**
  * The volume's passes over `textures`, in one compute pass: the furthest depth of the cells across
  * the image (where `skipHidden` holds cells hidden, from the pyramid `input.hiz` names), the objects
- * of the volume material domain voxelised into the volume (where there are any), the light
+ * of the volume material domain voxelised into the volume (where there are any), the shadows of the lights traced through the scene's triangles (where the image holds some), the light
  * each cell scatters blended with the volume of the image before — each sample lit by the sky's visibility it sees in the
  * global distance field, where that is given —, and the sum along each column.
  * This image's volume is the one `context.ping` names. Every program is compiled when this runs
@@ -363,6 +376,7 @@ export function encodeFogPasses(
   if (context.voxelObjects && textures.voxel) encodeVoxels(pass, context, textures.voxel)
   if (context.staticBuilt && input.lightmap && textures.baked)
     encodeStatic(pass, context, input, input.lightmap, textures.baked, textures)
+  encodeFogTraced(pass, context, input, textures)
   encodeScatter(pass, context, input, textures)
   encodeIntegrate(pass, context, textures)
 }
