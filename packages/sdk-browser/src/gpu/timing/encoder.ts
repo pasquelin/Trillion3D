@@ -74,6 +74,8 @@ export type TimingImage = {
   overflowed?: boolean
   latest?: TimingPart
   finished: number
+  /** Set when the queue took one of the image's parts: the image is then closed with it, never cancelled (`markSubmitted`). */
+  taken?: boolean
   read: GPUBuffer
   limit: number
   tag: TimedRead

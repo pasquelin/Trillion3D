@@ -24,3 +24,23 @@ export function createCachedGroup(depth = 1) {
     return groups[at]
   }
 }
+
+/** What keeps bind groups by name: the targets of a pass family. */
+export interface GroupCache {
+  groups: Map<string, ReturnType<typeof createCachedGroup>>
+}
+
+/** The bind group `name` of `targets` over `layout`: kept while every resource it binds (`deps`) is the one it was made with, made from
+ *  `entries` otherwise. The inputs are the same views from one image to the next unless the view is resized or its history trades places. */
+export function groupFor(
+  device: GPUDevice,
+  targets: GroupCache,
+  name: string,
+  layout: GPUBindGroupLayout,
+  deps: readonly unknown[],
+  entries: () => GPUBindGroupEntry[],
+) {
+  let cache = targets.groups.get(name)
+  if (!cache) targets.groups.set(name, (cache = createCachedGroup()))
+  return cache(device, layout, deps, entries)
+}

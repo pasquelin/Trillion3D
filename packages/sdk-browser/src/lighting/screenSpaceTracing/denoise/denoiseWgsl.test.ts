@@ -105,5 +105,24 @@ test('the parameters land in their fields', () => {
     frame: 3,
     exposure: 0.5,
   })
-  assert.deepEqual([...words], [10, 6, 2, 1, 8, 64, 1, 0, 3, 0.5, 0, 0])
+  assert.deepEqual(
+    [...words],
+    [10, 6, 2, 1, 8, 64, 1, 0, 3, 0.5, 0, 0, 10, 6, 0, 0, 0, 0, 10, 6, 0, 0, 10, 6],
+  )
+  writeDenoiseParams(words, {
+    width: 10,
+    height: 6,
+    ratio: 1,
+    cut: false,
+    maxSamples: 1,
+    previousCumulative: 1,
+    spread: 1,
+    frame: 0,
+    exposure: 1,
+    previousWidth: 12,
+    previousHeight: 8,
+    rect: [2, 1, 7, 5],
+    lastRect: [1, 1, 6, 4],
+  })
+  assert.deepEqual([...words].slice(12), [12, 8, 0, 0, 2, 1, 7, 5, 1, 1, 6, 4])
 })

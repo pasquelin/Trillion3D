@@ -2,7 +2,7 @@
 
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createCachedGroup } from './cachedGroup.ts'
+import { createCachedGroup, groupFor, type GroupCache } from './cachedGroup.ts'
 
 const fakeDevice = () => {
   let made = 0
@@ -39,4 +39,23 @@ test('resources that take turns each keep their group at a depth of two, and are
     for (const named of [a, b, a, b, a]) group(device, layout, [named], () => [])
     assert.equal(made(), expected, `depth ${depth}`)
   }
+})
+
+test('a named group is kept per name while its resources hold, and made again where one moved', () => {
+  const { device, made } = fakeDevice()
+  const targets: GroupCache = { groups: new Map() }
+  const a = {}
+  const b = {}
+  const first = groupFor(device, targets, 'one', layout, [a], () => [])
+  assert.equal(
+    groupFor(device, targets, 'one', layout, [a], () => []),
+    first,
+  )
+  groupFor(device, targets, 'two', layout, [a], () => [])
+  assert.equal(made(), 2)
+  assert.notEqual(
+    groupFor(device, targets, 'one', layout, [b], () => []),
+    first,
+  )
+  assert.equal(made(), 3)
 })

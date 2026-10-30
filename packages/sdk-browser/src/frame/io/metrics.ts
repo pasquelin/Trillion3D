@@ -1,4 +1,3 @@
-import { releaseScreenSpaceTracing } from '../../lighting/screenSpaceTracing/stage.ts'
 import { disposeSampledLights } from '../../lighting/manyLightsSampled/frame.ts'
 import { disposeSampledVolumes } from '../../lighting/manyLightsSampled/volumeFrame.ts'
 import { disposeSampledHair } from '../../lighting/manyLightsSampled/hairFrame.ts'
@@ -32,7 +31,7 @@ import { releaseShadowCasters } from '../../lighting/shadows/casters/release.ts'
 import { disposeViewPasses, releaseWebgpuView, useWebgpuView } from '../backend/state/viewSwitch.ts'
 import type { WebgpuView } from '../backend/state/view.ts'
 import { transparentCounts } from '../backend/state/transparentCounts.ts'
-import { destroyRetired } from '../../gpu/core/frameRetire.ts'
+import { destroyAllRetired, destroyRetired } from '../../gpu/core/frameRetire.ts'
 import { bounceState } from '../backend/state/bounce.ts'
 import { viewTargetBytes } from '../backend/state/gpu.ts'
 import { releaseIndirectWords } from '../../lighting/bounce/screen/indirectWords.ts'
@@ -161,7 +160,7 @@ function frameMetricsOf(rt: WebgpuPagesRuntime) {
 }
 
 /** The passes that make the image after the lighting resolve, released: the sampled lights, the
- *  screen-space tracing, the deferred resolve, every view's own passes (`disposeViewPasses`), the
+ *  deferred resolve, every view's own passes (`disposeViewPasses`), the
  *  guides, the particles, the frame difference and the atmosphere. */
 function disposeImagePasses(gpu: WebgpuPagesRuntime['gpu']) {
   if (gpu.device) {
@@ -169,7 +168,6 @@ function disposeImagePasses(gpu: WebgpuPagesRuntime['gpu']) {
     disposeSampledVolumes(gpu.device)
     disposeSampledHair(gpu.device)
   }
-  releaseScreenSpaceTracing(gpu)
   gpu.deferred?.dispose()
   disposeViewPasses(gpu)
   gpu.guides?.dispose()
@@ -285,8 +283,8 @@ export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
   disposeLighting(rt)
   const closing = gpu.cache?.dispose()
   gpu.cache = undefined
-  // The session submits nothing more: what it retired goes now, as after a frame's submit.
-  if (device) destroyRetired(device)
+  // The session submits nothing more: what it retired goes now, as after a frame's submit, whatever encoder was left open.
+  if (device) destroyAllRetired(device)
   rt.diag.drainTraceNow()
   return Promise.resolve(closing).then(() => {})
 }

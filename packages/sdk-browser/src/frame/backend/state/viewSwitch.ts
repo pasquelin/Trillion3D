@@ -8,6 +8,10 @@ import { disposeLightShafts } from '../../../modules/sky/lightShafts/frame.ts'
 import { disposeCloudView } from '../../../modules/sky/clouds/viewTargets.ts'
 import { disposeHairView } from '../../../hair/frame.ts'
 import { releaseSampledLightsView } from '../../../lighting/manyLightsSampled/release.ts'
+import { releaseFirstPersonSelfShadow } from '../../../lighting/shadows/firstPerson/selfShadow.ts'
+import { releaseScreenSpaceTracing } from '../../../lighting/screenSpaceTracing/stage.ts'
+import { releaseShadowDenoise } from '../../../lighting/shadows/denoise/shadowDenoiseFrame.ts'
+import { releaseRayTracedLocal } from '../../../lighting/shadows/rayTraced/rayTracedLocal.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import {
   VIEW_GPU_KEYS,
@@ -67,7 +71,8 @@ export function onView<T, A = undefined>(
 
 /** The passes every view makes its image with, released: the temporal pass, the velocity stage,
  *  the exposure, the finishing, the effects, the screen probes, the ambient occlusion, the
- *  subsurface scattering, the sampled lighting's state of the view, and the view's fog, translucency, light shafts, clouds and hair. */
+ *  subsurface scattering, the screen-space traces, the shadow denoiser, the traced lights, the first-person self shadow, the sampled lighting's state of the view, and the view's fog,
+ *  translucency, light shafts, clouds and hair. */
 export function disposeViewPasses(gpu: WebgpuView['gpu']) {
   gpu.temporal?.dispose()
   gpu.velocity?.dispose()
@@ -79,8 +84,13 @@ export function disposeViewPasses(gpu: WebgpuView['gpu']) {
   gpu.subsurface?.dispose()
   gpu.temporal = gpu.velocity = gpu.exposure = undefined
   gpu.finish = gpu.effects = gpu.screenProbes = gpu.ambientOcclusion = gpu.subsurface = undefined
+  // What the commands of this image already encoded may still name is retired, never destroyed at once, on the device each state holds.
+  releaseScreenSpaceTracing(gpu)
   // What the sampled lighting kept for the view (its light power and previous ranks, its kits' state, its volumes) is retired, never destroyed at once.
   releaseSampledLightsView(gpu)
+  releaseShadowDenoise(gpu)
+  releaseRayTracedLocal(gpu)
+  releaseFirstPersonSelfShadow(gpu)
   disposeFogVolume(gpu)
   disposeTranslucencyVolume(gpu)
   disposeTranslucencyGi(gpu)

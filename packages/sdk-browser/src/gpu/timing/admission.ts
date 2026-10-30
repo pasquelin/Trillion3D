@@ -13,8 +13,12 @@ import { QUERY_SET_SIZE } from './querySetSize.ts'
 /** The encoder of one submission of image `frame`: the device's own when the image is not sampled
  *  (disposed, unsupported, off the cadence, readbacks busy), the instrumented one when it is: every
  *  submission of a sampled image is a part, however many the image has. Opens the image on its first submission. */
-export function createTimedEncoder(state: TimingState, frame: number): GPUCommandEncoder {
-  const encoder = state.device.createCommandEncoder()
+export function createTimedEncoder(
+  state: TimingState,
+  frame: number,
+  label?: string,
+): GPUCommandEncoder {
+  const encoder = state.device.createCommandEncoder({ label })
   if (state.disposed) {
     state.skippedFrames.disposed++
     return encoder

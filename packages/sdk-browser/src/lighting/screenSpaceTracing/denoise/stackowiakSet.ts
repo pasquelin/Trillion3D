@@ -1,3 +1,5 @@
+import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+
 /** The 56 sets of four sample offsets of the quad-shared stochastic kernel, in texels from the quad's centre: a set a row, the four offsets of
  *  the quad's four pixels in the order of their track (left to right, then top to bottom), x then y. Each set holds the offsets that
  *  follow the previous ones' by increasing distance, the first set the quad's own four pixels. */
@@ -30,3 +32,10 @@ export const STACKOWIAK_OFFSETS: readonly number[] = [
   -5.5, -2.5, -7.5, 2.5, 7.5, -7.5, -3.5, -7.5, -4.5, -6.5, -4.5, 7.5, -3.5, 5.5, 6.5, -5.5, -6.5,
   -4.5, -6.5, 7.5, 2.5, -7.5, 3.5, 4.5, -6.5, 7.5, -4.5,
 ]
+
+/** The offsets as a WGSL private array (`stackowiak`, a set a row of four). */
+export const STACKOWIAK_WGSL = wgslBlock(
+  'STACKOWIAK_WGSL',
+  [],
+  `var<private> stackowiak:array<vec2f,${STACKOWIAK_SET_COUNT * 4}>=array<vec2f,${STACKOWIAK_SET_COUNT * 4}>(${Array.from({ length: STACKOWIAK_SET_COUNT * 4 }, (_, i) => `vec2f(${STACKOWIAK_OFFSETS[2 * i]},${STACKOWIAK_OFFSETS[2 * i + 1]})`).join(',')});`,
+)

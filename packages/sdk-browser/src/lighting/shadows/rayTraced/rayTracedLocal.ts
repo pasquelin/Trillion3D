@@ -1,151 +1,184 @@
 import type { ShadowValues } from '../../../../../sdk-core/src/contracts/shadowOptions.ts'
 import type { WebgpuPagesRuntime } from '../../../frame/backend/runtime.ts'
-import { retire } from '../../../gpu/core/frameRetire.ts'
-import { oncePerDevice, oncePerDeviceKey } from '../../../gpu/core/oncePerDevice.ts'
-import { arrayView, layerView } from '../../../gpu/core/textureViews.ts'
-import { CAPSULE_BLENDS } from '../../capsuleShadows/frame.ts'
-import { fullscreenDescriptor, preparedPipeline } from '../../deferred/fullscreen.ts'
 import type { SceneRays } from '../../surfaceCache/lighting/surfaceLighting.ts'
-import type { SelfShadowTargetFormat } from '../firstPerson/selfShadowLocal.ts'
+import type { EngineCamera } from '../../../camera/engineCamera.ts'
+import {
+  encodeShadowDenoise,
+  releaseShadowDenoise,
+  trimShadowDenoise,
+  type ShadowDenoiseJob,
+} from '../denoise/shadowDenoiseFrame.ts'
+import { idleTooLong } from '../../../gpu/core/idleKeep.ts'
+import { localMaskMerge, type LocalMaskFormat, type LocalMaskLayers } from '../localMaskMerge.ts'
 import type { SelfShadowRect } from '../firstPerson/selfShadowWindow.ts'
-import { runRayTracedShadow } from './rayTracedKit.ts'
-import { RAY_TRACED_MERGE_ENTRY as MERGE_ENTRY, rayTracedMergeProgram } from './rayTracedWgsl.ts'
+import { lastTracedAt, releaseRayTracedGroups, runRayTracedShadow } from './rayTracedKit.ts'
+import { RAY_TRACED_MERGE_ENTRY, rayTracedMergeProgram } from './rayTracedWgsl.ts'
 
-/** One local light to give a ray traced shadow: its rank in the light buffer, the rays a pixel casts to it, and the mask (a view of the format) it is taken into. */
+/** One light to give a ray traced shadow: its rank in the light buffer, the rays a pixel casts to it, and, for a local light, the mask (a view of the format) it is taken into; `denoise` names its key where its shadow is denoised. */
 export interface LocalRayTraced {
   rank: number
   samples: number
   target: GPUTextureView
-  format: SelfShadowTargetFormat
+  format: LocalMaskFormat
+  denoise?: string | number
+  /** The pixels the light reaches (the first column and row, one past the last); the call's scissor where absent. */
+  rect?: SelfShadowRect
 }
 
-/** The merge's bind group layout and shader module. */
-const mergeOf = oncePerDevice((device: GPUDevice) => ({
-  layout: device.createBindGroupLayout({
-    label: 'Trillion3D ray traced shadow merge',
-    entries: [
-      {
-        binding: 0,
-        visibility: GPUShaderStage.FRAGMENT,
-        texture: { sampleType: 'unfilterable-float' },
-      },
-    ],
-  }),
-  module: device.createShaderModule({
-    label: 'Trillion3D ray traced shadow merge',
-    code: rayTracedMergeProgram(),
-  }),
-}))
-
-/** The merge pipeline into a mask of `format`: the minimum of what the mask holds and the shadow's square root (`CAPSULE_BLENDS.attenuation`), the masks' keeping. */
-const mergePipelineOf = oncePerDeviceKey((device: GPUDevice, format: SelfShadowTargetFormat) => {
-  const { layout, module } = mergeOf(device)
-  return preparedPipeline(
-    device,
-    fullscreenDescriptor(
-      device,
-      module,
-      layout,
-      MERGE_ENTRY,
-      [{ format, blend: CAPSULE_BLENDS.attenuation }],
-      `Trillion3D ray traced shadow merge ${format}`,
-    ),
-  ).ask()
+const merger = localMaskMerge({
+  label: 'Trillion3D ray traced shadow merge',
+  passLabel: 'vsm.rayTracedShadow.merge',
+  entry: RAY_TRACED_MERGE_ENTRY,
+  module: (device) =>
+    device.createShaderModule({
+      label: 'Trillion3D ray traced shadow merge',
+      code: rayTracedMergeProgram(),
+    }),
 })
 
-/** The local lights' shadows at the drawn size, a layer a light: the storage the kernel writes and a view of each layer the merge reads. */
-type LocalOut = {
-  size: string
-  capacity: number
-  texture: GPUTexture
-  storage: GPUTextureView
-  layers: GPUTextureView[]
-}
-const outs = new WeakMap<GPUDevice, LocalOut>()
-
-/** The local lights' texture let go (retired). */
-export function releaseRayTracedLocal(device: GPUDevice) {
-  const old = outs.get(device)
-  if (!old) return
-  outs.delete(device)
-  retire(device, { destroy: () => old.texture.destroy() })
+/** A view's textures of the traced lights let go (retired). */
+export function releaseRayTracedLocal(gpu: { viewKey?: object }) {
+  releaseRayTracedGroups(gpu)
+  merger.release(gpu)
 }
 
-function localOutFor(device: GPUDevice, size: readonly [number, number], count: number) {
-  const key = size.join('x')
-  const held = outs.get(device)
-  if (held?.size === key && held.capacity >= count) return held
-  count = Math.max(count, held?.size === key ? held.capacity : 0)
-  releaseRayTracedLocal(device)
-  const texture = device.createTexture({
-    label: 'Trillion3D ray traced shadow local lights',
-    size: [size[0], size[1], count],
-    format: 'r32float',
-    usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
-  })
-  const made = {
-    size: key,
-    capacity: count,
-    texture,
-    storage: arrayView(texture),
-    layers: Array.from({ length: count }, (_, layer) => layerView(texture, layer)),
+/** What a view lets go of while it traces nothing, on the one stamp of its last traced image: the denoiser's idle histories and, once it has traced nothing for `IDLE_KEEP_IMAGES` images, the lights' textures and the denoiser's state. A one-image gap lets go of nothing. */
+export function trimRayTraced(gpu: { viewKey?: object }, frame: number) {
+  const last = lastTracedAt(gpu)
+  // A view that never traced (or lost its stamp with its rays) has no use for a denoiser state.
+  if (last === undefined) releaseShadowDenoise(gpu)
+  else if (idleTooLong(frame, last)) {
+    releaseRayTracedLocal(gpu)
+    releaseShadowDenoise(gpu)
+  } else {
+    trimShadowDenoise(gpu, frame)
+    merger.keep(gpu, frame)
   }
-  outs.set(device, made)
-  return made
 }
 
-const attachment: GPURenderPassColorAttachment = {
-  view: undefined as never,
-  loadOp: 'load',
-  storeOp: 'store',
-}
-const MERGE_PASS: GPURenderPassDescriptor = {
-  label: 'vsm.rayTracedShadow.merge',
-  colorAttachments: [attachment],
+/** A sun to give a denoised ray traced shadow: its rank, the rays a pixel casts to it, its key and the layer of the suns' mask it is taken into. */
+export interface SunRayTraced {
+  rank: number
+  samples: number
+  key: string | number
+  mask: GPUTextureView
+  slot: number
 }
 
 /**
- * THE RAY TRACED SHADOW OF LOCAL LIGHTS: for each of `jobs` the kernel (`runRayTracedShadow`) casts its rays over `scissor` (first column and row, one past the
- * last; the drawn image by default) into a layer of the lights' texture, and the layer is taken into the light's mask by the minimum over the same rectangle,
- * as the square root the masks keep. Every other shadow of the light stands.
+ * One light's trace into layer `k` of `out`: over `rect` (the drawn image by default) into the layer's visibility, with a `denoise` key with the blockers'
+ * distances beside it, the job queued in `queue` for the denoiser over the same `rect` (`denoise.sun`: the layer of the suns' mask its result is taken into). Whether the kernel ran.
  */
-export function encodeLocalRayTraced(
+function traceInto(
   rt: WebgpuPagesRuntime,
   encoder: GPUCommandEncoder,
   settings: ShadowValues,
   rays: SceneRays,
+  views: readonly GPUTextureView[],
+  out: LocalMaskLayers,
+  k: number,
+  light: { rank: number; samples: number },
+  rect: SelfShadowRect | undefined,
+  queue: ShadowDenoiseJob[],
+  denoise: { key: string | number | undefined; sun?: ShadowDenoiseJob['sun'] },
+) {
+  const ran = runRayTracedShadow(
+    rt,
+    encoder,
+    settings,
+    rays,
+    {
+      rank: light.rank,
+      samples: light.samples,
+      output: out.storage,
+      hits: denoise.key !== undefined ? out.hits?.storage : undefined,
+      layerBase: k,
+      rect,
+    },
+    views,
+  )
+  if (ran && denoise.key !== undefined)
+    queue.push({
+      key: denoise.key,
+      rank: light.rank,
+      rect,
+      visibility: out.layers[k]!,
+      hits: out.hits!.layers[k]!,
+      sun: denoise.sun,
+    })
+  return ran
+}
+
+/**
+ * THE RAY TRACED SHADOW OF LOCAL LIGHTS: for each of `jobs` the kernel (`runRayTracedShadow`) casts its rays over the light's own `rect`, or `scissor` (first column and row, one past the
+ * last; the drawn image by default) into a layer of the lights' texture; a light that is denoised (`denoise`) is traced with its blocker distances and denoised over the same scissor, its screen rect
+ * (`encodeShadowDenoise`). The layer is taken into the light's mask by the minimum over the scissor, as the square root the masks keep. Every other shadow of the light stands.
+ */
+export function encodeLocalRayTraced(
+  rt: WebgpuPagesRuntime,
+  encoder: GPUCommandEncoder,
+  cam: EngineCamera,
+  settings: ShadowValues,
+  rays: SceneRays,
+  canDenoise: boolean,
   jobs: readonly LocalRayTraced[],
   views: readonly GPUTextureView[],
   scissor?: SelfShadowRect,
 ) {
   const { device } = rt.gpu
-  if (!device || !jobs.length) return
+  if (!device) return
+  if (!jobs.length) return
   const [x0, y0, x1, y1] = scissor ?? [0, 0, rt.gpu.targetSize[0], rt.gpu.targetSize[1]]
-  const out = localOutFor(device, rt.gpu.allocatedSize, jobs.length)
-  const { layout } = mergeOf(device)
+  const out = merger.layersFor(
+    rt.gpu,
+    device,
+    rt.gpu.allocatedSize,
+    jobs.length,
+    canDenoise && jobs.some((j) => j.denoise !== undefined),
+    rt.run.frame,
+  )
+  const whole = [x0, y0, x1, y1] as const
+  const denoised: ShadowDenoiseJob[] = []
+  const traced = jobs.map((job, k) =>
+    traceInto(rt, encoder, settings, rays, views, out, k, job, job.rect ?? whole, denoised, {
+      key: canDenoise ? job.denoise : undefined,
+    }),
+  )
+  encodeShadowDenoise(rt, encoder, cam, settings, denoised)
   jobs.forEach((job, k) => {
-    const traced = runRayTracedShadow(
-      rt,
-      encoder,
-      settings,
-      rays,
-      { ...job, output: out.storage, layerBase: k, rect: [x0, y0, x1, y1] },
-      views,
-    )
-    const pipeline = traced && mergePipelineOf(device, job.format).get()
-    if (!pipeline) return
-    attachment.view = job.target
-    const pass = encoder.beginRenderPass(MERGE_PASS)
-    pass.setPipeline(pipeline)
-    pass.setBindGroup(
-      0,
-      device.createBindGroup({
-        layout,
-        entries: [{ binding: 0, resource: out.layers[k]! }],
-      }),
-    )
-    pass.setScissorRect(x0, y0, x1 - x0, y1 - y0)
-    pass.draw(3)
-    pass.end()
+    if (traced[k])
+      merger.merge(device, encoder, job.format, job.target, out.layers[k]!, job.rect ?? whole)
   })
+}
+
+/** The suns' ray traced shadow that is denoised: traced whole into scratch layers, denoised, and taken into their layers of the suns' mask by the minimum. */
+export function encodeSunRayTraced(
+  rt: WebgpuPagesRuntime,
+  encoder: GPUCommandEncoder,
+  cam: EngineCamera,
+  settings: ShadowValues,
+  rays: SceneRays,
+  suns: readonly SunRayTraced[],
+  views: readonly GPUTextureView[],
+) {
+  const { device } = rt.gpu
+  if (!device) return
+  if (!suns.length) return
+  const out = merger.layersFor(
+    rt.gpu,
+    device,
+    rt.gpu.allocatedSize,
+    suns.length,
+    true,
+    rt.run.frame,
+  )
+  const denoised: ShadowDenoiseJob[] = []
+  suns.forEach((sun, k) =>
+    traceInto(rt, encoder, settings, rays, views, out, k, sun, undefined, denoised, {
+      key: sun.key,
+      sun: { mask: sun.mask, slot: sun.slot },
+    }),
+  )
+  // The suns come here only where the denoiser can run (`canDenoise`), so each traced layer is denoised and taken into the mask: no second trace.
+  encodeShadowDenoise(rt, encoder, cam, settings, denoised)
 }

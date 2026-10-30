@@ -81,6 +81,7 @@ function writeFrame(
   frame.cardDepthBias = sceneRaysOf(rt.surfaceCache?.lighting, run.frame)?.depthBias
   frame.settings = settings
   stageReflectionImage(reflection, frame)
+  reflection.stagedFrame = run.frame
 }
 
 /**

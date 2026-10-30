@@ -3,6 +3,7 @@ import {
   integerSetting as integer,
   INT32_MAX,
   nonNegativeSetting as nonNegative,
+  numberSetting as number,
   rulesOf,
   type SettingValues,
 } from './settingRules.ts'
@@ -24,7 +25,18 @@ import {
  * - `rayTracedShadowsAvoidSelfIntersectionTraceDistance` (1 cm): the length of the first, short ray that leaves the pixel's own surface
  *   behind (it culls back faces); 0 casts no such ray;
  * - `rayTracedShadowsTwoSidedGeometry` (on): the geometry casts from both faces; off, back faces are passed;
- * - `rayTracedShadowsAcceptFirstHit` (on): a shadow ray ends at the first primitive it meets, not the nearest.
+ * - `rayTracedShadowsAcceptFirstHit` (on): a shadow ray ends at the first primitive it meets, not the nearest;
+ * - `rayTracedShadowsLODTransitionStart` (4000 cm) and `rayTracedShadowsLODTransitionEnd` (5000 cm): the distance from the eye, in
+ *   centimetres, where the shadow of a subsurface or hair pixel starts to take the light's transmission through it in place of its occlusion,
+ *   and where it takes only that;
+ * - `rayTracedShadowsDirectionalLightTraceDistance` (10000 cm, from 1000 to 1000000): how far from a pixel a directional light's ray goes
+ *   back toward it, to measure the thickness of a subsurface or hair pixel;
+ * - `rayTracedShadowsDenoiser` (on): a light with a size has its ray-traced shadow denoised, the penumbra found from the distance to
+ *   the nearest occluder (the shadow denoiser: reconstruction, pre-convolution, temporal accumulation); off keeps the raw rays;
+ * - `rayTracedShadowsDenoiserReconstructionSamples` (8, from 1 to 56): the most samples of the denoiser's reconstruction;
+ * - `rayTracedShadowsDenoiserPreConvolution` (1, from 0 to 4): the pre-convolution passes after the reconstruction;
+ * - `rayTracedShadowsDenoiserTemporalAccumulation` (on): the denoised shadow is accumulated over the images;
+ * - `rayTracedShadowsDenoiserHistoryConvolutionSamples` (1, from 1 to 56): the samples of the convolution of the accumulated history; 1 runs none.
  */
 export const RAY_TRACED_SHADOW_RULES = /* @__PURE__ */ (() =>
   [
@@ -38,6 +50,14 @@ export const RAY_TRACED_SHADOW_RULES = /* @__PURE__ */ (() =>
     nonNegative('rayTracedShadowsAvoidSelfIntersectionTraceDistance', 1),
     flag('rayTracedShadowsTwoSidedGeometry', true),
     flag('rayTracedShadowsAcceptFirstHit', true),
+    nonNegative('rayTracedShadowsLODTransitionStart', 4000),
+    nonNegative('rayTracedShadowsLODTransitionEnd', 5000),
+    number('rayTracedShadowsDirectionalLightTraceDistance', 10000, [1000, 1000000]),
+    flag('rayTracedShadowsDenoiser', true),
+    integer('rayTracedShadowsDenoiserReconstructionSamples', 8, [1, 56]),
+    integer('rayTracedShadowsDenoiserPreConvolution', 1, [0, 4]),
+    flag('rayTracedShadowsDenoiserTemporalAccumulation', true),
+    integer('rayTracedShadowsDenoiserHistoryConvolutionSamples', 1, [1, 56]),
   ] as const)()
 
 /** The same rules by their field. */

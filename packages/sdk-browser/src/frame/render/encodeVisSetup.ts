@@ -15,7 +15,7 @@ import { writeWebgpuVisibilityUniforms } from '../../visibility/passes/uniforms.
 import { binningSteps, writeBinOptions } from '../../visibility/passes/binning.ts'
 import { RASTER_PASS_MAIN, RASTER_PASS_POST } from '../../visibility/raster/contract.ts'
 import { skyLightSubmitted } from './encodeSkyLight.ts'
-import { createRenderEncoder, submitColorCopy } from './encoder.ts'
+import { submitColorCopy, withRenderEncoder } from './encoder.ts'
 import { encodeSurfaceLighting } from './surfaceLighting.ts'
 import type { GpuRasterInput } from '../../visibility/raster/types.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
@@ -51,12 +51,13 @@ export function encodeEmptySurfaces(
   const { gpu, run } = rt
   const [width, height] = gpu.targetSize
   if (!gpu.surfaces) throw new Error('SURFACE_UNAVAILABLE')
-  const encoder = createRenderEncoder(rt, device)
-  emptyDepth.view = depthTarget
-  EMPTY.colorAttachments = surfaceColorAttachments(gpu.surfaces)
-  encoder.beginRenderPass(EMPTY).end()
-  const presented = encodeSurfaceLighting(rt, device, encoder, cam)
-  submitColorCopy(rt, device, encoder, height, width, presented)
+  withRenderEncoder(rt, device, (encoder) => {
+    emptyDepth.view = depthTarget
+    EMPTY.colorAttachments = surfaceColorAttachments(gpu.surfaces!)
+    encoder.beginRenderPass(EMPTY).end()
+    const presented = encodeSurfaceLighting(rt, device, encoder, cam)
+    submitColorCopy(rt, device, encoder, height, width, presented)
+  })
   // A captured scene that is due is drawn between this image and the next.
   skyLightSubmitted(rt)
   return run.blendSubmittedTriangles

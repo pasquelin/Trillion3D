@@ -9,9 +9,12 @@ import {
   computeUniformEntry,
 } from '../../../gpu/core/computeBindings.ts'
 import { askedComputeStage } from '../../../gpu/core/computeStages.ts'
-import { retire } from '../../../gpu/core/frameRetire.ts'
+import { perViewRuns } from '../../../gpu/core/encoderUniforms.ts'
+import { perViewLayers, type LayerRoom } from '../../../gpu/core/layerRoom.ts'
 import { oncePerDevice } from '../../../gpu/core/oncePerDevice.ts'
 import { arrayView } from '../../../gpu/core/textureViews.ts'
+import { viewKey } from '../../../frame/backend/state/viewKey.ts'
+import { groupFor } from '../../../gpu/bind/cachedGroup.ts'
 import { reflectionGroup, reflectionLightView } from '../../reflections/group.ts'
 import { reflectionLayout } from '../../reflections/reflectionPipelines.ts'
 import { selfShadowWindows, type SelfShadowRect } from './selfShadowWindow.ts'
@@ -36,8 +39,7 @@ const LIGHTS_AT = 24
 /** The least a depth threshold may be, as the reference's: the weights divide by it. */
 const SMALL_NUMBER = 1e-8
 
-/** The stages of the four kernels for a march that gives up on occupancy or never, the group 0 layout they share, and the uniforms a run is given:
- *  one a run of the image, since the runs of an image are encoded before any is submitted. */
+/** The stages of the four kernels for a march that gives up on occupancy or never, and the group 0 layout they share. */
 const kitOf = oncePerDevice((device: GPUDevice) => {
   const entries = [
     computeUniformEntry(B.params),
@@ -57,9 +59,6 @@ const kitOf = oncePerDevice((device: GPUDevice) => {
   const stages = new Map<string, ReturnType<typeof askedComputeStage>>()
   return {
     layout,
-    uniforms: { frame: -1, used: 0, buffers: [] as GPUBuffer[] },
-    /** What the encoder's first run downsampled: the later runs of it (other lights, other windows) read it as it is. */
-    downsampled: undefined as { encoder: WeakRef<GPUCommandEncoder>; key: unknown[] } | undefined,
     words: new ArrayBuffer(PARAM_WORDS * 4),
     stage(entry: SelfShadowEntry, polyfill: boolean, failed: (error: unknown) => void) {
       const key = `${entry}|${polyfill}`
@@ -80,61 +79,58 @@ const kitOf = oncePerDevice((device: GPUDevice) => {
   }
 })
 
-/** The half-resolution grid's textures a device holds: their size and layers, the textures and their views. */
-type Grid = { size: string; layers: number; list: GPUTexture[]; views: GPUTextureView[] }
-const grids = new WeakMap<GPUDevice, Grid>()
+/** The half-resolution grid a view holds: the textures and their views, and what the encoder's first run downsampled into it (the later runs of that encoder, other lights and other windows, read it as it is). */
+type Grid = LayerRoom & {
+  list: GPUTexture[]
+  views: GPUTextureView[]
+  downsampled?: { encoder: WeakRef<GPUCommandEncoder>; key: unknown[] }
+}
+/** The grid of each view: views of different sizes never remake one another's, and a view's release frees only its own. */
+const grids = perViewLayers<Grid>((old) => old.list.forEach((t) => t.destroy()))
 
-/** The grid's textures let go (retired, as a size change retires them): nothing is held for a feature unused. */
-export function releaseSelfShadowGrid(device: GPUDevice) {
-  const old = grids.get(device)
-  if (!old) return
-  grids.delete(device)
-  retire(device, { destroy: () => old.list.forEach((t) => t.destroy()) })
+/** The view's half-resolution grid (made at `low` with a layer a light, for the most lights asked in the keeping window, as the local masks are). */
+export function gridFor(
+  gpu: { viewKey?: object },
+  device: GPUDevice,
+  low: readonly [number, number],
+  lights: number,
+  frame: number,
+) {
+  return grids.layers(viewKey(gpu), device, low.join('x'), lights, frame, (layers) => {
+    const make = (label: string, format: GPUTextureFormat, count: number) =>
+      device.createTexture({
+        label: `Trillion3D first person self shadow ${label}`,
+        size: [low[0], low[1], count],
+        format,
+        usage: GPUTextureUsage.STORAGE_BINDING,
+      })
+    const list = [
+      make('inputs', 'r32uint', 1),
+      make('depth', 'r32float', 1),
+      make('shadow', 'r32float', layers),
+      make('filtered', 'r32float', layers),
+    ]
+    const views = [
+      list[0]!.createView(),
+      list[1]!.createView(),
+      arrayView(list[2]!),
+      arrayView(list[3]!),
+    ]
+    return { list, views }
+  })
 }
 
-/** The textures of the half-resolution grid (made at `low` with a layer a light, retired when the size or the lights change) and their views. */
-function texturesFor(device: GPUDevice, low: readonly [number, number], lights: number) {
-  const size = low.join('x')
-  const old = grids.get(device)
-  // Made for the most lights asked at this size, so that a sun run and a local lights' run do not remake it by turns.
-  if (old?.size === size && old.layers >= lights) return old.views
-  lights = Math.max(lights, old?.size === size ? old.layers : 0)
-  releaseSelfShadowGrid(device)
-  const make = (label: string, format: GPUTextureFormat, layers: number) =>
-    device.createTexture({
-      label: `Trillion3D first person self shadow ${label}`,
-      size: [low[0], low[1], layers],
-      format,
-      usage: GPUTextureUsage.STORAGE_BINDING,
-    })
-  const list = [
-    make('inputs', 'r32uint', 1),
-    make('depth', 'r32float', 1),
-    make('shadow', 'r32float', lights),
-    make('filtered', 'r32float', lights),
-  ]
-  const views = [
-    list[0]!.createView(),
-    list[1]!.createView(),
-    arrayView(list[2]!),
-    arrayView(list[3]!),
-  ]
-  grids.set(device, { size, layers: lights, list, views })
-  return views
-}
+/** Image `frame` is over: the grid's keeping window folds it where no run asked. */
+export const keepSelfShadowKit = (gpu: { viewKey?: object }, frame: number) =>
+  grids.keep(viewKey(gpu), frame)
 
-/** The uniform of the run the image is at: a buffer of the image's own, made when the image runs more than any before it. */
-function uniformFor(kit: ReturnType<typeof kitOf>, device: GPUDevice, frame: number) {
-  const { uniforms } = kit
-  if (uniforms.frame !== frame) {
-    uniforms.frame = frame
-    uniforms.used = 0
-  }
-  return (uniforms.buffers[uniforms.used] ??= device.createBuffer({
-    label: 'Trillion3D first person self shadow params',
-    size: PARAM_WORDS * 4,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  }))
+/** The uniforms and the bind groups of the runs of an encode, a pair a view (the runs of an image are encoded before any is submitted). */
+const runsOf = perViewRuns('Trillion3D first person self shadow params', PARAM_WORDS * 4)
+
+/** A view's grid (retired, as a size change retires it), bind groups and uniforms let go: nothing is held for a feature unused. */
+export function releaseSelfShadowKit(gpu: { viewKey?: object }) {
+  grids.release(viewKey(gpu))
+  runsOf.release(viewKey(gpu))
 }
 
 /** Writes `buffer`: the drawn size and the grid's, the lights, the mode, the occupancy and the trace's numbers. */
@@ -224,14 +220,21 @@ export function runSelfShadow(
   if (!trace || (!raw && !(downsample && blur && upsample))) return false
   const allocated = rt.gpu.allocatedSize
   const lowSize = [ceilDiv(size[0], 2), ceilDiv(size[1], 2)] as const
-  const grid = texturesFor(device, [ceilDiv(allocated[0], 2), ceilDiv(allocated[1], 2)], count)
+  const held = gridFor(
+    rt.gpu,
+    device,
+    [ceilDiv(allocated[0], 2), ceilDiv(allocated[1], 2)],
+    count,
+    rt.run.frame,
+  )
+  const grid = held.views
   const { low, full } = selfShadowWindows(job.rect ?? [0, 0, size[0], size[1]], lowSize)
-  const params = uniformFor(kit, device, rt.run.frame)
-  kit.uniforms.used++
+  const { uniforms, groups: cache } = runsOf.of(viewKey(rt.gpu), device)
+  const params = uniforms.next(device, encoder)
   writeParams(
     kit,
     device,
-    params,
+    params.buffer,
     settings,
     size,
     job.lights,
@@ -240,10 +243,14 @@ export function runSelfShadow(
     [low[2], low[3], full[2], full[3]],
     job.layerBase ?? 0,
   )
-  const group = device.createBindGroup({
-    layout: kit.layout,
-    entries: [
-      { binding: B.params, resource: { buffer: params } },
+  const group = groupFor(
+    device,
+    cache,
+    `run${params.index}`,
+    kit.layout,
+    [params.buffer, views[1], views[3], ...grid, job.output, lightBuffer],
+    () => [
+      { binding: B.params, resource: { buffer: params.buffer } },
       { binding: B.normals, resource: views[1]! },
       { binding: B.flags, resource: views[3]! },
       { binding: B.downInputs, resource: grid[0]! },
@@ -253,7 +260,7 @@ export function runSelfShadow(
       { binding: B.lightMask, resource: job.output },
       { binding: B.lights, resource: { buffer: lightBuffer } },
     ],
-  })
+  )
   const reflection = reflectionGroup(rt.gpu.reflection, hiz, lightView, skyLightReadOf(rt))
   const groups = (width: number, height: number) =>
     [ceilDiv(width, SELF_SHADOW_GROUP), ceilDiv(height, SELF_SHADOW_GROUP)] as const
@@ -268,11 +275,11 @@ export function runSelfShadow(
   if (raw) run(trace, fullGroups, count)
   else {
     // What the downsample reads and writes, and the encoder it was encoded in: a later run of that encoder reads it as it is.
-    const key = [views[1], views[3], hiz, grid, lowSize[0], lowSize[1], rt.run.frame, mode]
-    const held = kit.downsampled
-    if (held?.encoder.deref() !== encoder || held.key.some((value, k) => value !== key[k])) {
+    const downKey = [views[1], views[3], hiz, grid, lowSize[0], lowSize[1], rt.run.frame, mode]
+    const done = held.downsampled
+    if (done?.encoder.deref() !== encoder || done.key.some((value, k) => value !== downKey[k])) {
       run(downsample!, groups(...lowSize), 1)
-      kit.downsampled = { encoder: new WeakRef(encoder), key }
+      held.downsampled = { encoder: new WeakRef(encoder), key: downKey }
     }
     const lowGroups = groups(low[2] - low[0], low[3] - low[1])
     run(trace, lowGroups, count)

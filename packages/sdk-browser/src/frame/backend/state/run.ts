@@ -33,6 +33,8 @@ export interface WebgpuRunState extends WebgpuBudgetState {
   postHidden: number
   frame: number
   imageRevision: number
+  /** The timing samples closed so far: each closed image, abandoned or waiting ones included, takes the next number, whatever `imageRevision` is. */
+  timedSamples: number
   diagnostic: DiagnosticMode
   diagnosticPixelError: number
   lastCamera: ViewCamera | undefined

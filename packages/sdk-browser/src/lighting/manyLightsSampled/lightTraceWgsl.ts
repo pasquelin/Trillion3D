@@ -13,16 +13,8 @@
  * where nothing is shadowed, forcing it visible would leak light where something is).
  */
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import {
-  coneSolidAngle,
-  sampleCone,
-  sampleConeLocal,
-} from '../../../../math/src/wgsl/coneSampling.ts'
-import {
-  buildSphericalRect,
-  sampleSphericalRect,
-  sphericalRectInversePdf,
-} from '../../../../math/src/wgsl/sphericalRect.ts'
+import { coneSolidAngle, sampleCone } from '../../../../math/src/wgsl/coneSampling.ts'
+import { buildSphericalRect, sampleSphericalRect } from '../../../../math/src/wgsl/sphericalRect.ts'
 import { PI } from '../../../../math/src/wgsl/constants.ts'
 import { DIRECT_LIGHT_WGSL } from '../direct/lightWgsl.ts'
 import { lightTraits } from '../direct/lightReachWgsl.ts'
@@ -35,20 +27,10 @@ const SQRT_ONE_MINUS_WGSL = wgslBlock(
   `fn sqrtOneMinus(x:f32)->f32{return select(sqrt(1.0-x),1.0-x*(0.5+x*0.125),x<0.01);}`,
 )
 
-export const LIGHT_TRACE_WGSL = wgslBlock(
-  'SAMPLED_LIGHT_TRACE_WGSL',
-  [
-    DIRECT_LIGHT_WGSL,
-    lightTraits,
-    buildSphericalRect,
-    sampleSphericalRect,
-    sphericalRectInversePdf,
-    coneSolidAngle,
-    sampleConeLocal,
-    sampleCone,
-    SQRT_ONE_MINUS_WGSL,
-    PI,
-  ],
+/** A direction toward a tube (a capsule: a line segment and a radius) from a point, the one sampling every pass that traces a tube light shares: `capsuleTest`, the distance to the capsule along a ray, and `sampleCapsule`, a direction over the smaller of the rectangle and the cone that bound it. */
+export const LIGHT_CAPSULE_WGSL = wgslBlock(
+  'SAMPLED_LIGHT_CAPSULE_WGSL',
+  [buildSphericalRect, sampleSphericalRect, coneSolidAngle, sampleCone, SQRT_ONE_MINUS_WGSL],
   `/** The distance to a capsule of axis 'axis', radius squared 'r2' and length 'len' centred at 'centre' along the ray 'rd' (approximate), negative on a miss. */
 fn capsuleTest(rd:vec3f,centre:vec3f,axis:vec3f,r2:f32,len:f32)->f32{
  let b=dot(rd,axis);
@@ -100,8 +82,21 @@ fn sampleCapsule(centre:vec3f,axis:vec3f,radiusIn:f32,len:f32,e:vec2f)->vec4f{
   else{direction=sampleSphericalRect(e,rect).direction;}
  }
  return vec4f(direction,capsuleTest(direction,centre,axis,r2,len));
-}
-fn lightSampleTrace(rank:u32,P:vec3f,uv:vec2f)->vec4f{
+}`,
+)
+
+export const LIGHT_TRACE_WGSL = wgslBlock(
+  'SAMPLED_LIGHT_TRACE_WGSL',
+  [
+    DIRECT_LIGHT_WGSL,
+    lightTraits,
+    LIGHT_CAPSULE_WGSL,
+    buildSphericalRect,
+    sampleSphericalRect,
+    sampleCone,
+    PI,
+  ],
+  `fn lightSampleTrace(rank:u32,P:vec3f,uv:vec2f)->vec4f{
  let light=directLights.items[rank];
  let toLight=light.positionRange.xyz-P;
  let centre=vec4f(normalize(toLight),length(toLight));

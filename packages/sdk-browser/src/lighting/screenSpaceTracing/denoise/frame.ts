@@ -1,9 +1,12 @@
 import { ceilDiv } from '../../../../../math/src/scalar/integers.ts'
+import { clamp } from '../../../../../math/src/scalar/reals.ts'
 import { dispatchOn } from '../../../gpu/core/computeStages.ts'
 import { loadOnlyUsage } from '../../../gpu/core/loadOnlyTarget.ts'
+import { commitOnSubmit } from '../../../gpu/core/frameRetire.ts'
 import { SCREEN_SPACE_BINDINGS as B } from '../rayCastWgsl.ts'
 import { SCREEN_SPACE_GROUP_SIDE } from '../screenSpaceQuality.ts'
-import { groupFor, inputDeps, inputGroupEntries, type ScreenSpaceInputs } from '../frame.ts'
+import { groupFor, type GroupCache } from '../../../gpu/bind/cachedGroup.ts'
+import { inputDeps, inputGroupEntries, type ScreenSpaceInputs } from '../frame.ts'
 import {
   DENOISE_BINDINGS as D,
   DENOISE_PARAMS_BYTES,
@@ -76,7 +79,7 @@ export function createDenoiseSignal(
     ratio,
     params,
     words: new Float32Array(DENOISE_PARAMS_WORDS),
-    groups: new Map<string, { deps: readonly unknown[]; group: GPUBindGroup }>(),
+    groups: new Map() as GroupCache['groups'],
     set,
     /** The image the history was last accumulated in, and the count of accumulations (which history is read, which written). */
     lastFrame: -2,
@@ -107,10 +110,14 @@ export function createDenoiseMeta(device: GPUDevice, width: number, height: numb
     normals,
     depthViews: depth.map((t) => t.createView()),
     normalViews: normals.map((t) => t.createView()),
-    groups: new Map<string, { deps: readonly unknown[]; group: GPUBindGroup }>(),
-    /** The image whose surface was kept last, and the one kept before it. */
+    groups: new Map() as GroupCache['groups'],
+    /** The image whose surface was kept last (submitted), the one kept before it, and the slot that image wrote. */
     keptFrame: -2,
     previousKept: -2,
+    slot: 1,
+    /** The keep encoded and not submitted yet (`encodeDenoiseKeep`): it becomes the kept surface once its image is submitted, and an image dropped leaves the kept one as it was (the encoder is held weakly, so a dropped one is not kept alive). */
+    staged: undefined as
+      { frame: number; slot: number; encoder: WeakRef<GPUCommandEncoder> } | undefined,
     destroy() {
       for (const t of [...depth, ...normals]) t.destroy()
     },
@@ -134,8 +141,9 @@ export interface DenoiseRun {
 const holdsPrevious = (meta: DenoiseMeta, frame: number) =>
   meta.keptFrame === frame - 1 || (meta.keptFrame === frame && meta.previousKept === frame - 1)
 
-/** The kept surface a run compares with: the last image's slot, whose depth and normals are read. */
-const previousSlot = (frame: number) => (frame + 1) % 2
+/** The kept surface a run compares with: the slot of the last kept image (not the one `frame` writes), whose depth and normals are read. */
+export const previousSlot = (meta: DenoiseMeta, frame: number) =>
+  meta.keptFrame === frame ? 1 - meta.slot : meta.slot
 
 /** What the passes of a signal's denoiser share: the device and encoder, the signal's state, the trace's inputs, the image they bind and the run. */
 interface DenoisePassContext {
@@ -222,7 +230,7 @@ function encodeAccumulation(
   const history = state.lastFrame === run.frame - 1 && holdsPrevious(meta, run.frame)
   const read = state.set(`history${state.turn % 2}`)
   const write = state.set(`history${(state.turn + 1) % 2}`)
-  const slot = previousSlot(run.frame)
+  const slot = previousSlot(meta, run.frame)
   const result = encodeDenoisePass(c, {
     slot: ACCUMULATION_SLOT,
     label: 'accumulation',
@@ -262,10 +270,7 @@ export function encodeDenoise(
 ): DenoiseSource {
   const context: DenoisePassContext = { device, encoder, state, inputs, color, run }
   const layouts = denoiseLayouts(device)
-  const preConvolutions = Math.min(
-    Math.max(Math.trunc(run.preConvolution), 0),
-    MAX_PRE_CONVOLUTIONS,
-  )
+  const preConvolutions = clamp(Math.trunc(run.preConvolution), 0, MAX_PRE_CONVOLUTIONS)
   let current = encodeDenoisePass(context, {
     slot: 0,
     label: 'reconstruction',
@@ -290,7 +295,8 @@ export function encodeDenoise(
 }
 
 /**
- * THE SURFACE OF THIS IMAGE KEPT for the next image's accumulation, once an image: the first signal to ask writes it, the others find it done.
+ * THE SURFACE OF THIS IMAGE KEPT for the next image's accumulation, once an image: the first signal to ask writes it, the others find it done. It is written in the slot the last
+ * kept surface is not in, and counts as kept once the encoder that wrote it is submitted (`commitOnSubmit`): an image encoded then dropped keeps the surface it found.
  */
 export function encodeDenoiseKeep(
   device: GPUDevice,
@@ -302,8 +308,12 @@ export function encodeDenoiseKeep(
   width: number,
   height: number,
 ) {
-  if (meta.keptFrame === frame) return
-  const slot = frame % 2
+  if (
+    meta.keptFrame === frame ||
+    (meta.staged?.encoder.deref() === encoder && meta.staged.frame === frame)
+  )
+    return
+  const slot = 1 - meta.slot
   const group = groupFor(
     device,
     meta,
@@ -325,6 +335,13 @@ export function encodeDenoiseKeep(
     ceilDiv(height, SCREEN_SPACE_GROUP_SIDE),
   )
   pass.end()
-  meta.previousKept = meta.keptFrame
-  meta.keptFrame = frame
+  const staged = { frame, slot, encoder: new WeakRef(encoder) }
+  meta.staged = staged
+  // Kept only if this encoder is the one submitted: one dropped never commits (`commitOnSubmit`).
+  commitOnSubmit(encoder, () => {
+    if (meta.staged === staged) meta.staged = undefined
+    meta.previousKept = meta.keptFrame
+    meta.keptFrame = frame
+    meta.slot = slot
+  })
 }

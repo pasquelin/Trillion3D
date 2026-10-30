@@ -117,6 +117,8 @@ function reflectionImageCounters(depthView: GPUTextureView) {
     /** The number of the engine's image (`WebgpuRun.frame`) the lit image held was drawn at, and the view's explicit cut revision the last
      *  image saw (`ReflectionFrame.historyCut`). */
     litFrame: NEVER_SEEN,
+    /** The number of the engine's image the view (`ReflectionFrame`) was last staged at: the passes beside the traces read it only for that image. */
+    stagedFrame: NEVER_SEEN,
     revision: undefined as number | undefined,
     /** The reflections' turn (`ReflectionView.temporal`), advanced every image
      *  (`stageReflectionImage`). */

@@ -3,11 +3,12 @@ import type { WebgpuPagesRuntime } from '../../../frame/backend/runtime.ts'
 import { firstPersonBoundsOf } from '../../reflections/firstPersonBounds.ts'
 import type { VsmProjectionLight } from '../vsm/projection/projectionPass.ts'
 import {
-  releaseSelfShadowGrid,
+  keepSelfShadowKit,
+  releaseSelfShadowKit,
   runSelfShadow,
   selfShadowRecords as records,
 } from './selfShadowKit.ts'
-import { releaseLocalSelfShadow } from './selfShadowLocal.ts'
+import { keepLocalSelfShadow, releaseLocalSelfShadow } from './selfShadowLocal.ts'
 import { SELF_SHADOW_MAX_LIGHTS } from './selfShadowWgsl.ts'
 
 /** The sphere that holds the first-person objects (centre, radius), filled by `firstPersonBoundsOf`. */
@@ -29,11 +30,15 @@ export const firstPersonLocalSelfShadowOn = (rt: WebgpuPagesRuntime, shadows: Sh
   selfShadowOn(rt, shadows) && shadows.shadowFirstPersonSelfShadowLightTypes !== 0
 
 /** The textures the self shadow holds, let go (retired) while no light gives a self shadow: nothing is held for a feature unused. */
-export function releaseFirstPersonSelfShadow(rt: WebgpuPagesRuntime) {
-  const { device } = rt.gpu
-  if (!device) return
-  releaseSelfShadowGrid(device)
-  releaseLocalSelfShadow(device)
+export function releaseFirstPersonSelfShadow(gpu: { viewKey?: object }) {
+  releaseSelfShadowKit(gpu)
+  releaseLocalSelfShadow(gpu)
+}
+
+/** Once an image of the view: the keeping windows of the self shadow's layers fold the image where no light asked, so a run of images without an ask lets the layers go. */
+export function keepFirstPersonSelfShadow(gpu: { viewKey?: object }, frame: number) {
+  keepSelfShadowKit(gpu, frame)
+  keepLocalSelfShadow(gpu, frame)
 }
 
 /**

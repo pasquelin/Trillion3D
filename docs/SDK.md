@@ -3744,6 +3744,13 @@ world.shadows = { contactShadows: false }
 | `rayTracedShadowsAvoidSelfIntersectionTraceDistance` | `1`     | centimetres: the short first ray that leaves the pixel's own surface; `0` casts none |
 | `rayTracedShadowsTwoSidedGeometry`                   | `true`  | geometry casts from both faces |
 | `rayTracedShadowsAcceptFirstHit`                     | `true`  | a ray ends at the first primitive it meets |
+| `rayTracedShadowsLODTransitionStart` / `LODTransitionEnd` | `4000` / `5000` | centimetres from the eye: a subsurface or hair pixel's shadow goes over from its occlusion to the light that gets through it, from the first distance to the second |
+| `rayTracedShadowsDirectionalLightTraceDistance`      | `10000` | centimetres (1000 to 1000000): how far from a pixel a directional light's ray goes back toward it to measure the thickness of a subsurface or hair pixel (one value for the view's suns) |
+| `rayTracedShadowsDenoiser`                           | `true`  | a light with a size (a sun with an `angularRadius`, a lamp with an `emitterRadius`, a rectangle) has its ray-traced shadow denoised: its penumbra is found from the distance to the nearest blocker, reconstructed, pre-convolved and accumulated over the images |
+| `rayTracedShadowsDenoiserReconstructionSamples`      | `8`     | the most samples of the denoiser's reconstruction (1 to 56) |
+| `rayTracedShadowsDenoiserPreConvolution`             | `1`     | the pre-convolution passes after the reconstruction (0 to 4) |
+| `rayTracedShadowsDenoiserTemporalAccumulation`       | `true`  | the denoised shadow is accumulated over the images (a history a light) |
+| `rayTracedShadowsDenoiserHistoryConvolutionSamples`  | `1`     | the samples of the convolution of the accumulated history (1 to 56); `1` runs none |
 
 Each light names its own, as properties (also parameters of the light tool and fields of a saved scene), every kind of light's: `castRayTracedShadow` (`'useProjectSetting'`; `'disabled'` never, `'enabled'` always) and `rayTracedShadowSamplesPerPixel` (`1`, from 1). The rays go to a point of the light drawn by the solid angle it covers (a sun's disk, a lamp's sphere, a rectangle's face); the lighting keeps the scene trace for them whatever the device's hardware.
 
@@ -3756,6 +3763,14 @@ const light = world.addLight({ kind: 'spot', castRayTracedShadow: 'enabled', ray
 // Every light casts its shadow by rays, two rays a pixel; the sun keeps its maps.
 const world = await createWorld({ rayTracedShadows: true, rayTracedShadowsSamplesPerPixel: 2, rayTracedShadowsDirectionalLights: false })
 ```
+
+```js
+// A sun with a disk, its ray-traced penumbra denoised with a wider pre-convolution and no history; then the raw rays.
+const world = await createWorld({ rayTracedShadows: true, rayTracedShadowsDenoiserPreConvolution: 2, rayTracedShadowsDenoiserTemporalAccumulation: false })
+world.shadows = { rayTracedShadowsDenoiser: false }
+```
+
+The rays honour a light's lighting channels, a tube's capsule (not its centre), and let the back faces of the surfaces light goes through (an eye, a thin two-sided sheet, a subsurface-model pixel) be lit; the shadow of a subsurface or hair pixel takes the light that gets through its thickness. The subsurface profile's transmission keeps reading the shadow as its thickness.
 
 Two more options say what the rays meet and what they shade, one of an object and one of a material:
 

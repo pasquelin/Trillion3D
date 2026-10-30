@@ -26,6 +26,7 @@ function runCounters(
   | 'postHidden'
   | 'frame'
   | 'imageRevision'
+  | 'timedSamples'
   | 'diagnostic'
   | 'diagnosticPixelError'
   | 'lastCamera'
@@ -47,6 +48,7 @@ function runCounters(
     postHidden: 0,
     frame: 0,
     imageRevision: 0,
+    timedSamples: 0,
     diagnostic: 'beauty',
     diagnosticPixelError: 0,
     lastCamera: undefined,

@@ -1,7 +1,10 @@
 import { lightRayTraced } from '../../../../../sdk-core/src/contracts/rayTracedShadowOptions.ts'
 import type { ShadowValues } from '../../../../../sdk-core/src/contracts/shadowOptions.ts'
 import { contactShadowOfLight } from '../../../../../sdk-core/src/scene/light/lightContactShadow.ts'
-import type { SceneLight } from '../../../../../sdk-core/src/scene/light/contracts.ts'
+import {
+  LIGHT_SETTINGS,
+  type SceneLight,
+} from '../../../../../sdk-core/src/scene/light/contracts.ts'
 import type { WebgpuPagesRuntime } from '../../../frame/backend/runtime.ts'
 
 /**
@@ -28,4 +31,16 @@ export function rayTracedShadowsTraced(rt: WebgpuPagesRuntime) {
     if (light && rayTracedSamples(settings, light) > 0) return true
   }
   return false
+}
+
+/**
+ * Whether the ray-traced shadow of `light` is denoised (`rayTracedShadowsDenoiser`): a light with a size to blur by — a sun with an angular radius, a lamp with an emitter radius or length, a
+ * rectangle — has a penumbra; a point source casts a hard shadow and keeps its rays whole.
+ */
+export function rayTracedDenoised(settings: ShadowValues, light: SceneLight) {
+  if (!settings.rayTracedShadowsDenoiser) return false
+  if (light.kind === 'directional')
+    return (light.angularRadius ?? LIGHT_SETTINGS.sunAngularRadius) > 0
+  if (light.kind === 'rect') return true
+  return (light.emitterRadius ?? 0) > 0 || (light.emitterLength ?? 0) > 0
 }

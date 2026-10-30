@@ -23,3 +23,17 @@ test('a summary that fails reports its error and leaves the timer on, the next i
   assert.equal(samples[1].totalMs, 2)
   timing.dispose()
 })
+
+test('an image knows a part of it reached the queue only once that part is marked, and a new image starts unmarked', () => {
+  const { f, timing } = timer(1)
+  const part = timing.createEncoder(0)
+  assert.equal(timing.isSampled(part), true)
+  assert.equal(timing.hasSubmittedPart(), false)
+  timing.markSubmitted(f.device.createCommandEncoder())
+  assert.equal(timing.hasSubmittedPart(), false, 'an encoder of no image marks nothing')
+  timing.markSubmitted(part)
+  assert.equal(timing.hasSubmittedPart(), true)
+  timing.cancelUnsubmitted()
+  assert.equal(timing.hasSubmittedPart(), false)
+  timing.dispose()
+})

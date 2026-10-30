@@ -3,7 +3,14 @@ import { pumpResidentTiles } from '../prepare/lightResources.ts'
 import { warmWorldActors } from '../prepare/hlodWarm.ts'
 import { followTexturePressure, growWebgpuRootRegion } from '../io/memory.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
-import { createImagePart, sampleSubmitted } from './encoder.ts'
+import { dropSubmitted, runAll } from '../../gpu/core/frameRetire.ts'
+import {
+  abandonPart,
+  createImagePart,
+  sampleSubmitted,
+  settleTimedImage,
+  submitPart,
+} from './encoder.ts'
 
 /** The cut of the drawn view: the main one, or the view's own beside it on the same tables
  *  (`../../geometry/dag/aside.ts`), made at its first image. None for a scene without a cluster. */
@@ -76,16 +83,20 @@ export function dispatchCut(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) 
  * The send is the image's one submission, timed as any image's is (`createImagePart`, `sampleSubmitted`): a frame the initial
  * load draws as this has a duration, as the reference's profiler gives every frame its bounds. The roots' pass that precedes the cut is a part of
  * the same image (the encoder is held as the frame's while the cut encodes), and an image with nothing to send is opened for nothing:
- * dropped without a trace (`cancelUnused`).
+ * dropped without a trace (`cancelUnused`) — unless the roots' part already reached the queue: the image is then closed with it (`sampleSubmitted`).
  *
  * Returns false when the send fails, said here once per lost send: the image is skipped, and a
  * view drawn aside drops its cut (`gpuCut.ts`); only `device.lost` declares the device lost.
  */
 export function dispatchWaitingSelection(rt: WebgpuPagesRuntime) {
   const { run, gpu } = rt
+  let encoder: GPUCommandEncoder | undefined
+  let taken = false
+  // Whether the part reached `submitPart`, which settles it on every exit: only a part that never did is abandoned.
+  let sending = false
   try {
     // Its own command buffer, sent only when the cut encoded something into it.
-    const encoder = createImagePart(rt, gpu.device!)
+    encoder = createImagePart(rt, gpu.device!)
     // Held as the frame's while the cut encodes, so that the roots' pass it writes first joins this image (`rootPasses.ts`).
     rt.timing.frameEncoder = encoder
     const cut = cutOf(rt)!
@@ -96,13 +107,55 @@ export function dispatchWaitingSelection(rt: WebgpuPagesRuntime) {
       rt.timing.frameEncoder = undefined
     }
     if (settle) {
-      gpu.device!.queue.submit([encoder.finish()])
-      sampleSubmitted(rt, encoder, ...gpu.targetSize)
-      settle(true)
-    } else rt.timing.gpuTiming?.cancelUnused()
-    return true
+      // Settled whether the queue took it or not, and whether the submit threw (`frameRetire.ts`: `submitPart` settles its retirements on every exit): a taken image commits what its passes advanced.
+      try {
+        sending = true
+        taken = submitPart(rt, gpu.device!, encoder)
+        // The image closes with the parts that reached the queue; `submitPart` let go of this one if it did not, and cancelled the image if none did.
+        sampleSubmitted(rt, encoder, ...gpu.targetSize)
+      } finally {
+        settle(taken)
+      }
+    } else {
+      // Nothing to send: the encoder is dropped, or it would stay open and hold every resource retired meanwhile.
+      // A release that throws is reported, not a failed send.
+      // A part of the image the queue took (the roots' pass) is timed: the image closes with it, and is cancelled as unused only when no part reached the queue.
+      const unsent = encoder
+      const timer = rt.timing.gpuTiming
+      const partTaken = !!timer?.isSampled(unsent) && timer.hasSubmittedPart()
+      try {
+        runAll([
+          () => dropSubmitted(unsent),
+          () =>
+            partTaken
+              ? sampleSubmitted(rt, unsent, ...gpu.targetSize)
+              : rt.timing.gpuTiming?.cancelUnused(),
+        ])
+      } catch (error) {
+        rt.diag.diagnosticFailure('gpu-selection-release-failed', error)
+      }
+    }
+    // A part the queue did not take never ran: the view's aside cut did not run either (`gpuCut.ts` drops it).
+    return !settle || taken
   } catch (error) {
+    // A timed part that never reached `submitPart` is let go with its timer image (a release error is reported beside the failure); `submitPart` settles its own.
+    try {
+      if (encoder) {
+        const part = encoder
+        // Both run whatever the other threw. A send that threw inside `submitPart` is not reached either; `submitPart` settled its own part.
+        // A roots' part the queue took still closes the image, whether the send threw before or inside `submitPart`.
+        runAll([
+          () => {
+            if (!sending) abandonPart(rt, part)
+          },
+          () => settleTimedImage(rt, part, false, true),
+        ])
+      }
+    } catch (releaseError) {
+      rt.diag.diagnosticFailure('gpu-selection-release-failed', releaseError)
+    }
     rt.diag.diagnosticFailure('gpu-selection-dispatch-failed', error)
-    return false
+    // The part the queue took ran, whatever a later step threw: false only when it did not.
+    return taken
   }
 }

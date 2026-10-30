@@ -5,7 +5,6 @@ import type { ShadowValues } from '../../../../../../sdk-core/src/contracts/shad
 import {
   firstPersonLocalSelfShadowOn,
   firstPersonSelfShadowOn,
-  releaseFirstPersonSelfShadow,
 } from '../../firstPerson/selfShadow.ts'
 import {
   encodeLocalSelfShadows,
@@ -17,7 +16,7 @@ import type { VsmProjectionLight } from '../projection/projectionPass.ts'
 import { sunCount } from '../projection/projectionView.ts'
 import type { VsmFrame } from './vsmProject.ts'
 
-/** Which kinds of light give the first-person objects a self shadow this image; the textures of the feature let go when none does. */
+/** Which kinds of light give the first-person objects a self shadow this image. The textures of the feature are not let go here: their keeping windows (`keepFirstPersonSelfShadow`, once an image of the view) let them go after a run of images without an ask, so a toggle for an image keeps them. */
 export function selfShadowLights(
   rt: WebgpuPagesRuntime,
   shadows: ShadowValues,
@@ -32,7 +31,6 @@ export function selfShadowLights(
       firstPersonLocalSelfShadowOn(rt, shadows) &&
       localLightsReachFirstPerson(rt, lights, suns),
   }
-  if (!given.suns && !given.locals) releaseFirstPersonSelfShadow(rt)
   return given
 }
 

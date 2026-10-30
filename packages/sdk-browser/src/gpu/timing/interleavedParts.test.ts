@@ -42,3 +42,25 @@ test('a part encoded and submitted while another is open is timed beside it, in 
   assert.equal(sample.submittedMs, 6)
   timing.dispose()
 })
+
+test('a part finished but never taken by the queue times nothing: the image closed with the parts that ran reads only those', async () => {
+  const { f, timing, samples } = timer()
+  const roots = timing.createEncoder(1)
+  roots.beginComputePass({ label: 'roots' }).end()
+  roots.finish()
+  timing.markSubmitted(roots)
+  const cut = timing.createEncoder(1)
+  cut.beginComputePass({ label: 'cut' }).end()
+  cut.finish()
+  // The queue took nothing of the cut: its timestamps were never written.
+  timing.unreachedPart(cut)
+  const values = new BigUint64Array(f.buffers[1].getMappedRange())
+  values.set([1n * MS, 3n * MS], 0)
+  timing.submitted(cut, {})
+  await timing.flush()
+  assert.deepEqual(
+    samples[0].passes.map((pass) => pass.name),
+    ['roots'],
+  )
+  timing.dispose()
+})

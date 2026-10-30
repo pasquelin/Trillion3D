@@ -26,11 +26,22 @@ export function createGpuTiming(
     isSampled(encoder: GPUCommandEncoder) {
       return !!state.active?.parts.has(encoder)
     },
-    createEncoder(frame: number): GPUCommandEncoder {
-      return createTimedEncoder(state, frame)
+    createEncoder(frame: number, label?: string): GPUCommandEncoder {
+      return createTimedEncoder(state, frame, label)
     },
     submitted(encoder: GPUCommandEncoder, metadata: Record<string, unknown>) {
       closeTimedImage(state, encoder, metadata)
+    },
+    /** The queue took `encoder`, a part of the active image: the image has reached the queue. */
+    markSubmitted(encoder: GPUCommandEncoder) {
+      if (state.active?.parts.has(encoder)) state.active.taken = true
+    },
+    /** Whether a part of the active image reached the queue. */
+    hasSubmittedPart: () => !!state.active?.taken,
+    /** A part of the active image the queue did not take: it times nothing, so the image closed with its other parts reads none of its timestamps. */
+    unreachedPart(encoder: GPUCommandEncoder) {
+      const part = state.active?.parts.get(encoder)
+      if (part) part.resolved = false
     },
     cancelUnsubmitted: () => dropActive(state),
     /** The image opened for a submission that had nothing to submit: dropped without a trace, the cadence as it was. */

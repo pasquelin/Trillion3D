@@ -1,5 +1,6 @@
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { dispatchOn } from '../../gpu/core/computeStages.ts'
+import { groupFor, type GroupCache } from '../../gpu/bind/cachedGroup.ts'
 import { loadOnlyUsage } from '../../gpu/core/loadOnlyTarget.ts'
 import { hizDepthBindEntries } from '../../visibility/hiz/gpu/pyramidTexture.ts'
 import type { HizDepth } from '../../visibility/hiz/gpu/types.ts'
@@ -187,7 +188,7 @@ export function createScreenSpaceTargets(
 ) {
   const tilesAcross = ceilDiv(width, SCREEN_SPACE_GROUP_SIDE)
   const tilesDown = ceilDiv(height, SCREEN_SPACE_GROUP_SIDE)
-  const groups = new Map<string, { deps: readonly unknown[]; group: GPUBindGroup }>()
+  const groups: GroupCache['groups'] = new Map()
   /** The indirect light's targets, made at the first ask. */
   let indirect: ReturnType<typeof createIndirectTargets> | undefined
   const indirectTargets = () => (indirect ??= createIndirectTargets(device, width, height, ratio))
@@ -255,29 +256,6 @@ export const inputGroupEntries = (
   { binding: B.colorSampler, resource: inputs.sampler },
   { binding: B.vectors, resource: inputs.vectors },
 ]
-
-/** What keeps bind groups by name: the targets of a pass family. */
-export interface GroupCache {
-  groups: Map<string, { deps: readonly unknown[]; group: GPUBindGroup }>
-}
-
-/** The bind group `name` of `targets` over `layout`: kept while every resource it binds (`deps`) is the one it was made with, made from
- *  `entries` otherwise. The inputs are the same views from one image to the next unless the view is resized or its history trades places. */
-export function groupFor(
-  device: GPUDevice,
-  targets: GroupCache,
-  name: string,
-  layout: GPUBindGroupLayout,
-  deps: readonly unknown[],
-  entries: () => GPUBindGroupEntry[],
-) {
-  const held = targets.groups.get(name)
-  if (held && held.deps.length === deps.length && held.deps.every((dep, i) => dep === deps[i]))
-    return held.group
-  const group = device.createBindGroup({ layout, entries: entries() })
-  targets.groups.set(name, { deps, group })
-  return group
-}
 
 /** What a pass's group depends on besides its own outputs: the inputs and the image its rays read. */
 export const inputDeps = (inputs: ScreenSpaceInputs, color: GPUTextureView) => [

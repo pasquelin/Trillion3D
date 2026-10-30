@@ -48,12 +48,12 @@ function runtime(traceEnabled: boolean) {
 
 const cam = { world: new Float32Array(16), eye: [0, 0, 0] } as never
 const { device } = fakeDevice()
-const encoder = device.createCommandEncoder()
 
 /** Every per-image trace site, in the order the GPU cut reaches them. */
 function traceEverySite(rt: WebgpuPagesRuntime) {
   traceGpuCutWaiting(rt)
-  submitColorCopy(rt, device, encoder, 1, 1)
+  // A fresh encoder a call: one submitted is settled and refused a second time.
+  submitColorCopy(rt, device, device.createCommandEncoder(), 1, 1)
 }
 
 test('tracing off: no trace site calls traceDiagnostic', () => {

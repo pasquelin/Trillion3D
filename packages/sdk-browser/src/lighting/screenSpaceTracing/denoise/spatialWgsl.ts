@@ -16,7 +16,7 @@ import {
   denoiseSignalWgsl,
   type DenoiseSignal,
 } from './signalWgsl.ts'
-import { STACKOWIAK_OFFSETS, STACKOWIAK_SET_COUNT } from './stackowiakSet.ts'
+import { STACKOWIAK_WGSL } from './stackowiakSet.ts'
 
 const G = SCREEN_SPACE_GROUP
 
@@ -96,7 +96,6 @@ fn denoiseCompute(@builtin(global_invocation_id) id:vec3u){
 
 /** The indirect light's kernel: the quad-shared stochastic sets, the bilateral weight the distance to the plane and the normals' agreement. */
 const INDIRECT_KERNEL = `
-var<private> stackowiak:array<vec2f,${STACKOWIAK_SET_COUNT * 4}>=array<vec2f,${STACKOWIAK_SET_COUNT * 4}>(${Array.from({ length: STACKOWIAK_SET_COUNT * 4 }, (_, i) => `vec2f(${STACKOWIAK_OFFSETS[2 * i]},${STACKOWIAK_OFFSETS[2 * i + 1]})`).join(',')});
 fn dnTapAt(origin:DnMeta,pos:vec2f,weight:f32,acc:ptr<function,DnAcc>){
  if(dnOutside(pos)){return;}
  let loaded=dnLoadSource(dnTexelOf(pos));
@@ -146,5 +145,5 @@ export const denoiseSpatialWgsl = (signal: DenoiseSignal, layout: 'input' | 'his
     DENOISE_LOAD_WGSL(layout),
     ...(signal === 'reflections'
       ? [LOBE_ON_SCREEN_WGSL, hammersley16, rand3dPcg16, uniformDiskConcentric]
-      : []),
+      : [STACKOWIAK_WGSL]),
   ])

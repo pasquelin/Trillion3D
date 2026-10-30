@@ -15,7 +15,10 @@ import {
 } from '../projection/hairProjectionPass.ts'
 import { PER_LIGHT_MASK_LAYERS } from '../projection/maskFormat.ts'
 import { encodeVsmVisualize, vsmVisualizeRequest } from '../projection/visualizePass.ts'
-import { encodeFirstPersonSelfShadow } from '../../firstPerson/selfShadow.ts'
+import {
+  encodeFirstPersonSelfShadow,
+  keepFirstPersonSelfShadow,
+} from '../../firstPerson/selfShadow.ts'
 import {
   afterBoth,
   encodeOnePassLocalSelfShadow,
@@ -27,7 +30,7 @@ import {
   encodeRayTracedSuns,
   perLightRayTraced,
   rayTracedPlan,
-  releaseRayTraced,
+  idleRayTraced,
   type RayTracedPlan,
 } from './vsmRayTraced.ts'
 import { sunCount, VSM_PROJECTION_MAX_PASS_LIGHTS } from '../projection/projectionView.ts'
@@ -454,7 +457,6 @@ function encodeVsmProjection(
   const selfLocals = selfShadow.locals ? views : undefined
   // The lights that cast their shadow by rays: their masks are traced again each image, not held.
   const traced = rayTracedPlan(frame, vsm.state.maps.shadows, context.lights)
-  if (!traced) releaseRayTraced(device)
   const perLight =
     !onePass && mask.perLight
       ? takePerLightPath(
@@ -539,6 +541,14 @@ function encodeVsmProjection(
 /** The projection `encodeVsmFrame` held, encoded now that the depth pyramid holds this image's depth and
  *  its transparents' front (`encodeDepthPyramid`), which its screen rays march; none where none was held. */
 export function encodeHeldVsmProjection(rt: WebgpuPagesRuntime, steps: ComputeRun) {
+  holdVsmProjection(rt, steps)
+  // Every image of the view, whether or not a light casts by rays (the projection may not run at all): what the ray traced shadow keeps idle is let go.
+  idleRayTraced(rt)
+  keepFirstPersonSelfShadow(rt.gpu, rt.run.frame)
+}
+
+/** The projection held for the image, encoded (`encodeHeldVsmProjection`). */
+function holdVsmProjection(rt: WebgpuPagesRuntime, steps: ComputeRun) {
   const vsm = rt.lights.vsm,
     scratch = vsm?.frameScratch,
     held = scratch?.held

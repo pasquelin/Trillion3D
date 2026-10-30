@@ -172,6 +172,14 @@ const RAY_TRACED_SHADOW_DEFAULTS = {
   ...{ rayTracedShadowsRectLights: true, rayTracedShadowsSamplesPerPixel: -1 },
   ...{ rayTracedShadowsNormalBias: 0.1, rayTracedShadowsAvoidSelfIntersectionTraceDistance: 1 },
   ...{ rayTracedShadowsTwoSidedGeometry: true, rayTracedShadowsAcceptFirstHit: true },
+  ...{ rayTracedShadowsLODTransitionStart: 4000, rayTracedShadowsLODTransitionEnd: 5000 },
+  ...{ rayTracedShadowsDirectionalLightTraceDistance: 10000, rayTracedShadowsDenoiser: true },
+  ...{
+    rayTracedShadowsDenoiserReconstructionSamples: 8,
+    rayTracedShadowsDenoiserPreConvolution: 1,
+  },
+  ...{ rayTracedShadowsDenoiserTemporalAccumulation: true },
+  rayTracedShadowsDenoiserHistoryConvolutionSamples: 1,
 }
 
 test('the shadow settings read by their rules, a light’s own beside them', () => {
