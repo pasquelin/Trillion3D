@@ -8,10 +8,11 @@ import { radianceCacheProgram } from './wgsl.ts'
 
 const PROGRAM = radianceCacheProgram(WORD_LIGHT_FORMAT)
 
-test('the cache is off by default, with the reference’s numbers, and on only where the screen probes keep a cache', () => {
+test('the cache is on by default, a declared deviation from the reference’s off, with the reference’s numbers, and on only where the screen probes keep a cache', () => {
   const read = createReflectionSettingsReader()
   const off = read({})
-  assert.equal(off.radianceCache, false)
+  assert.equal(off.radianceCache, true)
+  assert.equal(read({ reflectionRadianceCache: false }).radianceCache, false, 'the reference’s: off')
   assert.deepEqual(
     [
       off.radianceCacheMinRoughness,
@@ -25,14 +26,20 @@ test('the cache is off by default, with the reference’s numbers, and on only w
   assert.equal(off.radianceCacheStochastic, true)
   assert.equal(read({ reflectionRadianceCache: true }).radianceCache, true)
   assert.equal(
+    read({ screenProbeRadianceCache: false }).radianceCache,
+    false,
+    'by default, none where the screen probes keep no cache',
+  )
+  assert.equal(
     read({ reflectionRadianceCache: true, screenProbeRadianceCache: false }).radianceCache,
     false,
   )
 })
 
-test('the cache replaces the far trace of the opaque rays, and the numbers are held as the reference holds them', () => {
+test('the cache, on by default, replaces the far trace of the opaque rays, and the numbers are held as the reference holds them', () => {
   const read = createReflectionSettingsReader()
-  assert.equal(read({}).distantTraces, true)
+  assert.equal(read({}).distantTraces, false, 'on by default: the cache replaces the far trace')
+  assert.equal(read({ reflectionRadianceCache: false }).distantTraces, true, 'the reference’s: the far trace')
   const on = read({
     reflectionRadianceCache: true,
     reflectionRadianceCacheMinRoughness: 0.5,

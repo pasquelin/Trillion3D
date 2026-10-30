@@ -44,18 +44,22 @@ function lanesOf(extra: object) {
   return { words, floats }
 }
 
-test('a ray’s budget and stages travel with the view: the reference’s by default, the settings’ otherwise', () => {
+test('a ray’s budget and stages travel with the view: the cache’s by default (no far trace), the reference’s with the cache off, the settings’ otherwise', () => {
   const lanes = (extra: object) => {
     const { words, floats } = lanesOf(extra)
     return [[...words('scene')], floats('reach')]
   }
   const { scene, reach } = { scene: 0, reach: 1 }
+  const asked = (options: object) => ({ settings: reflections(options) })
   // The fourth word is the front layer's own flags (`frontSceneTraces` and its four neighbours), asserted apart.
   const opaque = (extra: object) => lanes(extra)[scene].slice(0, 3)
-  // 50 iterations of the screen and 16 steps of the far trace; the scene and the far trace on; 5 cm a ray leaves a
-  // surface by, and 2 km the far trace's length.
+  // 50 iterations of the screen and 16 steps of the far trace; the scene trace on; 5 cm a ray leaves a surface by,
+  // and 2 km the far trace's length. The radiance cache is on by default (a declared deviation from the reference's
+  // off), and it replaces the far trace of the opaque rays: its flag is off. The reference's, the cache off, keeps it.
   const every = lanes({})
-  assert.deepEqual(opaque({}), [50, 16, SCENE | DISTANT | DONE])
+  assert.deepEqual(opaque({}), [50, 16, SCENE | DONE])
+  const cacheOff = { reflectionRadianceCache: false }
+  assert.deepEqual(opaque(asked(cacheOff)), [50, 16, SCENE | DISTANT | DONE])
   assert.equal(
     every[scene][3],
     SCENE | DISTANT | DONE,
@@ -66,20 +70,19 @@ test('a ray’s budget and stages travel with the view: the reference’s by def
     [0.05, 2000, 0.4, 10000].map(Math.fround),
     'the scene’s extent bounds no ray: the longest ray alone does; the foliage pixels’ roughness bar and the bilateral filter’s depth weight scale ride beside them',
   )
-  const asked = (options: object) => ({ settings: reflections(options) })
-  assert.deepEqual(opaque(asked({ reflectionScreenSteps: 20, reflectionDistantScreenSteps: 8 })), [
+  assert.deepEqual(opaque(asked({ ...cacheOff, reflectionScreenSteps: 20, reflectionDistantScreenSteps: 8 })), [
     20,
     8,
     SCENE | DISTANT | DONE,
   ])
   assert.deepEqual(
-    opaque(asked({ screenProbeSceneTraces: false })),
+    opaque(asked({ ...cacheOff, screenProbeSceneTraces: false })),
     [50, 16, DISTANT | DONE],
     'the scene trace off',
   )
-  assert.deepEqual(opaque(asked({ reflectionDistantScreenTraces: false })), [50, 16, SCENE | DONE])
+  assert.deepEqual(opaque(asked({ ...cacheOff, reflectionDistantScreenTraces: false })), [50, 16, SCENE | DONE])
   // The far trace needs the screen: with the screen traces off neither is on.
-  assert.deepEqual(opaque(asked({ reflectionScreenTraces: false })), [
+  assert.deepEqual(opaque(asked({ ...cacheOff, reflectionScreenTraces: false })), [
     50,
     16,
     (SCENE | DONE) &
