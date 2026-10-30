@@ -293,10 +293,8 @@ function encodeScatter(
   next[26] = volume?.samplesRead
   next[27] = input.rectAtlas.view
   next[28] = input.rectAtlas.sampler
-  next[29] = context.traced ?? null
-  next[30] = context.resources.tracedHeld()
-  next[31] = input.sunFunction.view
-  next[32] = input.sunFunction.block
+  next[29] = input.sunFunction.view
+  next[30] = input.sunFunction.block
   pass.setPipeline(pipeline)
   pass.setBindGroup(
     0,
