@@ -4,7 +4,8 @@ import { shippedBytes, sourceBytes, type ByteSource } from '../../../geometry/cl
  * THE TWO CLOUD TEXTURES THAT ARE FILES: the layout pattern and the noise volume, the reference
  * material's own texture data, shipped beside this module. Each file is read once, when the clouds
  * part starts; a read that fails or a file of another size is an error, never replaced by a
- * generated texture. The host may supply the bytes — Node cannot follow a file URL with `fetch`.
+ * generated texture. The host may supply the bytes — Node cannot follow a file URL with `fetch`: the
+ * tests hand them the repository's files (`cloudTextureFiles.fixture.ts`).
  */
 
 /** The pattern's texels along a side. */
@@ -23,13 +24,14 @@ export const NOISE_VOLUME_BYTES = NOISE_VOLUME_SIZE ** 3 * 4
 /** A file's bytes, read once: the cached read, and the bytes it checks. A failed read is asked again
  *  at the next call. */
 function fileReader(name: string, bytes: number, resource: () => Promise<BufferSource>) {
-  let pending: Promise<Uint8Array> | undefined
-  return (source: ByteSource = resource): Promise<Uint8Array> => {
+  let pending: Promise<Uint8Array<ArrayBuffer>> | undefined
+  return (source: ByteSource = resource): Promise<Uint8Array<ArrayBuffer>> => {
     pending ??= (async () => {
       const read = await sourceBytes(source)
       if (read.length !== bytes)
         throw new RangeError(`the cloud ${name} holds ${read.length} bytes, not ${bytes}`)
-      return read
+      // A texture upload takes no shared memory; the bytes read are never in any.
+      return read as Uint8Array<ArrayBuffer>
     })().catch((error: unknown) => {
       pending = undefined
       throw error

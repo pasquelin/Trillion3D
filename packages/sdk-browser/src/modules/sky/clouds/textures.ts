@@ -32,15 +32,24 @@ export const cloudSampler = (maxAnisotropy: number): GPUSamplerDescriptor => ({
   maxAnisotropy,
 })
 
-/** The five textures, made; the caller releases them with `destroy`. */
+/** The five textures, made; the caller releases them with `destroy`. Where one fails (a file that does
+ *  not arrive or is of another size), those already made are released and the first failure thrown. */
 export async function createCloudTextures(device: GPUDevice) {
-  const [noise, pattern, profile, mask, lightning] = await Promise.all([
+  const made = await Promise.allSettled([
     createNoiseVolume(device),
     createLayoutPattern(device),
     createHeightProfile(device),
     createGlobalMask(device),
     createLightningVolume(device),
   ])
+  const failed = made.find((result) => result.status === 'rejected')
+  if (failed) {
+    for (const result of made) if (result.status === 'fulfilled') result.value.destroy()
+    throw failed.reason
+  }
+  const [noise, pattern, profile, mask, lightning] = made.map(
+    (result) => (result as PromiseFulfilledResult<GPUTexture>).value,
+  )
   return {
     noise,
     pattern,

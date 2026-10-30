@@ -19,7 +19,6 @@ import {
   fogFaceProgram,
   skyFaceProgram,
 } from '../../modules/sky/skyLight/faceWgsl.ts'
-import { cubeHalfShader } from '../../modules/sky/skyLight/cubeHalfWgsl.ts'
 import { FILTER_CODE } from '../../modules/sky/skyLight/filterWgsl.ts'
 import { IRRADIANCE_CODE } from '../../modules/sky/skyLight/irradianceWgsl.ts'
 import { SKY_MESH_CODE } from '../../modules/sky/skyLight/skyMeshWgsl.ts'
@@ -150,7 +149,6 @@ export const SKY_SHADERS: Record<string, string> = {
   MASK_CODE,
   PROFILE_CODE,
   SKY_LIGHT_COPY_CODE: COPY_CODE,
-  SKY_LIGHT_CUBE_HALF_CODE: cubeHalfShader(),
   SKY_LIGHT_SKY_FACE_CODE: skyFaceProgram(DEFAULT_AIR_SHAPE).code,
   SKY_LIGHT_FOG_FACE_CODE: fogFaceProgram(DEFAULT_AIR_SHAPE).code,
   SKY_LIGHT_FOG_FACE_DEPTH_CODE: fogFaceProgram(DEFAULT_AIR_SHAPE, true).code,
