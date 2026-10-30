@@ -146,11 +146,15 @@ fn gdfClipRayOutside(origin:vec3f,dir:vec3f,span:f32,steps:u32)->GdfClipped{
 }`
 
 /** The march through the field and the helpers around it, over the reads at the bindings `first` on of the
- *  group `group` (`globalDistanceFieldReadWgsl`). */
-export function globalDistanceFieldTraceWgsl(group: number, first: number) {
+ *  group `group` (`globalDistanceFieldReadWgsl`, which says what `filterableMip` is). */
+export function globalDistanceFieldTraceWgsl(group: number, first: number, filterableMip: boolean) {
   return wgslBlock(
-    `GLOBAL_DISTANCE_FIELD_TRACE_WGSL ${group}, ${first}`,
-    [globalDistanceFieldReadWgsl(group, first), interleavedGradientNoise, segmentBoxSpan],
+    `GLOBAL_DISTANCE_FIELD_TRACE_WGSL ${group}, ${first}, ${filterableMip}`,
+    [
+      globalDistanceFieldReadWgsl(group, first, filterableMip),
+      interleavedGradientNoise,
+      segmentBoxSpan,
+    ],
     GDF_TRACE_TEXT,
   )
 }

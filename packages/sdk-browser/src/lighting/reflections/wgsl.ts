@@ -39,7 +39,6 @@ import type { MarchLanes } from '../../visibility/hiz/gpu/screenMarchLanes.ts'
 
 import { REFLECTION_CONSTANTS_WGSL } from './constantsWgsl.ts'
 import { REFLECTION_LOBE_RAY_WGSL } from './sampleWgsl.ts'
-import { REFLECTION_SCENE_TRACE_WGSL } from './sceneTrace.ts'
 import { REFLECTION_FIRST_PERSON_WGSL } from './firstPerson.ts'
 
 /** The chain's last stage (`reflectionField`), what a lobe reflects where neither the screen nor the scene answered: the radiance
@@ -126,7 +125,7 @@ fn reflectionSceneStage(P:vec3f,N:vec3f,lobe:ReflectionLobeRay,begin:f32,coord:v
  */
 export const reflectionStagesWgsl = (
   group: number,
-  sceneTrace: WgslDecl = REFLECTION_SCENE_TRACE_WGSL,
+  sceneTrace: WgslDecl,
   stored = false,
   lanes: MarchLanes = 'none',
 ) =>

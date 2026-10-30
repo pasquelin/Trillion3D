@@ -23,12 +23,16 @@ export const PROBE_RAY_WGSL = wgslBlock(
  * surface, whether it left the scene — `open`, 1 when the march met nothing, the caller then reading the sky along it —, and the
  * distance to the surface, `reach` where there is none, and the steps the march took. `side²` rays share the sphere: the width of the cone at the hit. A
  * program that calls it declares the cascades' uniform (`bounce`). Where the scene has acceleration structures the ray is cast through
- * the scene's triangles instead (`probeRayTracedWgsl.ts`), and answers the same.
+ * the scene's triangles instead (`probeRayTracedWgsl.ts`), and answers the same. `filterableMip`: the field's coarse mip is read through the hardware's filter, as in the program's layout.
  */
-export const probeRayWgsl = (hit: SurfaceHitBindings, light: LightAtlasFormat) =>
+export const probeRayWgsl = (
+  hit: SurfaceHitBindings,
+  light: LightAtlasFormat,
+  filterableMip: boolean,
+) =>
   wgslBlock(
-    `probeRayWgsl(${hit.group},${hit.field},${hit.cards},${light})`,
-    [PROBE_RAY_WGSL, surfaceHitWgsl(hit, light)],
+    `probeRayWgsl(${hit.group},${hit.field},${hit.cards},${light},${filterableMip})`,
+    [PROBE_RAY_WGSL, surfaceHitWgsl(hit, light, filterableMip)],
     `fn probeRay(origin:vec3f,d:vec3f,begin:f32,reach:f32,side:f32,coord:vec2u)->ProbeRay{
  var out=ProbeRay(vec3f(0.0),1.0,reach,0u,true,false);
  if(gdfView.clipmaps==0u||begin>=reach){return out;}

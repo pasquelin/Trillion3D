@@ -174,7 +174,7 @@ export const fogGraphProgram = (set: VoxelGraphSet) =>
     fogVoxelWgsl(set),
   ])
 
-const fogPrograms = (local: boolean) =>
+const fogPrograms = (local: boolean, filterableMip: boolean) =>
   ({
     furthest: wgslProgram(`${declarations(FOG_PROGRAM_BINDINGS.furthest)}\n`, [
       FOG_FRAME_STRUCT_WGSL,
@@ -184,7 +184,7 @@ const fogPrograms = (local: boolean) =>
     scatter: scatterProgram(FOG_PROGRAM_BINDINGS.scatter, FOG_NO_SKY_VISIBILITY_WGSL, local),
     scatterSky: scatterProgram(
       FOG_PROGRAM_BINDINGS.scatterSky,
-      FOG_SKY_VISIBILITY_WGSL(b.field),
+      FOG_SKY_VISIBILITY_WGSL(b.field, filterableMip),
       local,
     ),
     scatterSampled: scatterProgram(
@@ -195,7 +195,7 @@ const fogPrograms = (local: boolean) =>
     ),
     scatterSkySampled: scatterProgram(
       FOG_PROGRAM_BINDINGS.scatterSkySampled,
-      FOG_SKY_VISIBILITY_WGSL(b.field),
+      FOG_SKY_VISIBILITY_WGSL(b.field, filterableMip),
       local,
       true,
     ),
@@ -216,10 +216,19 @@ const fogPrograms = (local: boolean) =>
     ]),
   }) as const satisfies Record<FogProgramName, string>
 
-/** The programs of a session that supports the local fog volumes (the default). */
-export const FOG_PROGRAMS = fogPrograms(true)
+const cached = new Map<string, ReturnType<typeof fogPrograms>>()
+/** The programs of a session, with the local fog volumes' code or without (the project switch `localFogVolumeSupport`), the field's coarse mip read
+ *  through the hardware's filter or by hand (`filterableMip`, `hasFloat32Filterable`; the layouts follow, `layoutEntries`). Made at the first ask of each. */
+export const fogProgramsFor = (local: boolean, filterableMip: boolean) => {
+  const key = `${local},${filterableMip}`
+  let programs = cached.get(key)
+  if (!programs) cached.set(key, (programs = fogPrograms(local, filterableMip)))
+  return programs
+}
 
-let withoutLocal: ReturnType<typeof fogPrograms> | undefined
+/** The programs of a session that supports the local fog volumes (the default), the coarse mip read by hand. */
+export const FOG_PROGRAMS = fogProgramsFor(true, false)
+
 /** The programs of a session whose project switch `localFogVolumeSupport` is off: none holds any of the local
- *  fog volumes' code. Made at the first ask. */
-export const fogProgramsWithoutLocal = () => (withoutLocal ??= fogPrograms(false))
+ *  fog volumes' code; the coarse mip read by hand. */
+export const fogProgramsWithoutLocal = () => fogProgramsFor(false, false)

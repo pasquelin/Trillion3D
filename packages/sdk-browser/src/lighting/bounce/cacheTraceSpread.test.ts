@@ -15,7 +15,7 @@ import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { ditherLight, packLight } from '../../gpu/core/smallFloatWgsl.ts'
 import { WORD_LIGHT_FORMAT } from '../../gpu/core/lightAtlasFormat.ts'
 
-const CACHE_TRACE_PROGRAM = cacheTraceProgramOf(WORD_LIGHT_FORMAT)
+const CACHE_TRACE_PROGRAM = cacheTraceProgramOf(WORD_LIGHT_FORMAT, false)
 const CACHE_TRACED_PROGRAM = cacheTracedProgramOf(WORD_LIGHT_FORMAT)
 const CACHE_SPLAT_PROGRAM = cacheSplatProgramOf(WORD_LIGHT_FORMAT)
 

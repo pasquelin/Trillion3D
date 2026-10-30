@@ -19,7 +19,7 @@ test('every kind of light has a segment', () => {
 
 test('the software trace marches the global field from where the screen left the ray', async () => {
   const { SOFTWARE_TRACE_ENTRY, softwareTraceWgsl } = await import('./softwareTraceWgsl.ts')
-  const code = softwareTraceWgsl()
+  const code = softwareTraceWgsl(false)
   assert.ok(code.includes(`fn ${SOFTWARE_TRACE_ENTRY}(`))
   assert.ok(code.includes('fn gdfTrace('), 'the engine’s march, not a copy')
   assert.ok(code.includes('lightSampleRayDistance(ray)'))

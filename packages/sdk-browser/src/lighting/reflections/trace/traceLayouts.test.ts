@@ -10,7 +10,8 @@ import {
 } from './traceBindings.ts'
 import { REFLECTION_RAY_FORMAT } from '../grids.ts'
 import { reflectionTraceShader } from './trace.ts'
-import { KERNELS, device, reached } from './traceLayouts.fixture.ts'
+import { KERNELS, device, filterableDevice, reached } from './traceLayouts.fixture.ts'
+import { WORD_LIGHT_FORMAT } from '../../../gpu/core/lightAtlasFormat.ts'
 
 for (const statistics of [false, true]) {
   test(`every kernel's layout holds the bindings its code reaches${statistics ? ', counting' : ''}`, () => {
@@ -231,4 +232,22 @@ test('a screen hit is final and a miss is listed with the distance it reached: n
   for (const gone of ['partialOut', 'partialIn', 'reflectionChain', 'reflectionTake', 'confidence'])
     assert.ok(!program.includes(gone), gone)
   assert.ok(!('partialOut' in B) && !('partialIn' in B))
+})
+
+test('the field’s coarse mip is a filterable texture sampled once through the field’s sampler where the device has float32-filterable, else an unfilterable one read by loads', () => {
+  const mipOf = (gpu: GPUDevice) =>
+    (
+      traceLayouts(gpu, false).scene as unknown as {
+        entries: { binding: number; texture?: { sampleType: string } }[]
+      }
+    ).entries.find(({ binding }) => binding === B.field + 3)?.texture?.sampleType
+  assert.equal(mipOf(device), 'unfilterable-float')
+  assert.equal(mipOf(filterableDevice), 'float')
+  const program = (filterable: boolean) =>
+    reflectionTraceShader(false, false, 'none', WORD_LIGHT_FORMAT, undefined, undefined, undefined, filterable)
+  const native = program(true)
+  assert.equal(native.match(/textureSampleLevel\(gdfMip,/g)?.length, 1)
+  assert.ok(!native.includes('textureLoad(gdfMip'))
+  const polyfill = program(false)
+  assert.ok(polyfill.includes('textureLoad(gdfMip') && !polyfill.includes('textureSampleLevel(gdfMip'))
 })

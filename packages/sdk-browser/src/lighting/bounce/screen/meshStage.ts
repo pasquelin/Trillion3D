@@ -20,6 +20,7 @@ import { MESH_TRACE_BINDING } from '../../rays/meshTrace/traceWgsl.ts'
 import { startedTracedKernel } from '../cache/cacheKernels.ts'
 import { raysKey, type CastKernels, type KernelShape } from './kernels.ts'
 import { hasSubgroups } from '../../../gpu/core/subgroups.ts'
+import { hasFloat32Filterable } from '../../../gpu/core/float32Filterable.ts'
 import {
   compactMeshShader,
   traceMeshEntries,
@@ -68,7 +69,13 @@ export function meshStageKernel(
       [kernels.traceScene.layout, reflectionSceneLayout(device), write ? paramsGroup : group, list],
       write
         ? compactMeshShader(shape.side, shape.samples, compaction)
-        : traceMeshShader(shape.side, shape.samples, shape.heightFog, shape.light),
+        : traceMeshShader(
+            shape.side,
+            shape.samples,
+            shape.heightFog,
+            shape.light,
+            hasFloat32Filterable(device.features),
+          ),
       write ? 'compactMeshRays' : 'traceMeshes',
     )
     return {

@@ -77,7 +77,7 @@ test('the traced stage binds clear of the cut’s tables, which keep the culling
   assert.match(PROGRAM, /@group\(2\) @binding\(0\) var<uniform> stParams/)
   // The global distance field is neither marched nor bound.
   assert.doesNotMatch(PROGRAM, /gdf|Gdf|scGlobalHit/)
-  assert.match(traceSceneShader(8, [4, 4], false), /gdfTraceRay/)
+  assert.match(traceSceneShader(8, [4, 4], false, [], undefined, false), /gdfTraceRay/)
 })
 
 test('the traced stage’s group, the reflection group it reads and the scene trace’s hold to the sampled textures, the storage buffers and the storage textures a stage allows, with the fog on the rays or not', () => {

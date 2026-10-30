@@ -159,10 +159,11 @@ fn traceMeshes(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) 
 }`,
   )
 
-/** The program of the meshes' stage for rays `side × side` a probe, `samples` of a tile, the height fog laid over the light of its rays where `fog`: the scene stage's program with its entry, the trace (`traceMeshes`). */
+/** The program of the meshes' stage for rays `side × side` a probe, `samples` of a tile, the height fog laid over the light of its rays where `fog`: the scene stage's program with its entry, the trace (`traceMeshes`); `filterableMip` as in the scene stage's layout (`traceSceneEntries`). */
 export const traceMeshShader = (
   side: number,
   samples: readonly [number, number],
   fog: boolean,
   light: LightAtlasFormat = WORD_LIGHT_FORMAT,
-) => traceSceneShader(side, samples, fog, [traceMeshesBlock()], light)
+  filterableMip: boolean,
+) => traceSceneShader(side, samples, fog, [traceMeshesBlock()], light, filterableMip)

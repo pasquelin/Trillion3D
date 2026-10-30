@@ -11,7 +11,8 @@ import { standInTexture } from '../../gpu/core/standIns.ts'
 import { FOG_STATIC_FORMAT, FOG_VOLUME_FRAME_WORDS, type FogGrid } from './layout.ts'
 import { type FogProgramName } from './bindings.ts'
 import { graphLayoutEntries, layoutEntries } from './layoutEntries.ts'
-import { FOG_PROGRAMS, fogGraphProgram, fogProgramsWithoutLocal } from './programs.ts'
+import { fogGraphProgram, fogProgramsFor } from './programs.ts'
+import { hasFloat32Filterable } from '../../gpu/core/float32Filterable.ts'
 import type { VoxelGraphSet } from './voxelGraph.ts'
 import { FOG_VOLUME_FORMAT } from './read.ts'
 import { postSamplers } from '../../gpu/core/postSamplers.ts'
@@ -96,17 +97,24 @@ function makeProgram(
  *  with the set before it kept: a camera that walks across the edge of a fog object with a graph
  *  flips between two sets, and neither compiles again. */
 function createFogPrograms(device: GPUDevice, failed: (error: unknown) => void, local: boolean) {
-  const texts = local ? FOG_PROGRAMS : fogProgramsWithoutLocal()
+  const filterableMip = hasFloat32Filterable(device.features)
   const program = (name: FogProgramName): FogProgram => {
     const label = `Trillion3D fog ${name}`
     const module = device.createShaderModule({
       label,
-      code: (local ? FOG_PROGRAMS : fogProgramsWithoutLocal())[name],
+      code: fogProgramsFor(local, filterableMip)[name],
     })
-    return makeProgram(device, failed, label, layoutEntries(name), module, ENTRY_POINT[name])
+    return makeProgram(
+      device,
+      failed,
+      label,
+      layoutEntries(name, filterableMip),
+      module,
+      ENTRY_POINT[name],
+    )
   }
   const programs = {} as Record<Exclude<FogProgramName, LazyProgram>, FogProgram>
-  for (const name of Object.keys(texts) as FogProgramName[])
+  for (const name of Object.keys(fogProgramsFor(local, filterableMip)) as FogProgramName[])
     if (!LAZY_PROGRAMS.includes(name as LazyProgram))
       programs[name as Exclude<FogProgramName, LazyProgram>] = program(name)
   const lazy: Partial<Record<LazyProgram, FogProgram>> = {}

@@ -19,6 +19,7 @@ import {
   translucencyGiVolumeFormat,
 } from './layout.ts'
 import { MARK_GI_BINDING, MARK_GI_PROGRAM } from './markWgsl.ts'
+import { hasFloat32Filterable } from '../../gpu/core/float32Filterable.ts'
 import { traceGiEntries, traceGiProgram } from './traceWgsl.ts'
 
 /** A kernel: its group 0's layout and its pipelines by entry point. */
@@ -93,18 +94,21 @@ const markParts = (device: GPUDevice) => {
 }
 
 /** The trace's parts, the cones' light written in `format`, the radiance cache's final maps read in `light`. */
-const traceParts = (device: GPUDevice, format: GPUTextureFormat, light: LightAtlasFormat) =>
-  partsOf(
+const traceParts = (device: GPUDevice, format: GPUTextureFormat, light: LightAtlasFormat) => {
+  // The field's coarse mip is read through the hardware's filter on a device that has `float32-filterable`: the program and the layout say the same.
+  const filterableMip = hasFloat32Filterable(device.features)
+  return partsOf(
     device,
     'TRACE',
     device.createShaderModule({
       label: 'TRANSLUCENCY_GI_TRACE',
-      code: traceGiProgram(format, light),
+      code: traceGiProgram(format, light, filterableMip),
     }),
-    traceGiEntries(format, light),
+    traceGiEntries(format, light, filterableMip),
     ['traceCones'],
     true,
   )
+}
 
 /** The filter's parts over cones' light of the format `format`. */
 const filterParts = (device: GPUDevice, format: GPUTextureFormat) => {

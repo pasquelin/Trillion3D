@@ -15,15 +15,15 @@ import {
 
 test('the meshes’ stage is the scene stage’s program with its own entry beside it', () => {
   for (const fog of [false, true]) {
-    const program = traceMeshShader(8, [4, 4], fog)
+    const program = traceMeshShader(8, [4, 4], fog, undefined, false)
     assert.match(program, /fn traceMeshes\(/)
     assert.match(program, /fn traceScene\(/, 'the scene stage’s code is the same')
-    assert.ok(program.length > traceSceneShader(8, [4, 4], fog).length)
+    assert.ok(program.length > traceSceneShader(8, [4, 4], fog, [], undefined, false).length)
   }
 })
 
 test('a ray the meshes answered carries the mesh bit and the scene stage leaves it', () => {
-  const program = traceMeshShader(8, [4, 4], false)
+  const program = traceMeshShader(8, [4, 4], false, undefined, false)
   assert.match(program, /const SP_MESH_HIT:u32=0x80000000u;/)
   assert.match(program, /textureLoad\(hitIo,texel\)\.r&SP_MESH_HIT\)!=0u/)
   assert.match(program, /\|SP_MESH_HIT/, 'a hit of the meshes writes the bit')
@@ -67,7 +67,7 @@ test('the first compaction lists the rays the screen left that the meshes are tr
       'the meshes’ fields are not declared',
     )
   }
-  const trace = traceMeshShader(8, [4, 4], false)
+  const trace = traceMeshShader(8, [4, 4], false, undefined, false)
   assertProgramAssembles(trace, 'traceMeshes', 'traceMeshes')
   assert.match(trace, /let ray=spListedMesh\(id,groups\);/)
   // The cut the compaction makes is not made a second time, thread by thread.

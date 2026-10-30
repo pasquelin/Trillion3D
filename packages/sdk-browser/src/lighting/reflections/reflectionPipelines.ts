@@ -9,6 +9,7 @@ import {
 } from '../rays/sceneTrace/sceneMaskPrograms.ts'
 import { oncePerDevice, oncePerDeviceKey } from '../../gpu/core/oncePerDevice.ts'
 import { WORD_LIGHT_FORMAT, type LightAtlasFormat } from '../../gpu/core/lightAtlasFormat.ts'
+import { hasFloat32Filterable } from '../../gpu/core/float32Filterable.ts'
 import { validated } from '../../gpu/core/errorScope.ts'
 import { shaderFailed } from '../../gpu/core/shaderModule.ts'
 import { startedComputeStages } from '../../gpu/core/computeStages.ts'
@@ -135,7 +136,16 @@ const kernelsOf = (statistics: boolean) =>
       const label = 'Trillion3D reflection trace (subgroups of 32 ' + lanes + ')'
       const trace = device.createShaderModule({
         label,
-        code: reflectionTraceShader(statistics, false, lanes, light),
+        code: reflectionTraceShader(
+          statistics,
+          false,
+          lanes,
+          light,
+          undefined,
+          undefined,
+          undefined,
+          hasFloat32Filterable(device.features),
+        ),
       })
       // Every layout is made before the first `await`, in the scope.
       const group = reflectionLayout(device),

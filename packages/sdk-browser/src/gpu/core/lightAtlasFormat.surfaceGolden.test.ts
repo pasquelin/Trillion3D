@@ -20,7 +20,7 @@ import {
   tracedShadowKernels,
 } from '../../lighting/surfaceCache/lighting/kernels.ts'
 import { WORD_LIGHT_FORMAT } from './lightAtlasFormat.ts'
-const CACHE_TRACE_PROGRAM = cacheTraceProgramOf(WORD_LIGHT_FORMAT)
+const CACHE_TRACE_PROGRAM = cacheTraceProgramOf(WORD_LIGHT_FORMAT, false)
 const CACHE_TRACED_PROGRAM = cacheTracedProgramOf(WORD_LIGHT_FORMAT)
 
 const digest = (value: unknown) =>

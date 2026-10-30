@@ -27,7 +27,7 @@ const programs = oncePerDevice((device: GPUDevice) => {
     bindGroupLayouts: [
       device.createBindGroupLayout({
         label: `${LABEL} reads`,
-        entries: globalReadLayoutEntries(0),
+        entries: globalReadLayoutEntries(0, false),
       }),
       device.createBindGroupLayout({
         label: `${LABEL} words`,

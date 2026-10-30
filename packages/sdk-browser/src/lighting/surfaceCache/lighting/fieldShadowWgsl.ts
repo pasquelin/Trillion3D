@@ -112,14 +112,14 @@ const fieldEntries = [
   ),
 ].join('\n')
 
-const fieldShadowProgram = (format: AtlasFormat) =>
+const fieldShadowProgram = (format: AtlasFormat, filterableMip: boolean) =>
   wgslProgram(
     `${declarations}
 ${shadowTraceMasks}
 ${fieldRay}
 ${fieldTiles(false)}
 ${fieldEntries}`,
-    [...shadowMaskCommonWgsl(format), globalDistanceFieldTraceWgsl(0, FIELD_SHADOW_FIRST)],
+    [...shadowMaskCommonWgsl(format), globalDistanceFieldTraceWgsl(0, FIELD_SHADOW_FIRST, filterableMip)],
   )
 
 const fieldShadowMeshProgram = (format: AtlasFormat) =>
@@ -132,14 +132,16 @@ ${entry(FIELD_SHADOW_MESH_ENTRY, 'perLightTiles()')}`,
     [...shadowMaskCommonWgsl(format), MESH_SUN_TRACE_WGSL],
   )
 
-/** The pass through the global field over masks in the grey format, and over those of the light functions' coloured atlas. */
-export const FIELD_SHADOW_WGSL = fieldShadowProgram('grey')
-export const FIELD_SHADOW_COLOURED_WGSL = fieldShadowProgram('colour')
+/** The pass through the global field over masks in the grey format, and over those of the light functions' coloured atlas, the coarse mip read by hand. */
+export const FIELD_SHADOW_WGSL = fieldShadowProgram('grey', false)
+export const FIELD_SHADOW_COLOURED_WGSL = fieldShadowProgram('colour', false)
 /** The pass through the suns' meshes over masks in the grey format, and in the coloured one. */
 export const FIELD_SHADOW_MESH_WGSL = fieldShadowMeshProgram('grey')
 export const FIELD_SHADOW_MESH_COLOURED_WGSL = fieldShadowMeshProgram('colour')
 
-export const fieldShadowProgramOf = (format: AtlasFormat) =>
-  format === 'colour' ? FIELD_SHADOW_COLOURED_WGSL : FIELD_SHADOW_WGSL
+/** The pass through the global field over masks in `format` (the grey one, or the light functions' coloured atlas), the coarse mip read through
+ *  the hardware's filter where `filterableMip`, as in the kernel's layout (`kernels.ts`). */
+export const fieldShadowProgramOf = (format: AtlasFormat, filterableMip: boolean) =>
+  fieldShadowProgram(format, filterableMip)
 export const fieldShadowMeshProgramOf = (format: AtlasFormat) =>
   format === 'colour' ? FIELD_SHADOW_MESH_COLOURED_WGSL : FIELD_SHADOW_MESH_WGSL

@@ -51,7 +51,7 @@ function sceneRay(
       coord: number[],
       side: number,
     ) => { radiance: Vec3; word: number[] }
-  }>(traceSceneShader(8, [4, 4], !!fog), ['spSceneRay'], {
+  }>(traceSceneShader(8, [4, 4], !!fog, [], undefined, false), ['spSceneRay'], {
     sp: {
       motion: [0.005, 0, 0, 0.0001],
       scene: [0.05, 0.01],
@@ -158,7 +158,7 @@ test('a ray the field hits that names no placement, or where no pose moved, is n
 })
 
 test('the radiance both entries write is dithered into the 11-11-10 word by the noise of the trace texel at the frame, as a float target quantises it', () => {
-  const program = traceSceneShader(8, [4, 4], false)
+  const program = traceSceneShader(8, [4, 4], false, [], undefined, false)
   assert.match(
     program,
     /fn spTraceLight\(light:vec3f,texel:vec2i\)->u32\{\n return packLight\(ditherLight\(light,spTargetDither\(vec2u\(texel\),0\)\)\);\n\}/,
@@ -202,7 +202,7 @@ test('the radiance cache’s answer to a ray the traced stage left (traceFar) is
   const fog: Fog = { lightW: 5, seen: [] }
   const { spRayLit } = shaderRun<{
     spRayLit: (light: Vec3, probe: object, d: Vec3, end: number, hit: boolean) => Vec3
-  }>(traceSceneShader(8, [4, 4], true), ['spRayLit'], {
+  }>(traceSceneShader(8, [4, 4], true, [], undefined, false), ['spRayLit'], {
     spSkyLeak: () => [1, 1, 1],
     ...fogScope(fog),
   })
@@ -222,7 +222,7 @@ test('the radiance cache’s answer to a ray the traced stage left (traceFar) is
 test('where the scene has no fog the light is left as it was; where the option is off the program holds no fog code at all', () => {
   const { spRayLit } = shaderRun<{
     spRayLit: (light: Vec3, probe: object, d: Vec3, end: number, hit: boolean) => Vec3
-  }>(traceSceneShader(8, [4, 4], true), ['spRayLit'], {
+  }>(traceSceneShader(8, [4, 4], true, [], undefined, false), ['spRayLit'], {
     spSkyLeak: () => [0, 0, 0],
     reflectionView: { light: [0, 0, 0, 1000] },
     directLights: fogLights(undefined),
@@ -230,12 +230,12 @@ test('where the scene has no fog the light is left as it was; where the option i
   })
   const probe = { P: [2, 3, 4], depth: 10, N: [0, 1, 0], speed: 0, foliage: false, hair: false }
   assert.deepEqual(spRayLit([1, 2, 3], probe, [0, 1, 0], 12, false), [1, 2, 3])
-  const off = traceSceneShader(8, [4, 4], false)
+  const off = traceSceneShader(8, [4, 4], false, [], undefined, false)
   assert.doesNotMatch(off, /reflectionFogged|spRayFogged/)
-  assert.match(traceSceneShader(8, [4, 4], true), /reflectionFogged/)
+  assert.match(traceSceneShader(8, [4, 4], true, [], undefined, false), /reflectionFogged/)
   assert.equal(
-    traceSceneEntries(true).length,
-    traceSceneEntries(false).length + 2,
+    traceSceneEntries(true, undefined, false).length,
+    traceSceneEntries(false, undefined, false).length + 2,
     'the fog’s two reads are bound only where it is on',
   )
 })

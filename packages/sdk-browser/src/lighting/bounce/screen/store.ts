@@ -17,6 +17,7 @@ import {
 } from '../../../../../sdk-core/src/bounce/screenProbeOptions.ts'
 import type { ScreenProbeFrameMetrics } from '../../../../../sdk-core/src/contracts/shadowMetrics.ts'
 import type { LightAtlasFormat } from '../../../gpu/core/lightAtlasFormat.ts'
+import { hasFloat32Filterable } from '../../../gpu/core/float32Filterable.ts'
 import { groupWidth } from '../../../gpu/dispatch/grid.ts'
 import { track } from '../../deferred/compileLedger.ts'
 import type { ScreenProbeInputs } from './groupParts.ts'
@@ -331,6 +332,7 @@ function assemble(
       waveLanesOf(device, asked.shape),
       marchOf(device, asked.shape),
       hasSubgroups(device) ? 'native' : 'polyfill',
+      hasFloat32Filterable(device.features),
     ),
   ) as [string, KernelSource<string>][])
   const missing = sources.filter(([name, source]) => !kernels.has(`${name}|${source.key}`))

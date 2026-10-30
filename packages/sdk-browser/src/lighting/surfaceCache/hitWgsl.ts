@@ -140,13 +140,15 @@ export function surfaceHitCardsLayoutEntries(
   ]
 }
 
-/** The layout entries of a hit's reads at `b`: the field's, its grid's, then the cache's (`surfaceHitCardsLayoutEntries`), its final light stored in `light`. */
+/** The layout entries of a hit's reads at `b`: the field's, its grid's, then the cache's (`surfaceHitCardsLayoutEntries`), its final light stored in `light`;
+ *  `filterableMip` is whether the field's coarse mip is filtered by the hardware (`globalReadLayoutEntries`), as in the program's WGSL (`surfaceHitWgsl`). */
 export function surfaceHitLayoutEntries(
   b: SurfaceHitBindings,
   light: LightAtlasFormat,
+  filterableMip: boolean,
 ): GPUBindGroupLayoutEntry[] {
   return [
-    ...globalReadLayoutEntries(b.field),
+    ...globalReadLayoutEntries(b.field, filterableMip),
     computeBufferEntry(b.grid, 'read-only-storage'),
     ...surfaceHitCardsLayoutEntries(b, light),
   ]
@@ -237,14 +239,19 @@ fn scMeshHit(world:vec3f,face:vec3f,instance:u32,footprint:f32,range:f32,hiRes:b
   )
 }
 
-/** The hit's read (`scGlobalHit`) over the bindings `b`, its final light stored in `light`, and the march (`gdfTrace`) it follows. */
-export function surfaceHitWgsl(b: SurfaceHitBindings, light: LightAtlasFormat) {
+/** The hit's read (`scGlobalHit`) over the bindings `b`, its final light stored in `light`, and the march (`gdfTrace`) it follows;
+ *  `filterableMip` is whether the field's coarse mip is filtered by the hardware (`globalDistanceFieldReadWgsl`), as in the layout (`surfaceHitLayoutEntries`). */
+export function surfaceHitWgsl(
+  b: SurfaceHitBindings,
+  light: LightAtlasFormat,
+  filterableMip: boolean,
+) {
   return wgslBlock(
-    `SURFACE_HIT_WGSL(${b.group},${b.field},${b.grid},${b.cards},${b.instances},${!!b.feedback},${light}${b.visualize ? ',visualize' : ''})`,
+    `SURFACE_HIT_WGSL(${b.group},${b.field},${b.grid},${b.cards},${b.instances},${!!b.feedback},${light},${filterableMip}${b.visualize ? ',visualize' : ''})`,
     [
       surfaceHitCardsWgsl(b, light),
-      globalDistanceFieldTraceWgsl(b.group, b.field),
-      globalObjectGridReadWgsl(b.group, b.field, b.grid),
+      globalDistanceFieldTraceWgsl(b.group, b.field, filterableMip),
+      globalObjectGridReadWgsl(b.group, b.field, b.grid, filterableMip),
     ],
     `struct ScHitSurface{radiance:vec3f,face:vec3f,valid:bool,instance:u32,}
 /** The surface the march \`hit\` of the ray from the world point \`origin\` along \`dir\` met: its light, its face, whether the cache gave

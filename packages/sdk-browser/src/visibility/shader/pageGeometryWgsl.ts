@@ -165,6 +165,15 @@ fn pageUv(page:PageInfo,h:ClusterHeader,vertex:u32)->vec2f{
  if(${QUANTIZED}){return clusterUv(h,page.pageOffset,vertex,0u);}
  return vertUv(page.vertexBase,vertex);
 }
+/** First texture coordinate of the three corners of a triangle, its set read from the header once. */
+fn pageUv3(page:PageInfo,h:ClusterHeader,k:vec3u)->mat3x2f{
+ if(${VOXEL}){return mat3x2f(vec2f(0.0),vec2f(0.0),vec2f(0.0));}
+ if(${QUANTIZED}){
+  let t=clusterUvSet(h,page.pageOffset,0u);
+  return mat3x2f(clusterUvAt(t,page.pageOffset,k.x),clusterUvAt(t,page.pageOffset,k.y),clusterUvAt(t,page.pageOffset,k.z));
+ }
+ return mat3x2f(vertUv(page.vertexBase,k.x),vertUv(page.vertexBase,k.y),vertUv(page.vertexBase,k.z));
+}
 /** Vertex colour of a page vertex. */
 fn pageColor(page:PageInfo,h:ClusterHeader,vertex:u32)->vec4f{
  if(${QUANTIZED}){return clusterColor(h,page.pageOffset,vertex);}

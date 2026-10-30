@@ -177,6 +177,7 @@ const traceSources = (
   width: number,
   march: MarchLanes,
   compaction: SceneCompaction,
+  filterableMip: boolean,
 ) => {
   const { side, samples, heightFog } = shape
   const probes = probesKey(shape)
@@ -193,9 +194,9 @@ const traceSources = (
     traceScene: withList(
       {
         ...sourceOf(
-          `${probes}|${heightFog}|${shape.light}`,
-          traceSceneShader(side, samples, heightFog, [], shape.light),
-          traceSceneEntries(heightFog, shape.light),
+          `${probes}|${heightFog}|${shape.light}|${filterableMip}`,
+          traceSceneShader(side, samples, heightFog, [], shape.light, filterableMip),
+          traceSceneEntries(heightFog, shape.light, filterableMip),
           'traceScene',
           'traceFar',
         ),
@@ -354,9 +355,10 @@ const castSources = (
   waves: number,
   march: MarchLanes,
   compaction: SceneCompaction,
+  filterableMip: boolean,
 ) => ({
   ...castHeadSources(shape),
-  ...traceSources(shape, width, march, compaction),
+  ...traceSources(shape, width, march, compaction, filterableMip),
   ...castFilterSources(shape, waves),
   ...castPixelSources(shape),
 })
@@ -366,7 +368,7 @@ const castSources = (
  * data, the rays, the screen trace, the scene's, the composite, the spatial filter and the conversion; then,
  * at every level that draws, the short-range occlusion, and, where probes are cast, the classification of the pixels' tiles and the integration of
  * the probes, and the temporal pass (which blends what the integration left, and alone keeps the occlusion's history where there are none). `width` is the device's dispatch width, `waves` the lanes of the
- * subgroups it sums the conversion's projection by (none: the serial sum), `march` how the screen trace counts the lanes still marching (`screenMarchLanes.ts`; `none` where the shape asks no minimum occupancy), `compaction` how it ranks the rays it lists for the scene stage.
+ * subgroups it sums the conversion's projection by (none: the serial sum), `march` how the screen trace counts the lanes still marching (`screenMarchLanes.ts`; `none` where the shape asks no minimum occupancy), `compaction` how it ranks the rays it lists for the scene stage, `filterableMip` whether the scene stage reads the field's coarse mip through the hardware's filter (`hasFloat32Filterable` of the device).
  */
 export const screenProbeSources = (
   shape: KernelShape,
@@ -374,10 +376,11 @@ export const screenProbeSources = (
   waves = 0,
   march: MarchLanes = 'none',
   compaction: SceneCompaction = 'polyfill',
+  filterableMip: boolean,
 ) => {
   const { samples, occlusion } = shape
   return {
-    ...castSources(shape, width, waves, march, compaction),
+    ...castSources(shape, width, waves, march, compaction, filterableMip),
     occlusion: occlusionSource(shape),
     temporal: sourceOf(
       `${samples}|${occlusion.downsample}|${occlusion.bentNormal}|${shape.integrate}|${occlusion.gi}`,

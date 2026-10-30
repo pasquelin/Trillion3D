@@ -14,7 +14,8 @@ import { AIR_BUFFER_STRUCT } from '../atmosphere/layout.ts'
 import { FOG_VIEW_SLOTS } from '../fog/viewSlots.ts'
 import { REFLECTION_FATES } from './censusWgsl.ts'
 import { REFLECTION_COUNTS } from './constants.ts'
-import { REFLECTION_SCENE_TRACE_WGSL } from './sceneTrace.ts'
+import { reflectionSceneTraceWgsl } from './sceneTrace.ts'
+import { WORD_LIGHT_FORMAT } from '../../gpu/core/lightAtlasFormat.ts'
 
 /** The light buffer's blocks a program reads the fog from (`directLights`): the fog `fog` as the scene packs it (none
  *  where it is undefined), no atmosphere, no volume. */
@@ -98,7 +99,7 @@ export function sceneStage(stage: SceneStage = {}) {
     light = [1, 0.5, 0.25],
     hiRes = true,
   } = stage
-  const text = `${wgslModule(REFLECTION_SCENE_TRACE_WGSL)}
+  const text = `${wgslModule(reflectionSceneTraceWgsl(WORD_LIGHT_FORMAT, false))}
 fn testFate()->u32{return reflectionFate;}
 fn testWork()->u32{return reflectionWork;}`
   const flags =

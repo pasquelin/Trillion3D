@@ -124,7 +124,7 @@ export const PIXEL_TRIANGLE_WGSL = wgslBlock(
  var shape=PageShape(vec2f(0.0),0.0);
  if(SHAPED){shape=pageShape(page);}
  var t=decodeCorners(page,h,corners,invT,shape);
-  t.uva=pageUv(page,h,corners.x);t.uvb=pageUv(page,h,corners.y);t.uvc=pageUv(page,h,corners.z);
+ let uv=pageUv3(page,h,corners);t.uva=uv[0];t.uvb=uv[1];t.uvc=uv[2];
  return t;
 }
 /** The triangle \`tri\` of \`page\` as its pixel shades it: decoded and transformed here. */

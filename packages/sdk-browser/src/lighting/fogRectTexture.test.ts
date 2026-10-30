@@ -46,7 +46,7 @@ test('the scatters fit WebGPU default limits with the atlas bound', () => {
   const { device, pipelineLayouts } = fakeDevice()
   for (const name of SCATTERS)
     device.createPipelineLayout({
-      bindGroupLayouts: [device.createBindGroupLayout({ entries: layoutEntries(name) })],
+      bindGroupLayouts: [device.createBindGroupLayout({ entries: layoutEntries(name, false) })],
     })
   withinDefaults(pipelineLayouts, 'the fog scatters')
 })

@@ -24,20 +24,20 @@ import {
 } from './screen/traceTracedWgsl.ts'
 import { WORD_LIGHT_FORMAT } from '../../gpu/core/lightAtlasFormat.ts'
 
-const CACHE_TRACE_PROGRAM = cacheTraceProgramOf(WORD_LIGHT_FORMAT)
+const CACHE_TRACE_PROGRAM = cacheTraceProgramOf(WORD_LIGHT_FORMAT, false)
 const CACHE_TRACED_PROGRAM = cacheTracedProgramOf(WORD_LIGHT_FORMAT)
 
 const PROGRAMS = {
   'the screen probes’ scene stage': {
-    program: traceSceneShader(8, [4, 4], false),
+    program: traceSceneShader(8, [4, 4], false, [], undefined, false),
     entry: 'traceScene',
-    entries: () => traceSceneEntries(false),
+    entries: () => traceSceneEntries(false, undefined, false),
     cards: TRACE_SCENE_HIT.cards,
   },
   'the screen probes’ scene stage, the fog on its rays': {
-    program: traceSceneShader(8, [4, 4], true),
+    program: traceSceneShader(8, [4, 4], true, [], undefined, false),
     entry: 'traceScene',
-    entries: () => traceSceneEntries(true),
+    entries: () => traceSceneEntries(true, undefined, false),
     cards: TRACE_SCENE_HIT.cards,
   },
   'the screen probes’ scene stage through the scene’s triangles': {
@@ -55,7 +55,7 @@ const PROGRAMS = {
   'the radiance cache’s trace': {
     program: CACHE_TRACE_PROGRAM,
     entry: 'traceTiles',
-    entries: () => cacheTraceEntries(),
+    entries: () => cacheTraceEntries(undefined, false),
     cards: CACHE_TRACE_HIT.cards,
   },
   'the radiance cache’s trace through the scene’s triangles': {
@@ -120,7 +120,7 @@ test('the scene stages reach no binding of the reflection group but the ones of 
   const held = new Set(entries.map(({ binding }) => binding))
   for (const fog of [false, true]) {
     const stages = {
-      'the marched scene stage': [traceSceneShader(8, [4, 4], fog), ['traceScene', 'traceFar']],
+      'the marched scene stage': [traceSceneShader(8, [4, 4], fog, [], undefined, false), ['traceScene', 'traceFar']],
       'the scene stage through the scene’s triangles': [
         traceTracedShader(8, [4, 4], fog),
         ['traceTriangles'],

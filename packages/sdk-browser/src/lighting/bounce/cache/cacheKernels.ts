@@ -6,6 +6,7 @@ import {
 import { createCheckedShaderModule } from '../../../gpu/core/shaderModule.ts'
 import { buildComputeStage, startedComputeStages } from '../../../gpu/core/computeStages.ts'
 import type { LightAtlasFormat } from '../../../gpu/core/lightAtlasFormat.ts'
+import { hasFloat32Filterable } from '../../../gpu/core/float32Filterable.ts'
 import { oncePerDevice, oncePerDeviceKey } from '../../../gpu/core/oncePerDevice.ts'
 import { groupWidth, groupWidthConstants } from '../../../gpu/dispatch/grid.ts'
 import {
@@ -77,12 +78,13 @@ const createSharedKernels = oncePerDevice(async (device: GPUDevice) => {
 /** The pipelines of the kernels that write or read the light — the trace, which reads the surface cache's final light stored in the same format, the spread, the filter and the fixup —, and
  *  their layouts, for maps stored in the format `light`. */
 async function createLightKernels(device: GPUDevice, light: LightAtlasFormat) {
+  const filterableMip = hasFloat32Filterable(device.features)
   const [trace, splat, filter, fixup] = await Promise.all([
     stage(
       device,
-      cacheTraceProgramOf(light),
+      cacheTraceProgramOf(light, filterableMip),
       'CACHE_TRACE',
-      cacheTraceEntries(light),
+      cacheTraceEntries(light, filterableMip),
       [[TRACE_ENTRY]],
       true,
     ),

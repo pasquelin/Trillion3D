@@ -35,15 +35,17 @@ export const TRACE_GI_BINDINGS = bindingTable({
 /** The cones' light written, the cascades' atlas. */
 export const TRACE_GI_LIGHT = 2
 export const TRACE_GI_PROBES = 9
-/** The layout of the trace's group 0, the cones' light written in `format`, the radiance cache's final maps read in `light`. */
+/** The layout of the trace's group 0, the cones' light written in `format`, the radiance cache's final maps read in `light`, the field's coarse mip read
+ *  through the hardware's filter where `filterableMip` (`traceGiProgram`). */
 export const traceGiEntries = (
   format: GPUTextureFormat,
   light: LightAtlasFormat = WORD_LIGHT_FORMAT,
+  filterableMip: boolean,
 ) => [
   ...withLightAtlasEntry(TRACE_GI_BINDINGS.entries, TRACE_GI_BINDINGS.at.cacheFinal, light),
   computeStorageTextureEntry(TRACE_GI_LIGHT, format, 'write-only', '3d'),
   atlasEntry(TRACE_GI_PROBES),
-  ...surfaceHitLayoutEntries(TRACE_SCENE_HIT, light),
+  ...surfaceHitLayoutEntries(TRACE_SCENE_HIT, light, filterableMip),
 ]
 
 const C = TRACE_GI_BINDINGS.at
@@ -136,10 +138,10 @@ fn giFar(d:vec3f)->vec3f{
  * radiance cache is trusted (`giReach`), the surface cache's light at a hit with the sky light that leaks at the hit's distance (`spSkyLeak`); for a ray the
  * march leaves — or where it is off — the light of a cone that met nothing (`giFar`).
  */
-const giConeWgsl = (light: LightAtlasFormat) =>
+const giConeWgsl = (light: LightAtlasFormat, filterableMip: boolean) =>
   wgslBlock(
-    `GI_CONE_WGSL(${light})`,
-    [spMarchWgsl(light), GI_CELL_SETUP_WGSL],
+    `GI_CONE_WGSL(${light},${filterableMip})`,
+    [spMarchWgsl(light, filterableMip), GI_CELL_SETUP_WGSL],
     `fn giCone(d:vec3f)->vec3f{
  if(gi.depth.w!=0.0&&spFlag(SP_FLAG_SCENE_TRACES)){
   let marched=spMarchRay(giOrigin,d,0.0,giReach,gi.trace.x,false,vec2u(0u));
@@ -213,13 +215,17 @@ fn giCellShare(id:vec3u,block:vec3u,lane:u32)->GiCellShared{
  * march and the radiance cache give (`giCone`), multiplied by the pre-exposure, held to `gi.trace.y` (the ray's largest channel scaled
  * down to it) and written to the format's precision (`giQuantize`, the draw of the written texel).
  */
-const giTraceEntry = (format: GPUTextureFormat, light: LightAtlasFormat) =>
+const giTraceEntry = (
+  format: GPUTextureFormat,
+  light: LightAtlasFormat,
+  filterableMip: boolean,
+) =>
   wgslBlock(
-    `GI_TRACE_ENTRY(${format},${light})`,
+    `GI_TRACE_ENTRY(${format},${light},${filterableMip})`,
     [
       GI_PARAMS_WGSL,
       GI_SHARED_WGSL,
-      giConeWgsl(light),
+      giConeWgsl(light, filterableMip),
       giQuantizeWgsl(format),
       ...giFormatWgsl(format),
       DIRECT_LIGHT_WGSL,
@@ -244,10 +250,12 @@ fn traceCones(@builtin(global_invocation_id) id:vec3u,@builtin(workgroup_id) blo
 }`,
   )
 
-/** The trace's program, writing the cones' light in `format`, over cones of `side` texels a side an octahedron (the screen probes' kernels' constants, a cone as wide as a texel). */
+/** The trace's program, writing the cones' light in `format`, over cones of `side` texels a side an octahedron (the screen probes' kernels' constants, a cone as wide as a texel);
+ *  `filterableMip` is whether the field's coarse mip is read through the hardware's filter, as in the layout (`traceGiEntries`). */
 export const traceGiProgram = (
   format: GPUTextureFormat,
   light: LightAtlasFormat = WORD_LIGHT_FORMAT,
+  filterableMip: boolean,
 ) =>
   wgslProgram(
     `@group(0) @binding(${C.params}) var<uniform> spBase:ScreenProbeParams;
@@ -260,6 +268,6 @@ var<private> sp:ScreenProbeParams;
       spCacheRead(C.cacheFinal, C.cacheRaw, C.cacheSky, 'private', light),
       blueNoiseWgsl(0, C.blue),
       GI_VISIBLE_WGSL,
-      giTraceEntry(format, light),
+      giTraceEntry(format, light, filterableMip),
     ],
   )

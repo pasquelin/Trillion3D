@@ -89,7 +89,7 @@ test('a hit writes its light dithered by the tile’s blue noise and its distanc
     /out\.speed=length\(stHitVelocity\(hit\.placement,origin-view\.display\.yzw\+d\*hit\.distance,stParams\.eyeXY,stEyeZ\(\)\)\);/,
   )
   // The march’s stage answers the marked rays alone, and clears the mark.
-  const march = traceSceneShader(8, [4, 4], false)
+  const march = traceSceneShader(8, [4, 4], false, [], undefined, false)
   const far = march.slice(march.indexOf('fn traceFar('))
   assert.match(far, /if\(textureLoad\(hitIo,texel\)\.r!=SP_FAR_PENDING\)\{return;\}/)
   assert.match(far, /spHitWord\(far\.stored,false\)/)

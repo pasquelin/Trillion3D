@@ -102,7 +102,7 @@ const ENTRY: Record<
 /** The layout of the voxelisation of objects that wear a graph: the plain voxelisation's entries,
  *  then the graphs' (`FOG_GRAPH_BINDINGS`). */
 export const graphLayoutEntries = (textured: boolean) => [
-  ...layoutEntries('voxelize'),
+  ...layoutEntries('voxelize', false),
   ...entriesOf(FOG_GRAPH_BINDINGS[textured ? 'textured' : 'values']),
 ]
 
@@ -113,13 +113,14 @@ const entriesOf = (names: FogBindings) =>
   )
 
 /** The layout of a program: the entries of what it binds. The pyramid's three, the field's six and the
- *  lightmap's eleven are made where a program names them. */
-export const layoutEntries = (name: FogProgramName) =>
+ *  lightmap's eleven are made where a program names them; `filterableMip` is whether the field's coarse mip is read through
+ *  the hardware's filter, as in the program's text (`fogProgramsFor`). */
+export const layoutEntries = (name: FogProgramName, filterableMip: boolean) =>
   (Object.keys(FOG_PROGRAM_BINDINGS[name]) as (keyof typeof FOG_BINDING)[]).flatMap((n) =>
     n === 'hiz'
       ? hizDepthEntries(FOG_BINDING.hiz, GPUShaderStage.COMPUTE)
       : n === 'field'
-        ? globalReadLayoutEntries(FOG_BINDING.field)
+        ? globalReadLayoutEntries(FOG_BINDING.field, filterableMip)
         : n === 'lightmap'
           ? volumetricLightmapLayoutEntries(FOG_BINDING.lightmap)
           : [ENTRY[n]],

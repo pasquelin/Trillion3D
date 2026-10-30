@@ -13,7 +13,7 @@ test('the meshes’ stage kernel is ready when its compaction and its trace are 
   const device = gpu.device as GPUDevice
   const shape = { side: 8, samples: [4, 4] as const, heightFog: false, light: WORD_LIGHT_FORMAT }
   // The scene stage's group 0, which both kernels are checked against: their shaders name only the bindings they read.
-  const layout = device.createBindGroupLayout({ entries: traceSceneEntries(false, shape.light) })
+  const layout = device.createBindGroupLayout({ entries: traceSceneEntries(false, shape.light, false) })
   const kernel = meshStageKernel(device, shape, { traceScene: { layout } } as never)
   assert.equal(kernel.ready, false, 'nothing is compiled at the call')
   for (let turn = 0; turn < 20 && !kernel.ready; turn++)

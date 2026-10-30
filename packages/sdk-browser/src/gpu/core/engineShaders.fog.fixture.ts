@@ -12,6 +12,7 @@ import { material } from '../../../../sdk-core/src/world/material/index.ts'
 import { resolveFogVolume } from '../../../../sdk-core/src/scene/volume/contracts.ts'
 import {
   FOG_PROGRAMS,
+  fogProgramsFor,
   fogGraphProgram,
   fogProgramsWithoutLocal,
 } from '../../lighting/fog/programs.ts'
@@ -47,6 +48,9 @@ export const FOG_SHADERS = {
   ...Object.fromEntries(
     Object.entries(FOG_PROGRAMS).map(([name, code]) => [`FOG_${name.toUpperCase()}`, code]),
   ),
+  // The sky scatters with the global field's coarse mip read through the hardware's filter (`float32-filterable`).
+  FOG_SCATTERSKY_FILTERED_MIP: fogProgramsFor(true, true).scatterSky,
+  FOG_SCATTERSKYSAMPLED_FILTERED_MIP: fogProgramsFor(true, true).scatterSkySampled,
   FOG_VOXELIZE_GRAPH: fogGraphShader(false),
   FOG_VOXELIZE_GRAPH_TEXTURED: fogGraphShader(true),
   FOG_LOCAL_SKY: LOCAL_SKY_PROGRAM,

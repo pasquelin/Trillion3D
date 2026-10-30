@@ -4,8 +4,8 @@ import { REFLECTION_FATE_WGSL } from './censusWgsl.ts'
 import { REFLECTION_CONSTANTS_WGSL } from './constantsWgsl.ts'
 import { RADIANCE_ANSWER, REFLECTION_LOBE_WGSL } from './field.ts'
 import { REFLECTION_REACH_WGSL } from './reach.ts'
-import { REFLECTION_FIELD_WGSL, reflectionSurfaceHitWgsl } from './trace/traceBindings.ts'
-import { WORD_LIGHT_FORMAT, type LightAtlasFormat } from '../../gpu/core/lightAtlasFormat.ts'
+import { reflectionFieldWgsl, reflectionSurfaceHitWgsl } from './trace/traceBindings.ts'
+import type { LightAtlasFormat } from '../../gpu/core/lightAtlasFormat.ts'
 
 /** What the scene stage answers (`reflectionSceneTrace`, here and in `sceneTraceHardware.ts`): the ray's answer, and whether it left the scene. */
 export const REFLECTION_SCENE_TRACE_RESULT = wgslStruct(
@@ -92,7 +92,7 @@ const STAGE_WGSL = `fn reflectionSceneTrace(P:vec3f,N:vec3f,lobe:ReflectionLobe,
  * surface, the light of that surface read in the surface cache's final lighting (`scGlobalHit`, `../surfaceCache/hitWgsl.ts`), or
  * the lit image where it agrees with the depth (`reflectionSeenAt`, `rayLightWgsl.ts`). One ray a call, cast this
  * image, kept nowhere, by the trace's scene stage alone (`trace/trace.ts`), over its own group's field and cache
- * (`REFLECTION_FIELD_WGSL`, `REFLECTION_SURFACE_HIT_WGSL`). The ray leaves the surface along itself by `surfaceBias`; it goes no
+ * (`reflectionFieldWgsl`, `reflectionSurfaceHitWgsl`). The ray leaves the surface along itself by `surfaceBias`; it goes no
  * further than the longest ray (`reflectionFar`).
  *
  * THE MARCH (`reflectionMarch`) begins where the screen stopped knowing the ray (`begin`, the distance the screen stage stored for it,
@@ -114,22 +114,19 @@ const STAGE_WGSL = `fn reflectionSceneTrace(P:vec3f,N:vec3f,lobe:ReflectionLobe,
  * How the ray ended and the steps its march took are left in `reflectionFate` and `reflectionWork` (`censusWgsl.ts`),
  * for the trace's census to count.
  */
-export const reflectionSceneTraceWgsl = (light: LightAtlasFormat) =>
+export const reflectionSceneTraceWgsl = (light: LightAtlasFormat, filterableMip: boolean) =>
   wgslBlock(
-    `REFLECTION_SCENE_TRACE_WGSL(${light})`,
+    `REFLECTION_SCENE_TRACE_WGSL(${light},${filterableMip})`,
     [
       REFLECTION_LOBE_WGSL,
       REFLECTION_CONSTANTS_WGSL,
       REFLECTION_REACH_WGSL,
       REFLECTION_FATE_WGSL,
-      REFLECTION_FIELD_WGSL,
-      reflectionSurfaceHitWgsl(light),
+      reflectionFieldWgsl(filterableMip),
+      reflectionSurfaceHitWgsl(light, filterableMip),
       RADIANCE_ANSWER,
       REFLECTION_SCENE_TRACE_RESULT,
       interleavedGradientNoise,
     ],
     [MARCH_WGSL, HIT_WGSL, STAGE_WGSL].join('\n'),
   )
-
-/** The scene stage's answer over a surface cache whose final light is stored in the word format. */
-export const REFLECTION_SCENE_TRACE_WGSL = reflectionSceneTraceWgsl(WORD_LIGHT_FORMAT)

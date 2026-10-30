@@ -105,10 +105,14 @@ const cacheTraceBaseEntries = (light: LightAtlasFormat) => {
   ]
 }
 
-/** The layout of the trace kernel, the surface cache's final light read in the format `light`. */
-export const cacheTraceEntries = (light: LightAtlasFormat = WORD_LIGHT_FORMAT) => [
+/** The layout of the trace kernel, the surface cache's final light read in the format `light`, the field's coarse mip read through the hardware's filter
+ *  where `filterableMip` (`cacheTraceProgramOf`). */
+export const cacheTraceEntries = (
+  light: LightAtlasFormat = WORD_LIGHT_FORMAT,
+  filterableMip: boolean,
+) => [
   ...cacheTraceBaseEntries(light),
-  ...surfaceHitLayoutEntries(CACHE_TRACE_HIT, light),
+  ...surfaceHitLayoutEntries(CACHE_TRACE_HIT, light, filterableMip),
 ]
 
 /** Where the trace that casts its rays through the scene's triangles reads what a hit finds, from 22 (`probeRayTracedWgsl.ts`): the

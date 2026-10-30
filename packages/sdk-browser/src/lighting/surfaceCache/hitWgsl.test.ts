@@ -59,7 +59,7 @@ function hitSurface({
   instances = [1, 7],
   weights = { 107: 1 },
 }: Hit = {}) {
-  const text = wgslModule(surfaceHitWgsl(surfaceHitBindingsFrom(0, 0), WORD_LIGHT_FORMAT))
+  const text = wgslModule(surfaceHitWgsl(surfaceHitBindingsFrom(0, 0), WORD_LIGHT_FORMAT, false))
   const reads: Read[] = []
   const grid: { at: Vec3[]; clipmaps: number[] } = { at: [], clipmaps: [] }
   const evaluated: number[][] = []
@@ -233,13 +233,13 @@ test('the feedback buffer is bound only for a program that writes it', () => {
   // The feedback buffer is the ninth binding of the library: the instances' go past it.
   const b: SurfaceHitBindings = { ...surfaceHitBindingsFrom(0, 0), instances: 16 }
   const bindings = (at: SurfaceHitBindings) =>
-    surfaceHitLayoutEntries(at, WORD_LIGHT_FORMAT).map((e) => e.binding)
+    surfaceHitLayoutEntries(at, WORD_LIGHT_FORMAT, false).map((e) => e.binding)
   assert.ok(!bindings(b).includes(b.cards + 8))
   assert.ok(bindings({ ...b, feedback: true }).includes(b.cards + 8))
   assert.ok(
-    wgslModule(surfaceHitWgsl({ ...b, feedback: true }, WORD_LIGHT_FORMAT)).includes('scFeedback'),
+    wgslModule(surfaceHitWgsl({ ...b, feedback: true }, WORD_LIGHT_FORMAT, false)).includes('scFeedback'),
   )
-  assert.ok(!wgslModule(surfaceHitWgsl(b, WORD_LIGHT_FORMAT)).includes('scFeedback'))
+  assert.ok(!wgslModule(surfaceHitWgsl(b, WORD_LIGHT_FORMAT, false)).includes('scFeedback'))
 })
 
 test('the placement of a hit and the cone of a ray are read without the global field: a hit found another way reads the cards alone', () => {
@@ -255,7 +255,7 @@ test('the placement of a hit and the cone of a ray are read without the global f
   assert.ok(cards.includes(`@binding(${b.instances}) var<storage,read> hitInstances`))
   assert.doesNotMatch(cards, /gdf|Gdf|scGlobalHit/)
   // The march’s read is the cards’ and the field’s.
-  const whole = wgslModule(surfaceHitWgsl(b, WORD_LIGHT_FORMAT))
+  const whole = wgslModule(surfaceHitWgsl(b, WORD_LIGHT_FORMAT, false))
   assert.ok(whole.includes('fn scGlobalHit(') && whole.includes('fn scHitPlacement('))
 })
 

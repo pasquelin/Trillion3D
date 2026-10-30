@@ -313,7 +313,7 @@ fn stripTriangle(t:u32,masksAt:u32,namedWords:u32,laidWords:u32,distAt:u32)->vec
   dst[out+i]=word;
  }
  // The table of the streams' offsets closes the header and the records; the streams follow it.
- for(var i=lid;i<${RESIDENT_TABLE_WORDS}u;i+=${PAGE_TRANSCODE_WORKGROUP}u){dst[out+h.streams+i]=clusterTableWord(h,i);}
+ for(var i=lid;i<${RESIDENT_TABLE_WORDS}u;i+=${PAGE_TRANSCODE_WORKGROUP}u){dst[out+h.streams+i]=clusterTableWord(h,base,i);}
  let streamsAt=out+${RESIDENT_TABLE_WORDS}u;
  for(var i=lid;i<rawWords;i+=${PAGE_TRANSCODE_WORKGROUP}u){dst[streamsAt+h.skin+i]=src[base+rawAt+i];}
  // The rank of each vertex among those the page stores.
@@ -400,7 +400,8 @@ fn stripTriangle(t:u32,masksAt:u32,namedWords:u32,laidWords:u32,distAt:u32)->vec
  // The texture sets, in set order.
  for(var s=0u;s<${MAX_UV_SETS}u;s++){
   if(clusterHasUv(u.flags,s)){
-   let uvs=runOf(stored,2u,vec4u(h.uvBitsX[s],h.uvBitsY[s],0u,0u),vec4u(0u),vec4u(h.uvX[s],h.uvY[s],0u,0u),cursor,page,streamsAt,u.n,1u);
+   let fields=clusterDiskUvSet(h,base,s);
+   let uvs=runOf(stored,2u,vec4u(fields.bitsX,fields.bitsY,0u,0u),vec4u(0u),vec4u(fields.offX,fields.offY,0u,0u),cursor,page,streamsAt,u.n,1u);
    installRun(uvs,lid,flags);
    cursor=advance(cursor,stored*2u,uvs.bytes);
   }
@@ -456,8 +457,8 @@ fn pairBase(pair:u32,job:Job)->u32{
  return unit+(pair&${SELF_PLACE}u);
 }
 // Field \`k\` (the streams in the order of \`LINKED_STREAMS\`) of vertex \`index\` of the cluster at the
-// word \`at\` of the pool, whose header is \`r\`, as a page whose header is \`h\` holds it.
-fn linkedField(k:u32,h:ClusterHeader,r:ClusterHeader,at:u32,index:u32)->u32{
+// word \`at\` of the pool, whose header is \`r\`, as the page at the word \`out\`, whose header is \`h\`, holds it.
+fn linkedField(k:u32,h:ClusterHeader,out:u32,r:ClusterHeader,at:u32,index:u32)->u32{
  if(at==NO_UNIT||index>=r.vertexCount){return 0u;}
  if(k<3u){
   var slot=index;
@@ -472,13 +473,14 @@ fn linkedField(k:u32,h:ClusterHeader,r:ClusterHeader,at:u32,index:u32)->u32{
   return r.colorMin[c]+clusterField(at+r.color[c],index*r.colorBits[c],r.colorBits[c])-h.colorMin[c];
  }
  let s=(k-10u)>>1u;
- if(((k-10u)&1u)==0u){return r.uvMinX[s]+clusterField(at+r.uvX[s],index*r.uvBitsX[s],r.uvBitsX[s])-h.uvMinX[s];}
- return r.uvMinY[s]+clusterField(at+r.uvY[s],index*r.uvBitsY[s],r.uvBitsY[s])-h.uvMinY[s];
+ let own=clusterUvSet(h,out,s);let source=clusterUvSet(r,at,s);
+ if(((k-10u)&1u)==0u){return source.minX+clusterField(at+source.offX,index*source.bitsX,source.bitsX)-own.minX;}
+ return source.minY+clusterField(at+source.offY,index*source.bitsY,source.bitsY)-own.minY;
 }
 // Stream \`k\` of the page \`h\` at the word \`out\`: where it starts, how wide a field is, and whether the
 // page carries it and the vertices it names write it.
 struct Stream{at:u32,bits:u32,present:bool,}
-fn streamOf(k:u32,h:ClusterHeader)->Stream{
+fn streamOf(k:u32,h:ClusterHeader,out:u32)->Stream{
  var s:Stream;
  if(k<3u){s.at=h.pos[k];s.bits=h.posBits[k];s.present=h.positionCount==h.vertexCount;}
  else if(k<5u){s.at=h.normal[k-3u];s.bits=h.normalBits;s.present=(h.flags&${FLAG_NORMAL}u)!=0u;}
@@ -487,7 +489,8 @@ fn streamOf(k:u32,h:ClusterHeader)->Stream{
  else{
   let uvSet=(k-10u)>>1u;
   let v=((k-10u)&1u)!=0u;
-  s.at=select(h.uvX[uvSet],h.uvY[uvSet],v);s.bits=select(h.uvBitsX[uvSet],h.uvBitsY[uvSet],v);
+  let range=clusterUvSet(h,out,uvSet);
+  s.at=select(range.offX,range.offY,v);s.bits=select(range.bitsX,range.bitsY,v);
   s.present=clusterHasUv(h.flags,uvSet);
  }
  return s;
@@ -527,7 +530,7 @@ fn streamOf(k:u32,h:ClusterHeader)->Stream{
  }
  workgroupBarrier();
  for(var k=0u;k<${LINKED_STREAMS}u;k++){
-  let s=streamOf(k,h);
+  let s=streamOf(k,h,out);
   if(!s.present||s.bits==0u){continue;}
   for(var w=lid;w<ceilDiv(u.n*s.bits,32u);w+=${PAGE_TRANSCODE_WORKGROUP}u){
    var word=0u;var touched=false;
@@ -540,7 +543,7 @@ fn streamOf(k:u32,h:ClusterHeader)->Stream{
     let at=refBase[j];
     if(at!=NO_UNIT&&at!=heldAt){held=clusterHeader(at);heldAt=at;}
     let shift=i32(j*s.bits)-i32(w*32u);
-    let field=linkedField(k,h,held,at,refIndex[j])&lowBits(s.bits);
+    let field=linkedField(k,h,out,held,at,refIndex[j])&lowBits(s.bits);
     word=(word&~placed(shift,lowBits(s.bits),s.bits))|placed(shift,field,s.bits);
    }
    if(touched){dst[out+s.at+w]=word;}

@@ -32,6 +32,7 @@ import { lightFunctionLayoutEntry } from '../../lightFunction/bindings.ts'
 import { lightProfileLayoutEntries } from '../../lightProfile/profileBindings.ts'
 import { rayFogLayoutEntries, type RayFogBindings } from '../rayFog.ts'
 import { listWgsl } from '../../../gpu/dispatch/list.ts'
+import { hasFloat32Filterable } from '../../../gpu/core/float32Filterable.ts'
 
 /** The surface a kernel's pipeline works on — 0 the opaque, 1 the transparents' front
  *  (`../frontLayer.ts`) —, given by the pipeline (`createTraceStages`): one entry a kernel, two
@@ -122,8 +123,9 @@ export const REFLECTION_FOG_BINDINGS: RayFogBindings = {
 }
 
 /** The global distance field the scene stage marches its rays through, and the march (`gdfTrace`): the field's
- *  six bindings (`globalDistanceFieldReadWgsl`) from `field` on, in group 0. */
-export const REFLECTION_FIELD_WGSL = globalDistanceFieldTraceWgsl(0, B.field)
+ *  six bindings (`globalDistanceFieldReadWgsl`) from `field` on, in group 0; `filterableMip`, as in the layout (`traceLayouts`). */
+export const reflectionFieldWgsl = (filterableMip: boolean) =>
+  globalDistanceFieldTraceWgsl(0, B.field, filterableMip)
 
 /** Where the scene stage's hits read the surface cache (`../../surfaceCache/hitWgsl.ts`): the field's six bindings, the cache's from
  *  `cards` on, its feedback buffer written, the field's object grid and the table of instances. */
@@ -142,9 +144,10 @@ export const REFLECTION_INDIRECT_BINDINGS: SurfaceHitBindings = {
   visualize: VISUALIZE_MODE.indirectLighting,
 }
 
-/** The hit's read the scene stage's rays end in (`scGlobalHit`), over the group's bindings, the cache's final light stored in `light`. */
-export const reflectionSurfaceHitWgsl = (light: LightAtlasFormat) =>
-  surfaceHitWgsl(REFLECTION_HIT_BINDINGS, light)
+/** The hit's read the scene stage's rays end in (`scGlobalHit`), over the group's bindings, the cache's final light stored in `light`;
+ *  `filterableMip`, as in the layout (`traceLayouts`). */
+export const reflectionSurfaceHitWgsl = (light: LightAtlasFormat, filterableMip: boolean) =>
+  surfaceHitWgsl(REFLECTION_HIT_BINDINGS, light, filterableMip)
 
 /** The surface every kernel reads — its flags, normals and lobes. */
 const pixels = () => [
@@ -196,10 +199,10 @@ const fog = () => rayFogLayoutEntries(REFLECTION_FOG_BINDINGS, true)
 /** What a ray reads of the scene here — the field with the lights, and what a hit reads (`REFLECTION_HIT_BINDINGS`): the global
  *  distance field the ray is marched through with its object grid, the surface cache its hit is read in, less the layers a hit
  *  does not read, and the table from an object of the grid to its placement. The scene stage's alone. */
-const scene = (light: LightAtlasFormat) => [
+const scene = (light: LightAtlasFormat, filterableMip: boolean) => [
   ...field(),
   ...fog(),
-  ...surfaceHitLayoutEntries(REFLECTION_HIT_BINDINGS, light),
+  ...surfaceHitLayoutEntries(REFLECTION_HIT_BINDINGS, light, filterableMip),
 ]
 
 /** The classification's layout: the pixels and the four lists it fills. */
@@ -225,7 +228,12 @@ const storageEntry = (binding: number) =>
 const sampledEntry = (binding: number) => computeTextureEntry(binding, 'uint')
 
 /** The layouts of the ray stages: the generation, the screen stage, the clearing of unused tiles and the scene stage. */
-function rayLayouts(layout: LayoutOf, statistics: boolean, light: LightAtlasFormat) {
+function rayLayouts(
+  layout: LayoutOf,
+  statistics: boolean,
+  light: LightAtlasFormat,
+  filterableMip: boolean,
+) {
   const census = statistics ? [computeBufferEntry(B.census, 'storage')] : []
   return {
     // The lights are read for the lobes the pixel's ray is drawn from (`lobesAt`, a cloth's sheen).
@@ -245,7 +253,7 @@ function rayLayouts(layout: LayoutOf, statistics: boolean, light: LightAtlasForm
     // the hit's reads of the cache needing them.
     scene: layout(
       [
-        ...scene(light),
+        ...scene(light, filterableMip),
         ...past(),
         ...census,
         storageEntry(B.traceOut),
@@ -257,7 +265,7 @@ function rayLayouts(layout: LayoutOf, statistics: boolean, light: LightAtlasForm
     // The meshes' fields stage (`meshes.ts`) over the rays the screen missed: the first compaction reads their list (it is the dispatch's indirect arguments: read alone) and the rays; the trace reads what a hit reads, the fog and the lights, writes the fresh grid and the list.
     meshCompact: layout([computeBufferEntry(B.pendingMesh, 'read-only-storage')], rays(), false),
     meshTrace: layout(
-      [...scene(light), storageEntry(B.traceOut), computeBufferEntry(B.pendingMesh, 'storage')],
+      [...scene(light, filterableMip), storageEntry(B.traceOut), computeBufferEntry(B.pendingMesh, 'storage')],
       rays(),
       false,
     ),
@@ -293,7 +301,8 @@ function answerLayouts(layout: LayoutOf) {
 /** The layouts of each kernel's group 0: the classification, the ray generation, the trace's two stages and the clear of
  *  its unused tiles, the resolve, the temporal accumulation, and each surface's last pass and clear,
  *  each writing its surface's answer. The two ray stages bind the census's buffer where the project
- *  counts (`statistics`, `reflectionStatistics`). The surface cache's final light is read in the format `light`. */
+ *  counts (`statistics`, `reflectionStatistics`). The surface cache's final light is read in the format `light`, the field's coarse mip
+ *  through the hardware's filter where the device has `float32-filterable` (the program's `filterableMip`, `reflectionTraceShader`). */
 export const traceLayouts = (
   device: GPUDevice,
   statistics: boolean,
@@ -306,7 +315,7 @@ export const traceLayouts = (
     keepDepth: device.createBindGroupLayout({
       entries: [computeStorageTextureEntry(B.depthKeep, REFLECTION_DEPTH_FORMAT)],
     }),
-    ...rayLayouts(layout, statistics, light),
+    ...rayLayouts(layout, statistics, light, hasFloat32Filterable(device.features)),
     ...answerLayouts(layout),
   }
 }

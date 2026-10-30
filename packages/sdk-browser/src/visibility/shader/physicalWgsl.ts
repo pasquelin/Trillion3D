@@ -244,7 +244,7 @@ fn physicalOtherUvs(page:PageInfo,h:ClusterHeader,k:vec3u,s0:vec2f,s1:vec2f,s2:v
  let end=normalTexels();
  for(var s=1u;s<${MAX_UV_SETS}u;s++){
   if((used&(1u<<s))!=0u&&pageHasUvSet(page,h,s)){
-   let a=pageUvSet(page,h,k.x,s,end);let b=pageUvSet(page,h,k.y,s,end);let c=pageUvSet(page,h,k.z,s,end);
+   let uv=pageUvSet3(page,h,k,s,end);let a=uv[0];let b=uv[1];let c=uv[2];
    let g=uvGradients(s0,s1,s2,p,a,b,c,iw);
    physicalCoords[s]=PhysicalCoord(a*bary.x+b*bary.y+c*bary.z,g[0],g[1],b-a,c-a);
   }

@@ -163,8 +163,9 @@ const sharedDeclarations = (b: typeof B | typeof TB, light: LightAtlasFormat): W
   ...lightStoreDeps(light),
 ]
 
-/** The trace through the global field, the rays' radiance stored in `light`, and the cache's final light read in it. */
-export const radiosityTraceProgramOf = (light: LightAtlasFormat) =>
+/** The trace through the global field, the rays' radiance stored in `light`, and the cache's final light read in it; `filterableMip` is whether the
+ *  field's coarse mip is read through the hardware's filter, as in the kernel's layout (`kernels.ts`). */
+export const radiosityTraceProgramOf = (light: LightAtlasFormat, filterableMip: boolean) =>
   wgslProgram(
     radiosityKernel(
       kernelBindings(B, light),
@@ -187,6 +188,7 @@ export const radiosityTraceProgramOf = (light: LightAtlasFormat) =>
           instances: B.instances,
         },
         light,
+        filterableMip,
       ),
     ],
   )

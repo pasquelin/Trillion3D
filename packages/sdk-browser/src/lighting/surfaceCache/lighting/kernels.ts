@@ -5,6 +5,7 @@ import {
   computeTextureEntry,
 } from '../../../gpu/core/computeBindings.ts'
 import { oncePerDevice, oncePerDeviceKey } from '../../../gpu/core/oncePerDevice.ts'
+import { hasFloat32Filterable } from '../../../gpu/core/float32Filterable.ts'
 import { lightAtlasSampleType, type LightAtlasFormat } from '../../../gpu/core/lightAtlasFormat.ts'
 import { groupWidth, groupWidthConstants } from '../../../gpu/dispatch/grid.ts'
 import { dagReadLayoutEntries } from '../../../geometry/dag/shader/bindings.ts'
@@ -260,11 +261,12 @@ function radiosityBuildKernel(
 /** The radiosity's program that traces the rays, its radiance stored in `light`. */
 function radiosityTraceKernel(device: GPUDevice, light: LightAtlasFormat) {
   const T = RADIOSITY_TRACE_BINDINGS
+  const filterableMip = hasFloat32Filterable(device.features)
   return {
     radiosityTrace: createKernel(
       device,
       'radiosity trace',
-      radiosityTraceProgramOf(light),
+      radiosityTraceProgramOf(light, filterableMip),
       [RADIOSITY_TRACE_ENTRY],
       [
         ...cardLayoutEntries(T.tables, RADIOSITY_TRACE_UNREAD, light),
@@ -272,7 +274,7 @@ function radiosityTraceKernel(device: GPUDevice, light: LightAtlasFormat) {
         writes(T.out, light),
         computeBufferEntry(T.lights, ro),
         ...skyLightReadLayoutEntries(T.sky, COMPUTE),
-        ...globalReadLayoutEntries(T.field),
+        ...globalReadLayoutEntries(T.field, filterableMip),
         computeBufferEntry(T.grid, ro),
         computeBufferEntry(T.instances, ro),
         noise(T.noise),
@@ -470,14 +472,15 @@ function fieldTileEntries() {
 }
 
 function fieldKernels(device: GPUDevice, format: AtlasFormat) {
+  const filterableMip = hasFloat32Filterable(device.features)
   return {
     shadowMask: maskKernels(device, format).shadowMask,
     fieldShadow: createKernel(
       device,
       'shadow through the global field',
-      fieldShadowProgramOf(format),
+      fieldShadowProgramOf(format, filterableMip),
       FIELD_SHADOW_ENTRIES,
-      [...fieldTileEntries(), ...globalReadLayoutEntries(FIELD_SHADOW_FIRST)],
+      [...fieldTileEntries(), ...globalReadLayoutEntries(FIELD_SHADOW_FIRST, filterableMip)],
     ),
   }
 }

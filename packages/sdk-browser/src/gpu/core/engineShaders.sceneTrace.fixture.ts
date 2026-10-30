@@ -26,6 +26,17 @@ const CACHE_TRACED_PROGRAM = cacheTracedProgramOf(WORD_LIGHT_FORMAT)
 export const SCENE_TRACE_SHADERS: Record<string, string> = {
   SCENE_TRACE_PROBE,
   REFLECTION_TRACE_HARDWARE_SHADER: reflectionTraceShader(false, true),
+  // The scene stage's march with the field's coarse mip read through the hardware's filter (`float32-filterable`).
+  REFLECTION_TRACE_FILTERED_MIP_SHADER: reflectionTraceShader(
+    false,
+    false,
+    'none',
+    WORD_LIGHT_FORMAT,
+    undefined,
+    undefined,
+    undefined,
+    true,
+  ),
   // The screen stage's two ways of counting the lanes of a subgroup still marching (`screenMarchLanes.ts`), as the device picks them.
   REFLECTION_TRACE_NATIVE_SHADER: reflectionTraceShader(false, false, 'native'),
   REFLECTION_TRACE_NATIVE_STATISTICS_SHADER: reflectionTraceShader(true, false, 'native'),

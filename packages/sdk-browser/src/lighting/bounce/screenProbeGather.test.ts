@@ -8,7 +8,7 @@ import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 import { SP_QUANTIZE } from './screen/gatherWgsl.ts'
 import { kernelShapeOf, screenProbeSources } from './screen/kernels.ts'
 
-const sources = screenProbeSources(kernelShapeOf(screenProbeSettings({ screenProbes: 'ultra' })))
+const sources = screenProbeSources(kernelShapeOf(screenProbeSettings({ screenProbes: 'ultra' })), undefined, undefined, undefined, undefined, false)
 const code = <K extends keyof typeof sources>(name: K) => sources[name]!.code
 
 /** The greatest distance a gathered texel tells, in metres: the greatest half float, in centimetres. */

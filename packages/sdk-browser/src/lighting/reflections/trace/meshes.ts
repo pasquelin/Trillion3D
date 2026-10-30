@@ -1,6 +1,7 @@
 import { startedComputeStages } from '../../../gpu/core/computeStages.ts'
 import type { LightAtlasFormat } from '../../../gpu/core/lightAtlasFormat.ts'
 import { hasSubgroups } from '../../../gpu/core/subgroups.ts'
+import { hasFloat32Filterable } from '../../../gpu/core/float32Filterable.ts'
 import type { WebgpuPagesRuntime } from '../../../frame/backend/runtime.ts'
 import {
   meshStageOf,
@@ -40,6 +41,9 @@ export function reflectionMeshKernel(
       'none',
       light,
       hasSubgroups(device) ? 'native' : 'polyfill',
+      undefined,
+      undefined,
+      hasFloat32Filterable(device.features),
     ),
   })
   const group = device.createBindGroupLayout({ label, entries: traceMeshEntries() })

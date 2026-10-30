@@ -30,9 +30,10 @@ const store = (name: Name) => computeStorageTextureEntry(B[name], DFAO_BENT_FORM
 /**
  * THE LAYOUTS OF THE OCCLUSION'S PROGRAMS' GROUP 0, one per program (`DFAO_PROGRAMS`), each the bindings the program
  * names. The scatter's draw sees its bindings from the stage that reads them: the vertex stage the list of meshes and
- * their bounds, the fragment stage the rest.
+ * their bounds, the fragment stage the rest. `filterableMip` is whether the cones against the global field read its coarse mip
+ * through the hardware's filter (`dfaoConeGlobalShader`).
  */
-export const DFAO_LAYOUTS = {
+const dfaoLayouts = (filterableMip: boolean) => ({
   normals: [
     params(),
     ...hizDepthEntries(B.depth, COMPUTE),
@@ -44,7 +45,7 @@ export const DFAO_LAYOUTS = {
     params(),
     texture('normals'),
     write('visibility'),
-    ...globalReadLayoutEntries(B.field),
+    ...globalReadLayoutEntries(B.field, filterableMip),
   ],
   coneObjects: [
     params(),
@@ -94,7 +95,18 @@ export const DFAO_LAYOUTS = {
       (entry) => entry.binding !== B.objects + 1,
     ),
   ],
-} as const satisfies Record<string, readonly GPUBindGroupLayoutEntry[]>
+}) as const satisfies Record<string, readonly GPUBindGroupLayoutEntry[]>
+
+const layoutsHeld = new Map<boolean, ReturnType<typeof dfaoLayouts>>()
+/** The layouts of the programs, made once for each value of `filterableMip`. */
+export const dfaoLayoutsOf = (filterableMip: boolean) => {
+  let held = layoutsHeld.get(filterableMip)
+  if (!held) layoutsHeld.set(filterableMip, (held = dfaoLayouts(filterableMip)))
+  return held
+}
+
+/** The layouts with the coarse mip read by hand. */
+export const DFAO_LAYOUTS = dfaoLayoutsOf(false)
 
 /** A program of the occlusion. */
 export type DfaoProgram = keyof typeof DFAO_LAYOUTS

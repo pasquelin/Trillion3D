@@ -6,8 +6,9 @@ import { standInTexture } from '../../../gpu/core/standIns.ts'
 import { preparedPipelines } from '../../../gpu/core/preparedPipelines.ts'
 import type { ConeObjectsShape } from './coneObjectsWgsl.ts'
 import { DFAO_STAND_IN_FORMAT } from './layout.ts'
-import { DFAO_LAYOUTS, type DfaoProgram } from './layouts.ts'
-import { coneObjectsKey, DFAO_SHADERS } from './shaders.ts'
+import { dfaoLayoutsOf, type DfaoProgram } from './layouts.ts'
+import { hasFloat32Filterable } from '../../../gpu/core/float32Filterable.ts'
+import { coneObjectsKey, DFAO_SHADERS, dfaoShadersOf } from './shaders.ts'
 import { tileScatterPipeline } from '../tileScatter.ts'
 import { sphereBuffers } from './sphere.ts'
 
@@ -53,7 +54,8 @@ function scatterPipeline(device: GPUDevice, layout: GPUPipelineLayout) {
  * that no colour is written to, back faces kept; and the sphere's buffers.
  */
 export const dfaoPrograms = oncePerDevice((device: GPUDevice) => {
-  const layouts = layoutsOf(device, LABEL, DFAO_LAYOUTS)
+  const filterableMip = hasFloat32Filterable(device.features)
+  const layouts = layoutsOf(device, LABEL, dfaoLayoutsOf(filterableMip))
   const pipelineLayout = (program: DfaoProgram) =>
     device.createPipelineLayout({ bindGroupLayouts: [layouts[program]] })
   const stage = (program: DfaoProgram, shader: keyof typeof DFAO_SHADERS, entry: string) => {
@@ -61,7 +63,7 @@ export const dfaoPrograms = oncePerDevice((device: GPUDevice) => {
     return preparedComputeStage(
       device,
       pipelineLayout(program),
-      device.createShaderModule({ label, code: DFAO_SHADERS[shader] }),
+      device.createShaderModule({ label, code: dfaoShadersOf(filterableMip)[shader] }),
       entry,
       undefined,
       label,

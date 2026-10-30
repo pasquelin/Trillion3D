@@ -15,14 +15,14 @@ import { translucencyGiConeFormat } from './layout.ts'
 const values = resolveSettings(TRANSLUCENCY_GI_RULES, {})
 
 test('the trace reads the volume’s own cache numbers over the screen probes’ parameters, copied to the thread', () => {
-  assert.match(traceGiProgram('rgba16float'), /var<uniform> spBase:ScreenProbeParams/)
-  assert.match(traceGiProgram('rgba16float'), /var<private> sp:ScreenProbeParams/)
-  assert.match(traceGiProgram('rgba16float'), /sp=spBase;/)
-  assert.match(traceGiProgram('rgba16float'), /sp\.cache=vec4f\(gi\.cache\.xyz/)
+  assert.match(traceGiProgram('rgba16float', undefined, false), /var<uniform> spBase:ScreenProbeParams/)
+  assert.match(traceGiProgram('rgba16float', undefined, false), /var<private> sp:ScreenProbeParams/)
+  assert.match(traceGiProgram('rgba16float', undefined, false), /sp=spBase;/)
+  assert.match(traceGiProgram('rgba16float', undefined, false), /sp\.cache=vec4f\(gi\.cache\.xyz/)
 })
 
 test('a cone’s light gets the sky light that leaks, the screen probes’ own, at the end of its ray, before the pre-exposure and the intensity limit', () => {
-  const program = traceGiProgram('rgba16float')
+  const program = traceGiProgram('rgba16float', undefined, false)
   // One helper, shared with the screen probes: defined once, from the parameters the trace copies.
   assert.equal(program.match(/fn spSkyLeak\(/g)?.length, 1)
   // The end: the march's hit, the cache's distance, the furthest a ray looks where the cache covers none.
@@ -63,9 +63,9 @@ test('the cones’ light is in half floats by default, in the 11-11-10 floats wh
   assert.equal(translucencyGiConeFormat(tier1, 'rgba16'), 'rgba16float')
   assert.equal(translucencyGiConeFormat(none, 'rgba32'), 'rgba32float')
   // Only the 11-11-10 programs open with the language extension, and each dithers to its format’s mantissas (6, 6, 5 bits against 10).
-  const packed = [traceGiProgram('rg11b10ufloat'), filterGiProgram('rg11b10ufloat')]
+  const packed = [traceGiProgram('rg11b10ufloat', undefined, false), filterGiProgram('rg11b10ufloat')]
   const half = [
-    traceGiProgram('rgba16float'),
+    traceGiProgram('rgba16float', undefined, false),
     filterGiProgram('rgba16float'),
     integrateGiProgram('rgba16float', 'rgba16float'),
   ]
@@ -89,8 +89,8 @@ test('the cones’ light is in half floats by default, in the 11-11-10 floats wh
 test('the programs bind the textures and buffers their layouts name, and nothing twice', () => {
   for (const [name, text] of [
     ['mark', MARK_GI_PROGRAM],
-    ['trace', traceGiProgram('rgba16float')],
-    ['trace packed', traceGiProgram('rg11b10ufloat')],
+    ['trace', traceGiProgram('rgba16float', undefined, false)],
+    ['trace packed', traceGiProgram('rg11b10ufloat', undefined, false)],
     ['filter', filterGiProgram('rgba16float')],
     ['filter packed', filterGiProgram('rg11b10ufloat')],
     ['integrate', integrateGiProgram('rgba16float', 'rgba16float')],
@@ -134,7 +134,7 @@ test('the integration writes the fog’s volume before the history and the inten
 })
 
 test('the volume chooses the radiance cache’s level for its cell with the number one half: it gathers the probes and takes the reach from the level whose edge fade is past a half', () => {
-  const program = traceGiProgram('rgba16float')
+  const program = traceGiProgram('rgba16float', undefined, false)
   assert.match(program, /const GI_COVERAGE_RANDOM:f32=0\.5;/)
   assert.match(program, /spCacheGatherOwnBiased\(giOrigin,bias,GI_COVERAGE_RANDOM\)/)
   assert.match(program, /spLocalReachBiased\(giOrigin,bias,GI_COVERAGE_RANDOM\)/)

@@ -114,8 +114,9 @@ function outputWgsl(mode: number) {
 export const sceneVisualizeWgsl = (
   light: LightAtlasFormat,
   mode: number,
-  feedback = false,
-  compressed = false,
+  feedback: boolean,
+  compressed: boolean,
+  filterableMip: boolean,
 ) =>
   wgslProgram(
     `${wgslConsts({ FIELD_MAP_BORDER })}
@@ -244,7 +245,7 @@ ${outputWgsl(mode)}
       visualizeTonemapWgsl(B.tone),
       skyLightReadWgsl(SCENE_VISUALIZE_SKY_LIGHT),
       SKY_READ_WGSL,
-      surfaceHitWgsl(sceneVisualizeHit(mode, feedback, compressed), light),
+      surfaceHitWgsl(sceneVisualizeHit(mode, feedback, compressed), light, filterableMip),
       FULLSCREEN_VERTEX,
     ],
   )

@@ -29,6 +29,10 @@ const HELPERS = [
   'clusterUvSets',
   'clusterHasUv',
   'clusterUvValue',
+  'clusterUvRange',
+  'clusterUvFields',
+  'clusterUvSet',
+  'clusterUvAt',
   'octCellsDecode',
 ].concat(['clusterPointHeader', 'clusterSurfaceHeader'])
 /** The presence bit of each texture set, in set order. */

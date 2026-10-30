@@ -318,7 +318,7 @@ test("every kernel of the screen probes fits WebGPU's default limits at the leve
           screenProbeDiffuseIntegralMethod,
         }),
       )
-      for (const [name, source] of Object.entries(screenProbeSources(shape)))
+      for (const [name, source] of Object.entries(screenProbeSources(shape, undefined, undefined, undefined, undefined, false)))
         withinDefaults(
           [
             {

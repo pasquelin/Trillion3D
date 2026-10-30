@@ -20,9 +20,10 @@ export const CONE_GLOBAL_GROUP = 8
  * (`objects`), the cones start where those end (their last step's offset); otherwise they start two voxels out,
  * and every visibility is scaled by `0.6 + 0.4 ·` the square of the share of that first step's distance in the
  * step itself (`leakFill`), so that a light leaking through a thin wall is covered. The nine are folded into the
- * cell's visibilities by minimum (`dfaoKeepVisibility`).
+ * cell's visibilities by minimum (`dfaoKeepVisibility`). The field's coarse mip is read through the hardware's filter where `filterableMip`, as in the
+ * layout (`DFAO_LAYOUTS`).
  */
-export const dfaoConeGlobalShader = (objects: boolean) =>
+export const dfaoConeGlobalShader = (objects: boolean, filterableMip: boolean) =>
   wgslProgram(
     `fn dfaoTraceClipmap(clipmap:u32,position:vec3f,normal:vec3f,axes:DfaoAxes,cell:u32){
  let reach=dfao.global.x;
@@ -69,6 +70,6 @@ fn dfaoConeGlobal(@builtin(global_invocation_id) id:vec3u){
       DFAO_COMMON_WGSL,
       DFAO_GRID_WGSL,
       DFAO_VISIBILITY_WRITE_WGSL,
-      globalDistanceFieldReadWgsl(0, B.field),
+      globalDistanceFieldReadWgsl(0, B.field, filterableMip),
     ],
   )

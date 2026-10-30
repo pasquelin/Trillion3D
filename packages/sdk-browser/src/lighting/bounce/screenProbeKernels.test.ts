@@ -20,7 +20,7 @@ test('every screen-probe kernel is a module a device takes, at every level: its 
       const shape = kernelShapeOf(
         screenProbeSettings({ screenProbes: level, screenProbeHeightFogOnGI }),
       )
-      const sources = screenProbeSources(shape)
+      const sources = screenProbeSources(shape, undefined, undefined, undefined, undefined, false)
       for (const [name, { code, entries, points }] of Object.entries(sources)) {
         const where = `${level} ${name}${screenProbeHeightFogOnGI ? ' with the fog' : ''}`
         assertProgramAssembles(code, undefined, where)
@@ -46,7 +46,7 @@ test('every screen-probe kernel is a module a device takes, at every level: its 
 
 test('every kernel reads the blue noise where the probes need a random number — the rays and their texels by the tile and the rays turn, the pixels by the frame — and keeps no hash but the dither of the 11-11-10 targets (a hash of the texel and the frame; the spatial filter’s blue noise of the pass)', () => {
   const sources = {
-    ...screenProbeSources(kernelShapeOf(screenProbeSettings({ screenProbes: 'ultra' }))),
+    ...screenProbeSources(kernelShapeOf(screenProbeSettings({ screenProbes: 'ultra' })), undefined, undefined, undefined, undefined, false),
     // The kernels the temporal filter of the probes and the levels of the filtered radiance add.
     ...Object.fromEntries(
       Object.entries(
@@ -57,8 +57,8 @@ test('every kernel reads the blue noise where the probes need a random number �
               screenProbeTemporalFilterProbes: true,
               screenProbeGatherNumMips: 2,
             }),
-          ),
-        ),
+          ), undefined, undefined, undefined, undefined, false,
+),
       ).filter(([name]) => ['probeFilter', 'fixup', 'mip1'].includes(name)),
     ),
   }
@@ -144,8 +144,8 @@ test('the traced scene kernel is kept by the rays a side of a probe, the samples
 test('the scene stage of the screen probes is built over the reflection group it reads, and lays the fog only where the option is on: no other kernel is made for it', () => {
   const sources = (screenProbeHeightFogOnGI: boolean) =>
     screenProbeSources(
-      kernelShapeOf(screenProbeSettings({ screenProbes: 'ultra', screenProbeHeightFogOnGI })),
-    )
+      kernelShapeOf(screenProbeSettings({ screenProbes: 'ultra', screenProbeHeightFogOnGI })), undefined, undefined, undefined, undefined, false,
+)
   for (const on of [false, true]) {
     const all = sources(on)
     assert.equal(all.traceScene?.scene, true, 'the scene stage reads the reduced reflection group')
@@ -198,7 +198,7 @@ test('the sources the store wrote for a device are written again for the next on
 })
 
 test('the scene stage lists a ray by its texel alone, the disocclusion is read only where its flag is up, the occlusion search takes its slices and steps from the parameters', () => {
-  const sources = screenProbeSources(kernelShapeOf(screenProbeSettings({ screenProbes: 'ultra' })))
+  const sources = screenProbeSources(kernelShapeOf(screenProbeSettings({ screenProbes: 'ultra' })), undefined, undefined, undefined, undefined, false)
   for (const name of ['traceScreen', 'traceScene'] as const)
     assert.ok(/entries:array<u32>,\}/.test(sources[name]!.code), `${name} lists one word a ray`)
   assert.ok(

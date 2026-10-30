@@ -12,7 +12,7 @@ import { WORD_LIGHT_FORMAT } from '../../../gpu/core/lightAtlasFormat.ts'
 
 const RADIOSITY_FILTER_WGSL = radiosityFilterProgramOf(WORD_LIGHT_FORMAT)
 const RADIOSITY_INTEGRATE_WGSL = radiosityIntegrateProgramOf(WORD_LIGHT_FORMAT)
-const RADIOSITY_TRACE_WGSL = radiosityTraceProgramOf(WORD_LIGHT_FORMAT)
+const RADIOSITY_TRACE_WGSL = radiosityTraceProgramOf(WORD_LIGHT_FORMAT, false)
 
 test('the fixed jitter index, where one is set, holds the probes and the cells of their rays: both draw at jitterIndex', () => {
   const T = RADIOSITY_TRACE_WGSL

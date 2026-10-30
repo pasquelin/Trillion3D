@@ -95,10 +95,32 @@ fn clusterPointHeader(base:u32)->ClusterHeader{
 }
 `
 
-/** The rest of the header, and the whole header once per cluster. */
+/** The rest of the header, the texture sets, and the whole header once per cluster. */
 const surfaceHeaderWgsl = (
   buffer: string,
-) => `// The rest of the header after \`clusterPointHeader\`: flags, attribute grids and the streams after
+) => `// Range words of set \`s\`: header words 9 to 16 for sets 0 to 3, then a pair for each stored set past them, after the morph records.
+fn clusterUvRange(base:u32,h:ClusterHeader,s:u32)->vec2u{
+ if(s<${HEADER_UV_SETS}u){return vec2u(${buffer}[base+9u+2u*s],${buffer}[base+10u+2u*s]);}
+ let below=(clusterUvSets(h.flags)>>${HEADER_UV_SETS}u)&((1u<<(s-${HEADER_UV_SETS}u))-1u);
+ let at=base+${CLUSTER_HEADER_WORDS}u+${MORPH_WORDS}u*h.morphCount+${UV_EXTENSION_WORDS}u*countOneBits(below);
+ return vec2u(${buffer}[at],${buffer}[at+1u]);
+}
+// The widths of a set's fields and their least codes from its range words: the least code above five bits of width.
+fn clusterUvFields(r:vec2u)->ClusterUvSet{
+ var o:ClusterUvSet;
+ o.bitsX=r.x&31u;o.minX=r.x>>5u;o.bitsY=r.y&31u;o.minY=r.y>>5u;
+ return o;
+}
+// Texture set \`s\` of the resident page at word \`base\`: its ranges and the word its two streams start
+// at, read from the page when the set is read. A set the page does not store is zero.
+fn clusterUvSet(h:ClusterHeader,base:u32,s:u32)->ClusterUvSet{
+ var o:ClusterUvSet;
+ if(!clusterHasUv(h.flags,s)){return o;}
+ o=clusterUvFields(clusterUvRange(base,h,s));
+ let at=clusterOffsets(base,h.table,${TABLE_UV}u+s);o.offX=at.x;o.offY=at.y;
+ return o;
+}
+// The rest of the header after \`clusterPointHeader\`: flags, attribute grids and the streams after
 // the links, each stream's offset loaded from the table, only for the attributes the page stores.
 fn clusterSurfaceHeader(point:ClusterHeader,base:u32)->ClusterHeader{
  var h=point;
@@ -110,18 +132,6 @@ fn clusterSurfaceHeader(point:ClusterHeader,base:u32)->ClusterHeader{
  h.normalBits=(cb>>16u)&15u;h.tangentBits=(cb>>20u)&15u;
  h.influences=${buffer}[base+22u];
  if((h.flags&${FLAG_NORMAL}u)!=0u){h.normal=clusterOffsets(base,h.table,3u);}
- // The sets the page stores, by rank: each one's two ranges, the least code above five bits of
- // width — words 9 to 16 for the first four sets, then, after the morph records, a pair for each set
- // past them the page carries — and its two streams. A set it does not store is left zero.
- var extension=${CLUSTER_HEADER_WORDS}u+${MORPH_WORDS}u*h.morphCount;
- for(var m=clusterUvSets(h.flags);m!=0u;m&=m-1u){
-  let s=firstTrailingBit(m);
-  var u=0u;var v=0u;
-  if(s<${HEADER_UV_SETS}u){u=${buffer}[base+9u+2u*s];v=${buffer}[base+10u+2u*s];}
-  else{u=${buffer}[base+extension];v=${buffer}[base+extension+1u];extension+=${UV_EXTENSION_WORDS}u;}
-  h.uvBitsX[s]=u&31u;h.uvMinX[s]=u>>5u;h.uvBitsY[s]=v&31u;h.uvMinY[s]=v>>5u;
-  let at=clusterOffsets(base,h.table,${TABLE_UV}u+s);h.uvX[s]=at.x;h.uvY[s]=at.y;
- }
  if((h.flags&${FLAG_COLOR}u)!=0u){
   let rg=clusterOffsets(base,h.table,${TABLE_COLOR}u);let ba=clusterOffsets(base,h.table,${TABLE_COLOR + 1}u);
   h.color=vec4u(rg.x,rg.y,ba.x,ba.y);
@@ -143,6 +153,24 @@ fn clusterStream(present:bool,count:u32,bits:u32,at:ptr<function,u32>)->u32{
  if(present){*at+=ceilDiv(count*bits,32u);}
  return start;
 }
+// The word the streams of texture set \`s\` start at in a page on disk: behind the normals and the
+// streams of the stored sets below it.
+fn clusterDiskUvAt(h:ClusterHeader,base:u32,s:u32)->u32{
+ var at=h.normal.y+select(0u,ceilDiv(h.vertexCount*h.normalBits,32u),(h.flags&${FLAG_NORMAL}u)!=0u);
+ for(var t=0u;t<s;t++){
+  if(clusterHasUv(h.flags,t)){let r=clusterUvRange(base,h,t);at+=ceilDiv(h.vertexCount*(r.x&31u),32u)+ceilDiv(h.vertexCount*(r.y&31u),32u);}
+ }
+ return at;
+}
+// Texture set \`s\` of a page on disk: its streams one after the other from \`clusterDiskUvAt\`, a set
+// the page does not carry empty where the next one would start.
+fn clusterDiskUvSet(h:ClusterHeader,base:u32,s:u32)->ClusterUvSet{
+ var o:ClusterUvSet;
+ if(clusterHasUv(h.flags,s)){o=clusterUvFields(clusterUvRange(base,h,s));}
+ o.offX=clusterDiskUvAt(h,base,s);
+ o.offY=o.offX+ceilDiv(h.vertexCount*o.bitsX,32u);
+ return o;
+}
 // The header of a page on disk, every stream's offset the chain of the counts and widths in the
 // format's order — a stream the page does not carry starts where the next one would —, the same
 // words and the same arithmetic as \`Layout::of\`.
@@ -162,13 +190,6 @@ fn clusterDiskHeader(base:u32)->ClusterHeader{
  h.colorBits=vec4u(cb&15u,(cb>>4u)&15u,(cb>>8u)&15u,(cb>>12u)&15u);
  h.normalBits=(cb>>16u)&15u;h.tangentBits=(cb>>20u)&15u;
  h.influences=${buffer}[base+22u];
- var extension=${CLUSTER_HEADER_WORDS}u+${MORPH_WORDS}u*h.morphCount;
- for(var s=0u;s<${MAX_UV_SETS}u;s++){
-  var u=0u;var v=0u;
-  if(s<${HEADER_UV_SETS}u){u=${buffer}[base+9u+2u*s];v=${buffer}[base+10u+2u*s];}
-  else if(clusterHasUv(h.flags,s)){u=${buffer}[base+extension];v=${buffer}[base+extension+1u];extension+=${UV_EXTENSION_WORDS}u;}
-  h.uvBitsX[s]=u&31u;h.uvMinX[s]=u>>5u;h.uvBitsY[s]=v&31u;h.uvMinY[s]=v>>5u;
- }
  let stored=h.positionCount;
  var at=${CLUSTER_HEADER_WORDS}u+${MORPH_WORDS}u*h.morphCount+${UV_EXTENSION_WORDS}u*countOneBits(h.flags&${FLAG_UV_EXTENDED}u);h.streams=at;
  h.blocks=clusterStream(true,ceilDiv(h.indexCount/3u,${TRIANGLE_BLOCK}u),h.recordBits,&at);
@@ -179,10 +200,7 @@ fn clusterDiskHeader(base:u32)->ClusterHeader{
  clusterStream(h.positionCount<n,n,h.linkBits,&at);
  let hasNormal=(h.flags&${FLAG_NORMAL}u)!=0u;
  h.normal.x=clusterStream(hasNormal,n,h.normalBits,&at);h.normal.y=clusterStream(hasNormal,n,h.normalBits,&at);
- for(var s=0u;s<${MAX_UV_SETS}u;s++){
-  let hasUv=clusterHasUv(h.flags,s);
-  h.uvX[s]=clusterStream(hasUv,n,h.uvBitsX[s],&at);h.uvY[s]=clusterStream(hasUv,n,h.uvBitsY[s],&at);
- }
+ at=clusterDiskUvAt(h,base,${MAX_UV_SETS}u);
  let hasColor=(h.flags&${FLAG_COLOR}u)!=0u;h.color.x=clusterStream(hasColor,n,h.colorBits.x,&at);h.color.y=clusterStream(hasColor,n,h.colorBits.y,&at);
  h.color.z=clusterStream(hasColor,n,h.colorBits.z,&at);h.color.w=clusterStream(hasColor,n,h.colorBits.w,&at);
  h.tangent=clusterStream((h.flags&${FLAG_TANGENT}u)!=0u,n,h.tangentBits+1u,&at);
@@ -192,19 +210,19 @@ fn clusterDiskHeader(base:u32)->ClusterHeader{
 // Offset \`k\` of the table (the order of \`Layout::table\`) of a page whose disk header is \`h\`, in the
 // resident page: the table sits behind the header, so every stream moves by its words. A page of the format's
 // bounds never passes the 16 bits it is held in (\`MAX_TABLE_OFFSET\`); the install pass refuses one that would.
-fn clusterTableOffset(h:ClusterHeader,k:u32)->u32{
+fn clusterTableOffset(h:ClusterHeader,base:u32,k:u32)->u32{
  var at:u32;
  if(k<2u){at=select(h.blocks,h.corners,k==1u);}
  else if(k<5u){at=h.pos[k-2u];}
  else if(k==5u){at=h.links;}
  else if(k<8u){at=h.normal[k-6u];}
- else if(k<${TABLE_COLOR * 2}u){let s=(k-8u)>>1u;at=select(h.uvX[s],h.uvY[s],((k-8u)&1u)!=0u);}
+ else if(k<${TABLE_COLOR * 2}u){let o=clusterDiskUvSet(h,base,(k-8u)>>1u);at=select(o.offX,o.offY,((k-8u)&1u)!=0u);}
  else if(k<${TABLE_TAIL * 2}u){at=h.color[k-${TABLE_COLOR * 2}u];}
  else{at=select(h.tangent,h.skin,k==${TABLE_TAIL * 2 + 1}u);}
  return at+${RESIDENT_TABLE_WORDS}u;
 }
 // Word \`i\` of the resident page's table, written by the install pass: offsets \`2i\` and \`2i+1\`.
-fn clusterTableWord(h:ClusterHeader,i:u32)->u32{return clusterTableOffset(h,2u*i)|(clusterTableOffset(h,2u*i+1u)<<16u);}
+fn clusterTableWord(h:ClusterHeader,base:u32,i:u32)->u32{return clusterTableOffset(h,base,2u*i)|(clusterTableOffset(h,base,2u*i+1u)<<16u);}
 `
 
 /** The window of two words, the block of a triangle, its corners and its indices. */
@@ -264,12 +282,13 @@ fn clusterUvValue(code:u32)->f32{
  let value=min(halfUp*2.0-1.0,halfUp);
  return select(value,-value,negative);
 }
-// Texture set \`uvSet\` of a vertex.
-fn clusterUv(h:ClusterHeader,base:u32,vertex:u32,uvSet:u32)->vec2f{
- let bx=h.uvBitsX[uvSet];let by=h.uvBitsY[uvSet];
- return vec2f(clusterUvValue(h.uvMinX[uvSet]+clusterField(base+h.uvX[uvSet],vertex*bx,bx)),
-  clusterUvValue(h.uvMinY[uvSet]+clusterField(base+h.uvY[uvSet],vertex*by,by)));
+// A vertex's coordinate in texture set \`t\` (\`clusterUvSet\`) of the page at \`base\`.
+fn clusterUvAt(t:ClusterUvSet,base:u32,vertex:u32)->vec2f{
+ return vec2f(clusterUvValue(t.minX+clusterField(base+t.offX,vertex*t.bitsX,t.bitsX)),
+  clusterUvValue(t.minY+clusterField(base+t.offY,vertex*t.bitsY,t.bitsY)));
 }
+// Texture set \`uvSet\` of a vertex.
+fn clusterUv(h:ClusterHeader,base:u32,vertex:u32,uvSet:u32)->vec2f{return clusterUvAt(clusterUvSet(h,base,uvSet),base,vertex);}
 fn clusterNormal(h:ClusterHeader,base:u32,vertex:u32)->vec3f{
  let b=h.normalBits;
  return octCellsDecode(vec2u(clusterField(base+h.normal.x,vertex*b,b),clusterField(base+h.normal.y,vertex*b,b)),b);

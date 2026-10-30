@@ -16,7 +16,7 @@ import {
  *
  * Where the device allows the 8-bit format as a storage texture (`../../gpu/core/textureFormatsTier.ts`)
  * the atlas is a 3D texture (`gdfAtlasTexture`, `r8unorm`) read through a sampler
- * (`gdfAtlasSampler`, linear, repeating) — `gdfAtlasSampleTexture`: the position within a page, 0 to 7
+ * (`gdfAtlasSampler`, linear, repeating, which also filters the coarse mip, `globalReadWgsl.ts`) — `gdfAtlasSampleTexture`: the position within a page, 0 to 7
  * voxels along each axis, carried to the atlas's coordinate and filtered by the hardware. Else the
  * atlas is a buffer of bytes (`gdfPageAtlas`, `array<u32>`, read only), a page after the other, four
  * voxels along x to a word — `gdfAtlasSampleBuffer`: the eight voxels around the position weighted

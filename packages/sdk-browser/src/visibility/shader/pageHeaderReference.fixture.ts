@@ -25,7 +25,8 @@ export type Header = Record<string, number | number[]>
 /** The presence bit of each texture set, set 0 first: the optional attributes the format lists in stream order, the sets' among them. */
 const UV_FLAGS = OPTIONAL.filter(([name]) => name.startsWith('uv')).map(([, , flag]) => flag)
 
-/** The header of the page at `base` of `words`, field by field, as the format lays it out. */
+/** The header of the page at `base` of `words`, field by field, as the format lays it out: the
+ *  streams of a texture set are not in it, the shader reads them with `clusterUvSet`. */
 export function reference(words: Uint32Array, base: number): Header {
   const w = (i: number) => words[base + i]
   const fields = (word: number, count: number, width: number) =>
@@ -49,14 +50,8 @@ export function reference(words: Uint32Array, base: number): Header {
   // The ranges of the first sets lie in the header, those of the sets past them, one pair each for
   // the sets the page carries, after the morph records.
   let extension = CLUSTER_HEADER_WORDS + MORPH_WORDS * morphCount
-  const sets = Array.from({ length: MAX_UV_SETS }, (_, s) => {
-    if (!(flags & UV_FLAGS[s])) return [0, 0]
-    if (s < HEADER_UV_SETS) return [w(9 + 2 * s), w(10 + 2 * s)]
-    extension += UV_EXTENSION_WORDS
-    return [w(extension - 2), w(extension - 1)]
-  })
-  const [uvBitsX, uvBitsY] = [0, 1].map((c) => sets.map((pair) => pair[c] & 31))
-  const [uvMinX, uvMinY] = [0, 1].map((c) => sets.map((pair) => pair[c] >>> 5))
+  for (let s = HEADER_UV_SETS; s < MAX_UV_SETS; s++)
+    if (flags & UV_FLAGS[s]) extension += UV_EXTENSION_WORDS
   const [colorMin, colorBits] = [fields(w(17), 4, 8), fields(w(18), 4, 4)]
   const [normalBits, tangentBits] = [(w(18) >>> 16) & 15, (w(18) >>> 20) & 15]
   // The table of the streams' offsets closes the extension: two to a word, 16 bits each, the
@@ -68,12 +63,6 @@ export function reference(words: Uint32Array, base: number): Header {
   const pos = [2, 3, 4].map(offset)
   const links = offset(5)
   const normal = (flags & FLAG_NORMAL) !== 0 ? [offset(6), offset(7)] : [0, 0]
-  const [uvX, uvY] = [[] as number[], [] as number[]]
-  for (let s = 0; s < MAX_UV_SETS; s++) {
-    const present = (flags & UV_FLAGS[s]) !== 0
-    uvX.push(present ? offset(8 + 2 * s) : 0)
-    uvY.push(present ? offset(9 + 2 * s) : 0)
-  }
   const color = [24, 25, 26, 27].map((k) => ((flags & FLAG_COLOR) !== 0 ? offset(k) : 0))
   const tail = (flags & (FLAG_TANGENT | FLAG_SKIN)) !== 0
   const [tangent, skin] = [tail ? offset(28) : 0, tail ? offset(29) : 0]
@@ -81,19 +70,39 @@ export function reference(words: Uint32Array, base: number): Header {
     ...{ vertexCount, indexCount, flags, indexBits, prefixBits, recordBits, positionCount },
     ...{ linkBits, posBits, posUnit: unit(w(5)), posStart: [6, 7, 8].map((i) => w(i) | 0) },
     ...{ skinBits: w(21) & 63, morphCount, skinBase: (w(21) >>> 14) & 0xffff, streams },
-    ...{ blocks, corners, pos, links, uvBitsX, uvBitsY, uvMinX, uvMinY, colorBits, colorMin },
+    ...{ blocks, corners, pos, links, colorBits, colorMin },
     ...{
       normalBits,
       tangentBits,
       influences: w(22),
       normal,
-      uvX,
-      uvY,
       color,
       tangent,
       skin,
       table,
     },
+  }
+}
+/** Texture set `s` of the page at `base` of `words`, as the format lays it out: the widths and
+ *  least codes of its two fields from the range words, and the word each stream starts at; zero
+ *  for a set the page does not carry. The ranges of the first sets lie in the header, those past
+ *  them one pair each for the sets the page carries, after the morph records. */
+export function referenceUvSet(words: Uint32Array, base: number, s: number) {
+  const w = (i: number) => words[base + i]
+  const flags = w(4)
+  const zero = { bitsX: 0, bitsY: 0, minX: 0, minY: 0, offX: 0, offY: 0 }
+  if (!(flags & UV_FLAGS[s])) return zero
+  let extension = CLUSTER_HEADER_WORDS + MORPH_WORDS * ((w(21) >>> 6) & 255)
+  let pair = [w(9 + 2 * s), w(10 + 2 * s)]
+  for (let t = HEADER_UV_SETS; t < MAX_UV_SETS; t++) {
+    if (!(flags & UV_FLAGS[t])) continue
+    if (t === s) pair = [w(extension), w(extension + 1)]
+    extension += UV_EXTENSION_WORDS
+  }
+  const offset = (k: number) => (w(extension + (k >> 1)) >>> (16 * (k & 1))) & 0xffff
+  return {
+    ...{ bitsX: pair[0] & 31, bitsY: pair[1] & 31, minX: pair[0] >>> 5, minY: pair[1] >>> 5 },
+    ...{ offX: offset(8 + 2 * s), offY: offset(9 + 2 * s) },
   }
 }
 /** The fields a shader row reads once its corners and positions are decoded: all but the

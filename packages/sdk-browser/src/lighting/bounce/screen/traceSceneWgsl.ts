@@ -55,11 +55,16 @@ export const TRACE_SCENE_PROBES = 9
 export const TRACE_SCENE_HIT = surfaceHitBindingsFrom(0, 22)
 /** Where the stage reads the fog's cubemap and its sampler, where the height fog is laid over the light of its rays (`screenProbeHeightFogOnGI`). */
 export const TRACE_SCENE_FOG: RayFogBindings = { cubemap: 38, sampler: 39 }
-/** The layout of the scene stage's group 0, with the fog's reads where `fog` says. */
-export const traceSceneEntries = (fog: boolean, light: LightAtlasFormat = WORD_LIGHT_FORMAT) => [
+/** The layout of the scene stage's group 0, with the fog's reads where `fog` says, the field's coarse mip read through the hardware's filter
+ *  where `filterableMip` (`spMarchWgsl`). */
+export const traceSceneEntries = (
+  fog: boolean,
+  light: LightAtlasFormat = WORD_LIGHT_FORMAT,
+  filterableMip: boolean,
+) => [
   ...withLightAtlasEntry(TRACE_SCENE_BINDINGS.entries, TRACE_SCENE_BINDINGS.at.cacheFinal, light),
   atlasEntry(TRACE_SCENE_PROBES),
-  ...surfaceHitLayoutEntries(TRACE_SCENE_HIT, light),
+  ...surfaceHitLayoutEntries(TRACE_SCENE_HIT, light, filterableMip),
   ...rayFogLayoutEntries(TRACE_SCENE_FOG, fog),
   poseTableEntry(TRACE_SCENE_POSES.worlds),
   poseTableEntry(TRACE_SCENE_POSES.previous),
@@ -134,11 +139,12 @@ export const spListedRays = (
  * cone at the hit — the cone the equal-area octahedron gives a texel of `side` texels a side (`scConeTangent`) — its radius. A hit also names its point (metres) and the object of the grid whose cards lit it (`instance`, all ones for none), which the scene stage tells the speed of (`spMarchMoving`). Lengths are metres for the
  * probes, centimetres for the field and the cache. `spMarch` is a probe's ray: it leaves a point the bias (`sp.scene.x`) off the probe's
  * surface along its normal (turned toward the ray on a probe with backface diffuse light) and again along itself, `begin` and `reach` are measured from there, and it is dithered.
+ * `filterableMip`: the field's coarse mip is read through the hardware's filter, on a device with `float32-filterable`; the layout says the same (`traceSceneEntries`).
  */
-export const spMarchWgsl = (light: LightAtlasFormat) =>
+export const spMarchWgsl = (light: LightAtlasFormat, filterableMip: boolean) =>
   wgslBlock(
-    `SP_MARCH(${light})`,
-    [surfaceHitWgsl(TRACE_SCENE_HIT, light), BOUNCE_CM_WGSL],
+    `SP_MARCH(${light},${filterableMip})`,
+    [surfaceHitWgsl(TRACE_SCENE_HIT, light, filterableMip), BOUNCE_CM_WGSL],
     `struct SpMarch{lighting:vec3f,hit:bool,distance:f32,point:vec3f,instance:u32,}
 fn spMarchRay(start:vec3f,d:vec3f,begin:f32,reach:f32,side:f32,dithered:bool,coord:vec2u)->SpMarch{
  var out=SpMarch(vec3f(0.0),false,0.0,start,0xffffffffu);
@@ -174,12 +180,12 @@ const SCENE_POSES = sceneHitVelocityAt(TRACE_SCENE_POSES.worlds, TRACE_SCENE_POS
  * distance of the hit of a march, the cache's distance or the furthest a ray looks for a ray that hit nothing —, the light written once (`spRayLit`). A hit of the field's march moves as a hit of the scene's triangles does (`spMarchMoving`): the field holds no velocity, so the hit takes the speed of the placement whose cards lit it, and keeps in the ray's word, as its end, the reach it
  * was marched to, not the distance it hit at: a grazing hit's distance is noise the filters cannot remove.
  */
-const sceneRay = (fog: boolean, light: LightAtlasFormat) =>
+const sceneRay = (fog: boolean, light: LightAtlasFormat, filterableMip: boolean) =>
   wgslBlock(
-    `SP_SCENE_RAY(${fog},${light})`,
+    `SP_SCENE_RAY(${fog},${light},${filterableMip})`,
     fog
-      ? [spMarchWgsl(light), SCENE_POSES, rayFogWgsl(TRACE_SCENE_FOG)]
-      : [spMarchWgsl(light), SCENE_POSES],
+      ? [spMarchWgsl(light, filterableMip), SCENE_POSES, rayFogWgsl(TRACE_SCENE_FOG)]
+      : [spMarchWgsl(light, filterableMip), SCENE_POSES],
     `struct SpScene{radiance:vec3f,word:u32,}
 /** What the radiance cache answers along \`d\` from the probe: its eight probes gathered for the ray alone, then what lies past the near scene. */
 fn spFarRay(probe:SpProbe,d:vec3f,side:f32)->SpFar{
@@ -217,13 +223,13 @@ fn spSceneRay(probe:SpProbe,d:vec3f,missed:f32,coord:vec2u,side:f32)->SpScene{
 
 /** The scene stage, a thread a listed ray: its texel and where the screen left it read, its radiance and end written. `traceFar` is the
  *  radiance cache's answer to the rays the traced stage left (`SP_FAR_PENDING`): the rays whose word carries the mark, alone. */
-const traceSceneStage = (fog: boolean, light: LightAtlasFormat) =>
+const traceSceneStage = (fog: boolean, light: LightAtlasFormat, filterableMip: boolean) =>
   wgslBlock(
-    `SP_TRACE_SCENE(${fog},${light})`,
+    `SP_TRACE_SCENE(${fog},${light},${filterableMip})`,
     [
       spListedRays(C.sceneRays),
       SP_RAY_CONE,
-      sceneRay(fog, light),
+      sceneRay(fog, light, filterableMip),
       SP_FAR_PENDING,
       SP_MESH_HIT,
       packLight,
@@ -271,6 +277,8 @@ export const traceSceneShader = (
   extra: readonly WgslDecl[] = [],
   /** The format the radiance cache's final maps are stored in. */
   light: LightAtlasFormat = WORD_LIGHT_FORMAT,
+  /** Whether the field's coarse mip is read through the hardware's filter (`spMarchWgsl`). */
+  filterableMip: boolean,
 ) =>
   wgslProgram(
     `${spParams(C.params)}
@@ -283,7 +291,7 @@ ${wgslConsts({ SP_TRACE: side })}`,
       spProbeRecords(C.info, C.normal, true),
       spCacheRead(C.cacheFinal, C.cacheRaw, C.cacheSky, 'private', light),
       spRays(C.ray, C.pixels, C.blue, true),
-      traceSceneStage(fog, light),
+      traceSceneStage(fog, light, filterableMip),
       ...extra,
     ],
   )

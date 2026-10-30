@@ -31,7 +31,8 @@ export const SOFTWARE_FIELD_BINDING = 140
 
 export const SOFTWARE_TRACE_ENTRY = 'softwareTraceMain'
 
-export const softwareTraceWgsl = () =>
+/** The program; `filterableMip` is whether the field's coarse mip is read through the hardware's filter, as in the layout (`sampledLights.ts`). */
+export const softwareTraceWgsl = (filterableMip: boolean) =>
   wgslProgram(
     `
 const FIELD_CM:f32=${DISTANCE_FIELD_UNITS_PER_METRE}.0;
@@ -68,7 +69,7 @@ fn ${SOFTWARE_TRACE_ENTRY}(@builtin(global_invocation_id) id:vec3u){
       WORLD_AT_WGSL,
       reflectionBindingsWgsl(REFLECTION_GROUP),
       reflectionLightViewWgsl(REFLECTION_GROUP),
-      globalDistanceFieldTraceWgsl(0, SOFTWARE_FIELD_BINDING),
+      globalDistanceFieldTraceWgsl(0, SOFTWARE_FIELD_BINDING, filterableMip),
       lightSampleIndex,
       lightSampleRayDistance,
       lightSampleRayUv,

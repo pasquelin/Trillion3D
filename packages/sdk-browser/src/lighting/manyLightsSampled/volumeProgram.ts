@@ -5,6 +5,7 @@
  * the readers keep their walk of the lights.
  */
 import { askedComputeProgram } from '../../gpu/core/computeStages.ts'
+import { hasFloat32Filterable } from '../../gpu/core/float32Filterable.ts'
 import {
   computeBufferEntry,
   computeStorageTextureEntry,
@@ -51,13 +52,13 @@ const sampleEntries = (pyramid: boolean): GPUBindGroupLayoutEntry[] => [
   computeBufferEntry(B.ratios, 'read-only-storage'),
   ...(pyramid ? hizDepthEntries(B.hiz, GPUShaderStage.COMPUTE) : []),
 ]
-const traceEntries = (): GPUBindGroupLayoutEntry[] => [
+const traceEntries = (filterableMip: boolean): GPUBindGroupLayoutEntry[] => [
   computeBufferEntry(B.lights, 'read-only-storage'),
   computeUniformEntry(B.params),
   computeStorageTextureEntry(B.samplesOut, 'r32uint', 'read-write', '3d'),
   computeBufferEntry(B.compactData, 'read-only-storage'),
   computeBufferEntry(B.compactCount, 'read-only-storage'),
-  ...globalReadLayoutEntries(B.field),
+  ...globalReadLayoutEntries(B.field, filterableMip),
 ]
 const compactResetEntries = (): GPUBindGroupLayoutEntry[] => [
   computeBufferEntry(B.compactCount, 'storage'),
@@ -103,7 +104,13 @@ export function createVolumePrograms(device: GPUDevice, failed: (error: unknown)
       return made
     },
     trace() {
-      return (trace ??= asked('trace', traceEntries(), volumeTraceText(), VOLUME_TRACE_ENTRY))
+      const filterableMip = hasFloat32Filterable(device.features)
+      return (trace ??= asked(
+        'trace',
+        traceEntries(filterableMip),
+        volumeTraceText(filterableMip),
+        VOLUME_TRACE_ENTRY,
+      ))
     },
     compactReset() {
       return (compactReset ??= asked(

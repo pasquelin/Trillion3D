@@ -121,11 +121,15 @@ fn mlRandom(c:vec3u,salt:u32)->vec3f{
 fn mlSampleCoord(d:vec3u,i:u32)->vec3u{return d*mlp.samples.xyz+vec3u(i%mlp.samples.x,i/mlp.samples.x,0u);}`,
 )
 
-/** The distance field's ray from 'P' toward 'goal' (metres), dithered by the voxel 'cell'; the trace program declares the field's six bindings. */
-export const ML_WORLD_BLOCKED_WGSL = (field: number) =>
+/** The distance field's ray from 'P' toward 'goal' (metres), dithered by the voxel 'cell'; the trace program declares the field's six bindings,
+ *  the coarse mip read through the hardware's filter where `filterableMip` (`globalDistanceFieldReadWgsl`). */
+export const ML_WORLD_BLOCKED_WGSL = (field: number, filterableMip: boolean) =>
   wgslBlock(
-    `ML_WORLD_BLOCKED_WGSL(${field})`,
-    [globalDistanceFieldReadWgsl(0, field), globalDistanceFieldTraceWgsl(0, field)],
+    `ML_WORLD_BLOCKED_WGSL(${field},${filterableMip})`,
+    [
+      globalDistanceFieldReadWgsl(0, field, filterableMip),
+      globalDistanceFieldTraceWgsl(0, field, filterableMip),
+    ],
     `fn mlWorldBlocked(P:vec3f,goal:vec3f,cell:vec3u)->bool{
  let toward=goal-P;
  let length=max(sqrt(dot(toward,toward)),1e-4);

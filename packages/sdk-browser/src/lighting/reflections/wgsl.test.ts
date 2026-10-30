@@ -9,6 +9,8 @@ import { withoutComments } from '../../../../math/src/wgsl/comments.fixture.ts'
 import type { Vec3 } from '../../../../math/src/vector/vectorTuple.ts'
 import { screenEdgeVignette } from '../../../../math/src/wgsl/projection.ts'
 import { reflectionStagesWgsl } from './wgsl.ts'
+import { reflectionSceneTraceWgsl } from './sceneTrace.ts'
+import { WORD_LIGHT_FORMAT } from '../../gpu/core/lightAtlasFormat.ts'
 import { origin, ahead } from './rayPoints.fixture.ts'
 
 type Vignette = { screenEdgeVignette: (ndc: number[]) => number }
@@ -35,7 +37,7 @@ test('the vignette keeps a hit whole inside four fifths of the half extent and f
 })
 
 test('a screen hit stands against the noise of its pixel at the frame index modulo eight, the smaller vignette of this image and the last; no deterministic fade is left', () => {
-  const text = wgslModule(reflectionStagesWgsl(1))
+  const text = wgslModule(reflectionStagesWgsl(1, reflectionSceneTraceWgsl(WORD_LIGHT_FORMAT, false)))
   assert.match(
     text,
     /fn reflectionHitVignette\(S:vec2f,Q:vec2f\)->f32\{\s*return min\(screenEdgeVignette\(S\/view\.viewport\.xy\*2\.0-1\.0\),screenEdgeVignette\(Q\/reflectionView\.radiance\.xy\*2\.0-1\.0\)\);/,
@@ -64,7 +66,7 @@ test('a screen hit stands against the noise of its pixel at the frame index modu
 test('no reflection draws a random number of its own: no seed, no hash, no frame rank; its only frame input is the pixel’s vote at the frame index modulo eight', () => {
   // The code, not the declarations nor the comments: the bounce grid it shares with the diffuse
   // declares the probe update's frame counters, which nothing here reads.
-  const text = withoutComments(wgslModule(reflectionStagesWgsl(1))).replace(
+  const text = withoutComments(wgslModule(reflectionStagesWgsl(1, reflectionSceneTraceWgsl(WORD_LIGHT_FORMAT, false)))).replace(
     /struct \w+\{[^}]*\}/g,
     '',
   )
@@ -117,7 +119,7 @@ function stages(options: {
       firstPerson: boolean,
     ) => { radiance: Vec3; hit: boolean; distance: number }
   }>(
-    wgslModule(reflectionStagesWgsl(1)),
+    wgslModule(reflectionStagesWgsl(1, reflectionSceneTraceWgsl(WORD_LIGHT_FORMAT, false))),
     ['reflectionScreenBegin', 'reflectionScreenEnd', 'reflectionSceneStage'],
     {
       reflectionView: {

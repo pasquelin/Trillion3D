@@ -66,15 +66,15 @@ export const irradianceEntries = (light: LightAtlasFormat = WORD_LIGHT_FORMAT) =
   ]
 }
 
-/** The layout of the occlusion kernel. */
-export const occlusionEntries = () => {
+/** The layout of the occlusion kernel; `filterableMip` is whether the field's coarse mip is read through the hardware's filter (`occlusionProgram`). */
+export const occlusionEntries = (filterableMip: boolean) => {
   const B = OCCLUSION_BINDINGS
   return [
     ...cacheKernelEntries(B),
     computeTextureEntry(B.raw, 'uint'),
     computeStorageTextureEntry(B.occlusion, FIELD_OCCLUSION_FORMAT),
     computeBufferEntry(B.valid, 'storage'),
-    ...globalReadLayoutEntries(B.field),
+    ...globalReadLayoutEntries(B.field, filterableMip),
   ]
 }
 
@@ -164,9 +164,14 @@ export const irradianceProgram = (
  * than half the voxel of the finest clipmap it lies a voxel inside of, times the covered pages' expansion scale (`gdfView.expandCovered`); a probe inside a surface is invalid and its weight is nearly none
  * in the interpolation. With no clipmap in the field the probe is valid.
  */
-const PROBE_OUTSIDE_WGSL = wgslBlock(
-  'PROBE_OUTSIDE_WGSL',
-  [BOUNCE_CM_WGSL, globalDistanceFieldReadWgsl(0, OCCLUSION_BINDINGS.field), QUEUED_PROBE_WGSL],
+const probeOutsideWgsl = (filterableMip: boolean) =>
+  wgslBlock(
+  `PROBE_OUTSIDE_WGSL(${filterableMip})`,
+  [
+    BOUNCE_CM_WGSL,
+    globalDistanceFieldReadWgsl(0, OCCLUSION_BINDINGS.field, filterableMip),
+    QUEUED_PROBE_WGSL,
+  ],
   `fn fieldProbeOutside(queued:QueuedProbe)->bool{
  if(gdfView.clipmaps==0u){return true;}
  let centre=queuedPosition(queued)*f32(BOUNCE_CM);
@@ -187,9 +192,14 @@ const PROBE_OUTSIDE_WGSL = wgslBlock(
  * THE OCCLUSION MAPS (`occlusionMaps`, `PrepareProbeOcclusionCS`, the unfiltered path): for every probe the frame queued, a workgroup, a texel of its occlusion map — `resolution` texels a side and a border of
  * one, the border the texel its wrap names — holds the distance the probe's ray in that direction went and its square, `(d, d²)`, the distance of a two-sided surface four times (a ray that met one is
  * not an occluder). The map reads the raw atlas of the probe's rays at the texel in the same direction, whatever the two resolutions are: where they differ the reference writes zero (its own visual assert),
- * the nearest texel is taken here. The probe's validity (its inside a surface, in the reference's software path) is not decided here.
+ * the nearest texel is taken here. The probe's validity (its inside a surface, in the reference's software path) is read from the global field, its coarse mip through the hardware's filter
+ * where `filterableMip`, as in the layout (`occlusionEntries`).
  */
-export const occlusionProgram = (resolution: number, light: LightAtlasFormat = WORD_LIGHT_FORMAT) =>
+export const occlusionProgram = (
+  resolution: number,
+  light: LightAtlasFormat = WORD_LIGHT_FORMAT,
+  filterableMip: boolean,
+) =>
   wgslProgram(
     `${RADIANCE_CACHE_PARAMS.wgsl}
 @group(0) @binding(${OCCLUSION_BINDINGS.queue}) var<storage,read> probeQueue:array<u32>;
@@ -225,6 +235,6 @@ fn occlusionMaps(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_in
       QUEUED_PROBE_WGSL,
       CACHE_WORDS_WGSL,
       octWrapBorder,
-      PROBE_OUTSIDE_WGSL,
+      probeOutsideWgsl(filterableMip),
     ],
   )

@@ -15,7 +15,7 @@ import { WORD_LIGHT_FORMAT } from '../../gpu/core/lightAtlasFormat.ts'
 function ray(hitTime: number, begin = 0, steps = 9, clipmaps = 4) {
   const asked: { input?: Record<string, unknown>; hit?: unknown[] } = {}
   const { probeRay } = shaderRun<ProbeRayModule>(
-    wgslModule(probeRayWgsl(surfaceHitBindingsFrom(0, 0), WORD_LIGHT_FORMAT)),
+    wgslModule(probeRayWgsl(surfaceHitBindingsFrom(0, 0), WORD_LIGHT_FORMAT, false)),
     ['probeRay'],
     {
       gdfView: { clipmaps },

@@ -211,8 +211,8 @@ test('the ring of the cache round the cells inside is filled by twenty threads, 
 })
 
 test('a level whose integration is downsampled has the pass that picks the texels and the programs of the reduction, and one at the image’s size has neither', () => {
-  const full = screenProbeSources(kernelShapeOf(twice))
-  const plain = screenProbeSources(kernelShapeOf(screenProbeSettings({ screenProbes: 'ultra' })))
+  const full = screenProbeSources(kernelShapeOf(twice), undefined, undefined, undefined, undefined, false)
+  const plain = screenProbeSources(kernelShapeOf(screenProbeSettings({ screenProbes: 'ultra' })), undefined, undefined, undefined, undefined, false)
   assert.deepEqual(full.stochastic!.points, ['stochasticOffsets'])
   assert.equal(plain.stochastic, undefined)
   assert.notEqual(

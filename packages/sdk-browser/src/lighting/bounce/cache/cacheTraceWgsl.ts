@@ -278,9 +278,10 @@ ${tileKernel(
     ],
   )
 
-/** The trace marched through the global field, the surface cache's final light read in the format `light`. */
-export const cacheTraceProgramOf = (light: LightAtlasFormat) =>
-  traceProgram(probeRayWgsl(CACHE_TRACE_HIT, light), false, light)
+/** The trace marched through the global field, the surface cache's final light read in the format `light`, the field's coarse mip read through the hardware's
+ *  filter where `filterableMip`, as in the layout (`cacheTraceEntries`). */
+export const cacheTraceProgramOf = (light: LightAtlasFormat, filterableMip: boolean) =>
+  traceProgram(probeRayWgsl(CACHE_TRACE_HIT, light, filterableMip), false, light)
 
 /** The trace cast through the scene's triangles, the surface cache's final light read in the format `light`; with `hitLit` the hits are marked in a second texture for the hit lighting's passes (`cacheHitLitWgsl.ts`) in place of being lit from the cards. */
 export const cacheTracedProgramOf = (

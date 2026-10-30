@@ -19,6 +19,7 @@ import {
   occlusionProgram,
 } from './mapsWgsl.ts'
 import { irradianceFieldAtlases } from './shape.ts'
+import { hasFloat32Filterable } from '../../../gpu/core/float32Filterable.ts'
 
 /** The kernels of the field's maps for a device, made off the frame (the pipelines of an unready field are not asked for). */
 async function buildKernels(
@@ -26,6 +27,7 @@ async function buildKernels(
   field: IrradianceFieldSettings,
   light: LightAtlasFormat,
 ) {
+  const filterableMip = hasFloat32Filterable(device.features)
   const make = async <E extends string>(
     label: string,
     code: string,
@@ -46,8 +48,8 @@ async function buildKernels(
     ),
     make(
       'irradiance field occlusion',
-      occlusionProgram(field.occlusionResolution, light),
-      occlusionEntries(),
+      occlusionProgram(field.occlusionResolution, light, filterableMip),
+      occlusionEntries(filterableMip),
       'occlusionMaps',
     ),
   ])

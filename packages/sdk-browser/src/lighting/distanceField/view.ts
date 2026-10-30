@@ -181,15 +181,23 @@ export function createNoFieldRead(device: GPUDevice): GlobalFieldRead & { destro
 }
 
 /** The layout entries of the reads' bindings from `first`: the view block, the page table (load), the
- *  atlas as a buffer, the coarse mip (load), the atlas as a texture and its sampler. */
+ *  atlas as a buffer, the coarse mip (filtered by the sampler where `filterableMip`, a device with
+ *  `float32-filterable` (`hasFloat32Filterable`), else read by load), the atlas as a texture and the sampler of both.
+ *  The program's WGSL is made with the same `filterableMip` (`globalDistanceFieldReadWgsl`). */
 export const globalReadLayoutEntries = (
   first: number,
+  filterableMip: boolean,
   visibility = COMPUTE,
 ): GPUBindGroupLayoutEntry[] => [
   computeUniformEntry(first, { minBindingSize: GDF_VIEW.words * 4 }, visibility),
   computeTextureEntry(first + 1, 'uint', '3d', visibility),
   computeBufferEntry(first + 2, 'read-only-storage', visibility),
-  computeTextureEntry(first + 3, 'unfilterable-float', '3d', visibility),
+  computeTextureEntry(
+    first + 3,
+    filterableMip ? 'float' : 'unfilterable-float',
+    '3d',
+    visibility,
+  ),
   computeTextureEntry(first + 4, 'float', '3d', visibility),
   computeSamplerEntry(first + 5, 'filtering', visibility),
 ]

@@ -50,7 +50,7 @@ import {
   withLightAtlasEntry,
   type LightAtlasFormat,
 } from './lightAtlasFormat.ts'
-const CACHE_TRACE_PROGRAM = cacheTraceProgramOf(WORD_LIGHT_FORMAT)
+const CACHE_TRACE_PROGRAM = cacheTraceProgramOf(WORD_LIGHT_FORMAT, false)
 const CACHE_TRACED_PROGRAM = cacheTracedProgramOf(WORD_LIGHT_FORMAT)
 const CACHE_SPLAT_PROGRAM = cacheSplatProgramOf(WORD_LIGHT_FORMAT)
 const digest = (value: unknown) =>
@@ -87,33 +87,33 @@ test('the word format writes the text the passes held before the setting existed
     splat: digest(CACHE_SPLAT_PROGRAM),
     traced: digest(CACHE_TRACED_PROGRAM),
     irradiance: digest(irradianceProgram(8)),
-    occlusion: digest(occlusionProgram(8)),
+    occlusion: digest(occlusionProgram(8, undefined, false)),
     gather: digest(fieldGatherProgram()),
     rays: digest(raysShader(8, 8, [4, 4])),
-    scene: digest(traceSceneShader(8, [4, 4], false)),
-    sceneFog: digest(traceSceneShader(8, [4, 4], true)),
-    mesh: digest(traceMeshShader(8, [4, 4], false)),
+    scene: digest(traceSceneShader(8, [4, 4], false, [], undefined, false)),
+    sceneFog: digest(traceSceneShader(8, [4, 4], true, [], undefined, false)),
+    mesh: digest(traceMeshShader(8, [4, 4], false, undefined, false)),
     stage: digest(
       screenStageShader(
         { side: 8, samples: [4, 4], light: WORD_LIGHT_FORMAT },
         wgslBlock('X', [], 'fn x(){}'),
       ),
     ),
-    gi: digest(traceGiProgram('rgba16float')),
+    gi: digest(traceGiProgram('rgba16float', undefined, false)),
     entries: digest([
       cacheFixupEntries(),
       cacheFilterEntries(),
-      cacheTraceEntries(),
+      cacheTraceEntries(undefined, false),
       cacheSplatEntries(),
       cacheTilesEntries(),
       irradianceEntries(),
-      occlusionEntries(),
+      occlusionEntries(false),
       fieldGatherEntries(),
       raysEntries(),
-      traceSceneEntries(false),
-      traceSceneEntries(true),
+      traceSceneEntries(false, undefined, false),
+      traceSceneEntries(true, undefined, false),
       traceMeshEntries(),
-      traceGiEntries('rgba16float'),
+      traceGiEntries('rgba16float', undefined, false),
     ]),
     formats: digest([
       ...formats,
@@ -185,7 +185,7 @@ test('each format makes the passes it reaches: the declarations, the storage for
       new RegExp(`var cacheFinal:texture_2d<${wordly ? 'u32' : 'f32'}>`),
     )
     assert.match(
-      traceSceneShader(8, [4, 4], false, [], format),
+      traceSceneShader(8, [4, 4], false, [], format, false),
       new RegExp(`var cacheFinal:texture_2d<${wordly ? 'u32' : 'f32'}>`),
     )
     assert.match(
@@ -197,7 +197,7 @@ test('each format makes the passes it reaches: the declarations, the storage for
       new RegExp(`var finalAtlas:texture_2d<${wordly ? 'u32' : 'f32'}>`),
     )
     assert.match(
-      traceGiProgram('rgba16float', format),
+      traceGiProgram('rgba16float', format, false),
       new RegExp(`var cacheFinal:texture_2d<${wordly ? 'u32' : 'f32'}>`),
     )
     // The layouts bind what the programs declare.
@@ -214,8 +214,8 @@ test('each format makes the passes it reaches: the declarations, the storage for
     )
     assert.equal(sample(irradianceEntries(format), 4), lightAtlasSampleType(format))
     assert.equal(sample(raysEntries(format), 13), lightAtlasSampleType(format))
-    assert.equal(sample(traceSceneEntries(false, format), 18), lightAtlasSampleType(format))
-    assert.equal(sample(traceGiEntries('rgba16float', format), 18), lightAtlasSampleType(format))
+    assert.equal(sample(traceSceneEntries(false, format, false), 18), lightAtlasSampleType(format))
+    assert.equal(sample(traceGiEntries('rgba16float', format, false), 18), lightAtlasSampleType(format))
   }
   assert.deepEqual(
     lightAtlasDeps('rgba16float').map((decl) => decl.name),

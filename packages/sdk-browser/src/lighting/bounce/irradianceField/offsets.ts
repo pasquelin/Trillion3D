@@ -1,13 +1,14 @@
 import type { IrradianceFieldSettings } from '../../../../../sdk-core/src/bounce/screenProbeOptions.ts'
 import { createWebgpuBindIdentity } from '../../../gpu/bind/bindIdentity.ts'
 import { buildComputeStages } from '../../../gpu/core/computeStages.ts'
+import { hasFloat32Filterable } from '../../../gpu/core/float32Filterable.ts'
 import { namedEntries, wholeBuffer } from '../../../gpu/core/computeBindings.ts'
 import { createCheckedShaderModule } from '../../../gpu/core/shaderModule.ts'
 import type { AfterUpdate } from '../cache/radianceCache.ts'
 import type { MarkSurface } from '../pool/pool.ts'
 import { POOL_ARGS } from '../pool/poolLayout.ts'
 import {
-  FIELD_OFFSETS_PROGRAM,
+  fieldOffsetsProgram,
   FIELD_OFFSET_BINDINGS,
   GBUFFER_OFFSETS_PROGRAM,
   GBUFFER_OFFSET_BINDINGS,
@@ -28,17 +29,18 @@ interface OffsetSurface {
 /** The kernel of `mode`, made off the frame: its layout and pipeline. */
 async function buildKernel(device: GPUDevice, mode: OffsetMode) {
   const byPixels = mode === 'gbuffer'
+  const filterableMip = hasFloat32Filterable(device.features)
   const label = byPixels
     ? 'irradiance field offsets by pixels'
     : 'irradiance field offsets by field'
   const entry = byPixels ? 'gbufferOffsets' : 'fieldOffsets'
   const layout = device.createBindGroupLayout({
     label: `Trillion3D ${label}`,
-    entries: byPixels ? gbufferOffsetEntries() : fieldOffsetEntries(),
+    entries: byPixels ? gbufferOffsetEntries() : fieldOffsetEntries(filterableMip),
   })
   const module = await createCheckedShaderModule(
     device,
-    byPixels ? GBUFFER_OFFSETS_PROGRAM : FIELD_OFFSETS_PROGRAM,
+    byPixels ? GBUFFER_OFFSETS_PROGRAM : fieldOffsetsProgram(filterableMip),
     label,
   )
   const stages = await buildComputeStages(device, [layout], module, [entry])

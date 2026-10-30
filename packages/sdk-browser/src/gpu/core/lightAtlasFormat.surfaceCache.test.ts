@@ -173,18 +173,18 @@ test('the raw and trace atlases of the radiance cache hold the light in its word
     const filter = cacheFilterProgram(light)
     assert.match(filter, new RegExp(`fn cacheRawAt\\(base:vec2u,texel:vec2u\\)->${texel}\\{`))
     assert.equal(/fn lightFloats\(/.test(filter), words > 1)
-    for (const program of [cacheTraceProgramOf(light), cacheTracedProgramOf(light)])
+    for (const program of [cacheTraceProgramOf(light, false), cacheTracedProgramOf(light)])
       assert.match(program, new RegExp(`(rawOut|traceOut):texture_storage_2d<${raw},write>`))
     const splat = cacheSplatProgramOf(light)
     assert.match(splat, new RegExp(`var rawOut:texture_storage_2d<${raw},write>`))
     assert.equal(/lightFloats\(taken\.xyz\),taken\.w/.test(splat), words > 1)
     // The distance word is the second of two and the last of four.
     assert.match(
-      occlusionProgram(8, light),
+      occlusionProgram(8, light, false),
       new RegExp(`cacheRaw,vec2i\\(raw\\+source\\),0\\)\\.${words === 1 ? 'g' : 'a'};`),
     )
     for (const entries of [
-      cacheTraceEntries(light),
+      cacheTraceEntries(light, false),
       cacheSplatEntries(light),
       cacheTracedLayouts(light)[0],
     ])
@@ -215,7 +215,7 @@ test('the programs and layouts of the surface cache follow the format: the sampl
     assert.equal(hit?.texture?.sampleType, lightAtlasSampleType(light))
     const wordly = light === WORD_LIGHT_FORMAT
     assert.match(
-      wgslModule(surfaceHitWgsl(surfaceHitBindingsFrom(0, 0), light)),
+      wgslModule(surfaceHitWgsl(surfaceHitBindingsFrom(0, 0), light, false)),
       new RegExp(`var scFinalAtlas:texture_2d<${wordly ? 'u32' : 'f32'}>`),
     )
     const combine = combineWgsl(false, light)

@@ -21,6 +21,14 @@ export const PAGE_UV_SET_WGSL = wgslBlock(
 fn pageUvSet(page:PageInfo,h:ClusterHeader,vertex:u32,uvSet:u32,end:u32)->vec2f{
  if(${QUANTIZED}){return clusterUv(h,page.pageOffset,vertex,uvSet);}
  return vertUv1(end,page.vertexBase,vertex);
+}
+/** Texture set \`uvSet\` of the three corners \`k\`, its header words read once. */
+fn pageUvSet3(page:PageInfo,h:ClusterHeader,k:vec3u,uvSet:u32,end:u32)->mat3x2f{
+ if(${QUANTIZED}){
+  let t=clusterUvSet(h,page.pageOffset,uvSet);
+  return mat3x2f(clusterUvAt(t,page.pageOffset,k.x),clusterUvAt(t,page.pageOffset,k.y),clusterUvAt(t,page.pageOffset,k.z));
+ }
+ return mat3x2f(vertUv1(end,page.vertexBase,k.x),vertUv1(end,page.vertexBase,k.y),vertUv1(end,page.vertexBase,k.z));
 }`,
 )
 

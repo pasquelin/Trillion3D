@@ -66,5 +66,5 @@ export const PAGE_STATS_WGSL = wgslProgram(
  atomicStore(&stats[STATS_UPDATED],composed);
  atomicStore(&stats[STATS_FREE],control[CONTROL_FREE_ALLOCATOR]);
 }`,
-  [globalDistanceFieldReadWgsl(0, 0)],
+  [globalDistanceFieldReadWgsl(0, 0, false)],
 )

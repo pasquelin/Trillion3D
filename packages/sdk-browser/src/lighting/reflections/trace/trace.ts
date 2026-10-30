@@ -341,6 +341,10 @@ fn traceSceneHit(@builtin(global_invocation_id) thread:vec3u,@builtin(num_workgr
  * `reflectionView.taps.z` lanes of its subgroup are still walking, counted by the subgroup's vote where the device has subgroups, else by a count in the
  * workgroup's memory over virtual subgroups of 32 threads.
  *
+ * THE FIELD'S COARSE MIP (`filterableMip`) is read through the hardware's filter where the device has `float32-filterable`
+ * (`hasFloat32Filterable`), else by hand; the layout (`traceLayouts`) is made for the same device. The field's march is the software
+ * scene stage's alone: the program through the scene's triangles reads none.
+ *
  * THE SURFACE CACHE'S FINAL LIGHT, which a hit reads, is stored in the format the cache's atlases are (`light`, `lightAtlasFormat`): the program, the layouts
  * and the final view the stage is bound with are all for the one.
  *
@@ -358,6 +362,7 @@ export const reflectionTraceShader = (
   meshes?: SceneCompaction,
   programs: SceneMaskPrograms = NO_SCENE_MASKS,
   lit: HitLitMode = 'none',
+  filterableMip = false,
 ) =>
   wgslProgram(
     [
@@ -392,7 +397,7 @@ export const reflectionTraceShader = (
               lit === 'finish' ? REFLECTION_INDIRECT_BINDINGS : REFLECTION_HIT_BINDINGS,
               lit !== 'none',
             )
-          : reflectionSceneTraceWgsl(light),
+          : reflectionSceneTraceWgsl(light, filterableMip),
         hardware,
         lanes,
       ),

@@ -14,7 +14,7 @@ import { STRUCTS, integer$b, type Fn } from './triangleScene.fixture.ts'
 import { decodeGeometryPage, residentGeometryPage } from '../../geometry/codec/geometryPage.ts'
 import { encodePage } from '../../geometry/codec/encodePage.fixture.ts'
 import { randomPage } from '../../geometry/codec/randomPages.fixture.ts'
-import { reference, POINT, type Header } from './pageHeaderReference.fixture.ts'
+import { reference, referenceUvSet, POINT, type Header } from './pageHeaderReference.fixture.ts'
 import { FLAG_CLUSTER_PAGE } from '../types.ts'
 import { MAX_UV_SETS } from '../../../../sdk-core/src/page/format.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
@@ -107,6 +107,7 @@ const NAMES = [
   ...'clusterPosition clusterOffsets clusterUvSets clusterHasUv clusterUv clusterUvValue'.split(
     ' ',
   ),
+  ...'clusterUvRange clusterUvFields clusterUvSet clusterUvAt'.split(' '),
 ]
 const flat = (v: unknown): number[] =>
   typeof v === 'object' && v ? Object.values(v).flatMap(flat) : [Number(v)]
@@ -144,6 +145,14 @@ function firstDifference(code: string): string | null {
     const decoded = decodeGeometryPage(page)
     for (let c = 0; c < decoded.indices.length; c++)
       if (run.pageCorner(row, part, c) !== decoded.indices[c]) return `${name}: corner ${c}`
+    // The ranges and stream offsets of every set, stored or not, as the format lays them out: a
+    // page storing {0}, {0,5,7} or all eight (`shared`, `sparse`, `eight`) covers the extension.
+    for (let s = 0; s < MAX_UV_SETS; s++) {
+      const got = run.clusterUvSet(whole, at, s) as Record<string, number>
+      const wantSet = referenceUvSet(words, at, s)
+      for (const [field, value] of Object.entries(wantSet))
+        if (got[field] !== value) return `${name}: set ${s} ${field}`
+    }
     // Each texture set the page stores, the first four and those past them, as the JavaScript
     // decoder decodes it.
     for (let s = 0; s < MAX_UV_SETS; s++) {
@@ -180,8 +189,9 @@ const BREAKS: [string, string][] = [
   ['h.flags=indices[base+4u]', 'h.flags=indices[base+5u]'],
   ['(h.flags&1u)!=0u', '(h.flags&2u)!=0u'],
   ['h.normalBits=(cb>>16u)&15u', 'h.normalBits=(cb>>17u)&15u'],
-  ['u=indices[base+9u+2u*s]', 'u=indices[base+10u+2u*s]'],
-  ['else{u=indices[base+extension]', 'else{u=indices[base+extension+1u]'],
+  ['vec2u(indices[base+9u+2u*s],', 'vec2u(indices[base+10u+2u*s],'],
+  ['return vec2u(indices[at],indices[at+1u]);', 'return vec2u(indices[at+1u],indices[at+1u]);'],
+  ['countOneBits(below)', 'countOneBits(below>>1u)'],
   ['*countOneBits(h.flags&30720u)', '*countOneBits(h.flags&28672u)'],
   // The table of the streams' offsets: its place, the half of a word an offset lies in, the word
   // each stream is loaded from.

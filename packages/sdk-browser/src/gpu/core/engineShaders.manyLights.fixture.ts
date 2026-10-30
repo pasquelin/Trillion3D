@@ -57,7 +57,9 @@ export const SAMPLED_LIGHTS_SHADERS: Record<string, string> = {
   SAMPLED_CASTERS: castersWgsl(),
   SAMPLED_CASTERS_HAIR: castersHairWgsl(),
   SAMPLED_SCREEN_TRACE: screenTraceWgsl(),
-  SAMPLED_SOFTWARE_TRACE: softwareTraceWgsl(),
+  SAMPLED_SOFTWARE_TRACE: softwareTraceWgsl(false),
+  // The same with the field's coarse mip read through the hardware's filter (`float32-filterable`).
+  SAMPLED_SOFTWARE_TRACE_FILTERED_MIP: softwareTraceWgsl(true),
   SAMPLED_MAP_TRACE: vsmTraceSamplesWgsl(),
   SAMPLED_MAP_TRACE_CLASSIC: vsmTraceSamplesWgsl(true),
   SAMPLED_MAP_MARKING: vsmSampleMarkingWgsl(SUNS_LAYOUT),

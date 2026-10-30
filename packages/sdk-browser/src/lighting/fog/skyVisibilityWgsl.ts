@@ -10,13 +10,16 @@ import { globalDistanceFieldTraceWgsl } from '../distanceField/globalTraceWgsl.t
  * (`gdfTranslated`). The sky light's term of the sample is multiplied by it, so that a cell the samples of which
  * differ in what they see, as the cells a camera just uncovered take several, lights each by its own. The up of the
  * world is its +y. The program binds the field's six bindings from `field` in group 0
- * (`globalDistanceFieldReadWgsl`); the scatter that binds none reads the other block, which answers a wholly visible
+ * (`globalDistanceFieldReadWgsl`), the coarse mip read through the hardware's filter where `filterableMip`, as in the layout (`layoutEntries`); the scatter that binds none reads the other block, which answers a wholly visible
  * sky (`FOG_NO_SKY_VISIBILITY_WGSL`).
  */
-export const FOG_SKY_VISIBILITY_WGSL = (field: number): WgslDecl =>
+export const FOG_SKY_VISIBILITY_WGSL = (field: number, filterableMip: boolean): WgslDecl =>
   wgslBlock(
-    `FOG_SKY_VISIBILITY_WGSL(${field})`,
-    [globalDistanceFieldReadWgsl(0, field), globalDistanceFieldTraceWgsl(0, field)],
+    `FOG_SKY_VISIBILITY_WGSL(${field},${filterableMip})`,
+    [
+      globalDistanceFieldReadWgsl(0, field, filterableMip),
+      globalDistanceFieldTraceWgsl(0, field, filterableMip),
+    ],
     `fn fogSkyVisibility(P:vec3f)->f32{
  return gdfSkyVisibility(gdfTranslated(P*${CENTIMETRES_PER_METRE}.0),vec3f(0.0,1.0,0.0));
 }`,

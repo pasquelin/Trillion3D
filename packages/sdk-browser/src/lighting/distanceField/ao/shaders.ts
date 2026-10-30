@@ -26,11 +26,11 @@ export const coneObjectsKey = (shape: ConeObjectsShape) =>
  * the rest or not and climbing the mips or not. The passes compile these (`pipelines.ts`) and the list of the
  * engine's texts holds each.
  */
-export const DFAO_SHADERS = {
+const dfaoShaders = (filterableMip: boolean) => ({
   normals: DFAO_NORMALS_WGSL,
   clear: DFAO_CLEAR_WGSL,
-  coneGlobal: dfaoConeGlobalShader(false),
-  coneGlobalObjects: dfaoConeGlobalShader(true),
+  coneGlobal: dfaoConeGlobalShader(false, filterableMip),
+  coneGlobalObjects: dfaoConeGlobalShader(true, filterableMip),
   coneObjects: dfaoConeObjectsShader({ global: false, traverseMips: false }),
   coneObjectsMips: dfaoConeObjectsShader({ global: false, traverseMips: true }),
   coneObjectsGlobal: dfaoConeObjectsShader({ global: true, traverseMips: false }),
@@ -44,4 +44,15 @@ export const DFAO_SHADERS = {
   tileCones: DFAO_TILE_CONES_WGSL,
   startOffsets: DFAO_START_OFFSETS_WGSL,
   scatter: DFAO_OBJECT_CULL_WGSL,
-} as const
+}) as const
+
+const shadersHeld = new Map<boolean, ReturnType<typeof dfaoShaders>>()
+/** The programs, made once for each value of `filterableMip`: whether the cones against the global field read its coarse mip through the hardware's filter. */
+export const dfaoShadersOf = (filterableMip: boolean) => {
+  let held = shadersHeld.get(filterableMip)
+  if (!held) shadersHeld.set(filterableMip, (held = dfaoShaders(filterableMip)))
+  return held
+}
+
+/** The programs with the coarse mip read by hand. */
+export const DFAO_SHADERS = dfaoShadersOf(false)

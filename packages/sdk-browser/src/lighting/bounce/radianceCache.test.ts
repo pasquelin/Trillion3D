@@ -68,14 +68,14 @@ import {
 
 const CACHE_FILTER_PROGRAM = cacheFilterProgram(WORD_LIGHT_FORMAT)
 const CACHE_FIXUP_PROGRAM = cacheFixupProgram(WORD_LIGHT_FORMAT)
-const CACHE_TRACE_PROGRAM = cacheTraceProgramOf(WORD_LIGHT_FORMAT)
+const CACHE_TRACE_PROGRAM = cacheTraceProgramOf(WORD_LIGHT_FORMAT, false)
 const CACHE_TRACED_PROGRAM = cacheTracedProgramOf(WORD_LIGHT_FORMAT)
 const CACHE_SPLAT_PROGRAM = cacheSplatProgramOf(WORD_LIGHT_FORMAT)
 
 test('every kernel of the radiance cache is a module a device takes: its names declared, none reserved or twice, its bindings the layout holds', () => {
   const kernels = {
     tiles: [CACHE_TILES_PROGRAM, cacheTilesEntries(), ['generateTiles']],
-    trace: [CACHE_TRACE_PROGRAM, cacheTraceEntries(), ['traceTiles']],
+    trace: [CACHE_TRACE_PROGRAM, cacheTraceEntries(undefined, false), ['traceTiles']],
     traced: [CACHE_TRACED_PROGRAM, cacheTracedLayouts()[0], ['traceTiles']],
     splat: [CACHE_SPLAT_PROGRAM, cacheSplatEntries(), ['spreadTiles']],
     filter: [CACHE_FILTER_PROGRAM, cacheFilterEntries(), ['filterMaps']],

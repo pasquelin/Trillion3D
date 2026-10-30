@@ -189,7 +189,7 @@ export function build(field: Field) {
     ) => { start: number; length: number }
     gdfCoverageSample: (page: number, local: Vec3) => number
   }>(
-    wgslModule(globalDistanceFieldTraceWgsl(0, 0)),
+    wgslModule(globalDistanceFieldTraceWgsl(0, 0, false)),
     [
       'gdfTraceInput',
       'gdfTrace',
@@ -219,7 +219,7 @@ export function buildGrid(field: Field, cells: Uint32Array) {
     gdfGridInstance: (packed: number) => number
     gdfObjectGridCellAt: (p: Vec3, clipmap: number, cells: number) => number[]
   }>(
-    wgslModule(globalObjectGridReadWgsl(0, 0, 9)),
+    wgslModule(globalObjectGridReadWgsl(0, 0, 9, false)),
     [
       'gdfGridPack',
       'gdfGridAdd',

@@ -15,7 +15,7 @@ import {
 test('both offset kernels are modules a device takes, their bindings the layout holds', () => {
   for (const [name, code, entries, table] of [
     ['pixels', GBUFFER_OFFSETS_PROGRAM, gbufferOffsetEntries(), GBUFFER_OFFSET_BINDINGS],
-    ['field', FIELD_OFFSETS_PROGRAM, fieldOffsetEntries(), FIELD_OFFSET_BINDINGS],
+    ['field', FIELD_OFFSETS_PROGRAM, fieldOffsetEntries(false), FIELD_OFFSET_BINDINGS],
   ] as const) {
     assertProgramAssembles(code, undefined, name)
     const declared = [...code.matchAll(/@group\(0\)\s*@binding\((\d+)\)/g)].map((m) => +m[1])

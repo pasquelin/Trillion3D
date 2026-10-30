@@ -27,12 +27,13 @@ import { ATLAS_BUFFER_WGSL, ATLAS_TEXTURE_WGSL, COVERAGE_FETCH_WGSL } from './at
  * block's clipmaps.
  *
  * The coarse mip (`gdfMipUv`, `gdfMipSample`) is read at a position of the same clipmaps and holds
- * the distance in units of the mip's range, clamped to the clipmap's layer.
+ * the distance in units of the mip's range, clamped to the clipmap's layer. It is filtered trilinearly
+ * by one fetch of the field's sampler where the device filters 32-bit floats, else by hand from eight loads.
  *
  * The bindings are consecutive from `first` in the bind group `group`: the view block (`GdfView`),
  * the page table (`texture_3d<u32>`, read by load), the page atlas as a buffer (a read-only storage
- * buffer of words, the coverage atlas past its pages), the coarse mip (`texture_3d<f32>`, a 32-bit float read by load), the page atlas
- * as a texture (`texture_3d<f32>`, an 8-bit `r8unorm`) and its sampler; the one of the two atlases the
+ * buffer of words, the coverage atlas past its pages), the coarse mip (`texture_3d<f32>`, a 32-bit float read by load or, where the device filters it, through the sampler), the page atlas
+ * as a texture (`texture_3d<f32>`, an 8-bit `r8unorm`) and the sampler, linear and repeating, of both textures (a read of the mip keeps half a texel inside it, so its border is never reached); the one of the two atlases the
  * field does not keep is a stand-in of one texel, and the buffer holds the coverage atlas too. A view
  * whose `clipmaps` is 0 answers as a scene with no distance field does: nothing occludes.
  */
@@ -126,19 +127,6 @@ fn gdfMipUv(p:vec3f,clipmap:u32)->vec3f{
  uv.z=clamp(uv.z,scale.w,bias.w);
  return uv;
 }
-fn gdfMipSample(uv:vec3f)->f32{
- let size=vec3f(textureDimensions(gdfMip));
- let at=uv*size-0.5;
- let base=floor(at);
- let f=at-base;
- let low=clamp(vec3i(base),vec3i(0),vec3i(size)-1);
- let high=clamp(vec3i(base)+1,vec3i(0),vec3i(size)-1);
- let x0=mix(textureLoad(gdfMip,low,0).x,textureLoad(gdfMip,vec3i(high.x,low.y,low.z),0).x,f.x);
- let x1=mix(textureLoad(gdfMip,vec3i(low.x,high.y,low.z),0).x,textureLoad(gdfMip,vec3i(high.x,high.y,low.z),0).x,f.x);
- let x2=mix(textureLoad(gdfMip,vec3i(low.x,low.y,high.z),0).x,textureLoad(gdfMip,vec3i(high.x,low.y,high.z),0).x,f.x);
- let x3=mix(textureLoad(gdfMip,vec3i(low.x,high.y,high.z),0).x,textureLoad(gdfMip,high,0).x,f.x);
- return mix(mix(x0,x1,f.y),mix(x2,x3,f.y),f.z);
-}
 fn gdfSample(p:vec3f,maxDistance:f32,minClipmap:u32)->f32{
  for(var clipmap=minClipmap;clipmap<gdfView.clipmaps;clipmap++){
   let value=gdfPageValue(gdfVolumeUv(p,clipmap),clipmap);
@@ -158,6 +146,42 @@ fn gdfDistanceToNearestSurface(p:vec3f)->f32{
   }
  }
  return nearest;
+}`,
+)
+
+/** The coarse mip filtered by hand, on a device that does not filter a 32-bit float texture: the eight texels around the
+ *  position, their indices clamped to the edge, weighted by its distance to them, what the hardware gives. */
+const GDF_MIP_SAMPLE_POLYFILL_WGSL = wgslBlock(
+  'GDF_MIP_SAMPLE_POLYFILL_WGSL',
+  [],
+  `
+fn gdfMipSample(uv:vec3f)->f32{
+ let size=vec3f(textureDimensions(gdfMip));
+ let at=uv*size-0.5;
+ let base=floor(at);
+ let f=at-base;
+ let low=clamp(vec3i(base),vec3i(0),vec3i(size)-1);
+ let high=clamp(vec3i(base)+1,vec3i(0),vec3i(size)-1);
+ let x0=mix(textureLoad(gdfMip,low,0).x,textureLoad(gdfMip,vec3i(high.x,low.y,low.z),0).x,f.x);
+ let x1=mix(textureLoad(gdfMip,vec3i(low.x,high.y,low.z),0).x,textureLoad(gdfMip,vec3i(high.x,high.y,low.z),0).x,f.x);
+ let x2=mix(textureLoad(gdfMip,vec3i(low.x,low.y,high.z),0).x,textureLoad(gdfMip,vec3i(high.x,low.y,high.z),0).x,f.x);
+ let x3=mix(textureLoad(gdfMip,vec3i(low.x,high.y,high.z),0).x,textureLoad(gdfMip,high,0).x,f.x);
+ return mix(mix(x0,x1,f.y),mix(x2,x3,f.y),f.z);
+}
+`,
+)
+
+/** The coarse mip filtered by the hardware, one fetch through `gdfAtlasSampler` (linear). The coordinate is clamped half a
+ *  texel inside the volume first: within that inset the filter never reaches the border, so the sampler's address mode does
+ *  not matter and the result equals the by-hand form's, trilinear with its indices clamped to the edge. */
+const GDF_MIP_SAMPLE_NATIVE_WGSL = wgslBlock(
+  'GDF_MIP_SAMPLE_NATIVE_WGSL',
+  [],
+  `
+fn gdfMipSample(uv:vec3f)->f32{
+ let size=vec3f(textureDimensions(gdfMip));
+ let c=clamp(uv,0.5/size,1.0-0.5/size);
+ return textureSampleLevel(gdfMip,gdfAtlasSampler,c,0.0).x;
 }`,
 )
 
@@ -198,11 +222,17 @@ fn gdfSkyVisibility(p:vec3f,up:vec3f)->f32{
 }`,
 )
 
-/** The reads, over the bindings `first` on from the group `group`. */
-export function globalDistanceFieldReadWgsl(group: number, first: number) {
+/** The reads, over the bindings `first` on from the group `group`. `filterableMip` is whether the mip is read through
+ *  the hardware's filter, on a device with `float32-filterable` (`hasFloat32Filterable`): one fetch of the sampler at
+ *  `first + 5`; else by hand, eight loads. The layout of the same program says the same (`globalReadLayoutEntries`). */
+export function globalDistanceFieldReadWgsl(group: number, first: number, filterableMip: boolean) {
   return wgslBlock(
-    `GLOBAL_DISTANCE_FIELD_READ_WGSL ${group}, ${first}`,
-    [GDF_VIEW_STRUCT_WGSL, GDF_CONE_WGSL],
+    `GLOBAL_DISTANCE_FIELD_READ_WGSL ${group}, ${first}, ${filterableMip}`,
+    [
+      GDF_VIEW_STRUCT_WGSL,
+      GDF_CONE_WGSL,
+      filterableMip ? GDF_MIP_SAMPLE_NATIVE_WGSL : GDF_MIP_SAMPLE_POLYFILL_WGSL,
+    ],
     `
 @group(${group}) @binding(${first}) var<uniform> gdfView:GdfView;
 @group(${group}) @binding(${first + 1}) var gdfPageTable:texture_3d<u32>;

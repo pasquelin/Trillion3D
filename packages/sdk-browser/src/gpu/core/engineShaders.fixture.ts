@@ -104,7 +104,8 @@ import { WORD_LIGHT_FORMAT } from './lightAtlasFormat.ts'
 
 const CACHE_FILTER_PROGRAM = cacheFilterProgram(WORD_LIGHT_FORMAT)
 const CACHE_FIXUP_PROGRAM = cacheFixupProgram(WORD_LIGHT_FORMAT)
-const CACHE_TRACE_PROGRAM = cacheTraceProgramOf(WORD_LIGHT_FORMAT)
+const CACHE_TRACE_PROGRAM = cacheTraceProgramOf(WORD_LIGHT_FORMAT, false)
+const CACHE_TRACE_FILTERED_MIP_PROGRAM = cacheTraceProgramOf(WORD_LIGHT_FORMAT, true)
 const CACHE_SPLAT_PROGRAM = cacheSplatProgramOf(WORD_LIGHT_FORMAT)
 
 /**
@@ -196,11 +197,13 @@ export const ENGINE_SHADERS: Record<string, string> = {
   MARK_PROBES_SHADER,
   CACHE_TILES_PROGRAM,
   CACHE_TRACE_PROGRAM,
+  CACHE_TRACE_FILTERED_MIP_PROGRAM,
   CACHE_SPLAT_PROGRAM,
   CACHE_FILTER_PROGRAM,
   CACHE_FIXUP_PROGRAM,
   FIELD_IRRADIANCE_MAPS: irradianceProgram(8),
-  FIELD_OCCLUSION_MAPS: occlusionProgram(16),
+  FIELD_OCCLUSION_MAPS: occlusionProgram(16, undefined, false),
+  FIELD_OCCLUSION_MAPS_FILTERED_MIP: occlusionProgram(16, undefined, true),
   FIELD_GATHER: fieldGatherProgram(),
   INDIRECT_WORDS: indirectWordsProgram(false),
   INDIRECT_WORDS_BENT: indirectWordsProgram(true),

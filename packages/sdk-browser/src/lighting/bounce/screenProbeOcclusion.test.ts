@@ -11,7 +11,7 @@ import { spCommon } from './screen/commonWgsl.ts'
 import { SP_THIN_FEATURE } from './screen/traceFeatureWgsl.ts'
 import { kernelShapeOf, screenProbeSources } from './screen/kernels.ts'
 
-const sources = screenProbeSources(kernelShapeOf(screenProbeSettings({ screenProbes: 'ultra' })))
+const sources = screenProbeSources(kernelShapeOf(screenProbeSettings({ screenProbes: 'ultra' })), undefined, undefined, undefined, undefined, false)
 const code = <K extends keyof typeof sources>(name: K) => sources[name]!.code
 
 /** The greatest distance a gathered texel tells, in metres: the greatest half float, in centimetres. */
@@ -142,7 +142,14 @@ test('the thin feature search spreads its samples over texels of the pyramid’s
 })
 
 /** The kernel sources of a shape. */
-const casting = (...asked: Parameters<typeof screenProbeSources>) => screenProbeSources(...asked)
+type Sources = Parameters<typeof screenProbeSources>
+const casting = (
+  shape: Sources[0],
+  width?: Sources[1],
+  waves?: Sources[2],
+  march?: Sources[3],
+  compaction?: Sources[4],
+) => screenProbeSources(shape, width, waves, march, compaction, false)
 
 test('the conversion sums its projection over the subgroups of the device when it has them, the lanes of each subgroup then added in the workgroup, else one thread a coefficient adds the texels in turn', () => {
   const shape = kernelShapeOf(screenProbeSettings({ screenProbeFilteringWaveOps: true }))

@@ -16,6 +16,7 @@ import {
 } from '../../gpu/core/computeBindings.ts'
 import { askedComputeStage, preparedComputeStage } from '../../gpu/core/computeStages.ts'
 import { retire } from '../../gpu/core/frameRetire.ts'
+import { hasFloat32Filterable } from '../../gpu/core/float32Filterable.ts'
 import { PHYSICAL_LOBES_TARGET } from '../../materials/surface/physicalLobes.ts'
 import { SUBSURFACE_TARGET } from '../../materials/surface/subsurface.ts'
 import { chainReady, type PreparedPipeline } from '../deferred/fullscreen.ts'
@@ -480,8 +481,12 @@ function tileLayouts(layout: (entries: GPUBindGroupLayoutEntry[]) => GPUBindGrou
   }
 }
 
-/** The layouts of the rays' compaction and of the traces. */
-function traceLayouts(layout: (entries: GPUBindGroupLayoutEntry[]) => GPUBindGroupLayout) {
+/** The layouts of the rays' compaction and of the traces; `filterableMip` is whether the software trace reads the field's coarse mip through
+ *  the hardware's filter (`softwareTraceWgsl`). */
+function traceLayouts(
+  layout: (entries: GPUBindGroupLayoutEntry[]) => GPUBindGroupLayout,
+  filterableMip: boolean,
+) {
   return {
     trace: layout([
       computeTextureEntry(D.colours, 'unfilterable-float', '2d-array'),
@@ -501,7 +506,7 @@ function traceLayouts(layout: (entries: GPUBindGroupLayoutEntry[]) => GPUBindGro
       computeBufferEntry(D.lights, 'read-only-storage'),
       computeBufferEntry(B.params, 'uniform'),
       ...traceTailLayoutEntries(),
-      ...globalReadLayoutEntries(SOFTWARE_FIELD_BINDING),
+      ...globalReadLayoutEntries(SOFTWARE_FIELD_BINDING, filterableMip),
     ]),
     hairTrace: layout([
       computeBufferEntry(D.lights, 'read-only-storage'),
@@ -574,7 +579,11 @@ function denoiseLayouts(layout: (entries: GPUBindGroupLayoutEntry[]) => GPUBindG
 /** The layouts of the kernels, by what they read. */
 function makeLayouts(device: GPUDevice) {
   const layout = (entries: GPUBindGroupLayoutEntry[]) => device.createBindGroupLayout({ entries })
-  return { ...tileLayouts(layout), ...traceLayouts(layout), ...denoiseLayouts(layout) }
+  return {
+    ...tileLayouts(layout),
+    ...traceLayouts(layout, hasFloat32Filterable(device.features)),
+    ...denoiseLayouts(layout),
+  }
 }
 
 /** The layout entries every kernel that weighs the lights of a pixel starts with: the pixel's layers, the lights, the light grid, the suns' ranks, the light functions, the light profiles where
@@ -814,7 +823,7 @@ function createTraceStages(
   const softwareStage = askedComputeStage(
     device,
     [layouts.software, reflectionLayout(device)],
-    softwareTraceWgsl(),
+    softwareTraceWgsl(hasFloat32Filterable(device.features)),
     SOFTWARE_TRACE_ENTRY,
     'Trillion3D sampled software trace',
     failed,

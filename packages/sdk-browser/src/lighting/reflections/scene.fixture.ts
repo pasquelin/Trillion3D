@@ -6,6 +6,8 @@ import { Mat } from '../../materials/texture/shaderRunMatrix.fixture.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { depthField, depthLoads, HIZ_DEPTH_READERS, type DepthField } from './depthField.fixture.ts'
 import { reflectionStagesWgsl } from './wgsl.ts'
+import { reflectionSceneTraceWgsl } from './sceneTrace.ts'
+import { WORD_LIGHT_FORMAT } from '../../gpu/core/lightAtlasFormat.ts'
 import { reflectionLightViewWgsl, REFLECTION_GROUP, REFLECTION_VIEW_AT } from './viewLayout.ts'
 import {
   eyeToPixelSpread,
@@ -249,7 +251,7 @@ export function reflectionRunner(
     counter.cells.push(cell)
   })
   const run = shaderRun<ReflectionFunctions>(
-    wgslModule(reflectionStagesWgsl(1), reflectionLightViewWgsl(REFLECTION_GROUP)),
+    wgslModule(reflectionStagesWgsl(1, reflectionSceneTraceWgsl(WORD_LIGHT_FORMAT, false)), reflectionLightViewWgsl(REFLECTION_GROUP)),
     REFLECTION_NAMES.filter((name) => !(name in overrides)),
     {
       reflectionView,

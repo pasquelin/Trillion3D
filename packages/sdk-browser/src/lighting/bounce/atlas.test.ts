@@ -196,7 +196,7 @@ test('a view is remade for what its resources read and left be for what only the
 test('the kernels are keyed by what their code depends on: a switch of the occlusion recompiles those alone, the scene’s a flag of the parameters none', () => {
   const keys = (options: ScreenProbeOptions) =>
     Object.fromEntries(
-      Object.entries(screenProbeSources(kernelShapeOf(screenProbeSettings(options)))).map(
+      Object.entries(screenProbeSources(kernelShapeOf(screenProbeSettings(options)), undefined, undefined, undefined, undefined, false)).map(
         ([name, source]) => [name, source.key],
       ),
     )

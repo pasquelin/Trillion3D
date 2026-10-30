@@ -21,7 +21,7 @@ test('every kernel of the field’s maps is a module a device takes, its binding
       'irradianceMaps',
       IRRADIANCE_BINDINGS,
     ],
-    ['occlusion', occlusionProgram(16), occlusionEntries(), 'occlusionMaps', OCCLUSION_BINDINGS],
+    ['occlusion', occlusionProgram(16, undefined, false), occlusionEntries(false), 'occlusionMaps', OCCLUSION_BINDINGS],
   ] as const) {
     assertProgramAssembles(code, undefined, name)
     const declared = [...code.matchAll(/@group\(0\)\s*@binding\((\d+)\)/g)].map((m) => +m[1])
@@ -67,14 +67,14 @@ test('the irradiance of a texel is the cosine-weighted mean of the probe’s rad
 })
 
 test('the occlusion of a texel is the distance of the probe’s ray in its direction and its square, a two-sided surface’s four times as far', () => {
-  const code = occlusionProgram(16)
+  const code = occlusionProgram(16, undefined, false)
   assert.match(code, /cacheDepthOf\(word\)\*select\(1\.0,4\.0,cacheTwoSidedIs\(word\)\)/)
   assert.match(code, /vec4f\(distance,distance\*distance,0\.0,0\.0\)/)
   assert.match(code, /let source=min\(texel\*res\/FIELD_OCCLUSION,vec2u\(res-1u\)\);/)
 })
 
 test('a probe is valid where its centre is farther from the global field’s surface than half the voxel of the clipmap it lies a voxel inside of, times the covered expansion, and valid with no clipmap', () => {
-  const code = occlusionProgram(16)
+  const code = occlusionProgram(16, undefined, false)
   assert.match(code, /if\(gdfView\.clipmaps==0u\)\{return true;\}/)
   assert.match(code, /let extent=box\.w\*gdfView\.texel;/)
   assert.match(

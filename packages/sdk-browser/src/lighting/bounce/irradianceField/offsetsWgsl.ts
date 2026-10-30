@@ -44,15 +44,15 @@ export const gbufferOffsetEntries = () => {
   ]
 }
 
-/** The layout of the kernel that moves the probes by the global distance field. */
-export const fieldOffsetEntries = () => {
+/** The layout of the kernel that moves the probes by the global distance field, its coarse mip read through the hardware's filter where `filterableMip` (`fieldOffsetsProgram`). */
+export const fieldOffsetEntries = (filterableMip: boolean) => {
   const B = FIELD_OFFSET_BINDINGS
   return [
     computeUniformEntry(B.grid),
     atlasEntry(B.table),
     computeBufferEntry(B.queue, 'storage'),
     computeBufferEntry(B.slots, 'storage'),
-    ...globalReadLayoutEntries(B.field),
+    ...globalReadLayoutEntries(B.field, filterableMip),
   ]
 }
 
@@ -155,7 +155,8 @@ fn gbufferOffsets(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_i
  * that tries 64 places of a 4 × 4 × 4 grid spanning a quarter of the cell round it, the best of each eight and then of those eight, and moves the probe there when that place is a twentieth of a cell off the surfaces or
  * more. The place is added to the offset the probe had (the reference stores it alone, which moves a probe that had an offset to a place it did not measure: fixed), in the slot and in the queue's entry.
  */
-export const FIELD_OFFSETS_PROGRAM = wgslProgram(
+export const fieldOffsetsProgram = (filterableMip: boolean) =>
+  wgslProgram(
   `${offsetDeclarations(FIELD_OFFSET_BINDINGS.queue, FIELD_OFFSET_BINDINGS.slots)}
 /** How near a surface (in cells) a probe is too near. */
 const OFFSET_TOO_CLOSE_CELLS:f32=0.05;
@@ -203,6 +204,9 @@ fn fieldOffsets(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_ind
     bounceBindingsWgsl(0, FIELD_OFFSET_BINDINGS.grid, FIELD_OFFSET_BINDINGS.table),
     QUEUED_PROBE_WGSL,
     BOUNCE_CM_WGSL,
-    globalDistanceFieldReadWgsl(0, FIELD_OFFSET_BINDINGS.field),
+    globalDistanceFieldReadWgsl(0, FIELD_OFFSET_BINDINGS.field, filterableMip),
   ],
 )
+
+/** The program, the field's coarse mip read by hand. */
+export const FIELD_OFFSETS_PROGRAM = fieldOffsetsProgram(false)

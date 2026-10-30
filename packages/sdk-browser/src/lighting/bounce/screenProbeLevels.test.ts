@@ -13,7 +13,7 @@ import { reflectionLayout } from '../reflections/reflectionPipelines.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { limitOf, stageBindingCounts } from '../../../../../tests/kit/fakeDevice/limitRules.ts'
 
-const ultra = screenProbeSources(kernelShapeOf(screenProbeSettings({ screenProbes: 'ultra' })))
+const ultra = screenProbeSources(kernelShapeOf(screenProbeSettings({ screenProbes: 'ultra' })), undefined, undefined, undefined, undefined, false)
 
 test('the extra ambient occlusion, the temporal filter of the probes and the coarser levels of the gather exist only where asked, the border of the finest level always, and every kernel assembles with all three', () => {
   const plain = Object.keys(ultra)
@@ -33,8 +33,8 @@ test('the extra ambient occlusion, the temporal filter of the probes and the coa
         screenProbeExtraAmbientOcclusion: true,
         screenProbeGatherNumMips: 2,
       }),
-    ),
-  )
+    ), undefined, undefined, undefined, undefined, false,
+)
   for (const name of ['probeFilter', 'fixup', 'mip1'])
     assert.ok(Object.keys(all).includes(name), name)
   for (const [name, source] of Object.entries(all)) {
@@ -86,8 +86,8 @@ test('the extra ambient occlusion of the probes is an occlusion of the diffuse l
   const all = screenProbeSources(
     kernelShapeOf(
       screenProbeSettings({ screenProbes: 'ultra', screenProbeExtraAmbientOcclusion: true }),
-    ),
-  )
+    ), undefined, undefined, undefined, undefined, false,
+)
   const code = all.integrate!.code
   const bands = (ao: number) =>
     shaderRun<{ spVisibleBands: (ao: number) => number[] }>(
@@ -107,8 +107,8 @@ test('the extra ambient occlusion of the probes is an occlusion of the diffuse l
     'with the bent normal the diffuse light is read at the normal turned toward it by the occlusion',
   )
   const flat = screenProbeSources(
-    kernelShapeOf(screenProbeSettings({ screenProbes: 'ultra', screenProbeBentNormal: false })),
-  )
+    kernelShapeOf(screenProbeSettings({ screenProbes: 'ultra', screenProbeBentNormal: false })), undefined, undefined, undefined, undefined, false,
+)
   assert.match(
     flat.integrate!.code,
     /let lit=s\.N;\n let diffuse=spDiffuse\(picked,pixel,s,ao,lit,mode\);/,
@@ -169,8 +169,8 @@ test('the gathered radiance with levels holds a border of two texels at its fine
 
 test('the levels of the gather: the finest holds the border wrapped as an octahedron’s, each coarser is the mean of two by two dithered by the level, and a sample reads the nearest level its cone asks', () => {
   const all = screenProbeSources(
-    kernelShapeOf(screenProbeSettings({ screenProbes: 'ultra', screenProbeGatherNumMips: 2 })),
-  )
+    kernelShapeOf(screenProbeSettings({ screenProbes: 'ultra', screenProbeGatherNumMips: 2 })), undefined, undefined, undefined, undefined, false,
+)
   assert.match(all.fixup!.code, /octWrapBorder\(id\.xy%SP_MIP_SIDE,SP_MIP_SIDE,SP_MIP_BORDER\)/)
   assert.match(all.fixup!.code, /const SP_MIP_SIDE:u32=12u;/)
   assert.match(all.fixup!.code, /const SP_MIP_BORDER:u32=2u;/)

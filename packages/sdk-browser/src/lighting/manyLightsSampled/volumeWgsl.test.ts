@@ -28,7 +28,7 @@ test('the sampled lighting’s volume is sampled and hashed apart from the fog, 
     !sample.includes('gdfTrace(') && !sky.includes('gdfTrace('),
     'the sampling traces nothing: it marks the samples whose ray is traced',
   )
-  const trace = volumeTraceText()
+  const trace = volumeTraceText(false)
   assert.ok(
     trace.includes(`fn ${VOLUME_TRACE_ENTRY}(`) && trace.includes('gdfTrace('),
     'the field’s ray is traced over the listed samples',

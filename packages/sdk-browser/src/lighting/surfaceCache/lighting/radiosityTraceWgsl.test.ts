@@ -18,7 +18,7 @@ import {
 } from './radiosityTraceWgsl.ts'
 import { WORD_LIGHT_FORMAT } from '../../../gpu/core/lightAtlasFormat.ts'
 
-const RADIOSITY_TRACE_WGSL = radiosityTraceProgramOf(WORD_LIGHT_FORMAT)
+const RADIOSITY_TRACE_WGSL = radiosityTraceProgramOf(WORD_LIGHT_FORMAT, false)
 const RADIOSITY_TRACED_WGSL = radiosityTracedProgramOf(WORD_LIGHT_FORMAT)
 
 for (const [name, text] of [

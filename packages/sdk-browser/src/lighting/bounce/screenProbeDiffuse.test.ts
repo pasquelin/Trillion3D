@@ -12,7 +12,7 @@ import { spCacheRead } from './screen/cacheReadWgsl.ts'
 import { spCommon } from './screen/commonWgsl.ts'
 import { kernelShapeOf, screenProbeSources } from './screen/kernels.ts'
 
-const ultra = screenProbeSources(kernelShapeOf(screenProbeSettings({ screenProbes: 'ultra' })))
+const ultra = screenProbeSources(kernelShapeOf(screenProbeSettings({ screenProbes: 'ultra' })), undefined, undefined, undefined, undefined, false)
 
 test('the diffuse light of a pixel that samples its BRDF is the mean of eight cosine-weighted directions over the probes times pi: a sky of radiance one gives pi, every direction lies in the normal’s hemisphere, and hair draws the whole sphere', () => {
   const code = integrateShader(1, 1, 1, [4, 2], false, false, 1, true)
@@ -52,8 +52,8 @@ test('the numerical integral of the diffuse light sums the cosine of every texel
   const code = screenProbeSources(
     kernelShapeOf(
       screenProbeSettings({ screenProbes: 'ultra', screenProbeDiffuseIntegralMethod: 2 }),
-    ),
-  ).integrateEvery!.code
+    ), undefined, undefined, undefined, undefined, false,
+).integrateEvery!.code
   const light = (backface: boolean) =>
     shaderRun<{ spNumericalDiffuse: (picked: object, s: object) => number[] }>(
       code,
@@ -159,8 +159,8 @@ test('the temporal filter of the probes blends the last image’s probes on the 
   const all = screenProbeSources(
     kernelShapeOf(
       screenProbeSettings({ screenProbes: 'ultra', screenProbeTemporalFilterProbes: true }),
-    ),
-  )
+    ), undefined, undefined, undefined, undefined, false,
+)
   const code = all.probeFilter!.code
   assert.match(code, /if\(any\(px<vec2f\(0\.0\)\)\|\|any\(px>size\)\)\{return vec4f\(0\.0\);\}/)
   assert.match(code, /if\(exp2\(SP_FILTER_PLANE_SCALE\*away\*away\)>SP_FILTER_MIN_WEIGHT\)\{/)
@@ -175,7 +175,7 @@ test('the temporal filter of the probes blends the last image’s probes on the 
 })
 
 test('a pixel with backface diffuse light is told apart by what its material is, not by whether the level gathers that light: its depth weights, pdf lobe, history and rays follow `foliage`, only the backface light follows `backface`', () => {
-  const high = screenProbeSources(kernelShapeOf(screenProbeSettings({ screenProbes: 'high' })))
+  const high = screenProbeSources(kernelShapeOf(screenProbeSettings({ screenProbes: 'high' })), undefined, undefined, undefined, undefined, false)
   for (const [name, source] of Object.entries(high)) {
     if (!['place', 'screenData', 'integrate', 'temporal', 'traceScreen'].includes(name)) continue
     const uses = [...source.code.matchAll(/\b(\w+)\.backface\b/g)].map((m) => m[0])

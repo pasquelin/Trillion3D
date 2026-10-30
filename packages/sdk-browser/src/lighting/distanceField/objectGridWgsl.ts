@@ -147,10 +147,15 @@ ${objectTileWalk({
  * the grid, `cells` long (`arrayLength(&gdfObjectGrid)`), does not reach it; `gdfObjectGridCellOf(p, clipmap)`
  * the same of the grid bound. A word is valid where `gdfGridValid`, its object `gdfGridInstance`.
  */
-export function globalObjectGridReadWgsl(group: number, first: number, binding: number) {
+export function globalObjectGridReadWgsl(
+  group: number,
+  first: number,
+  binding: number,
+  filterableMip: boolean,
+) {
   return wgslBlock(
-    `GLOBAL_OBJECT_GRID_READ_WGSL ${group}, ${first}, ${binding}`,
-    [globalDistanceFieldReadWgsl(group, first), OBJECT_GRID_WGSL],
+    `GLOBAL_OBJECT_GRID_READ_WGSL ${group}, ${first}, ${binding}, ${filterableMip}`,
+    [globalDistanceFieldReadWgsl(group, first, filterableMip), OBJECT_GRID_WGSL],
     `
 @group(${group}) @binding(${binding}) var<storage,read> gdfObjectGrid:array<vec4u>;
 fn gdfObjectGridCellAt(p:vec3f,clipmap:u32,cells:u32)->vec4u{

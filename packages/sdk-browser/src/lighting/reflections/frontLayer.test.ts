@@ -8,6 +8,8 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 import { forwardIndirectWgsl } from './forward.ts'
 import { reflectionStagesWgsl } from './wgsl.ts'
+import { reflectionSceneTraceWgsl } from './sceneTrace.ts'
+import { WORD_LIGHT_FORMAT } from '../../gpu/core/lightAtlasFormat.ts'
 import { reflectionTraceShader } from './trace/trace.ts'
 import { FRONT_PACK_WGSL } from './frontPackWgsl.ts'
 import type { Vec3 } from '../../../../math/src/vector/vectorTuple.ts'
@@ -87,7 +89,7 @@ test('one chain: only the trace marches the field and samples a lobe; a forward 
     'reflectionSampleDirection',
   ])
     assert.doesNotMatch(forwardText, new RegExp(`\\b${name}\\b`), name)
-  assert.match(wgslModule(reflectionStagesWgsl(1)), /\breflectionSceneTrace\b/)
+  assert.match(wgslModule(reflectionStagesWgsl(1, reflectionSceneTraceWgsl(WORD_LIGHT_FORMAT, false))), /\breflectionSceneTrace\b/)
   // Nor does it give its light a look: the contrast and the specular scale are the opaque composite's alone.
   assert.doesNotMatch(forwardText, /\breflectionLook\b|view\.reflection\b/)
   // The front surface is traced, resolved and accumulated as the opaque one by the same kernels on its own

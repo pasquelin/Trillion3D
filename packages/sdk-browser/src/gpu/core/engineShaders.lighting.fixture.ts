@@ -30,7 +30,7 @@ import {
   HORIZON_TEMPORAL_WGSL,
   HORIZON_UPSAMPLE_WGSL,
 } from '../../lighting/ao/horizon/filterWgsl.ts'
-import { DFAO_SHADERS } from '../../lighting/distanceField/ao/shaders.ts'
+import { DFAO_SHADERS, dfaoShadersOf } from '../../lighting/distanceField/ao/shaders.ts'
 import { DFSH_SHADERS } from '../../lighting/distanceField/shadow/shaders.ts'
 import { ALLOCATE_SHADER, LISTS_SHADER } from '../../lighting/distanceField/allocateWgsl.ts'
 import { composeShader } from '../../lighting/distanceField/composeWgsl.ts'
@@ -176,6 +176,7 @@ export const LIGHTING_SHADERS: Record<string, string> = {
   RESERVOIR_IMAGE: imageProgram(),
   FIELD_OFFSETS_BY_PIXELS: GBUFFER_OFFSETS_PROGRAM,
   FIELD_OFFSETS_BY_FIELD: FIELD_OFFSETS_PROGRAM,
+  FIELD_OFFSETS_BY_FIELD_FILTERED_MIP: fieldOffsetsProgram(true),
   BOUNCE_MARK_HAIR: MARK_HAIR_SHADER,
   BOUNCE_MARK_EYE: EYE_MARK_SHADER,
   RADIANCE_PROBE_LIST: radianceProbeListWgsl,
@@ -200,6 +201,9 @@ export const LIGHTING_SHADERS: Record<string, string> = {
   ...Object.fromEntries(
     Object.entries(DFAO_SHADERS).map(([name, code]) => [`DFAO_${name.toUpperCase()}`, code]),
   ),
+  // The cones against the global field with the coarse mip read through the hardware's filter (`float32-filterable`).
+  DFAO_CONEGLOBAL_FILTERED_MIP: dfaoShadersOf(true).coneGlobal,
+  DFAO_CONEGLOBALOBJECTS_FILTERED_MIP: dfaoShadersOf(true).coneGlobalObjects,
   // The suns' mesh lists' passes (`../../lighting/distanceField/shadow/`).
   ...Object.fromEntries(
     Object.entries(DFSH_SHADERS).map(([name, code]) => [`DFSH_${name.toUpperCase()}`, code]),

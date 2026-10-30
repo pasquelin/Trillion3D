@@ -38,11 +38,11 @@ export const volumeSampleText = (pyramid: boolean) =>
     ],
   )
 
-/** The text of the trace program of the marked samples. */
-export const volumeTraceText = () =>
+/** The text of the trace program of the marked samples; `filterableMip` as in its layout (`volumeProgram.ts`). */
+export const volumeTraceText = (filterableMip: boolean) =>
   wgslProgram(VOLUME_TRACE_BINDINGS, [
     DIRECT_LIGHT_WGSL,
-    ML_WORLD_BLOCKED_WGSL(B.field),
+    ML_WORLD_BLOCKED_WGSL(B.field, filterableMip),
     ML_TRACE_WGSL,
   ])
 

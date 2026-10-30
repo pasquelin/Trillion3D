@@ -1,3 +1,4 @@
+import { hasFloat32Filterable } from '../../../gpu/core/float32Filterable.ts'
 import { CENTIMETRES_PER_METRE } from '../../../../../sdk-core/src/page/format.ts'
 import { clamp } from '../../../../../math/src/scalar/reals.ts'
 import { standInBuffer, standInTexture } from '../../../gpu/core/standIns.ts'
@@ -84,6 +85,7 @@ function makeKernel(
   feedback: boolean,
   compressed: boolean,
 ) {
+  const filterableMip = hasFloat32Filterable(device.features)
   const seen = (entries: GPUBindGroupLayoutEntry[]) =>
     entries.map((entry) => ({ ...entry, visibility: entry.visibility | FRAGMENT }))
   const layout = device.createBindGroupLayout({
@@ -98,14 +100,14 @@ function makeKernel(
       computeBufferEntry(B.tone, 'uniform', FRAGMENT),
       ...toneReadEntries(B.tone + 1, FRAGMENT),
       ...skyLightReadLayoutEntries(SCENE_VISUALIZE_SKY_LIGHT, FRAGMENT),
-      ...seen(surfaceHitLayoutEntries(sceneVisualizeHit(mode, feedback, compressed), light)),
+      ...seen(surfaceHitLayoutEntries(sceneVisualizeHit(mode, feedback, compressed), light, filterableMip)),
       computeBufferEntry(SCENE_VISUALIZE_LIGHTS, 'read-only-storage', FRAGMENT),
       ...seen(rayFogLayoutEntries(SCENE_VISUALIZE_FOG, true)),
     ],
   })
   const module = device.createShaderModule({
     label: LABEL,
-    code: sceneVisualizeWgsl(light, mode, feedback, compressed),
+    code: sceneVisualizeWgsl(light, mode, feedback, compressed, filterableMip),
   })
   return {
     layout,

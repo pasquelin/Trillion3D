@@ -16,7 +16,7 @@ import {
 } from './screen/screenProbeLayout.ts'
 import { assertProgramAssembles } from '../../gpu/core/wgslNames.fixture.ts'
 
-const ultra = screenProbeSources(kernelShapeOf(screenProbeSettings({ screenProbes: 'ultra' })))
+const ultra = screenProbeSources(kernelShapeOf(screenProbeSettings({ screenProbes: 'ultra' })), undefined, undefined, undefined, undefined, false)
 
 test('a pixel keeps its rough specular where the traced rays do not give its reflection whole, or a clear coat or an anisotropy leaves its base lobe untraced, and takes the diffuse light over pi elsewhere', () => {
   const run = shaderRun<{
@@ -166,8 +166,8 @@ test('the diffuse method picks the irradiance of the probes, the pixel’s BRDF 
   const numerical = screenProbeSources(
     kernelShapeOf(
       screenProbeSettings({ screenProbes: 'ultra', screenProbeDiffuseIntegralMethod: 2 }),
-    ),
-  )
+    ), undefined, undefined, undefined, undefined, false,
+)
   assert.equal(numerical.tile, undefined, 'the numerical integral has no classification of tiles')
   assert.equal(numerical.integrate, undefined)
   assert.deepEqual(numerical.integrateEvery!.points, ['integrateEvery'])
@@ -184,8 +184,8 @@ test('the diffuse method picks the irradiance of the probes, the pixel’s BRDF 
         screenProbes: 'ultra',
         screenProbeIntegrationTileClassification: false,
       }),
-    ),
-  )
+    ), undefined, undefined, undefined, undefined, false,
+)
   assert.equal(flat.tile, undefined)
   assert.doesNotMatch(flat.integrateEvery!.code, /tileList|tileCounts/)
   assert.doesNotMatch(flat.integrateEvery!.code, /spNumericalDiffuse/)
@@ -195,8 +195,8 @@ test('the diffuse method picks the irradiance of the probes, the pixel’s BRDF 
   const sampled = screenProbeSources(
     kernelShapeOf(
       screenProbeSettings({ screenProbes: 'ultra', screenProbeDiffuseIntegralMethod: 1 }),
-    ),
-  )
+    ), undefined, undefined, undefined, undefined, false,
+)
   assert.match(sampled.tile!.code, /const SP_INTEGRAL_METHOD:u32=1u;/)
   assertProgramAssembles(sampled.integrate!.code, undefined, 'integrate')
 })
@@ -208,8 +208,8 @@ test('the light at the back of a thin sheet is the probes’ irradiance behind i
     const sources = screenProbeSources(
       kernelShapeOf(
         screenProbeSettings({ screenProbes: 'ultra', screenProbeDiffuseIntegralMethod }),
-      ),
-    )
+      ), undefined, undefined, undefined, undefined, false,
+)
     const code = (sources.integrate ?? sources.integrateEvery)!.code
     assert.match(
       code,
