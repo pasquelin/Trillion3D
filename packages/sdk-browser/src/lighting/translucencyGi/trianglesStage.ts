@@ -22,6 +22,7 @@ import type { GiTraceInputs } from './traceGroup.ts'
 import {
   TRACE_GI_TRIANGLES_BINDINGS,
   TRACE_GI_TRIANGLES_ENTRY,
+  TRIANGLES_CELL_TABLE,
   traceGiTrianglesEntries,
   traceGiTrianglesProgram,
   traceGiTrianglesSceneEntries,
@@ -29,9 +30,9 @@ import {
 import { TRACE_GI_LIGHT } from './traceWgsl.ts'
 
 /**
- * THE KERNEL THAT CASTS THE CONES THROUGH THE SCENE'S TRIANGLES (`traceTrianglesWgsl.ts`) for cones' light of one format and a radiance cache stored in one
- * light format: compiled off the frame on the first ask and not waited for, apart from the volume's four kernels (`kernels.ts`) — a device that refuses it
- * leaves the volume as it is, the cones marched through the global distance field. Its layouts are its group 0 with the cut's tables, the reflection group
+ * THE KERNEL THAT TRACES THE CONES THROUGH THE SCENE'S TRIANGLES (`traceTrianglesWgsl.ts`) for cones' light of one format and a radiance cache stored in one
+ * light format, which reads the radiance cache for the cones that meet nothing: compiled off the frame on the first ask and not waited for, apart from the volume's four kernels (`kernels.ts`) — until it is ready, or on a device that refuses it,
+ * the volume traces its cones through the global distance field (`traceCones`). Its layouts are its group 0 with the cut's tables and the radiance cache's maps, the reflection group
  * the cell's point is found with (the depth pyramid, the view) and the scene trace's.
  */
 const trianglesKernels = oncePerDeviceOverPrograms(
@@ -56,7 +57,7 @@ const trianglesMaker = heldMakerOf(trianglesKernels)
 /** The kernel that casts the cones through the scene's triangles. */
 export type TrianglesKernel = ReturnType<typeof trianglesKernels>
 
-/** The binder of the groups 0 and 2 of the kernel: over the volume's resources, what the trace reads of the image and the scene trace of the image
+/** The binder of the groups 0 and 2 of the kernel: over the volume's resources, what the trace reads of the image (the cascades, the radiance cache's maps) and the scene trace of the image
  *  (`SceneRays`) — each made again only where a resource it names moved. */
 export function trianglesBinder(device: GPUDevice) {
   const identity = createWebgpuBindIdentity()
@@ -87,6 +88,10 @@ export function trianglesBinder(device: GPUDevice) {
     next[11] = hit.depth
     next[12] = hit.final
     next[13] = hit.instances
+    next[14] = i.probes
+    next[15] = i.cacheFinal
+    next[16] = i.cacheRaw
+    next[17] = i.cacheSky
     if (identity.moved())
       group = device.createBindGroup({
         label: 'Trillion3D translucency GI triangles',
@@ -97,7 +102,11 @@ export function trianglesBinder(device: GPUDevice) {
             frame: { buffer: r.frame },
             bounceGrid: { buffer: i.bounceGrid },
             blue: i.blue,
+            cacheFinal: i.cacheFinal,
+            cacheRaw: i.cacheRaw,
+            cacheSky: i.cacheSky,
           }),
+          { binding: TRIANGLES_CELL_TABLE, resource: i.probes },
           { binding: TRACE_GI_LIGHT, resource: r.cones[0] },
           ...dagReadGroupEntries(views),
           ...surfaceHitCardsEntries(TRACE_TRACED_HIT, hit),
@@ -112,7 +121,7 @@ export function trianglesBinder(device: GPUDevice) {
   }
 }
 
-/** The cones' cast through the scene's triangles of an image, ready to dispatch: the scene trace it is made for, the pipeline and the groups 0 and 2. */
+/** The cones' trace through the scene's triangles of an image, ready to dispatch in place of `traceCones`: the scene trace it is made for, the pipeline and the groups 0 and 2. */
 export interface TrianglesStage {
   readonly rays: SceneRays
   readonly pipeline: GPUComputePipeline

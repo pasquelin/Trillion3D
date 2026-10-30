@@ -24,10 +24,10 @@ test('group 0 binds each binding once and the scene trace has a group of its own
   assert.ok(traceGiTrianglesSceneEntries().length > 0)
 })
 
-test('a ray that hits writes the cone over the first trace, one that misses leaves it', () => {
-  assert.ok(code.includes('if(!hit.hit&&stComplete){return;}'))
-  assert.ok(code.includes('stTraceAvoiding(origin-view.display.yzw,d,0.0,reach,u32(gi.rays.z))'))
-  assert.ok(code.includes('textureStore(coneLight,id'))
+test('a cone is traced once: one that hits writes its light, one whose walk is whole and meets nothing the radiance cache’s', () => {
+  assert.match(code, /if\(!hit\.hit&&stComplete\)\{\s*radiance=giFar\(d\);/)
+  assert.ok(code.includes('stTraceAvoiding(giOrigin-view.display.yzw,d,0.0,giReach,u32(gi.rays.z))'))
+  assert.equal(code.match(/textureStore\(coneLight,id/g)?.length, 1)
 })
 
 test('the cones are cast through the triangles by default, over the frame’s depth bias and nearest hit', () => {

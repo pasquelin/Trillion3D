@@ -281,8 +281,8 @@ function fixedGroups(
 /** The three axes of the filter, in order. */
 const FILTER_AXES = ['filterX', 'filterY', 'filterZ'] as const
 
-/** The passes of an image in `pass`: the trace of the cells' cones, then, where `triangles`, their cast through the scene's triangles over it, the
- *  filter's axes where it is on, the integration into the volume of this image's turn; `reflection` is group 1 of the trace and the integration. */
+/** The passes of an image in `pass`: the trace of the cells' cones, through the scene's triangles where `triangles` (one dispatch: a cone that meets nothing reads the radiance cache),
+ *  else through the distance field, the filter's axes where it is on, the integration into the volume of this image's turn; `reflection` is group 1 of the trace and the integration. */
 export function encodeGiPasses(
   device: GPUDevice,
   pass: GPUComputePassEncoder,
@@ -301,15 +301,15 @@ export function encodeGiPasses(
   const coneX = ceilDiv(grid.x * tracing, TRANSLUCENCY_GI_GROUP)
   const coneY = ceilDiv(grid.y * tracing, TRANSLUCENCY_GI_GROUP)
   pass.setBindGroup(1, reflection)
-  pass.setPipeline(kernels.trace.pipelines.traceCones)
-  pass.setBindGroup(0, traceGroupOf(device, state, kernels, trace))
-  pass.dispatchWorkgroups(coneX, coneY, grid.z)
   if (triangles) {
     pass.setPipeline(triangles.pipeline)
     pass.setBindGroup(0, triangles.groups[0])
     pass.setBindGroup(2, triangles.groups[1])
-    pass.dispatchWorkgroups(coneX, coneY, grid.z)
+  } else {
+    pass.setPipeline(kernels.trace.pipelines.traceCones)
+    pass.setBindGroup(0, traceGroupOf(device, state, kernels, trace))
   }
+  pass.dispatchWorkgroups(coneX, coneY, grid.z)
   if (state.groups?.filtered !== filtered)
     state.groups = fixedGroups(device, state.resources!, kernels, filtered)
   const groups = state.groups!

@@ -26,17 +26,16 @@ test('a cone’s light gets the sky light that leaks, the screen probes’ own, 
   // One helper, shared with the screen probes: defined once, from the parameters the trace copies.
   assert.equal(program.match(/fn spSkyLeak\(/g)?.length, 1)
   // The end: the march's hit, the cache's distance, the furthest a ray looks where the cache covers none.
-  assert.match(program, /var end=spMaxTrace\(\);/)
-  assert.match(program, /if\(hit\)\{end=marched\.distance;\}/)
+  assert.match(program, /if\(marched\.hit\)\{return marched\.lighting\+spSkyLeak\(d,marched\.distance\);\}/)
   assert.match(
     program,
-    /let far=spFarOf\(giOrigin,d,gi\.trace\.x\);\s*light\+=far\.radiance;\s*end=far\.distance;/,
+    /let far=spFarOf\(giOrigin,d,gi\.trace\.x\);\s*return far\.radiance\+spSkyLeak\(d,far\.distance\);/,
   )
-  assert.match(program, /return light\+spSkyLeak\(d,end\);/)
+  assert.match(program, /return reflectionEnvironment\(d,0\.0\)\+spSkyLeak\(d,spMaxTrace\(\)\);/)
   // The exposure and the limit come after the cone's light, as the reference's do.
   assert.match(
     program,
-    /radiance=giCone\(equalAreaDecode\(\(cone\+noise\)\/f32\(res\)\)\)\*gi\.trace\.z;/,
+    /radiance=giCone\(equalAreaDecode\(\(cone\+share\.noise\)\/f32\(res\)\)\)\*gi\.trace\.z;/,
   )
 })
 

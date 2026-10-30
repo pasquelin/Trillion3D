@@ -55,7 +55,7 @@ const C = TRACE_GI_BINDINGS.at
  * it lacks (a negative `gi.depth.x` asks none). The point's pixel is the cell's own point of the image (`giCellUv`, the point lies on the ray through it)
  * shifted by the jitter the depth was drawn with (`reflectionView.jitter`): no matrix, so no large term far from the origin.
  */
-export const GI_TRACE_POINT_WGSL = wgslBlock(
+const GI_TRACE_POINT_WGSL = wgslBlock(
   'GI_TRACE_POINT_WGSL',
   [],
   `fn giTracePoint(cell:vec3u)->vec3f{
@@ -92,28 +92,25 @@ export const GI_PARAMS_WGSL = wgslBlock(
 )
 
 /** The blue noise of a cell's column and the turn of the image (`giCellNoise`): the jitter of its cones within their texels. */
-export const GI_CELL_NOISE_WGSL = wgslBlock(
+const GI_CELL_NOISE_WGSL = wgslBlock(
   'GI_CELL_NOISE_WGSL',
   [],
   `fn giCellNoise(cell:vec3u)->vec2f{return blueNoiseVec2(cell.xy,u32(max(gi.jitter.w,0.0)));}`,
 )
 
 /**
- * THE LIGHT ALONG ONE CONE (`giCone`) of the cell in hand, from its point `giOrigin` along `d`: the march through the global distance field
- * from the cell's point itself (no bias off a surface, no dither: the point is a cell's, not a surface's; `spMarchRay`) to where the
- * radiance cache is trusted (`giReach`: `spLocalReachBiased`, the cascade `gi.temporal.w` coarser than the one that covers the point), the
- * surface cache's light at a hit; for a ray the march leaves — or where it is off — the radiance cache's light along it, interpolated between
- * the eight probes round the point (`spFarOf`), the sky where the cache covers none. The sky light that leaks joins it last (`spSkyLeak`, the screen probes'
- * own, from their parameters: the same share, tint, roughness and distance), at the end of the ray: the hit's distance from the point, the
- * distance the cache holds, the furthest a ray looks (`spMaxTrace`) where the cache covers none. The cone is the width of a texel of the octahedron of
- * `gi.trace.x` texels a side. `giCellSetup` is what the cell's cones share, done once for them: where they start, how far they march and
- * the eight probes round the start.
+ * WHAT THE CONES OF A CELL SHARE AND WHERE THEY END WHEN NOTHING STOPS THEM (`GI_CELL_SETUP_WGSL`): `giCellSetup` is done once for a cell's cones —
+ * where they start (`giOrigin`, `giTracePoint`), how far they travel (`giReach`: `spLocalReachBiased`, the cascade `gi.temporal.w` coarser than the one
+ * that covers the point, the furthest a ray looks, `spMaxTrace`, where the radiance cache is not read) and the eight probes round the start. `giFar` is
+ * the light of a cone that met nothing: the radiance cache's light along it, interpolated between the eight probes round the point (`spFarOf`), the
+ * environment's where the cache is not read, and the sky light that leaks (`spSkyLeak`, the screen probes' own, from their parameters: the same share, tint,
+ * roughness and distance) at the end of the ray: the distance the cache holds, the furthest a ray looks (`spMaxTrace`) where the cache covers none. The cone is the
+ * width of a texel of the octahedron of `gi.trace.x` texels a side.
  */
-const giConeWgsl = (light: LightAtlasFormat) =>
-  wgslBlock(
-    `GI_CONE_WGSL(${light})`,
-    [spMarchWgsl(light)],
-    `/** The number the cache's level is chosen with at the volume's cell (\`cacheCoverage\`): a half, so that a level answers only while the point lies more than half the fade's width inside its edge. */
+const GI_CELL_SETUP_WGSL = wgslBlock(
+  'GI_CELL_SETUP_WGSL',
+  [GI_TRACE_POINT_WGSL],
+  `/** The number the cache's level is chosen with at the volume's cell (\`cacheCoverage\`): a half, so that a level answers only while the point lies more than half the fade's width inside its edge. */
 const GI_COVERAGE_RANDOM:f32=0.5;
 var<private> giOrigin:vec3f;
 var<private> giReach:f32;
@@ -124,38 +121,48 @@ fn giCellSetup(cell:vec3u){
  if(cached){spCacheGatherOwnBiased(giOrigin,bias,GI_COVERAGE_RANDOM);}
  giReach=select(spMaxTrace(),spLocalReachBiased(giOrigin,bias,GI_COVERAGE_RANDOM),cached);
 }
-fn giCone(d:vec3f)->vec3f{
- let cached=gi.spatial.w!=0.0;
- var light=vec3f(0.0);
- var hit=false;
- var end=spMaxTrace();
+fn giFar(d:vec3f)->vec3f{
+ if(gi.spatial.w!=0.0){
+  let far=spFarOf(giOrigin,d,gi.trace.x);
+  return far.radiance+spSkyLeak(d,far.distance);
+ }
+ return reflectionEnvironment(d,0.0)+spSkyLeak(d,spMaxTrace());
+}`,
+)
+
+/**
+ * THE LIGHT ALONG ONE CONE (`giCone`) of the cell in hand, from its point `giOrigin` along `d`: the march through the global distance field
+ * from the cell's point itself (no bias off a surface, no dither: the point is a cell's, not a surface's; `spMarchRay`) to where the
+ * radiance cache is trusted (`giReach`), the surface cache's light at a hit with the sky light that leaks at the hit's distance (`spSkyLeak`); for a ray the
+ * march leaves — or where it is off — the light of a cone that met nothing (`giFar`).
+ */
+const giConeWgsl = (light: LightAtlasFormat) =>
+  wgslBlock(
+    `GI_CONE_WGSL(${light})`,
+    [spMarchWgsl(light), GI_CELL_SETUP_WGSL],
+    `fn giCone(d:vec3f)->vec3f{
  if(gi.depth.w!=0.0&&spFlag(SP_FLAG_SCENE_TRACES)){
   let marched=spMarchRay(giOrigin,d,0.0,giReach,gi.trace.x,false,vec2u(0u));
-  light=marched.lighting;
-  hit=marched.hit;
-  if(hit){end=marched.distance;}
+  if(marched.hit){return marched.lighting+spSkyLeak(d,marched.distance);}
  }
- if(!hit&&cached){
-  let far=spFarOf(giOrigin,d,gi.trace.x);
-  light+=far.radiance;
-  end=far.distance;
- }
- else if(!hit){light+=reflectionEnvironment(d,0.0);}
- return light+spSkyLeak(d,end);
+ return giFar(d);
 }`,
   )
 
 /**
  * WHAT THE CELLS OF A WORKGROUP SHARE (`GI_SHARED_WGSL`): a workgroup traces a block of `TRANSLUCENCY_GI_GROUP` cone texels a side, which
- * touches at most `TRANSLUCENCY_GI_SLOT_SIDE` cells a side, each with the setup its cones have in common — whether it is
- * seen, where its cones start, how far they march, the eight probes round the start (`CacheGathered`, copied whole) and the noise —, made once by a lane
- * of the workgroup (`giCellStore`) and read by the threads of the cell's cones (`giCellLoad`) into the private state `giCone` reads.
+ * touches at most `TRANSLUCENCY_GI_SLOT_SIDE` cells a side, each with the setup its cones have in common (`giCellSetup`) — whether it is
+ * seen, where its cones start, how far they go, the eight probes round the start (`CacheGathered`, copied whole) and the noise —, made once by a lane
+ * of the workgroup (`giCellStore`) and read by the threads of the cell's cones (`giCellLoad`) into the private state the cone reads. `giCellShare` is
+ * that setup for the thread `id` of the workgroup `block`: where a cell holds more than one cone, the lanes find the block's cells' in turn (a cell not
+ * seen, `giVisible`, is marked so) and the threads read it after the barrier; where a cell holds one, the thread finds its own. The barrier is reached by every thread, the ones
+ * beyond the grid included, which see no cell. The direction of a cone is the equal-area octahedron's texel, jittered within it by the blue noise of the cell's column and the
+ * turn of the image (`gi.jitter.w`, `giCellNoise`).
  */
-const giSharedWgsl = (light: LightAtlasFormat) =>
-  wgslBlock(
-    `GI_SHARED_WGSL(${light})`,
-    [giConeWgsl(light), GI_CELL_NOISE_WGSL],
-    `const GI_SLOTS:u32=${TRANSLUCENCY_GI_SLOT_SIDE * TRANSLUCENCY_GI_SLOT_SIDE}u;
+export const GI_SHARED_WGSL = wgslBlock(
+  'GI_SHARED_WGSL',
+  [GI_CELL_SETUP_WGSL, GI_CELL_NOISE_WGSL],
+  `const GI_SLOTS:u32=${TRANSLUCENCY_GI_SLOT_SIDE * TRANSLUCENCY_GI_SLOT_SIDE}u;
 var<workgroup> giSeen:array<u32,GI_SLOTS>;
 var<workgroup> giNoise:array<vec2f,GI_SLOTS>;
 var<workgroup> giStartOf:array<vec3f,GI_SLOTS>;
@@ -170,40 +177,13 @@ fn giCellLoad(slot:u32){
  giOrigin=giStartOf[slot];
  giReach=giReachOf[slot];
  cacheNow=giCacheOf[slot];
-}`,
-  )
-
-/**
- * THE TRACE, a thread a cone: the workgroup covers a block of `TRANSLUCENCY_GI_GROUP` texels a side of the cones' texture, as
- * the cones of a cell are `gi.trace.x` squared texels side by side. Where a cell holds more than one cone, a lane of the workgroup finds
- * what the cones of a cell share (`giCellSetup`; a cell not seen, `giVisible`, writes black) once, for the block's cells in turn, and the threads read it
- * after the barrier (`GI_SHARED_WGSL`); where a cell holds one, the thread finds its own. The direction of a cone is the equal-area
- * octahedron's texel, jittered within it by the blue noise of the cell's column and the turn of the image (`gi.jitter.w`), the light its
- * march and the radiance cache give (`giCone`), multiplied by the pre-exposure, held to `gi.trace.y` (the ray's largest channel scaled
- * down to it) and written to the format's precision (`giQuantize`, the draw of the written texel). The barrier is reached by every thread,
- * the ones beyond the grid included.
- */
-const giTraceEntry = (format: GPUTextureFormat, light: LightAtlasFormat) =>
-  wgslBlock(
-    `GI_TRACE_ENTRY(${format},${light})`,
-    [
-      GI_PARAMS_WGSL,
-      GI_TRACE_POINT_WGSL,
-      giSharedWgsl(light),
-      giQuantizeWgsl(format),
-      ...giFormatWgsl(format),
-      DIRECT_LIGHT_WGSL,
-    ],
-    `@group(0) @binding(${TRACE_GI_LIGHT}) var coneLight:texture_storage_3d<${format},write>;
-@group(0) @binding(${C.lights}) var<storage,read> directLights:DirectLights;
-@compute @workgroup_size(${TRANSLUCENCY_GI_GROUP},${TRANSLUCENCY_GI_GROUP},1)
-fn traceCones(@builtin(global_invocation_id) id:vec3u,@builtin(workgroup_id) block:vec3u,@builtin(local_invocation_index) lane:u32){
- giParams();
+}
+struct GiCellShared{seen:bool,noise:vec2f,}
+fn giCellShare(id:vec3u,block:vec3u,lane:u32)->GiCellShared{
  let res=u32(gi.trace.x);
  let cell=vec3u(id.xy/res,id.z);
  let inside=all(cell<gi.grid.xyz);
- var seen=false;
- var noise=vec2f(0.0);
+ var out=GiCellShared(false,vec2f(0.0));
  if(res>1u){
   let first=block.xy*${TRANSLUCENCY_GI_GROUP}u/res;
   if(lane<GI_SLOTS){
@@ -215,18 +195,48 @@ fn traceCones(@builtin(global_invocation_id) id:vec3u,@builtin(workgroup_id) blo
   workgroupBarrier();
   if(inside){
    let slot=(cell.y-first.y)*${TRANSLUCENCY_GI_SLOT_SIDE}u+cell.x-first.x;
-   seen=giSeen[slot]!=0u;
-   if(seen){giCellLoad(slot);noise=giNoise[slot];}
+   out.seen=giSeen[slot]!=0u;
+   if(out.seen){giCellLoad(slot);out.noise=giNoise[slot];}
   }
  }else if(inside){
-  seen=giVisible(cell);
-  if(seen){giCellSetup(cell);noise=giCellNoise(cell);}
+  out.seen=giVisible(cell);
+  if(out.seen){giCellSetup(cell);out.noise=giCellNoise(cell);}
  }
- if(!inside){return;}
+ return out;
+}`,
+)
+
+/**
+ * THE TRACE, a thread a cone: the workgroup covers a block of `TRANSLUCENCY_GI_GROUP` texels a side of the cones' texture, as
+ * the cones of a cell are `gi.trace.x` squared texels side by side. What the cones of a cell share is found once (`giCellShare`, `GI_SHARED_WGSL`; a cell not seen, `giVisible`,
+ * writes black), the direction of a cone is the equal-area octahedron's texel jittered by the cell's noise, the light its
+ * march and the radiance cache give (`giCone`), multiplied by the pre-exposure, held to `gi.trace.y` (the ray's largest channel scaled
+ * down to it) and written to the format's precision (`giQuantize`, the draw of the written texel).
+ */
+const giTraceEntry = (format: GPUTextureFormat, light: LightAtlasFormat) =>
+  wgslBlock(
+    `GI_TRACE_ENTRY(${format},${light})`,
+    [
+      GI_PARAMS_WGSL,
+      GI_SHARED_WGSL,
+      giConeWgsl(light),
+      giQuantizeWgsl(format),
+      ...giFormatWgsl(format),
+      DIRECT_LIGHT_WGSL,
+    ],
+    `@group(0) @binding(${TRACE_GI_LIGHT}) var coneLight:texture_storage_3d<${format},write>;
+@group(0) @binding(${C.lights}) var<storage,read> directLights:DirectLights;
+@compute @workgroup_size(${TRANSLUCENCY_GI_GROUP},${TRANSLUCENCY_GI_GROUP},1)
+fn traceCones(@builtin(global_invocation_id) id:vec3u,@builtin(workgroup_id) block:vec3u,@builtin(local_invocation_index) lane:u32){
+ giParams();
+ let res=u32(gi.trace.x);
+ let cell=vec3u(id.xy/res,id.z);
+ let share=giCellShare(id,block,lane);
+ if(any(cell>=gi.grid.xyz)){return;}
  var radiance=vec3f(0.0);
- if(seen){
+ if(share.seen){
   let cone=vec2f(id.xy-cell.xy*res);
-  radiance=giCone(equalAreaDecode((cone+noise)/f32(res)))*gi.trace.z;
+  radiance=giCone(equalAreaDecode((cone+share.noise)/f32(res)))*gi.trace.z;
   let most=max(radiance.x,max(radiance.y,radiance.z));
   if(most>gi.trace.y){radiance*=gi.trace.y/most;}
  }
