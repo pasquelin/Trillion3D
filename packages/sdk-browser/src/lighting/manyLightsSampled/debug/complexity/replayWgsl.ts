@@ -136,7 +136,7 @@ ${SAMPLING_PART_2}${shadingStatements(front)}
  foundValid=1u;
  for(var index=0u;index<cell.y;index++){
   let rank=listedLight(cell,index);
-  if(!listedDrawn(cell,rank)){continue;}
+  if(!listedDrawn(cell,rank)||!sampledTakes(rank)){continue;}
   if(isSun(directLights.items[rank])){continue;}
   let weighed=weighLight(rank,albedo,base.a,normal.a,N,V,P,shading,true);
   listLight(rank,weighed.weight,lightSeenBefore(rank,weighed.luminance,visibleSet));

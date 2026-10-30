@@ -14,6 +14,7 @@ import type { HizOptions } from '../../../sdk-core/src/contracts/hizOptions.ts'
 import type { LightFunctionOptions } from '../../../sdk-core/src/contracts/lightFunctionOptions.ts'
 import type { LightProfileOptions } from '../../../sdk-core/src/contracts/lightProfileOptions.ts'
 import type { RectLightAtlasOptions } from '../../../sdk-core/src/contracts/rectLightAtlasOptions.ts'
+import type { SimpleLightOptions } from '../../../sdk-core/src/contracts/simpleLightOptions.ts'
 import type { VolumetricLightmapOptions } from '../../../sdk-core/src/contracts/volumetricLightmapOptions.ts'
 import type { DistanceFieldOcclusionOptions } from '../../../sdk-core/src/contracts/distanceFieldOcclusionOptions.ts'
 import type { GlobalDistanceFieldOptions } from '../../../sdk-core/src/contracts/globalDistanceFieldOptions.ts'
@@ -70,6 +71,7 @@ export interface SettingOptions
     LightFunctionOptions,
     LightProfileOptions,
     RectLightAtlasOptions,
+    SimpleLightOptions,
     VolumetricLightmapOptions,
     GlobalDistanceFieldOptions,
     SurfaceCacheOptions,

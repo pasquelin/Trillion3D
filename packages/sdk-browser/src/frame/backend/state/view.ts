@@ -104,6 +104,8 @@ export const VIEW_GPU_KEYS = [
   // The hair strands' visibility and macro groups, which follow the camera of the view that built
   // them.
   'hair',
+  // The key the view's own states are kept under (`./viewKey.ts`).
+  'viewKey',
   // The canvas the view presents into: the main view's, or one of its own (`./persistentView.ts`).
   'presenter',
 ] as const satisfies readonly (keyof WebgpuGpuState)[]

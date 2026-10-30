@@ -1,12 +1,13 @@
 /**
  * THE CHANGE OF EACH LIGHT'S POWER, run once an image before the sampled lighting needs it (`powerDeltaWgsl.ts`): the power of the lights of this image and of the image before (ping-pong), the pre-exposure
- * that power was measured under, and the ratios the draws of the surfaces and of the volume read (`encode` returns their buffer). Idempotent for an image.
+ * that power was measured under, and the ratios the draws of the surfaces and of the volume read (`encode` returns their buffer: `capacity` words of ratios, then `capacity` words of the rank each light had in the view's image before plus one, 0 for none). One of a view, its history being its own. Idempotent for an image.
  */
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { askedComputeStage } from '../../gpu/core/computeStages.ts'
 import { computeBufferEntry, computeUniformEntry } from '../../gpu/core/computeBindings.ts'
 import { retire } from '../../gpu/core/frameRetire.ts'
 import { lightFunctionLayoutEntry } from '../lightFunction/bindings.ts'
+import { createPassGroup } from '../deferred/passGroup.ts'
 import {
   POWER_BINDING,
   POWER_DELTA_ENTRY,
@@ -20,6 +21,8 @@ export interface LightPowerImage {
   image: number
   lights: GPUBuffer
   lightCount: number
+  /** The rank each light had in the view's image before, plus one, 0 for none (`previousRanks.ts`). */
+  previous: GPUBuffer
   lightFunction: GPUTextureView
   eye: ArrayLike<number>
   preExposure: number
@@ -39,6 +42,7 @@ function createPowerLayout(device: GPUDevice) {
       computeBufferEntry(POWER_BINDING.now, 'storage'),
       computeBufferEntry(POWER_BINDING.ratios, 'storage'),
       computeBufferEntry(POWER_BINDING.exposureBefore, 'read-only-storage'),
+      computeBufferEntry(POWER_BINDING.previous, 'read-only-storage'),
     ],
   })
 }
@@ -63,10 +67,9 @@ function powerFrameWords(input: LightPowerImage, valid: boolean) {
   return words
 }
 
-/** The bind group of an image: the lights, the power before and now, the ratios and the exposure before. */
+/** The bind group of an image: the lights, the power before and now, the ratios and the exposure before, kept while none of them is replaced (the two turns of the ping-pong keep a group each). */
 function powerGroup(
-  device: GPUDevice,
-  layout: GPUBindGroupLayout,
+  group: ReturnType<typeof createPassGroup>,
   held: {
     frame: GPUBuffer
     input: LightPowerImage
@@ -76,22 +79,23 @@ function powerGroup(
     exposureBefore: GPUBuffer
   },
 ) {
-  return device.createBindGroup({
-    label: 'Trillion3D sampled light power',
-    layout,
-    entries: [
-      { binding: POWER_BINDING.frame, resource: { buffer: held.frame } },
-      { binding: POWER_BINDING.lights, resource: { buffer: held.input.lights } },
-      { binding: POWER_BINDING.atlas, resource: held.input.lightFunction },
-      { binding: POWER_BINDING.before, resource: { buffer: held.before } },
-      { binding: POWER_BINDING.now, resource: { buffer: held.now } },
-      { binding: POWER_BINDING.ratios, resource: { buffer: held.ratios } },
-      { binding: POWER_BINDING.exposureBefore, resource: { buffer: held.exposureBefore } },
+  const { frame, input, before, now, ratios, exposureBefore } = held
+  return group.get(
+    [frame, input.lights, input.lightFunction, before, now, ratios, exposureBefore, input.previous],
+    () => [
+      { binding: POWER_BINDING.frame, resource: { buffer: frame } },
+      { binding: POWER_BINDING.lights, resource: { buffer: input.lights } },
+      { binding: POWER_BINDING.atlas, resource: input.lightFunction },
+      { binding: POWER_BINDING.before, resource: { buffer: before } },
+      { binding: POWER_BINDING.now, resource: { buffer: now } },
+      { binding: POWER_BINDING.ratios, resource: { buffer: ratios } },
+      { binding: POWER_BINDING.exposureBefore, resource: { buffer: exposureBefore } },
+      { binding: POWER_BINDING.previous, resource: { buffer: input.previous } },
     ],
-  })
+  )
 }
 
-/** The two buffers of power the images take turns with, and the buffer of ratios, of `capacity` lights. */
+/** The two buffers of power the images take turns with, and the buffer of ratios and previous ranks, of `capacity` lights. */
 function createPowerBuffers(device: GPUDevice, capacity: number) {
   return {
     power: [0, 1].map((i) =>
@@ -103,7 +107,7 @@ function createPowerBuffers(device: GPUDevice, capacity: number) {
     ),
     ratios: device.createBuffer({
       label: 'Trillion3D sampled light power ratios',
-      size: capacity * 4,
+      size: capacity * 4 * 2,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
     }),
   }
@@ -125,6 +129,7 @@ function dispatchPower(
 
 export function createLightPower(device: GPUDevice, failed: (error: unknown) => void) {
   const layout = createPowerLayout(device)
+  const groups = createPassGroup(device, layout)
   const stage = askedComputeStage(
     device,
     [layout],
@@ -179,7 +184,7 @@ export function createLightPower(device: GPUDevice, failed: (error: unknown) => 
       device.queue.writeBuffer(frame, 0, words)
       // The pre-exposure the power of this image is measured under is the next image's 'before'.
       device.queue.writeBuffer(exposures[turn]!, 0, new Float32Array([input.preExposure]))
-      const group = powerGroup(device, layout, {
+      const group = powerGroup(groups, {
         frame,
         input,
         before: power[turn ^ 1]!,
@@ -192,8 +197,9 @@ export function createLightPower(device: GPUDevice, failed: (error: unknown) => 
     },
     dispose() {
       release()
-      frame.destroy()
-      for (const buffer of exposures) buffer.destroy()
+      groups.release()
+      retire(device, frame)
+      for (const buffer of exposures) retire(device, buffer)
     },
   }
 }

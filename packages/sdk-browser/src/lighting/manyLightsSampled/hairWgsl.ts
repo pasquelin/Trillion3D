@@ -36,6 +36,7 @@ import { TILE_SLICE_WGSL } from '../direct/lightingWgsl.ts'
 import { HAIR_SAMPLE_WGSL } from '../../hair/sampleWgsl.ts'
 import { hairScatteringWgsl } from '../../hair/hairBsdfWgsl.ts'
 import { VOLUME_LAMP_WGSL } from '../direct/lampSeenWgsl.ts'
+import { SIMPLE_HEADER } from '../../../../sdk-core/src/scene/light/fields.ts'
 import { LIGHT_TRACE_WGSL } from './lightTraceWgsl.ts'
 import {
   NO_LIGHT_INDEX,
@@ -116,6 +117,7 @@ fn hairLuminance(strand:HairSample,P:vec3f,toward:vec3f,radiance:vec3f)->f32{
 @compute @workgroup_size(${HAIR_NODE_GROUP_SIZE}) fn ${HAIR_SAMPLE_ENTRY}(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) groups:vec3u){
  let slot=flatIndex(id,groups,${HAIR_NODE_GROUP_SIZE}u);
  if(slot>=hairCounter[${HAIR_NODE_COUNTER_STORED}]){return;}
+ simpleLightsSeen=(directLights.simpleBits&${SIMPLE_HEADER.hair}u)!=0u;
  let pixel=hairSamplePixel(slot);
  let o=slot*${HAIR_NODE_DATA_WORDS}u;
  let strand=hairSampleOf(slot);
@@ -129,7 +131,7 @@ fn hairLuminance(strand:HairSample,P:vec3f,toward:vec3f,radiance:vec3f)->f32{
  var draw=initLightSamplerStratified(f32(seed.x)/4294967295.0,hs.count);
  for(var index=0u;index<cell.y;index++){
   let rank=listedLight(cell,index);
-  if(!listedDrawn(cell,rank)){continue;}
+  if(!listedDrawn(cell,rank)||!sampledTakes(rank)){continue;}
   let light=directLights.items[rank];
   if(isSun(light)||(channels&lightChannelsOf(light))==0u){continue;}
 `
@@ -223,7 +225,8 @@ ${HEAD}`,
  for(var i=0u;i<hs.count;i++){
   let at=(slot*hs.count+i)*${HAIR_DRAW_WORDS}u;
   let rank=draws[at];
-  if(rank==${HAIR_NO_LIGHT}u){continue;}
+  // A simple light that casts no sampled shadow keeps the full visibility the sampling wrote; one that does is traced through the voxels like a scene light.
+  if(rank==${HAIR_NO_LIGHT}u||(rank>=directLights.count&&!simpleCastsSampled(rank))){continue;}
   let seed=rand4dPcg32(vec4i(vec3i(vec2i(pixel),i32(hs.frame)),i32(11u+i)));
   let uv=vec2f(seed.xy)/4294967295.0;
   let random=vec3f(vec3u(seed.zw,seed.x))/4294967295.0;

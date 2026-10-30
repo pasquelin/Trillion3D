@@ -1,7 +1,7 @@
 import { WEBGPU_ENGINE_ID, type EngineFactory } from '../../session/engine/factory.ts'
 import { createWebgpuPagesRuntime } from './runtime.ts'
 import { renderWebgpuPages } from '../render/render.ts'
-import { refreshFogVolumes, refreshSceneLights } from '../io/hostApi.ts'
+import { refreshFogVolumes, refreshSceneLights, refreshSimpleLights } from '../io/hostApi.ts'
 import { webgpuAudits } from '../io/audits.ts'
 import { dropTaaHistory } from '../../post/taa/landing.ts'
 import { followFrameDifference } from '../render/frameDifference.ts'
@@ -44,6 +44,9 @@ export const webgpuPagesEngine = ((context, rt = createWebgpuPagesRuntime(contex
     },
     refreshSceneLights() {
       refreshSceneLights(rt)
+    },
+    refreshSimpleLights() {
+      refreshSimpleLights(rt)
     },
     refreshFogVolumes() {
       refreshFogVolumes(rt)

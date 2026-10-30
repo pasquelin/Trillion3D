@@ -145,7 +145,11 @@ fn guideVisibleSet(tile:u32,valid:bool)->vec4u{
 fn guideHiddenSet(tile:u32)->vec2u{
  return vec2u(guideHistory[params.hiddenAt+tile*2u],guideHistory[params.hiddenAt+tile*2u+1u]);
 }
-fn guideRatio(rank:u32)->f32{return bitcast<f32>(guideHistory[params.ratiosAt+rank]);}`,
+fn guideRatio(rank:u32)->f32{return bitcast<f32>(guideHistory[params.ratiosAt+rank]);}
+/** The rank light rank had in the image before, -1 for none: the guide holds the ratios of the lights, then the ranks (from params.ranksAt). */
+fn previousRankOf(rank:u32)->i32{
+ return i32(guideHistory[params.ranksAt+rank])-1;
+}`,
 )
 
 /** The jitter of a downsampled pixel's full-resolution pixel: 0 where nothing is downsampled, four rooks for 2 by 2, a checkerboard for 2 by 1;
@@ -209,10 +213,12 @@ fn weighLight(rank:u32,albedo:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,
  }
  return LightWeigh(luminance,lightTargetWeight(luminance,params.minWeight));
 }
-/** Whether the light was seen from the pixel in the image before, by the guide: its tile's visible set, or a power fallen since so that the light could have been dropped. Always, with no guide. */
+/** Whether the light was seen from the pixel in the image before, by the guide: its tile's visible set at the rank it had then (previousRankOf), or a power fallen since so that the light could have been dropped. Always, with no guide or no rank before. */
 fn lightSeenBefore(rank:u32,luminance:f32,visibleSet:vec4u)->bool{
  if(params.guide==0u){return true;}
- return isLightVisible(visibleSet,rank)||luminance*guideRatio(rank)<params.minWeight;
+ let before=previousRankOf(rank);
+ if(before<0){return true;}
+ return isLightVisible(visibleSet,u32(before))||luminance*guideRatio(rank)<params.minWeight;
 }
 /** Offers light 'rank' to the sampler of the pixel: the weighing above, a light hidden in the last image cut by the guide. */
 fn offerLight(s:ptr<function,LightSampler>,rank:u32,albedo:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,shading:LobeSurface,visibleSet:vec4u,radial:bool){
@@ -318,7 +324,7 @@ export const SAMPLING_PART_2 = ` let cell=cellSlice(pixelCell(pixel.xy,z));
 
 const SAMPLING_PART_3 = ` for(var index=0u;index<cell.y;index++){
   let rank=listedLight(cell,index);
-  if(!listedDrawn(cell,rank)){continue;}
+  if(!listedDrawn(cell,rank)||!sampledTakes(rank)){continue;}
   if(isSun(directLights.items[rank])){continue;}
   offerLight(&lightDraw,rank,albedo,base.a,normal.a,N,V,P,shading,visibleSet,true);
  }
@@ -367,13 +373,16 @@ ${SAMPLING_PART_3}  var rayType=${RAY_TYPE.default}u;
    if(area){uv=blueNoiseVec2(coord,params.frame);}
    var penumbra=true;
    if(params.guide!=0u&&hasHistory){
-    if(candidateVisible(drawn)){penumbra=isLightHidden(hiddenSet,index);}else{penumbra=false;}
+    let before=previousRankOf(index);
+    if(before>=0){
+     if(candidateVisible(drawn)){penumbra=isLightHidden(hiddenSet,u32(before));}else{penumbra=false;}
+    }
    }
    let enters=dot(towardLight(light,P),N)<0.0;
    if(pixelModelOf(surfaceFlag)==${PIXEL_MODEL.hair}u){rayType=${RAY_TYPE.hair}u;}
    else if(${twoSided}){if(enters){rayType=${RAY_TYPE.twoSided}u;}}
    else if(${transmits}&&params.transmission>0.0&&transmitsLight(light)){if(enters){rayType=${RAY_TYPE.transmission}u;}}
-   completed=!(castsShadow(light)||(rayType==${RAY_TYPE.hair}u&&params.hair.x>0.0));
+   completed=!(castsShadow(light)||simpleCastsSampled(index)||(rayType==${RAY_TYPE.hair}u&&params.hair.x>0.0));
    weight=lightDraw.weightSum/weight;
    if(params.merge!=0u&&!(area&&(penumbra||rayType==${RAY_TYPE.transmission}u))&&i+1u<params.count1d){
     if(candidateIndex(lightDraw.packed[i+1u])==index){weight=0.0;visible=false;completed=true;}

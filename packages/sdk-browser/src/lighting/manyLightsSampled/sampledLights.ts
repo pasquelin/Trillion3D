@@ -66,6 +66,7 @@ import {
 import {
   SAMPLED_GROUP,
   guideAt,
+  ranksAt,
   guideWords,
   sampledGeometry,
   tileArgsAt,
@@ -99,6 +100,7 @@ import {
   type SampledLightsSettings,
 } from './parameters.ts'
 import { CLEAR_ENTRY, SAMPLE_ENTRY, clearSamplesWgsl, samplingWgsl } from './samplingWgsl.ts'
+import { idleTooLong } from '../../gpu/core/idleKeep.ts'
 import {
   TILE_ARGS_ENTRY,
   TILE_BITMASK_ENTRY,
@@ -180,6 +182,8 @@ export interface SampledLightsInputs {
   frame: number
   /** The lights the buffer holds (the guide keeps a ratio of each). */
   lightCount: number
+  /** The lights that live in it (the store's and the simple lights' counts): the tail of `lightCount` holds none, and the history of the guide is copied for these alone. */
+  liveLights: number
 }
 
 /** What the first lot of passes leaves for the next: the samples and their rays, the guide this image wrote, and the sizes. */
@@ -225,12 +229,7 @@ const resolvedTexture = (device: GPUDevice, label: string, size: readonly [numbe
   })
 
 /** The temporal filter's history: the diffuse and specular light (the confidence in the alpha), the moments, and the frames with the depth; two sets, taking turns. */
-const historySet = (
-  device: GPUDevice,
-  size: readonly [number, number],
-  at: number,
-  lights: number,
-) => {
+const historySet = (device: GPUDevice, size: readonly [number, number], at: number) => {
   const make = (label: string, format: GPUTextureFormat) =>
     device.createTexture({
       label: `Trillion3D sampled ${label} ${at}`,
@@ -303,10 +302,7 @@ function makeResources(device: GPUDevice, g: SampledGeometry, lights: number) {
     resolvedSpecularView: resolvedSpecular.createView(),
     composite,
     compositeView: composite.createView(),
-    histories: [
-      historySet(device, g.view, 0, lights),
-      historySet(device, g.view, 1, lights),
-    ] as const,
+    histories: [historySet(device, g.view, 0), historySet(device, g.view, 1)] as const,
     allocator: storageBuffer(
       device,
       'Trillion3D sampled tiles count',
@@ -812,7 +808,7 @@ function createFilterStages(device: GPUDevice, failed: (error: unknown) => void,
   }
 }
 
-/** The copy of the layer's light to where the blend reads it (`frontLightWgsl.ts`): a pipeline under each mark, and the group it binds. */
+/** The copy of the layer's light to where the blend reads it (`frontLightWgsl.ts`): a pipeline under each mark, and the layout of the group (a view's own) it binds. */
 function createFrontLight(device: GPUDevice, stage: StageMaker) {
   const layout = device.createBindGroupLayout({
     entries: [
@@ -838,14 +834,14 @@ function createFrontLight(device: GPUDevice, stage: StageMaker) {
       )
     return made
   }
-  const group = createPassGroup(device, layout)
   return {
-    group,
+    layout,
     /**
      * Copies the light the sampled lighting left for the nearest translucent layer (`composite`, the image's) into the second half of the front's traced radiance `traced` (twice
      * the view tall), the layer's `words` marking where it holds a surface (`frontLightWgsl.ts`). False while the kernel compiles.
      */
     pack(
+      group: ReturnType<typeof createPassGroup>,
       encoder: GPUCommandEncoder,
       composite: GPUTextureView,
       words: GPUTextureView,
@@ -901,23 +897,33 @@ interface SamplingFamily {
   shading: Map<number, Stage>
   layouts: Map<TileClass, GPUBindGroupLayout>
   shadingLayouts: Map<TileClass, GPUBindGroupLayout>
-  groups: Map<TileClass, ReturnType<typeof createPassGroup>>
-  shadingGroups: Map<TileClass, ReturnType<typeof createPassGroup>>
 }
 
-/** The sampling's family of the key in force, made again (its groups let go) when the key changes. */
+/**
+ * The sampling's family of each label asked, made once and shared by the views (their groups over it follow the family itself, `samplingGroupsOf`): views asking different labels do not remake it.
+ * A family no view asked for for `IDLE_KEEP_IMAGES` ticks of the kit (one a lit image, asking or not: `tick`) is let go with its pipelines and layouts, the next ask making it again; the count is
+ * of images, so a hidden tab or a slow device frees nothing early, and a sampled lighting turned off frees its families.
+ */
 function createSamplingCache(device: GPUDevice, stage: StageMaker, front: boolean) {
-  let sampling: SamplingFamily | undefined
-  const releaseGroups = () => {
-    sampling?.groups.forEach((group) => group.release())
-    sampling?.shadingGroups.forEach((group) => group.release())
-  }
+  const families = new Map<string, { family: SamplingFamily; askedAt: number }>()
+  let ticks = 0
   return {
-    releaseGroups,
-    samplingFor(key: ContractKey, textured: boolean): SamplingFamily {
+    /** Counts one lit image (the caller counts an image once) and lets go of the families nobody asked for during `IDLE_KEEP_IMAGES` of them. */
+    tick() {
+      ticks++
+      for (const [held, { askedAt }] of families)
+        if (idleTooLong(ticks, askedAt)) families.delete(held)
+    },
+    /** `held` is the family the asking view still holds: a pruned family it still reads is registered again, never rebuilt beside it. */
+    samplingFor(key: ContractKey, textured: boolean, held?: SamplingFamily): SamplingFamily {
       const label = `${variantLabel(key)}${textured ? '' : ' plain rectangles'}`
-      if (sampling?.label === label) return sampling
-      releaseGroups()
+      const made =
+        families.get(label) ?? (held?.label === label ? { family: held, askedAt: 0 } : undefined)
+      if (made) {
+        made.askedAt = ticks
+        families.set(label, made)
+        return made.family
+      }
       const classLayouts = new Map<TileClass, GPUBindGroupLayout>()
       const stages = new Map<number, Stage>()
       const shading = new Map<number, Stage>()
@@ -955,26 +961,9 @@ function createSamplingCache(device: GPUDevice, stage: StageMaker, front: boolea
           }),
         )
       }
-      sampling = {
-        label,
-        stages,
-        shading,
-        layouts: classLayouts,
-        shadingLayouts,
-        groups: new Map(
-          [...classLayouts].map(([tileClass, layout]) => [
-            tileClass,
-            createPassGroup(device, layout),
-          ]),
-        ),
-        shadingGroups: new Map(
-          [...shadingLayouts].map(([tileClass, layout]) => [
-            tileClass,
-            createPassGroup(device, layout),
-          ]),
-        ),
-      }
-      return sampling
+      const family = { label, stages, shading, layouts: classLayouts, shadingLayouts }
+      families.set(label, { family, askedAt: ticks })
+      return family
     },
   }
 }
@@ -994,21 +983,64 @@ interface Kit {
   stages: ReturnType<typeof createTileStages> &
     ReturnType<typeof createTraceStages> &
     ReturnType<typeof createFilterStages>
-  groups: ReturnType<typeof createGroups>
+  layouts: Layouts
+  /** The layout of the front light's group, a view's own group naming it. */
+  frontLightLayout: GPUBindGroupLayout
   cache: ReturnType<typeof createSamplingCache>
   /** The spatial filter with the debug output, compiled at the first image a view asks for it. */
   spatialDebug: () => Stage
   /** The light complexity view's replay and cost, made at the first image that asks. */
   complexity: () => ReturnType<typeof createLightComplexity>
-  state: {
-    noVectors?: GPUTextureView
-    /** What the samples phase of this image left for its traces phase. */
-    held?: { r: Resources; current: GPUBuffer; history: GPUBuffer; frame: number }
-    resources?: Resources
-    turn: number
-    lastImage: number
-    lastGeometryKey: string
-  }
+  /** The stand-in for the motion vectors of an input that has none, made at the first image that needs it and retired with the kit. */
+  noVectors?: { texture: GPUTexture; view: GPUTextureView }
+}
+
+/** The groups of the sampling and of the shading of a view, a pair per tile class, over the family they were made for. */
+interface SamplingGroups {
+  family: SamplingFamily
+  sample: Map<TileClass, ReturnType<typeof createPassGroup>>
+  shade: Map<TileClass, ReturnType<typeof createPassGroup>>
+}
+
+/** What a view keeps of its sampled lighting (held by the view's record, `release.ts`): the guide and the hash sets live in its resources, and the bind groups over them are its own (two views alternating would remake the groups of a shared one every image). */
+export interface SampledKitState {
+  groups: ReturnType<typeof createGroups>
+  sampling?: SamplingGroups
+  frontLight?: ReturnType<typeof createPassGroup>
+  /** What the samples phase of this image left for its traces phase. */
+  held?: { r: Resources; current: GPUBuffer; history: GPUBuffer; frame: number }
+  resources?: Resources
+  turn: number
+  lastImage: number
+  lastGeometryKey: string
+}
+
+/** The state of a view, made at its first image. */
+const newState = (k: Kit): SampledKitState => ({
+  groups: createGroups(k.device, k.layouts),
+  turn: 0,
+  lastImage: -2,
+  lastGeometryKey: '',
+})
+
+/** The view's groups over the family, made again (the old ones let go) when the family changed. */
+function samplingGroupsOf(k: Kit, state: SampledKitState, family: SamplingFamily): SamplingGroups {
+  if (state.sampling?.family === family) return state.sampling
+  releaseSamplingGroups(state)
+  const groupsOf = (layouts: Map<TileClass, GPUBindGroupLayout>) =>
+    new Map(
+      [...layouts].map(([tileClass, layout]) => [tileClass, createPassGroup(k.device, layout)]),
+    )
+  return (state.sampling = {
+    family,
+    sample: groupsOf(family.layouts),
+    shade: groupsOf(family.shadingLayouts),
+  })
+}
+
+function releaseSamplingGroups({ sampling }: SampledKitState) {
+  sampling?.sample.forEach((group) => group.release())
+  sampling?.shade.forEach((group) => group.release())
 }
 
 /** What the passes of an image share: the pass, what the image reads and the kit's pipelines and groups. */
@@ -1028,11 +1060,13 @@ interface EncodeContext {
   words: GPUTextureView
   vectors: GPUTextureView
   family: SamplingFamily
+  /** The view's groups over the family. */
+  sampling: SamplingGroups
   mapTrace: boolean
   /** The spatial filter that writes the debug views' values, none while no view asks. */
   spatialDebug: Stage
   stages: Kit['stages']
-  groups: Kit['groups']
+  groups: SampledKitState['groups']
 }
 
 /** The pixel's layers and the lights, as the groups of the sampling, the shading and the spatial filter name them. */
@@ -1215,9 +1249,9 @@ function filteredEntries(views: {
 
 /** The draw of the lights of each tile, by mode. */
 function encodeDraws(c: EncodeContext) {
-  const { pass, inputs, r, history, vectors, family } = c
+  const { pass, inputs, r, history, vectors, family, sampling } = c
   for (const { mode, tileClass } of SAMPLING_MODES) {
-    const sampleGroup = family.groups
+    const sampleGroup = sampling.sample
       .get(tileClass)!
       .get(
         [
@@ -1411,7 +1445,7 @@ function encodeShading(c: EncodeContext) {
   pass.dispatchWorkgroupsIndirect(r.args, tileArgsAt(SAMPLED_TILE.empty))
   // Every pixel of the tiles of each mode, lit by the lights its samples drew, resolved for the filters.
   for (const { mode, tileClass } of SAMPLING_MODES) {
-    const shadeGroup = family.shadingGroups
+    const shadeGroup = c.sampling.shade
       .get(tileClass)!
       .get(
         [
@@ -1448,7 +1482,7 @@ function encodeShading(c: EncodeContext) {
 
 /** The resolved light blended with the history of the image before, then filtered over the neighbours. */
 function encodeDenoise(c: EncodeContext) {
-  const { pass, inputs, g, r, current, history, colours, words, vectors } = c
+  const { pass, inputs, g, r, current, colours, words, vectors } = c
   const { temporalStage, spatialStage, historySampler } = c.stages
   const { groups } = c
   // The resolved light blended with the history of the image before (the sets take turns with the guides).
@@ -1552,33 +1586,49 @@ const samplesOf = (g: SampledGeometry, r: Resources, current: GPUBuffer): Sample
   resolvedSpecular: r.resolvedSpecularView,
 })
 
-/** The kit's resources let go (the groups, the resources retired), the next image making them again. */
-function releaseKit(k: Kit) {
-  const { state } = k
-  if (!state.resources) return
-  for (const group of Object.values(k.groups).flat()) group.release()
-  k.cache.releaseGroups()
-  retire(k.device, state.resources)
+/** A view's bind groups let go, the next image making them again. */
+function releaseGroups(state: SampledKitState) {
+  for (const group of Object.values(state.groups).flat()) group.release()
+  releaseSamplingGroups(state)
+  state.frontLight?.release()
+}
+
+/** A view's groups let go and its resources retired (never destroyed at once), the next image making them again. */
+function releaseKit(k: Kit, state: SampledKitState) {
+  releaseGroups(state)
+  if (state.resources) retire(k.device, state.resources)
   state.resources = undefined
   state.held = undefined
+}
+
+/** The one-texel stand-in for the motion vectors of an input that has none. */
+function noVectorsOf(device: GPUDevice) {
+  const texture = device.createTexture({
+    label: 'Trillion3D sampled no vectors',
+    size: [1, 1],
+    format: 'rg32uint',
+    usage: GPUTextureUsage.TEXTURE_BINDING,
+  })
+  return { texture, view: texture.createView() }
 }
 
 /** The resources of the image's size and the uniform of the image written, the allocators cleared: the guide of the image before taken for the history only if that was the last one encoded. */
 function prepareImage(
   k: Kit,
+  state: SampledKitState,
   encoder: GPUCommandEncoder,
   inputs: SampledLightsInputs,
   g: SampledGeometry,
   geometryKey: string,
 ) {
-  const { state, device } = k
+  const { device } = k
   const input = inputs.input
   const settings = sampledSettingsOf(inputs.settings, input)
   // The guide holds the image before only if that was the last one encoded: after a pause, a cut or a skipped image it holds nothing to guide by.
   let historyValid = state.lastImage === inputs.image - 1
   state.lastImage = inputs.image
   if (!state.resources || geometryKey !== state.lastGeometryKey) {
-    releaseKit(k)
+    releaseKit(k, state)
     state.resources = makeResources(device, g, inputs.lightCount)
     state.lastGeometryKey = geometryKey
     historyValid = false
@@ -1605,6 +1655,7 @@ function prepareImage(
       soft: sampledSoftShadows(inputs.settings, input),
       specularOnly:
         input === 'frontTranslucency' && inputs.settings.sampledLightsFrontLayerSpecularOnly,
+      lightCount: inputs.lightCount,
     }),
   )
   encoder.clearBuffer(held.r.allocator)
@@ -1708,10 +1759,11 @@ function complexityImage(c: EncodeContext): ComplexityImage {
 function encodeImage(
   k: Kit,
   encoder: GPUCommandEncoder,
+  state: SampledKitState,
   inputs: SampledLightsInputs,
   phase: SampledPhase,
 ): SampledSamples | undefined {
-  const { device, state } = k
+  const { device } = k
   const input = inputs.input
   const settings = sampledSettingsOf(inputs.settings, input)
   const { key } = inputs
@@ -1723,35 +1775,29 @@ function encodeImage(
     sampledSamplesForInput(settings, input),
   )
   const geometryKey = `${g.view}|${g.downsample}|${g.samplesPerPixel}|${inputs.lightCount}`
-  const family = k.cache.samplingFor(key, inputs.texturedRects)
+  const family = k.cache.samplingFor(key, inputs.texturedRects, state.sampling?.family)
   // The screen trace gates itself on its setting (the uniform); the software trace needs the field.
   const tracing = !!inputs.reflection
   const mapTrace =
     tracing && !!inputs.vsm && settings.sampledLightsShadowMethod === 'virtualShadowMap'
   if (!imageReady(k, inputs, family, settings, tracing, mapTrace)) return undefined
   if (phase === 'traces' && (!state.held || state.held.frame !== inputs.frame)) return undefined
-  if (phase !== 'traces') prepareImage(k, encoder, inputs, g, geometryKey)
+  if (phase !== 'traces') prepareImage(k, state, encoder, inputs, g, geometryKey)
   const { r, current, history } = state.held!
   const [colours, words] = inputs.surface.stores()
-  const vectors =
-    inputs.vectors ??
-    (state.noVectors ??= device
-      .createTexture({
-        label: 'Trillion3D sampled no vectors',
-        size: [1, 1],
-        format: 'rg32uint',
-        usage: GPUTextureUsage.TEXTURE_BINDING,
-      })
-      .createView())
-  // The change of each light's power (`lightPower.ts`), into the ratios the draw reads in the guide of the image before.
-  if (phase !== 'traces')
+  const vectors = inputs.vectors ?? (k.noVectors ??= noVectorsOf(device)).view
+  // The change of each light's power (`lightPower.ts`), into the ratios the draw reads in the guide of the image before, and the ranks the lights had in the image before, the second half of the same buffer: the live lights' words only.
+  if (phase !== 'traces') {
+    const live = Math.min(inputs.liveLights, inputs.lightCount) * 4
+    encoder.copyBufferToBuffer(inputs.power, 0, history, guideAt(g).ratios * 4, live)
     encoder.copyBufferToBuffer(
       inputs.power,
-      0,
+      inputs.power.size / 2,
       history,
-      guideAt(g).ratios * 4,
-      inputs.lightCount * 4,
+      ranksAt(g, inputs.lightCount) * 4,
+      live,
     )
+  }
   const pass = encoder.beginComputePass(PASS)
   const run = (made: Stage, group: GPUBindGroup, x: number, y = 1) => {
     pass.setPipeline(made.get()!)
@@ -1773,10 +1819,11 @@ function encodeImage(
     words,
     vectors,
     family,
+    sampling: samplingGroupsOf(k, state, family),
     mapTrace,
     spatialDebug: inputs.debugPixels ? k.spatialDebug() : k.stages.spatialStage,
     stages: k.stages,
-    groups: k.groups,
+    groups: state.groups,
   }
   if (phase !== 'traces') {
     encodeTiles(c)
@@ -1839,22 +1886,41 @@ export function createSampledLights(
       ...createTraceStages(device, failed, layouts, stage),
       ...createFilterStages(device, failed, layouts),
     },
-    groups: createGroups(device, layouts),
+    layouts,
+    frontLightLayout: frontLight.layout,
     cache: createSamplingCache(device, stage, front),
-    state: { turn: 0, lastImage: -2, lastGeometryKey: '' },
   }
   return {
+    /** The state of a view, made at its first image; the view's record frees it with `release`. */
+    newState: () => newState(kit),
     encode: (
+      state: SampledKitState,
       encoder: GPUCommandEncoder,
       inputs: SampledLightsInputs,
       phase: SampledPhase = 'all',
-    ) => encodeImage(kit, encoder, inputs, phase),
-    packFrontLight: frontLight.pack,
+    ) => encodeImage(kit, encoder, state, inputs, phase),
+    /** Copies the layer's light to where the blend reads it, through the group of the view's `state`. */
+    packFrontLight(
+      state: SampledKitState,
+      encoder: GPUCommandEncoder,
+      composite: GPUTextureView,
+      words: GPUTextureView,
+      traced: GPUTextureView,
+      size: readonly [number, number],
+      mark?: number,
+    ) {
+      state.frontLight ??= createPassGroup(device, kit.frontLightLayout)
+      return frontLight.pack(state.frontLight, encoder, composite, words, traced, size, mark)
+    },
+    /** Counts image `image` of the device (once, whatever the number of views that encode it): the sampling families nobody asked for during a while are let go. */
+    tick: () => kit.cache.tick(),
+    /** Frees a view's kit state when the sampled lighting is off for it (the next image that turns it on makes it again). */
+    release: (state: SampledKitState) => releaseKit(kit, state),
     dispose() {
       complexity?.dispose()
       kit.stages.hairTraceSettings.destroy()
-      frontLight.group.release()
-      releaseKit(kit)
+      if (kit.noVectors) retire(device, kit.noVectors.texture)
+      kit.noVectors = undefined
     },
   }
 }

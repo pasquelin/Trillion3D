@@ -18,10 +18,23 @@ import { CUTS, FULL_CONTRACT, type ContractKey } from '../deferred/contractCuts.
 import type { DirectLightResources } from '../deferred/program.ts'
 import type { SampledLightsSettings } from './parameters.ts'
 import { createLightPower } from './lightPower.ts'
+import { createPreviousRanks } from './previousRanks.ts'
 import { lightFunctionResources } from '../lightFunction/frame.ts'
 import { createSampledLights, type SampledSamples, type SampledSurface } from './sampledLights.ts'
 import { frontStamp } from '../reflections/frontLayer.ts'
 import { SAMPLED_GROUP } from './layout.ts'
+import {
+  findRecord,
+  partOf,
+  releasePart,
+  releaseSampledViewsOf,
+  viewRecord,
+  type SampledLayer,
+  type SampledView,
+} from './release.ts'
+import { idleTooLong } from '../../gpu/core/idleKeep.ts'
+import { queueSubmits } from '../../gpu/core/sessionHandle.ts'
+import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import type { VsmMarkingFrontSamples, VsmMarkingSamples } from '../shadows/vsm/markingPass.ts'
 import { FRONT_MARK } from './frontLightWgsl.ts'
 import { readsSpatialDebug, visualizeViewOf } from './debug/modes.ts'
@@ -151,7 +164,8 @@ function sampledInputs(
       width,
       height,
       frame: noiseFrame(rt),
-      lightCount: rt.lights.store.count,
+      lightCount: sampledLightSlots(rt),
+      liveLights: rt.lights.store.count + rt.lights.store.simple.count,
       power,
       hairVoxels: hairVoxelsOf(rt, values),
       // The spatial filter writes what the denoiser's debug views read, while one is shown.
@@ -164,6 +178,10 @@ function sampledInputs(
     },
   }
 }
+
+/** The ranks of the lights the per-light arrays of the sampling are sized for: the scene's, then the room of the simple lights (their capacity, so that a list that changes at every image does not rebuild them). */
+const sampledLightSlots = (rt: WebgpuPagesRuntime) =>
+  rt.lights.store.count + rt.lights.store.simple.capacity
 
 /** The strands' voxels the surfaces' rays are marched through (`sampledLightsHairVoxelTraces`), none where the view holds no hair or no volume of it. */
 function hairVoxelsOf(rt: WebgpuPagesRuntime, values: SampledLightsSettings) {
@@ -225,6 +243,25 @@ function frontKitOf(rt: WebgpuPagesRuntime, device: GPUDevice) {
   return kit
 }
 
+/** The kit of a layer (the surfaces' or the nearest translucent layer's) and the view's state in it, made at the view's first image and freed with its record. */
+function kitStateOf(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  layer: 'surface' | 'front',
+): SampledLayer {
+  const record = viewRecord(rt.gpu, device)
+  if (layer === 'front') record.frontUsed = rt.run.frame
+  return partOf(
+    record,
+    layer,
+    () => {
+      const kit = layer === 'front' ? frontKitOf(rt, device) : kitOf(rt, device)
+      return { kit, state: kit.newState() }
+    },
+    ({ kit, state }) => kit.release(state),
+  )
+}
+
 /**
  * The samples phase of the sampled lighting, encoded BEFORE the shadow maps are marked and drawn (`encodeDirectLights`), where the samples mark the pages of the maps of
  * the lights they drew (`marksPagesFromSamples`); nothing otherwise, and the whole of the lighting is then encoded in the lit image (`encodeSampledLights`). The nearest
@@ -239,13 +276,15 @@ export function encodeSampledSamples(
   if (!marksPagesFromSamples(values)) return
   const made = sampledInputs(rt, direct, values)
   if (made) {
-    const samples = kitOf(rt, made.device).encode(encoder, made.inputs, 'samples')
+    const { kit, state } = kitStateOf(rt, made.device, 'surface')
+    const samples = kit.encode(state, encoder, made.inputs, 'samples')
     if (samples) early.set(rt, { frame: made.inputs.frame, samples })
   }
   const layer = values.sampledLightsFrontLayer && frontTarget(rt)
   const madeFront = layer && sampledInputs(rt, direct, values, layer.target)
   if (!madeFront) return
-  const samples = frontKitOf(rt, madeFront.device).encode(encoder, madeFront.inputs, 'samples')
+  const { kit, state } = kitStateOf(rt, madeFront.device, 'front')
+  const samples = kit.encode(state, encoder, madeFront.inputs, 'samples')
   if (samples) earlyFront.set(rt, { frame: madeFront.inputs.frame, samples })
 }
 
@@ -255,8 +294,8 @@ function markingOf({ geometry, samples, params }: SampledSamples) {
     texture: samples,
     params,
     workgroups: [
-      Math.ceil(geometry.sampleView[0] / SAMPLED_GROUP),
-      Math.ceil(geometry.sampleView[1] / SAMPLED_GROUP),
+      ceilDiv(geometry.sampleView[0], SAMPLED_GROUP),
+      ceilDiv(geometry.sampleView[1], SAMPLED_GROUP),
     ] as [number, number],
   }
 }
@@ -290,14 +329,22 @@ export function encodeSampledLights(
 ): SampledSamples | undefined {
   const values = followSampledLights(rt)
   direct.sampledLight = undefined
+  if (rt.gpu.device) tickKits(rt, rt.gpu.device)
   if (!values.sampledLights) {
     lit.delete(rt)
+    if (rt.gpu.device) releaseKitStates(rt.gpu, rt.gpu.device, rt.run.frame)
     return undefined
+  }
+  if (rt.gpu.device) {
+    const record = findRecord(rt.gpu, rt.gpu.device)
+    if (record) record.litAt = rt.run.frame
+    releaseIdleFront(rt, rt.gpu.device)
   }
   const made = sampledInputs(rt, direct, values)
   const done = sampledMarkingSamples(rt)
+  const kitState = made && kitStateOf(rt, made.device, 'surface')
   const result =
-    made && kitOf(rt, made.device).encode(encoder, made.inputs, done ? 'traces' : 'all')
+    made && kitState?.kit.encode(kitState.state, encoder, made.inputs, done ? 'traces' : 'all')
   lit.set(rt, !!result)
   direct.sampledLight = result?.composite
   if (result) rememberSampled(rt, rt.run.frame, result)
@@ -320,9 +367,10 @@ export function encodeSampledFront(
   if (!layer) return
   const made = sampledInputs(rt, direct, values, layer.target)
   if (!made) return
-  const kit = frontKitOf(rt, made.device)
+  const { kit, state } = kitStateOf(rt, made.device, 'front')
   const done = earlyFront.get(rt)
   const result = kit.encode(
+    state,
     encoder,
     made.inputs,
     done?.frame === made.inputs.frame ? 'traces' : 'all',
@@ -334,6 +382,7 @@ export function encodeSampledFront(
   // The layer's light goes where the blend's fragments read it (`frontLightWgsl.ts`): the second half of the front's traced radiance.
   if (result)
     kit.packFrontLight(
+      state,
       encoder,
       result.composite,
       layer.surface.wordsView,
@@ -343,9 +392,29 @@ export function encodeSampledFront(
     )
 }
 
-/** The change of each light's power (`lightPower.ts`) of a device, and the ratios of the image being encoded, per runtime. */
-const powers = new WeakMap<GPUDevice, ReturnType<typeof createLightPower>>()
-const ratiosOf = new WeakMap<WebgpuPagesRuntime, { image: number; buffer: GPUBuffer }>()
+/** A view's light power and previous ranks, made at its first ask and freed with its record. */
+function powerPartOf(rt: WebgpuPagesRuntime, device: GPUDevice, record: SampledView) {
+  return partOf(
+    record,
+    'power',
+    () => ({
+      power: createLightPower(device, (error) =>
+        rt.diag.diagnosticFailure('sampled-lights-program-failed', error),
+      ),
+      ranks: createPreviousRanks(device),
+    }),
+    (held) => {
+      held.power.dispose()
+      held.ranks.dispose()
+    },
+  )
+}
+
+/** Whether anything reads the ranks the lights had in the image before: a guide by history of the surfaces, of the fog volume or of the translucency volume. */
+const readsRanks = (values: SampledLightsSettings) =>
+  values.sampledLightsGuideByHistory ||
+  values.sampledLightsVolumeGuideByHistory ||
+  values.sampledLightsTranslucencyVolumeGuideByHistory
 
 /**
  * Measures the change of each light's power since the image before, once an image, before anything that samples the lights reads it (the surfaces' draw, the volume's): the ratios are
@@ -361,18 +430,13 @@ export function encodeLightPower(
   const { device, deferred } = rt.gpu
   const buffer = rt.lights.buffer
   if (!values.sampledLights || !device || !deferred || !buffer) return
-  let power = powers.get(device)
-  if (!power)
-    powers.set(
-      device,
-      (power = createLightPower(device, (error) =>
-        rt.diag.diagnosticFailure('sampled-lights-program-failed', error),
-      )),
-    )
-  const ratios = power.encode(encoder, {
+  const record = viewRecord(rt.gpu, device)
+  const held = powerPartOf(rt, device, record)
+  const ratios = held.power.encode(encoder, {
+    previous: held.ranks.encode(rt.lights.store, rt.run.frame, readsRanks(values)),
     image: rt.run.frame,
     lights: buffer,
-    lightCount: rt.lights.store.count,
+    lightCount: sampledLightSlots(rt),
     lightFunction:
       lightFunctionResources(rt, 'lightFunctionDeferred') ?? deferred.placeholders.lightFunction,
     eye,
@@ -381,20 +445,60 @@ export function encodeLightPower(
     measured: values.sampledLightsPowerDelta,
     lightFunctions: values.sampledLightsPowerDeltaLightFunctions,
   })
-  if (ratios) ratiosOf.set(rt, { image: rt.run.frame, buffer: ratios })
-  else ratiosOf.delete(rt)
+  record.ratios = ratios ? { image: rt.run.frame, buffer: ratios } : undefined
 }
 
 /** The ratios of this image's lights' power, none before they are measured. */
 export const powerOf = (rt: WebgpuPagesRuntime) => {
-  const held = ratiosOf.get(rt)
+  const { device } = rt.gpu
+  const held = device ? findRecord(rt.gpu, device)?.ratios : undefined
   return held && held.image === rt.run.frame ? held.buffer : undefined
 }
 
-/** Frees the sampled lighting of a device (a session's dispose). */
+/** The submit count each device had when its kits last counted an image. */
+const countedSubmits = new WeakMap<GPUDevice, number>()
+
+/**
+ * Counts the image in its device's kits (once, whatever the number of views or runtimes), which let go of the sampling families nobody asks for any more (the sampled lighting turned
+ * off included). An image is counted where the device's queue has taken a submit since the last count; a device that counts no submit is counted by the runtime's frame number.
+ */
+function tickKits(rt: WebgpuPagesRuntime, device: GPUDevice) {
+  const stamp = queueSubmits(device) ?? rt.run.frame
+  if (countedSubmits.get(device) === stamp) return
+  countedSubmits.set(device, stamp)
+  kits.get(device)?.tick()
+  frontKits.get(device)?.tick()
+}
+
+/**
+ * Frees the kit state a view kept (resources, groups, family) once the sampled lighting is off for it: the view-sized textures and guides are not held for a lighting that does not run.
+ * The light power and the volumes follow after the same idle window, so a short toggle remakes nothing.
+ */
+function releaseKitStates(gpu: { viewKey?: object }, device: GPUDevice, frame: number) {
+  const record = findRecord(gpu, device)
+  if (!record) return
+  releasePart(record, 'surface')
+  releasePart(record, 'front')
+  record.litAt ??= frame
+  if (!idleTooLong(frame, record.litAt)) return
+  releasePart(record, 'power')
+  releasePart(record, 'volumes')
+}
+
+/** Frees the nearest translucent layer's state of a view that has not lit the layer for a while (the layer off, or no layer written): its view-sized textures are not kept for a lighting that does not run. */
+function releaseIdleFront(rt: WebgpuPagesRuntime, device: GPUDevice) {
+  const record = findRecord(rt.gpu, device)
+  if (
+    record?.front &&
+    record.frontUsed !== undefined &&
+    idleTooLong(rt.run.frame, record.frontUsed)
+  )
+    releasePart(record, 'front')
+}
+
+/** Frees the sampled lighting of a device (a session's dispose): what its views kept, then its kits. */
 export function disposeSampledLights(device: GPUDevice) {
-  powers.get(device)?.dispose()
-  powers.delete(device)
+  releaseSampledViewsOf(device)
   kits.get(device)?.dispose()
   kits.delete(device)
   frontKits.get(device)?.dispose()

@@ -68,6 +68,8 @@ export interface WebgpuLightState {
    *  (`../../../lighting/shadows/casters/casterFeed.ts`). */
   casters: CasterFeed | undefined
   uploadedEpoch: number // store revision already pushed: an image with no change writes nothing
+  /** The simple lights' epoch already pushed (`SimpleLights.epoch`). */
+  uploadedSimple: number
   /** What the view's draw range was last decided for, and the lights whose word changed (`drawLights`, `../../../lighting/lightDrawRange.ts`). */
   drawn: DrawnLights
   /** Contract lights kept by the last image. */
@@ -102,6 +104,7 @@ export function createWebgpuLightState(store?: SceneLightStore): WebgpuLightStat
     casts: undefined,
     casters: undefined,
     uploadedEpoch: 0,
+    uploadedSimple: -1,
     drawn: createDrawnLights(),
     lightsActive: 0,
     shadowReason: null,

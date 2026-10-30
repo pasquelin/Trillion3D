@@ -157,7 +157,13 @@ fn fogLightAt(cell:vec3u,offset:vec3f)->vec3f{
   let fade=select(0.0,length(P-fogCellPoint(cell+vec3u(1u,1u,0u),offset).xyz)*frame.blend.z,frame.blend.z>0.0);
 ${
   sampled
-    ? `  light+=mlVolumeLight(cell,P,toEye,biasSquared,fade);`
+    ? `  light+=mlVolumeLight(cell,P,toEye,biasSquared,fade);
+  // The simple lights the sampled lighting leaves to the classic pass scatter as the cell's list gives them.
+  for(var index=firstSimpleIndex(slice);index<slice.y;index++){
+   let rank=listedLight(slice,index);
+   if(!listedDrawn(slice,rank)||sampledTakes(rank)){continue;}
+   light+=fogLocal(rank,P,toEye,biasSquared,fade,true);
+  }`
     : `  for(var index=0u;index<slice.y;index++){
    let rank=listedLight(slice,index);
    if(!listedDrawn(slice,rank)){continue;}

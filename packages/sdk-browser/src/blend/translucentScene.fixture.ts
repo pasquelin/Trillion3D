@@ -174,7 +174,7 @@ export function replay(blendState: ReturnType<typeof prepared>['blendState'], gp
     },
     gpu,
     capture: { capturing: false },
-    lights: { buffer: {}, store: { count: 0, epoch: 0, unlit: false } },
+    lights: { buffer: {}, store: { count: 0, epoch: 0, unlit: false, simple: { capacity: 0 } } },
     bounce: { probes: undefined },
     views: { active: { overrides: NO_OVERRIDES } },
     context: {},

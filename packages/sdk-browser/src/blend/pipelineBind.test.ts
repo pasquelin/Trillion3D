@@ -99,7 +99,11 @@ function joue(items: ReturnType<typeof item>[]) {
         },
       },
     },
-    lights: { buffer: {}, shadows: undefined, store: { count: 0, epoch: 0, unlit: false } },
+    lights: {
+      buffer: {},
+      shadows: undefined,
+      store: { count: 0, epoch: 0, unlit: false, simple: { capacity: 0 } },
+    },
     bounce: { probes: undefined },
     views: { active: { overrides: NO_OVERRIDES } },
     context: {},

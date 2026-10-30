@@ -16,3 +16,14 @@ test('the power delta writes the ratio of last image’s power to this one’s (
     'it reads no surface nor view: it runs before the image’s surfaces',
   )
 })
+
+test('the power delta covers the simple lights after the scene’s and reads the power before at the rank the light had', () => {
+  const code = powerDeltaWgsl()
+  assert.ok(code.includes('rank>=directLights.count+directLights.simple'))
+  assert.ok(code.includes('previousRanks[rank]'))
+  assert.ok(code.includes('powerBefore[u32(after)]'))
+  assert.ok(
+    code.includes('ratios[arrayLength(&ratios)/2u+rank]=word;'),
+    'the rank before is handed on to the draws',
+  )
+})

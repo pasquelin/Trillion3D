@@ -345,9 +345,10 @@ function createDomain(device: GPUDevice, domain: 0 | 1) {
       return binding
     },
     dispose() {
+      // What the commands of this image already encoded may still name is retired, never destroyed at once.
       release()
-      params.destroy()
-      standIn.destroy()
+      retire(device, params)
+      retire(device, standIn)
     },
   }
 }

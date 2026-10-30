@@ -14,6 +14,7 @@ import { beginPreExposure } from '../../post/exposure/pre.ts'
 import { cachedLightingPreExposureOf } from '../../post/exposure/frame.ts'
 import { DIRECT_AT } from '../../lighting/deferred/view.ts'
 import { uploadSceneLights } from '../backend/state/lightBuffer.ts'
+import { readSimpleLightSetting } from '../../../../sdk-core/src/contracts/simpleLightOptions.ts'
 import { followSkinTable } from '../../lighting/direct/skinTableSource.ts'
 import { followSubsurfaceProfiles } from '../../lighting/subsurface/litRows.ts'
 import { ensureBounce, syncBouncePlacements } from '../prepare/bounce.ts'
@@ -176,6 +177,15 @@ function encodeAir(
   return air
 }
 
+/** Hands the simple lights the run's settings, at the image's entry: whether the view is lit (`unlit`) and the program's key read their count. */
+export function followSimpleLights(rt: WebgpuPagesRuntime) {
+  rt.lights.store.simple.configure(
+    readSimpleLightSetting(rt, 'allowSimpleLights'),
+    readSimpleLightSetting(rt, 'hairSimpleLights'),
+    readSimpleLightSetting(rt, 'sampledSimpleLights'),
+  )
+}
+
 /** A view that lists no light: the scene's lights are followed as far as they exist. The world's
  *  change boxes stay for the first lit frame's plan. */
 function followUnlitLights(rt: WebgpuPagesRuntime, device: GPUDevice) {
@@ -282,7 +292,8 @@ export function encodeDirectLights(
 ) {
   const { lights } = rt,
     { store } = lights
-  const active = store.count
+  // The simple lights count: a scene with only those is lit and builds its lists.
+  const active = store.count + store.simple.count
   lights.lightsActive = active
   // The meshes' distance fields and the global field, before any pass that reads them.
   encodeDistanceFields(rt, device, encoder, cam, heldSkyLight(rt))

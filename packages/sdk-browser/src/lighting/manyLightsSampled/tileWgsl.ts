@@ -70,7 +70,7 @@ fn ${TILE_BITMASK_ENTRY}(@builtin(global_invocation_id) id:vec3u,@builtin(local_
    let cell=cellSlice(pixelCell(vec2f(id.xy)+vec2f(0.5),textureLoad(depth,coord,0)));
    for(var index=0u;index<cell.y;index++){
     let rank=listedLight(cell,index);
-    if(listedDrawn(cell,rank)&&isRect(directLights.items[rank])){bits|=BIT_RECT;break;}
+    if(listedDrawn(cell,rank)&&sampledTakes(rank)&&isRect(directLights.items[rank])){bits|=BIT_RECT;break;}
    }
    atomicOr(&tileBits,bits);
   }

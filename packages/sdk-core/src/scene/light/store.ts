@@ -11,6 +11,7 @@ import type { LightRangeView } from './drawRange.ts'
 import { LIGHT_FIELD, baseOf, type RectAtlasSlot } from './fields.ts'
 import { createSunBlocks } from './sunBlocks.ts'
 import { joined } from '../../runtime/joined.ts'
+import { createSimpleLights, type SimpleLights } from './simpleLights.ts'
 import {
   addLight,
   assignDrawn,
@@ -107,7 +108,7 @@ function layoutReaders(table: LightTable) {
 }
 
 /** The environment, the held lights and the view a reader asks about. */
-function lightReaders(table: LightTable) {
+function lightReaders(table: LightTable, simple: SimpleLights) {
   const { suns, records, indexOf, ids } = table
   const unlitAsked = () => table.view === 'unlit'
   return {
@@ -141,7 +142,7 @@ function lightReaders(table: LightTable) {
      * takes over — unless the host has explicitly asked for the diagnostic view (`unlitAsked`).
      */
     get unlit() {
-      return unlitAsked() || (table.view === 'auto' && ids.length === 0)
+      return unlitAsked() || (table.view === 'auto' && ids.length === 0 && simple.count === 0)
     },
     /** The held record, the store's own: engines read it on the frame path and copy nothing.
      *  Not for the host — the public API hands out `cloneSceneLight` copies. */
@@ -152,7 +153,7 @@ function lightReaders(table: LightTable) {
 }
 
 /** What changes the table. */
-function writers(table: LightTable) {
+function writers(table: LightTable, simple: SimpleLights) {
   return {
     /** Sets what the host asks to see. */
     setView(next: SceneLightingView) {
@@ -176,10 +177,16 @@ function writers(table: LightTable) {
     },
     /** Folds the lights' contact shadows with the view's settings: the lanes of every light are
      *  written again when they differ from the last fold (`setTableContactView`). */
-    setContactShadowView: (view: ContactShadowView) => setTableContactView(table, view),
+    setContactShadowView(view: ContactShadowView) {
+      setTableContactView(table, view)
+      simple.fold()
+    },
     /** Hands the lights the view's shadow settings: the kind words are written again when the dynamic shadows
      *  flipped (`setTableShadowView`). */
-    setShadowView: (view: LightShadowView) => setTableShadowView(table, view),
+    setShadowView(view: LightShadowView) {
+      setTableShadowView(table, view)
+      simple.fold()
+    },
     /** Folds the lights' draw ranges with the view's settings: the draw lanes of every light are written again
      *  when they differ from the last fold (`setTableRangeView`). */
     setRangeView: (view: LightRangeView) => setTableRangeView(table, view),
@@ -202,10 +209,17 @@ function writers(table: LightTable) {
  */
 export function createSceneLightStore() {
   const table = createLightTable()
+  const simple = createSimpleLights(table)
   return joined(
     layoutReaders(table),
-    lightReaders(table),
-    writers(table),
+    lightReaders(table, simple),
+    {
+      /** The simple lights of the image, handed to the GPU after the store's own (`simpleLights.ts`). */
+      simple,
+      /** Replaces the image's simple lights (`SimpleLightEntry`). */
+      setSimpleLights: simple.set,
+    },
+    writers(table, simple),
     table.kinds.counts,
     airReads(table.suns.air),
   )

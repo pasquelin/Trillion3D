@@ -4,6 +4,7 @@ import {
   sampledGeometry,
   guideAt,
   guideWords,
+  ranksAt,
   samplesOfPixel,
   tileArgsAt,
   tileListWords,
@@ -30,7 +31,8 @@ test('the guide buffer holds the visible sets, the hidden sets, then the ratios'
   const g = sampledGeometry(64, 64, [1, 1], [1, 1])
   const at = guideAt(g)
   assert.deepEqual(at, { visible: 0, hidden: 64 * 4, ratios: 64 * 6 })
-  assert.equal(guideWords(g, 10), 64 * 6 + 10)
+  assert.equal(guideWords(g, 10), 64 * 6 + 20)
+  assert.equal(ranksAt(g, 10), 64 * 6 + 10)
   assert.equal(tileListWords(g), 10 * 64)
   assert.equal(tileArgsAt(3), 36)
 })

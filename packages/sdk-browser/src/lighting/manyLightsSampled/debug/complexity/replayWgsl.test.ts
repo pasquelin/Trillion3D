@@ -49,7 +49,7 @@ test('the replay walks the lights the draw walks: the cell’s drawn local light
   for (const rule of [
     'for(var index=0u;index<cell.y;index++){',
     'let rank=listedLight(cell,index);',
-    'if(!listedDrawn(cell,rank)){continue;}',
+    'if(!listedDrawn(cell,rank)||!sampledTakes(rank)){continue;}',
     'if(isSun(directLights.items[rank])){continue;}',
     'if(params.directional!=0u){',
     'for(var index=1u;index<=sunRanks[0];index++){',

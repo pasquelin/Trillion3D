@@ -23,7 +23,7 @@ var<workgroup> reach:u32;`
 const TILE_PASS_SETUP_TEXT = `@compute @workgroup_size(WORKGROUP_THREADS,1,1)
 fn lightTiles(@builtin(workgroup_id) cell:vec3u,@builtin(local_invocation_index) lane:u32){
  var column=gridColumn(cell.xy);
- if(lane==0u){lightCount=directLights.count;reach=columnReach(cell.xy);}
+ if(lane==0u){lightCount=directLights.count+directLights.simple;reach=columnReach(cell.xy);}
  if(lane<LANE_WORDS){atomicStore(&full[lane],0u);}
  chunk[lane]=vec2u(0u,EMPTY_RUN);
  for(var slice=lane;slice<COLUMN_SLICES;slice+=WORKGROUP_THREADS){

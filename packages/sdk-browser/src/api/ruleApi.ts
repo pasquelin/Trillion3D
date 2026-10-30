@@ -98,6 +98,9 @@ export interface ExplorerRuleApi {
   /** Writes the rectangle lights' source-texture atlas setting `field` (`rectLightAtlasOptions.ts`): the atlas's largest side, its filter,
    *  its format, the pictures' proportions, which passes read the pictures, and the debug switches; read by the next image. */
   setRectLightAtlas: FamilyWriter<'rectLightAtlas'>
+  /** Writes the simple lights' setting `field` (`simpleLightOptions.ts`): whether the lights the host hands to an image are taken, whether
+   *  the hair strands are lit by them, and which of them the sampled lighting takes (`sampledSimpleLights`); read by the next image. */
+  setSimpleLight: FamilyWriter<'simpleLight'>
   /** Writes the volumetric lightmap's setting `field` (`volumetricLightmapOptions.ts`): whether the
    *  precomputed light is read; read by the next image. */
   setVolumetricLightmap: FamilyWriter<'volumetricLightmap'>

@@ -60,9 +60,9 @@ export const samplesOfPixel = (g: SampledGeometry) => g.samplesPerPixel[0] * g.s
 const hashTileCount = (g: SampledGeometry) => g.tiles[0] * g.tiles[1]
 
 /** The words the guide buffer of an image holds: every tile's visible set then its hidden set (the hash of the lights seen and
- *  not seen), then the ratio of each light's power to its power last image (`lights` of them). */
+ *  not seen), then the ratio of each light's power to its power last image (`lights` of them), then the rank each light had in the image before plus one (`lights` more). */
 export const guideWords = (g: SampledGeometry, lights: number) =>
-  hashTileCount(g) * TILE_HASH_WORDS + lights
+  hashTileCount(g) * TILE_HASH_WORDS + 2 * lights
 
 /** Where the visible sets, the hidden sets and the ratios start in the guide buffer, in words. */
 export const guideAt = (g: SampledGeometry) => ({
@@ -70,6 +70,9 @@ export const guideAt = (g: SampledGeometry) => ({
   hidden: hashTileCount(g) * VISIBLE_HASH_WORDS,
   ratios: hashTileCount(g) * TILE_HASH_WORDS,
 })
+
+/** Where the ranks the lights had in the image before start in the guide buffer, in words: right after the `lights` ratios. */
+export const ranksAt = (g: SampledGeometry, lights: number) => guideAt(g).ratios + lights
 
 /** The words of the tile lists (a list a mode, the tiles of the grid in each) and the bytes of the arguments of the indirect dispatches. */
 export const tileListWords = (g: SampledGeometry) => SAMPLED_TILE_MODES * g.tileListStride

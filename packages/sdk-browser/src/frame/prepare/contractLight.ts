@@ -160,7 +160,8 @@ function contractKey(
     sun = store.shadowedSuns > 0,
     local = store.shadowedLocals > 0,
     rect = store.rects > 0
-  key.narrow = store.count <= LIGHT_SETTINGS.tileLights
+  // The simple lights follow the scene's in rank: the room they keep counts, never their number of the image, so that the program does not flip with them.
+  key.narrow = store.count + store.simple.capacity <= LIGHT_SETTINGS.tileLights
   key.unshadowed = !shadowed || !(sun || local)
   key.rectless = !rect
   key.sunless = !key.unshadowed && !sun
@@ -344,7 +345,8 @@ export function directLightResources(rt: WebgpuPagesRuntime) {
   // The lights the sun's pass and the local lights' pass walk: none for a view whose light buffer is
   // cleared of its lights.
   contractResources.suns = lit ? lights.store.suns : 0
-  contractResources.locals = lit ? lights.store.locals : 0
+  // Simple lights are local lights: the pass is drawn while the image has any (their count: it only gates the draw, no program flips with it).
+  contractResources.locals = lit ? lights.store.locals + lights.store.simple.count : 0
   litKeyInto(rt, contractResources, active)
   shadowResources(rt, active)
   bounceResources(rt, lit)

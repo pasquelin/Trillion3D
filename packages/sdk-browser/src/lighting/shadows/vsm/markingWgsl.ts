@@ -853,6 +853,8 @@ const pixelMarkingLocal = (strands: boolean) => /* wgsl */ `
   let slice=cellSlice(pixelCell(vec2f(localPosition)+0.5,deviceZ));
   for(var index=0u;index<slice.y;index++){
    let lightIndex=listedLight(slice,index);
+   // The simple lights follow the scene's in rank and hold no shadow map: none is marked, and a walk of every light ends at the first.
+   if(lightIndex>=directLights.count){if(slice.x==TILE_NO_SLICE){break;}continue;}
    let light=directLights.items[lightIndex];
    // A distant light's page is marked by the coarse marking: those come last and end the walk.
    if(shadowSliceDistant(i32(light.params.y))){if(slice.x==TILE_NO_SLICE){continue;}break;}

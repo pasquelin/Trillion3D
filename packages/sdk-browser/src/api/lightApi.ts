@@ -7,6 +7,7 @@ import {
 import type { SceneEnvironment } from '../../../sdk-core/src/scene/core/environment.ts'
 import type { LightingCapabilities } from '../../../sdk-core/src/scene/light/capabilities.ts'
 import type { SceneLightStore } from '../../../sdk-core/src/scene/light/store.ts'
+import type { SimpleLightEntry } from '../../../sdk-core/src/scene/light/simpleLights.ts'
 import { cloneSceneLight } from '../../../sdk-core/src/scene/light/clone.ts'
 import type { ResolvedSky } from '../../../sdk-core/src/modules/sky/descriptor.ts'
 import type { Engine } from '../session/engine/types.ts'
@@ -83,6 +84,12 @@ function lightWrites(inputs: Inputs, required: () => SceneLightStore) {
       check()
       required().add(light)
       notify()
+    },
+    /** Hands the renderer the simple lights of the images to come (`SimpleLightEntry`): particle and effect lights the scene does not hold.
+     *  The list replaces the one before it and lasts until another is given; one that holds what the last did changes nothing, and the held images stay. */
+    setSimpleLights(entries: readonly SimpleLightEntry[]) {
+      check()
+      if (required().setSimpleLights(entries)) engine.refreshSimpleLights()
     },
     setLight(id: string, patch: Partial<Omit<SceneLight, 'id'>>) {
       check()

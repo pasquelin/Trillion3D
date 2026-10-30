@@ -35,6 +35,7 @@ import type { TileClass } from './tileClass.ts'
 import { DECLARED_TERM_TEXT, SHADING_TEXT } from '../direct/lightLoopWgsl.ts'
 import { LOBES_TARGET_WGSL } from '../direct/lobesWgsl.ts'
 import { lightingBase, pixelCellWgsl, type LightingBindings } from '../direct/lightingWgsl.ts'
+import { SIMPLE_HEADER } from '../../../../sdk-core/src/scene/light/fields.ts'
 import { CONTRACT_SHADOW_BINDINGS } from '../direct/shadowBindings.ts'
 import { LOCAL_SHADOWED_WGSL } from '../direct/shadowSlice.ts'
 
@@ -123,7 +124,8 @@ const localLoopWgsl = wgslVariants((skipHeld) =>
 fn localLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,slice:vec2u)->vec3f{
  var result=vec3f(0.0);
  ${SHADING_TEXT()}
- for(var index=0u;index<slice.y;index++){
+ // The walk of the simple lights alone starts at the first of them, not at the head of the scene's.
+ for(var index=select(0u,firstSimpleIndex(slice),classicSimpleOnly);index<slice.y;index++){
   let rank=listedLight(slice,index);
   if(!listedDrawn(slice,rank)){continue;}
   if(isSun(directLights.items[rank])){continue;}${
@@ -228,13 +230,19 @@ const SAMPLED_LIGHT_BINDING_WGSL = wgslBlock(
   `@group(0) @binding(${DEFERRED_BINDINGS.sampledLight}) var sampledLight:texture_2d<f32>;`,
 )
 
-/** The body of the local lights' pass where the sampled lighting lights them (`ContractKey.sampled`): no walk of the cell's lights, the light the sampled lighting left for
- *  the pixel, un-exposed to go through `lightOut`'s pre-exposure again, and its scattering luminance in `scatterLuma`. */
+/** The body of the local lights' pass where the sampled lighting lights them (`ContractKey.sampled`): no walk of the scene's lights, the light the sampled lighting left for
+ *  the pixel, un-exposed to go through `lightOut`'s pre-exposure again, and its scattering luminance in `scatterLuma`; and the walk of the simple lights it leaves
+ *  to this pass (not `sampledTakes`, the setting `sampledSimpleLights`), where the image has any. */
 const SAMPLED_LOCAL_BODY = `
  let left=textureLoad(sampledLight,coord,0);
  let exposure=max(view.preExposure.x,1e-20);
  scatterLuma=left.a/exposure;
- return lightOut(left.rgb/exposure);`
+ var lit=left.rgb/exposure;
+ if((directLights.simpleBits>>${SIMPLE_HEADER.classicShift}u)!=0u){
+  classicSimpleOnly=true;${PIXEL_CELL}
+  lit+=localLighting(albedo,base.a,normal.a,N,V,P,screenOcclusionAt(coord),cell);
+ }
+ return lightOut(lit);`
 
 export function localPassWgsl(
   key: ContractKey,

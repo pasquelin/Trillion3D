@@ -66,6 +66,9 @@ export interface Engine extends EngineSceneUpdates, EngineProbes {
   freezeCut(frozen: boolean): void
   /** The contract light store has changed: the next frame will reread it. */
   refreshSceneLights(): void
+  /** The simple lights of the store have changed (`SceneLightStore.setSimpleLights`): the next frame is drawn again with them, and nothing of the
+   *  scene's lights is invalidated. */
+  refreshSimpleLights(): void
   /** The store of the objects voxelised into the fog's volume, or the one of the local fog volumes, has changed: the
    *  next frame will read it. */
   refreshFogVolumes(): void

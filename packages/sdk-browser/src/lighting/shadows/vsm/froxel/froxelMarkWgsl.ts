@@ -142,6 +142,8 @@ fn ${FROXEL_MARK_ENTRY}(@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups
  let slice=cellSlice(pixelCell(middle,vsmFroxelDeviceZ(centre.z)));
  for(var k=0u;k<slice.y;k++){
   let lightIndex=listedLight(slice,k);
+  // The simple lights follow the scene's in rank and hold no shadow map: none is marked, and a walk of every light ends at the first.
+  if(lightIndex>=directLights.count){if(slice.x==TILE_NO_SLICE){break;}continue;}
   let light=directLights.items[lightIndex];
   // The pruned list holds the shadowed lights, those with a map of one page last, and the coarse marking marks their page; a cell without a grid walks every light.
   if(shadowSliceDistant(i32(light.params.y))){if(slice.x==TILE_NO_SLICE){continue;}break;}

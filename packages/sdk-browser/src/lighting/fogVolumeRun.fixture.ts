@@ -206,6 +206,9 @@ export function table(value: (coords: number[]) => number | number[] = () => [0,
 /** The light buffer's block a program reads, every slot zero: the fog and the air. */
 export const emptyLights = (slots: { fog: number; atmosphere: number }) => ({
   count: 0,
+  // The simple lights follow the scene's in rank (none here), and the hair strands take them.
+  simple: 0,
+  simpleBits: 1,
   fog: Array.from({ length: slots.fog }, () => [0, 0, 0, 0]),
   atmosphere: Array.from({ length: slots.atmosphere }, () => [0, 0, 0, 0]),
   fogView: Array.from({ length: FOG_VIEW_SLOTS }, () => [0, 0, 0, 0]),

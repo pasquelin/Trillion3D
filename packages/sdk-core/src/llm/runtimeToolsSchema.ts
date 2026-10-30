@@ -20,6 +20,7 @@ import { HIZ_RULES } from '../contracts/hizOptions.ts'
 import { LIGHT_FUNCTION_RULES } from '../contracts/lightFunctionOptions.ts'
 import { LIGHT_PROFILE_RULES } from '../contracts/lightProfileOptions.ts'
 import { RECT_LIGHT_ATLAS_RULES } from '../contracts/rectLightAtlasOptions.ts'
+import { SIMPLE_LIGHT_RULES } from '../contracts/simpleLightOptions.ts'
 import { VOLUMETRIC_LIGHTMAP_RULES } from '../contracts/volumetricLightmapOptions.ts'
 import { DISTANCE_FIELD_OCCLUSION_RULES } from '../contracts/distanceFieldOcclusionOptions.ts'
 import { GLOBAL_DISTANCE_FIELD_RULES } from '../contracts/globalDistanceFieldOptions.ts'
@@ -462,6 +463,11 @@ const SHADING_SETTING_TOOLS: Trillion3dTool[] = [
     'trillion3d_set_rect_light_atlas',
     "Changes from the next frame the atlas of the pictures mapped on the rectangle lights (their source textures): the largest side of the atlas, how its mip levels are filtered, its texel format, how a picture's proportions are held, whether the sampled lights read the pictures, and the atlas's debug view. The atlas is made with the pictures the lights name.",
     RECT_LIGHT_ATLAS_RULES,
+  ),
+  /* @__PURE__ */ settingTool(
+    'trillion3d_set_simple_light',
+    'Changes from the next frame whether the simple lights (the particle and effect lights the host hands to an image, which the scene does not hold) are taken, whether the hair strands are lit by them (both on by default), and which of them the sampled lighting takes where a view lights with it (sampledSimpleLights: 0 none, 1 those whose entry allows it, 2 all; default 1).',
+    SIMPLE_LIGHT_RULES,
   ),
   /* @__PURE__ */ settingTool(
     'trillion3d_set_volumetric_lightmap',

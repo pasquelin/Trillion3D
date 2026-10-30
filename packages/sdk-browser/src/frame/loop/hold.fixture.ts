@@ -88,7 +88,7 @@ export function settledRt() {
     },
     lights: {
       // A manual exposure: the lit image asks no exposure meter (`../../post/exposure/frame.ts`).
-      store: { count: 0, epoch: 1, environment: { exposure: 1 } },
+      store: { count: 0, epoch: 1, environment: { exposure: 1 }, simple: { capacity: 0 } },
       // The declared-light buffer prepare makes before any frame (`preparePages.ts`): the one the
       // lit program binds (`directLightResources`).
       buffer: {} as GPUBuffer,

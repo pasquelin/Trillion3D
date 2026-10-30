@@ -6,6 +6,7 @@ import { ambientCubemapStandIn } from '../deferred/ambientCubemapFrame.ts'
 import { putVec4 } from '../../gpu/core/fieldLayout.ts'
 import { writeChanged } from '../../gpu/core/writeChanged.ts'
 import { TRANSLUCENCY_VOLUME_PASS } from '../../diagnostic/stage/passLabels.ts'
+import type { SimpleLights } from '../../../../sdk-core/src/scene/light/simpleLights.ts'
 import type { TranslucencyVolumeValues } from '../../../../sdk-core/src/contracts/translucencyVolumeOptions.ts'
 import { cloudShadowBindEntries, type CloudShadowSet } from '../atmosphere/cloudShadowRead.ts'
 import {
@@ -53,6 +54,8 @@ export interface TranslucencyInputs {
     readonly kindOf: (slot: number) => number
     readonly count: number
     readonly capacity: number
+    /** The simple lights, which follow the store's lights in the light buffer (`SimpleLightEntry`): those that affect translucency are listed too. */
+    readonly simple: Pick<SimpleLights, 'packed' | 'count' | 'capacity' | 'affectsTranslucency'>
   }
   /** The light buffer the lights are read from, and the virtual shadow maps their shadow is read through (the very ones a
    *  blended surface binds, or their stand-ins). */
@@ -356,9 +359,18 @@ function writeFrame(
 /** The lights each cascade is lit by, listed into the buffer of ranks (sent where they changed): the counts it leaves. */
 function listLights(v: VolumeState, input: TranslucencyInputs, dim: number) {
   const { lights } = input
-  const words = 2 * Math.max(lights.capacity, 1)
+  const words = 2 * Math.max(lights.capacity + lights.simple.capacity, 1)
   if (v.scratch.length < words) v.scratch = new Uint32Array(words)
-  cullLights(lights.packed, lights.kindOf, lights.count, v.cascades, dim, v.scratch, v.counts)
+  cullLights(
+    lights.packed,
+    lights.kindOf,
+    lights.count,
+    v.cascades,
+    dim,
+    v.scratch,
+    v.counts,
+    lights.simple,
+  )
   const used = v.counts[0] + v.counts[1]
   const buffer = v.resources.ranksOf(words)
   // Only the ranks listed go up: the passes read no further.

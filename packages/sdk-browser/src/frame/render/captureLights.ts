@@ -1,13 +1,16 @@
 import { retire } from '../../gpu/core/frameRetire.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
+import { SIMPLE_HEADER_AT } from '../backend/state/lightBuffer.ts'
 
 /**
  * THE LIGHT BUFFER OF A VIEW THAT IS NOT LIT (`ViewOverrides.lighting`): the scene's buffer copied
- * as it stands, its count of lights cleared. The lighting of the view then walks no light — the
+ * as it stands, its count of lights and of simple lights cleared. The lighting of the view then walks no light — the
  * fog, the air and the rest of the buffer are the scene's — and what it draws holds what the
  * surfaces emit, with the diffuse the ambient lights through. The main view never reads it.
  */
 const COUNT_BYTES = 4
+/** The simple lights' header: their count and the bits beside it (`DirectLights.simple`, `simpleBits`), both cleared. */
+const SIMPLE_HEADER_BYTES = 8
 const COPIES = new WeakMap<object, { of: GPUBuffer; copy: GPUBuffer }>()
 
 /** Copies the light buffer, cleared of its count, ahead of the lighting that reads it
@@ -34,6 +37,8 @@ export function encodeUnlitLights(
   }
   encoder.copyBufferToBuffer(source, 0, held.copy, 0, source.size)
   encoder.clearBuffer(held.copy, 0, COUNT_BYTES)
+  // The simple lights follow the scene's in rank: their count is cleared as well, else the view is lit by them.
+  encoder.clearBuffer(held.copy, SIMPLE_HEADER_AT, SIMPLE_HEADER_BYTES)
 }
 
 /** The light buffer a view that is not lit reads (`encodeUnlitLights`), else the scene's. */

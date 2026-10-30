@@ -103,7 +103,22 @@ export const LIGHT_FIELD = {
   rectAtlasOriginY: 21,
   rectAtlasWidth: 15,
   rectAtlasHeight: 31,
+  /** A simple light's word (`simpleLights.ts`, `SIMPLE_WORD`), where a rectangle's atlas height is, held as the float of its whole value (read with `u32(...)`, no bitcast). A scene light's stays 0. */
+  simpleWord: 31,
 } as const
+
+/** The bits of a simple light's word (`LIGHT_FIELD.simpleWord`). @property classic - The classic pass lights it, not the sampled lighting (a view that
+ *  lights with it). @property sampledShadow - The sampled lighting traces a shadow ray for it, with no shadow slot. @property translucency - It is injected
+ *  into the translucency lighting volume. The word stays under 2^23, a float that is no NaN. */
+export const SIMPLE_WORD = {
+  classic: 1,
+  sampledShadow: 2,
+  translucency: 4,
+} as const
+
+/** What the header word `DirectLights.simpleBits` holds: the bit that says the hair strands are lit by the simple lights, and above it (from `classicShift`) how many of
+ *  them only the classic pass lights. */
+export const SIMPLE_HEADER = { hair: 1, classicShift: 1 } as const
 
 /** A rect's slot in the source texture atlas, in texels: its origin and its size. */
 export interface RectAtlasSlot {

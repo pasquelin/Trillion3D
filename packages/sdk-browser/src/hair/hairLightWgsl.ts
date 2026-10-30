@@ -9,6 +9,7 @@ import {
 } from '../lighting/deferred/lightPassWgsl.ts'
 import { indirectModules } from '../lighting/deferred/indirectPassWgsl.ts'
 import { lightingBase, pixelCellWgsl } from '../lighting/direct/lightingWgsl.ts'
+import { SIMPLE_HEADER } from '../../../sdk-core/src/scene/light/fields.ts'
 import { hairScatteringWgsl } from './hairBsdfWgsl.ts'
 import { HAIR_SAMPLE_WGSL } from './sampleWgsl.ts'
 import { HAIR_NODE_COUNTER_STORED } from './visibilityMath.ts'
@@ -99,14 +100,16 @@ var<private> hairDrawnActive:bool=false;
 @group(1) @binding(${G.draws}) var<storage,read> hairDraws:array<u32>;
 `
 
-/** The light of the sampled form: the suns the draws do not hold are lit by the walk of the cell as before; the local lights are those the sample drew, each with the mask its ray traced, weighed by its draw's
+/** The light of the sampled form: the suns the draws do not hold and the simple lights the sampled lighting leaves to the classic pass are lit by the walk of the cell as before; the local lights are those the sample drew, each with the mask its ray traced, weighed by its draw's
  *  weight over the draws taken, in the first batch alone. */
 const SAMPLED_LIGHT = `var lit=vec3f(0.0);
  let shading=modelLobeSurface(clothSurface(lobeSurface(base.rgb,base.a,roughness,N,V)));lobeView(shading);
  let drawn=hairParams.pad1&7u;
  for(var walk=0u;walk<cell.y;walk++){
   let rank=listedLight(cell,walk);
-  if(!listedDrawn(cell,rank)||!isSun(directLights.items[rank])||(hairParams.pad1&8u)!=0u){continue;}
+  if(!listedDrawn(cell,rank)){continue;}
+  // The suns the draws do not hold, and the simple lights the sampled lighting leaves to the classic pass (it takes the others).
+  if(select(sampledTakes(rank),(hairParams.pad1&8u)!=0u,isSun(directLights.items[rank]))){continue;}
   lit+=declaredLight(rank,base.rgb,base.a,roughness,N,V,P,1.0,shading);
  }
  if(hairParams.batch==0u){
@@ -195,6 +198,7 @@ export const hairLightPassWgsl = (key: ContractKey, sampled = false) => {
     ],
     `${SAMPLE_GRID}${sampled ? SAMPLED_DRAWS : ''}
 @fragment fn hairLightMain(@builtin(position) pos:vec4f,@location(0) @interpolate(flat) count:u32,@location(1) @interpolate(flat) side:u32)->@location(0) vec4f{${sampleStatements(!!lights.channelless)}
+ simpleLightsSeen=(directLights.simpleBits&${SIMPLE_HEADER.hair}u)!=0u;
  let record=pixelCell(vec2f(pixel)+vec2f(0.5),z);
  let cell=cellSlice(record);
  vsmMaskAt(coord,record);

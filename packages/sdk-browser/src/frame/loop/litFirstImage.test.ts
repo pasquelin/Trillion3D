@@ -87,7 +87,7 @@ test('prepare precompiles the lit program only for a lit view, and says a failur
   const rt = Object.assign(settledRt(), { diag: { diagnosticFailure: () => {} } })
   Object.assign(rt.bounce, { wanted: true })
   assert.deepEqual([litPrograms(rt).precompile, litPrograms(rt).bounce], [true, true])
-  Object.assign(rt.lights, { store: { count: 0, unlit: true } })
+  Object.assign(rt.lights, { store: { count: 0, unlit: true, simple: { capacity: 0 } } })
   assert.equal(litPrograms(rt).precompile, false, 'an unlit view compiles it only when asked')
   assert.equal(typeof litPrograms(rt).onFailure, 'function')
 })

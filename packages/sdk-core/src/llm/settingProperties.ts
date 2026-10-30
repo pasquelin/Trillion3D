@@ -76,6 +76,8 @@ import { SAMPLED_LIGHTS_RULES } from '../contracts/sampledLightsOptions.ts'
 import { SAMPLED_LIGHTS_MEANINGS } from './sampledLightsMeanings.ts'
 import { RECT_LIGHT_ATLAS_MEANINGS } from './rectLightAtlasMeanings.ts'
 import { RECT_LIGHT_ATLAS_RULES } from '../contracts/rectLightAtlasOptions.ts'
+import { SIMPLE_LIGHT_MEANINGS } from './simpleLightMeanings.ts'
+import { SIMPLE_LIGHT_RULES } from '../contracts/simpleLightOptions.ts'
 import { PATH_TRACING_RULES } from '../contracts/pathTracingOptions.ts'
 import { PATH_TRACING_MEANINGS } from './pathTracingMeanings.ts'
 import { TRANSLUCENCY_VOLUME_RULES } from '../contracts/translucencyVolumeOptions.ts'
@@ -692,6 +694,7 @@ export const settingRuleProperties = () => ({
   ...ruleProperties(LIGHT_FUNCTION_RULES, LIGHT_FUNCTION_MEANINGS),
   ...ruleProperties(LIGHT_PROFILE_RULES, LIGHT_PROFILE_MEANINGS),
   ...ruleProperties(RECT_LIGHT_ATLAS_RULES, RECT_LIGHT_ATLAS_MEANINGS),
+  ...ruleProperties(SIMPLE_LIGHT_RULES, SIMPLE_LIGHT_MEANINGS),
   ...ruleProperties(VOLUMETRIC_LIGHTMAP_RULES, VOLUMETRIC_LIGHTMAP_MEANINGS),
   ...ruleProperties(GLOBAL_DISTANCE_FIELD_RULES, GLOBAL_DISTANCE_FIELD_MEANINGS),
   ...ruleProperties(DISTANCE_FIELD_OCCLUSION_RULES, DISTANCE_FIELD_OCCLUSION_MEANINGS),

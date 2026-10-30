@@ -74,7 +74,7 @@ fn ${COST_ENTRY}(@builtin(global_invocation_id) id:vec3u){
   let cell=cellSlice(pixelCell(vec2f(id.xy)+vec2f(0.5),textureLoad(depth,coord,0)));
   for(var index=0u;index<cell.y;index++){
    let rank=listedLight(cell,index);
-   if(!listedDrawn(cell,rank)||isSun(directLights.items[rank])){continue;}
+   if(!listedDrawn(cell,rank)||!sampledTakes(rank)||isSun(directLights.items[rank])){continue;}
    total+=lightCost(add,channels,directLights.items[rank]);
   }
   if(params.directional!=0u){

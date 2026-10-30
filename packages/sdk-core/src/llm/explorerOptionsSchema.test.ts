@@ -1,5 +1,6 @@
 import { SAMPLED_LIGHTS_RULES } from '../contracts/sampledLightsOptions.ts'
 import { RECT_LIGHT_ATLAS_RULES } from '../contracts/rectLightAtlasOptions.ts'
+import { SIMPLE_LIGHT_RULES } from '../contracts/simpleLightOptions.ts'
 import { PATH_TRACING_RULES } from '../contracts/pathTracingOptions.ts'
 import { SHADING_RULES } from '../contracts/shadingOptions.ts'
 import assert from 'node:assert/strict'
@@ -141,6 +142,7 @@ test('a switch the host leaves out is set in the engine as the schema advertises
     ...LIGHT_FUNCTION_RULES,
     ...LIGHT_PROFILE_RULES,
     ...RECT_LIGHT_ATLAS_RULES,
+    ...SIMPLE_LIGHT_RULES,
     ...GLOBAL_DISTANCE_FIELD_RULES,
     ...DISTANCE_FIELD_OCCLUSION_RULES,
     ...VOLUMETRIC_LIGHTMAP_RULES,

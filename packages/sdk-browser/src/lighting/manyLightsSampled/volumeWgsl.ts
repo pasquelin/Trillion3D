@@ -173,6 +173,13 @@ export const ML_SAMPLE_WGSL = wgslBlock(
  if(at>=arrayLength(&mlRatios)){return 1.0;}
  return bitcast<f32>(mlRatios[at]);
 }
+/** The rank light rank had in the view's image before, -1 for none (or while the ratios are not held): the buffer of ratios holds, after them, the ranks, as many words each. */
+fn previousRankOf(rank:u32)->i32{
+ if(mlp.flags2.z==0u){return -1;}
+ let capacity=arrayLength(&mlRatios)/2u;
+ if(rank>=capacity){return -1;}
+ return i32(mlRatios[capacity+rank])-1;
+}
 /** Whether the voxel is not wholly behind the surfaces of its pixels, a margin of 'margin' voxels around it (the fog's grid alone). */
 fn mlFroxelVisible(cell:vec3u,margin:f32)->bool{
  if(mlp.flags3.y!=0u||mlp.flags2.w==0u||mlp.misc.z>0.5){return true;}
@@ -210,8 +217,11 @@ fn mlOffer(s:ptr<function,LightSampler>,rank:u32,P:vec3f,toEye:vec3f,bias:f32,vi
  var weight=luminance*smoothFalloffMask(luminance,mlp.weights.x);
  var visibleBefore=true;
  if(mlp.flags.x!=0u&&weight>0.0){
-  visibleBefore=isLightVisible(visibleSet,rank);
-  if(!visibleBefore){visibleBefore=luminance*mlRatio(rank)<mlp.weights.x;}
+  let before=previousRankOf(rank);
+  if(before>=0){
+   visibleBefore=isLightVisible(visibleSet,u32(before));
+   if(!visibleBefore){visibleBefore=luminance*mlRatio(rank)<mlp.weights.x;}
+  }
  }
  if(weight<=0.0){return;}
  if(!visibleBefore){weight*=select(mlp.weights.w,mlp.weights.z,hasValid);}
@@ -263,7 +273,7 @@ fn ${VOLUME_SAMPLE_ENTRY}(@builtin(global_invocation_id) d:vec3u){
  let slice=cellSlice(gridCell(pixel,clipHere.z/clipHere.w,vec2u(mlp.flags3.z,mlp.flags3.w)));
  for(var index=0u;index<slice.y;index++){
   let rank=listedLight(slice,index);
-  if(!listedDrawn(slice,rank)){continue;}
+  if(!listedDrawn(slice,rank)||!sampledTakes(rank)){continue;}
   mlOffer(&draw,rank,P,toEye,bias,visibleSet,hasValid);
  }
  if(mlp.flags2.x!=0u&&mlp.scales.w>=0.0){mlOffer(&draw,u32(mlp.scales.w),P,toEye,bias,visibleSet,hasValid);}
@@ -280,7 +290,10 @@ fn ${VOLUME_SAMPLE_ENTRY}(@builtin(global_invocation_id) d:vec3u){
    casts=shadowsFog(light);
    var penumbra=true;
    if(mlp.flags.x!=0u&&hasValid){
-    if(candidateVisible(drawn)){penumbra=isLightHidden(hiddenSet,rank);}else{penumbra=false;}
+    let before=previousRankOf(rank);
+    if(before>=0){
+     if(candidateVisible(drawn)){penumbra=isLightHidden(hiddenSet,u32(before));}else{penumbra=false;}
+    }
    }
    let area=isRect(light)||light.shape.x>0.001||(!isSun(light)&&tubeHalfLengthOf(light)*2.0>0.01);
    var merged=false;
@@ -288,7 +301,7 @@ fn ${VOLUME_SAMPLE_ENTRY}(@builtin(global_invocation_id) d:vec3u){
     if(candidateIndex(draw.packed[i+1u])==rank){weight=0.0;visible=false;merged=true;}
    }
    // The fog traces the lights that shadow it (and, where it shares its samples, the ones that shadow the translucency volume); the translucency volume those that cast a shadow.
-   if(castsShadow(light)&&(translucency||casts||mlp.flags3.x!=0u)&&!merged&&mlp.flags.z!=0u){
+   if((castsShadow(light)||simpleCastsSampled(rank))&&(((translucency||mlp.flags3.x!=0u)&&simpleInjected(rank))||casts)&&!merged&&mlp.flags.z!=0u){
     // The ray toward the point of the light the sample's place picks is traced afterwards (volumeTraceMain), over the samples marked here.
     traced=true;
    }

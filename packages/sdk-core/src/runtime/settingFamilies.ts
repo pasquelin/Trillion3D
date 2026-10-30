@@ -18,6 +18,7 @@ import { HIZ_RULES } from '../contracts/hizOptions.ts'
 import { LIGHT_FUNCTION_RULES } from '../contracts/lightFunctionOptions.ts'
 import { LIGHT_PROFILE_RULES } from '../contracts/lightProfileOptions.ts'
 import { RECT_LIGHT_ATLAS_RULES } from '../contracts/rectLightAtlasOptions.ts'
+import { SIMPLE_LIGHT_RULES } from '../contracts/simpleLightOptions.ts'
 import { MOTION_BLUR_RULES } from '../contracts/motionBlurOptions.ts'
 import { RASTER_RULES } from '../contracts/rasterOptions.ts'
 import { REFLECTION_RULES } from '../contracts/reflectionOptions.ts'
@@ -103,6 +104,7 @@ export const SETTING_FAMILIES = {
   lightFunction: { rules: LIGHT_FUNCTION_RULES, group: 'viewDistance', world: 'image' },
   lightProfile: { rules: LIGHT_PROFILE_RULES, group: 'shadows', world: 'image' },
   rectLightAtlas: { rules: RECT_LIGHT_ATLAS_RULES, group: 'shadows', world: 'image' },
+  simpleLight: { rules: SIMPLE_LIGHT_RULES, group: 'shadows', world: 'image' },
   volumetricLightmap: { rules: VOLUMETRIC_LIGHTMAP_RULES, group: 'viewDistance', world: 'image' },
   globalDistanceField: {
     rules: GLOBAL_DISTANCE_FIELD_RULES,

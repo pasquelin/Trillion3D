@@ -18,6 +18,7 @@ import { opaquePyramidOf } from '../reflections/frame.ts'
 import { surfaceHitReads } from '../surfaceCache/frame.ts'
 import type { Cascade } from '../translucency/bounds.ts'
 import { followSampledLights, powerOf } from './frame.ts'
+import { findRecord, partOf, viewRecord } from './release.ts'
 import { createSampledVolume, type SampledVolumeBinding } from './volume.ts'
 import {
   createVolumeGroups,
@@ -27,11 +28,16 @@ import {
   type VolumePassInputs,
 } from './volumeProgram.ts'
 
-interface DeviceVolumes {
+/** What a view keeps of its volumes: their history and the groups that name it. */
+export interface ViewVolumes {
+  /** The camera-cut revision the last volume was drawn under. */
+  lastRevision?: number
   readonly volume: ReturnType<typeof createSampledVolume>
-  readonly programs: ReturnType<typeof createVolumePrograms>
   readonly fogGroups: ReturnType<typeof createVolumeGroups>
   readonly cellGroups: ReturnType<typeof createVolumeGroups>
+}
+interface DeviceVolumes {
+  readonly programs: ReturnType<typeof createVolumePrograms>
 }
 const devices = new WeakMap<GPUDevice, DeviceVolumes>()
 
@@ -47,23 +53,30 @@ export interface VolumeFrameInputs {
 }
 const shared = new WeakMap<WebgpuPagesRuntime, VolumeFrameInputs>()
 const drawn = new WeakMap<WebgpuPagesRuntime, SampledVolumeBinding>()
-/** The camera-cut revision the last volume was drawn under, per runtime. */
-const lastRevision = new WeakMap<WebgpuPagesRuntime, number | undefined>()
 
-function volumesOf(rt: WebgpuPagesRuntime, device: GPUDevice): DeviceVolumes {
+/** The device's programs and the volumes of the view being drawn (its record's), made at their first image. */
+function volumesOf(rt: WebgpuPagesRuntime, device: GPUDevice) {
   let held = devices.get(device)
   if (!held) {
     held = {
-      volume: createSampledVolume(device),
       programs: createVolumePrograms(device, (error) =>
         rt.diag.diagnosticFailure('sampled-lights-program-failed', error),
       ),
-      fogGroups: createVolumeGroups(),
-      cellGroups: createVolumeGroups(),
     }
     devices.set(device, held)
   }
-  return held
+  const record = viewRecord(rt.gpu, device)
+  const view = partOf(
+    record,
+    'volumes',
+    () => ({
+      volume: createSampledVolume(device),
+      fogGroups: createVolumeGroups(),
+      cellGroups: createVolumeGroups(),
+    }),
+    ({ volume }) => volume.dispose(),
+  )
+  return { programs: held.programs, view }
 }
 
 /** The camera matrices a volume is placed by, rewritten each image. */
@@ -142,15 +155,16 @@ export function encodeSampledVolume(
     settings.sampledLightsTranslucencyVolume &&
     settings.sampledLightsVolumeUnified &&
     readSetting(TRANSLUCENCY_VOLUME_RULES, rt.context, 'translucencyVolume')
-  const { volume, programs, fogGroups } = volumesOf(rt, device)
   if (
     !settings.sampledLights ||
     !settings.sampledLightsVolume ||
     (!medium && !sharesWithTranslucency)
   ) {
-    volume.releaseFog()
+    findRecord(rt.gpu, device)?.volumes?.volume.releaseFog()
     return
   }
+  const { programs, view } = volumesOf(rt, device)
+  const { volume, fogGroups } = view
   const inputs = passInputs(rt, settings.sampledLightsVolumeWorldSpaceTraces, frameInputs)
   if (!inputs) return
   inputs.hiz = settings.sampledLightsVolumeHzbOcclusionTest ? opaquePyramidOf(rt) : undefined
@@ -162,7 +176,7 @@ export function encodeSampledVolume(
     'translucencyVolumeOuterDistance',
   )
   const binding = volume.prepare({
-    ...imageOf(rt, cam, rt.run.gate.temporalRevision !== lastRevision.get(rt), frameInputs),
+    ...imageOf(rt, cam, rt.run.gate.temporalRevision !== view.lastRevision, frameInputs),
     width,
     height,
     near: Math.max(cam.near, medium?.startAt ?? 0),
@@ -170,7 +184,7 @@ export function encodeSampledVolume(
     anisotropy: medium?.anisotropy ?? 0,
     lampSoftening: frameInputs.lampSoftening,
   })
-  lastRevision.set(rt, rt.run.gate.temporalRevision)
+  view.lastRevision = rt.run.gate.temporalRevision
   if (!binding) return
   const pass = encoder.beginComputePass({ label: 'Trillion3D sampled volume' })
   encodeVolumePass(device, pass, programs, fogGroups, inputs, binding)
@@ -200,7 +214,8 @@ export function sampleTranslucencyCells(
   const { device } = rt.gpu
   const settings = followSampledLights(rt)
   if (!device || !settings.sampledLights || settings.sampledLightsVolumeUnified) return undefined
-  const { volume, programs, cellGroups } = volumesOf(rt, device)
+  const { programs, view } = volumesOf(rt, device)
+  const { volume, cellGroups } = view
   const frameInputs = shared.get(rt)
   const inputs =
     frameInputs && passInputs(rt, settings.sampledLightsVolumeWorldSpaceTraces, frameInputs)
@@ -221,8 +236,7 @@ export function sampleTranslucencyCells(
   return binding
 }
 
-/** Frees the volumes of a device (a session's dispose). */
+/** Forgets the programs of a device (a session's dispose; the views' volumes are freed with their records, `releaseSampledViewsOf`). */
 export function disposeSampledVolumes(device: GPUDevice) {
-  devices.get(device)?.volume.dispose()
   devices.delete(device)
 }

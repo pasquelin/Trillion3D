@@ -27,6 +27,7 @@ async function lightTurnedOn() {
     packed: new Float32Array(64),
     sliceOf: () => -1,
     kindOf: () => 0,
+    simple: { capacity: 0 },
   }
   Object.assign(rt.lights, { store })
   // The wiring of `../prepare/preparePages.ts`: an arrived program breaks the hold.

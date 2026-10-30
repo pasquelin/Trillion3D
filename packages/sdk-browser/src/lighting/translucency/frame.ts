@@ -68,7 +68,18 @@ const inputs: {
 } = {
   camera: view,
   settings: resolved,
-  lights: { packed: [], kindOf: () => 0, count: 0, capacity: 0 },
+  lights: {
+    packed: [],
+    kindOf: () => 0,
+    count: 0,
+    capacity: 0,
+    simple: {
+      packed: new Float32Array(0),
+      count: 0,
+      capacity: 0,
+      affectsTranslucency: () => false,
+    },
+  },
   lightBuffer: undefined,
   vsm: undefined,
   lightFunction: undefined,
@@ -157,6 +168,7 @@ function withVolume<T>(
   inputs.lights.kindOf = lights.store.kindOf
   inputs.lights.count = lights.store.count
   inputs.lights.capacity = lights.store.capacity
+  inputs.lights.simple = lights.store.simple
   inputs.lightBuffer = buffer
   inputs.vsm = vsmOrStandIns(vsmConsumerResources(rt), placeholders)
   // The injection is a lighting of the deferred kind: it reads the atlas where the opaque lighting does.

@@ -90,7 +90,7 @@ fn ${SCREEN_TRACE_ENTRY}(@builtin(global_invocation_id) id:vec3u){
  if(kind==${RAY_TYPE.hair}u){P+=dir*params.trace.w;}else{P+=N*params.trace.z;}
  var reach=clamp(segment.w-0.01,0.0,params.trace.x);
  // A hair pixel under a light that casts no shadow keeps a short ray, for the hair's own shadow.
- if(kind==${RAY_TYPE.hair}u&&!castsShadow(light)){reach=min(reach,params.hair.x);}
+ if(kind==${RAY_TYPE.hair}u&&!(castsShadow(light)||simpleCastsSampled(index))){reach=min(reach,params.hair.x);}
  let size=view.viewport.xy;
  let A=reflectionView.viewProj*vec4f(P,1.0);
  if(A.w<=0.0||any(abs(A.xy)>vec2f(A.w))){

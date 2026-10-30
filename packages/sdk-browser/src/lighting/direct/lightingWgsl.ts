@@ -37,6 +37,7 @@ import {
 import { fogBindingsLabel, type FogResourceBindings } from '../fog/readWgsl.ts'
 import { lightProfileOfWgsl, NO_LIGHT_PROFILE_WGSL } from '../lightProfile/lightProfileWgsl.ts'
 import { rectBindingsOf, rectSourceWgsl } from '../rectLightAtlas/readWgsl.ts'
+import { SIMPLE_LIGHT_WGSL } from './simpleLightWgsl.ts'
 import {
   lightProfileBindingsLabel,
   type LightProfileBindings,
@@ -61,31 +62,49 @@ import {
 export const tileSliceWgsl = (grid = 'tileLights') =>
   wgslBlock(
     grid === 'tileLights' ? 'TILE_SLICE_WGSL' : `TILE_SLICE_WGSL_${grid}`,
-    [LIGHT_GRID_WGSL, lightUndrawn],
+    [LIGHT_GRID_WGSL, lightUndrawn, SIMPLE_LIGHT_WGSL],
     `
-/** Where the lights of the cell whose record starts at \`base\` start in the view's pool, and how
- *  many (#1369). The one rule of a missing list, for every reader: \`TILE_NO_SLICE\` — no grid this
+/** Where the lights of the cell whose record starts at 'base' start in the view's pool, and how
+ *  many (#1369). The one rule of a missing list, for every reader: 'TILE_NO_SLICE' — no grid this
  *  image, or a cell the pool had no room for — walks every declared light
  *  of the scene, a light no list holds reaching no point of the cell, so the sum is the listed one.
  *  The view's grid never lacks a list: a column past its pool keeps the lights it got. */
+/** Whether the walk takes the simple lights, which follow the scene's lights in rank: the hair strands' program turns it off with the setting hairSimpleLights. */
+var<private> simpleLightsSeen:bool=true;
+/** Whether the walk takes only the simple lights the sampled lighting leaves to the classic pass (not sampledTakes): the local lights' pass of a view lit by the
+ *  sampled lighting, which lights those alone. */
+var<private> classicSimpleOnly:bool=false;
 fn cellSlice(base:u32)->vec2u{
- if(base==TILE_NO_SLICE){return vec2u(TILE_NO_SLICE,directLights.count);}
+ if(base==TILE_NO_SLICE){return vec2u(TILE_NO_SLICE,directLights.count+directLights.simple);}
  let first=${grid}[base+1u];
- return vec2u(first,select(${grid}[base]&~TILE_SHADOWED,directLights.count,first==TILE_NO_SLICE));
+ return vec2u(first,select(${grid}[base]&~TILE_SHADOWED,directLights.count+directLights.simple,first==TILE_NO_SLICE));
 }
-/** The rank of a slice's \`index\`th light: the list's word, or, from \`TILE_NO_SLICE\`, every light in
+/** The rank of a slice's 'index'th light: the list's word, or, from 'TILE_NO_SLICE', every light in
  *  turn. */
 fn listedLight(slice:vec2u,index:u32)->u32{
  if(slice.x==TILE_NO_SLICE){return index;}
  return ${grid}[slice.x+index];
 }
-/** Whether the walk of \`slice\` takes light \`rank\`: a list holds the lights the view draws alone, the walk of every light
- *  (\`TILE_NO_SLICE\`) leaves out the ones its kind word says it does not (\`lightUndrawn\`), so that both give a point the same lights. */
+/** The index of the first light of a slice that is a simple light: a list is in increasing rank, so they are its tail, found by halving it. */
+fn firstSimpleIndex(slice:vec2u)->u32{
+ if(slice.x==TILE_NO_SLICE){return min(directLights.count,slice.y);}
+ var low=0u;
+ var high=slice.y;
+ while(low<high){
+  let middle=(low+high)/2u;
+  if(${grid}[slice.x+middle]<directLights.count){low=middle+1u;}else{high=middle;}
+ }
+ return low;
+}
+/** Whether the walk of 'slice' takes light 'rank': a list holds the lights the view draws alone, the walk of every light
+ *  ('TILE_NO_SLICE') leaves out the ones its kind word says it does not ('lightUndrawn'), so that both give a point the same lights. */
 fn listedDrawn(slice:vec2u,rank:u32)->bool{
+ if(rank>=directLights.count&&!simpleLightsSeen){return false;}
+ if(classicSimpleOnly&&sampledTakes(rank)){return false;}
  return slice.x!=TILE_NO_SLICE||!lightUndrawn(directLights.items[rank]);
 }
-/** The first word of the record of the cell holding a pixel at depth \`z\`, \`cells\` the grid's
- *  columns across and down; \`TILE_NO_SLICE\` with no grid, a pixel past the grid reading its last
+/** The first word of the record of the cell holding a pixel at depth 'z', 'cells' the grid's
+ *  columns across and down; 'TILE_NO_SLICE' with no grid, a pixel past the grid reading its last
  *  column. The slice map the image's grid was listed by heads the buffer. */
 fn gridCell(pixel:vec2f,z:f32,cells:vec2u)->u32{
  if(cells.x==0u||cells.y==0u){return TILE_NO_SLICE;}

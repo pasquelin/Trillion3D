@@ -1,11 +1,11 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { SAMPLED_BINDINGS } from './bindings.ts'
-import { guideAt, samplesOfPixel, type SampledGeometry } from './layout.ts'
+import { guideAt, ranksAt, samplesOfPixel, type SampledGeometry } from './layout.ts'
 import type { SampledLightsSettings } from './parameters.ts'
 import { sampledMinSampleWeightEstimate, sampledTransmissionSampleWeight } from './parameters.ts'
 
 /** The words of the uniform of an image of the sampled lighting, in the order `SampledParams` declares them. */
-export const SAMPLED_PARAMS_WORDS = 80
+export const SAMPLED_PARAMS_WORDS = 84
 
 /**
  * THE UNIFORM OF THE IMAGE, read by every kernel: the tiles of the view and of the downsampled view, the downsample factor and the samples of
@@ -32,6 +32,7 @@ export const sampledParamsWgsl = (group: number) =>
  previous:mat4x4f,
  trace:vec4f,screenTrace:vec4u,hair:vec4f,
  denoise:vec4f,denoiseU:vec4u,spatial:vec4f,spatialMore:vec4f,spatialU:vec4u,
+ ranksAt:u32,
 }
 @group(${group}) @binding(${SAMPLED_BINDINGS.params}) var<uniform> params:SampledParams;`,
   )
@@ -56,6 +57,8 @@ export interface SampledImage {
   soft: boolean
   /** Whether the shading keeps only the specular light (the nearest translucent layer's `sampledLightsFrontLayerSpecularOnly`). */
   specularOnly: boolean
+  /** The lights the guide keeps a ratio and a rank of (`guideWords`): the ranks start that far after the ratios. */
+  lightCount: number
 }
 
 /** The screen traces' and the shading's words of the uniform. */
@@ -191,6 +194,7 @@ export function writeSampledParams(
   )
   writeTraceWords(words, floats, settings)
   writeDenoiserWords(words, floats, settings, image)
+  words[80] = ranksAt(g, image.lightCount)
   return out
 }
 

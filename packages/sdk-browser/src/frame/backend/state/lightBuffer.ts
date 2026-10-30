@@ -5,6 +5,7 @@ import {
   SCENE_LIGHT_FLOATS,
   SCENE_LIGHT_HEADER_FLOATS,
 } from '../../../../../sdk-core/src/scene/light/contracts.ts'
+import { SIMPLE_HEADER } from '../../../../../sdk-core/src/scene/light/fields.ts'
 import type { SceneLightStore } from '../../../../../sdk-core/src/scene/light/store.ts'
 import { environmentBrdfTable } from '../../../../../sdk-core/src/lighting/environmentBrdf.ts'
 import { shadingEnergyWords } from '../../../../../sdk-core/src/lighting/shadingEnergy.ts'
@@ -15,9 +16,10 @@ import { sameValues } from '../../../../../math/src/matrix/matrixElements.ts'
 import type { WebgpuLightState } from './lights.ts'
 
 const SLOT_BYTES = SCENE_LIGHT_FLOATS * 4
-/** Light slots of the buffer: the store's, and never fewer than a tile list's, the light array
- *  the narrow tile pass declares (`../../../lighting/tiles/shader.ts`). */
-const bufferSlots = (store: SceneLightStore) => Math.max(store.capacity, LIGHT_SETTINGS.tileLights)
+/** Light slots of the buffer: the store's, then the room of the simple lights (they follow the store's lights), and never fewer than a tile
+ *  list's, the light array the narrow tile pass declares (`../../../lighting/tiles/shader.ts`). */
+const bufferSlots = (store: SceneLightStore) =>
+  Math.max(store.capacity + store.simple.capacity, LIGHT_SETTINGS.tileLights)
 
 /** Contract light buffer for the store's light slots — the header, the environment's irradiance,
  *  the atmosphere's regions, the fitted lobe of the rectangles, the environment BRDF and the GGX energy table, written here once, then every
@@ -59,6 +61,28 @@ function writeSunRanks(device: GPUDevice, buffer: GPUBuffer, store: SceneLightSt
   device.queue.writeBuffer(buffer, 0, sunWords, 0, 1 + suns)
 }
 
+/** The header words after the store's: how many simple lights follow its lights (the rank of the first is the store's count), then whether the hair
+ *  strands are lit by them and how many of them only the classic pass lights (`SIMPLE_HEADER`). */
+const simpleHeader = new Uint32Array(2)
+export const SIMPLE_HEADER_AT = 8
+
+/** Writes the simple lights into the slots after the store's own, and their count in the header. */
+function writeSimpleLights(device: GPUDevice, buffer: GPUBuffer, store: SceneLightStore) {
+  const { simple } = store
+  simpleHeader[0] = simple.count
+  simpleHeader[1] =
+    (simple.hairLit ? SIMPLE_HEADER.hair : 0) | (simple.classicCount << SIMPLE_HEADER.classicShift)
+  device.queue.writeBuffer(buffer, SIMPLE_HEADER_AT, simpleHeader)
+  if (simple.count)
+    device.queue.writeBuffer(
+      buffer,
+      LIGHT_BUFFER_AT.items + store.count * SLOT_BYTES,
+      simple.packed,
+      0,
+      simple.count * SCENE_LIGHT_FLOATS,
+    )
+}
+
 /** Light slots `buffer` holds. */
 const contractBufferSlots = (buffer: GPUBuffer) =>
   (buffer.size - LIGHT_BUFFER_AT.items) / SLOT_BYTES
@@ -98,7 +122,15 @@ export function uploadSceneLights(device: GPUDevice, lights: WebgpuLightState) {
     lights.sunRanks = createSunRanksBuffer(device, store)
     lights.uploadedEpoch = -1
   }
-  if (lights.uploadedEpoch === store.epoch) return false
+  const { simple } = store
+  const storeMoved = lights.uploadedEpoch !== store.epoch
+  if (!storeMoved && lights.uploadedSimple === simple.epoch) return false
+  lights.uploadedSimple = simple.epoch
+  // Lights handed at every image (a particle's) move the simple slots alone: the store's are not written again.
+  if (!storeMoved) {
+    writeSimpleLights(device, lights.buffer, store)
+    return true
+  }
   lights.uploadedEpoch = store.epoch
   const { buffer } = lights,
     { packed } = store
@@ -122,6 +154,7 @@ export function uploadSceneLights(device: GPUDevice, lights: WebgpuLightState) {
     SCENE_LIGHT_HEADER_FLOATS,
     store.count * SCENE_LIGHT_FLOATS,
   )
+  writeSimpleLights(device, buffer, store)
   if (lights.sunRanks) writeSunRanks(device, lights.sunRanks, store)
   return true
 }

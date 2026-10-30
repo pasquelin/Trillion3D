@@ -14,6 +14,7 @@ import type { HizOptions } from '../../../../sdk-core/src/contracts/hizOptions.t
 import type { LightFunctionOptions } from '../../../../sdk-core/src/contracts/lightFunctionOptions.ts'
 import type { LightProfileOptions } from '../../../../sdk-core/src/contracts/lightProfileOptions.ts'
 import type { RectLightAtlasOptions } from '../../../../sdk-core/src/contracts/rectLightAtlasOptions.ts'
+import type { SimpleLightOptions } from '../../../../sdk-core/src/contracts/simpleLightOptions.ts'
 import type { MotionBlurSettings } from '../../../../sdk-core/src/contracts/motionBlurOptions.ts'
 import type { ReflectionOptions } from '../../../../sdk-core/src/contracts/reflectionOptions.ts'
 import type { ScreenProbeOptions } from '../../../../sdk-core/src/bounce/screenProbeOptions.ts'
@@ -108,6 +109,13 @@ export interface WorldImageSettings {
    *  one a setting does not take is refused. */
   get rectLightAtlas(): FamilyValues<'rectLightAtlas'>
   set rectLightAtlas(options: RectLightAtlasOptions)
+  /** The simple lights' settings, each by its field (`WorldOptions`), resolved over the page and the quality preset: `allowSimpleLights` (true) —
+   *  whether the lights the host hands to an image are taken —, `hairSimpleLights` (true) — whether the hair strands are lit by them — and
+   *  `sampledSimpleLights` (1) — which of them the sampled lighting takes: 0 none, 1 those whose entry allows it, 2 all.
+   *  Written, the settings named apply from the next frame over the preset — one `null` gives it back to it, one left out stays —;
+   *  one a setting does not take is refused. */
+  get simpleLight(): FamilyValues<'simpleLight'>
+  set simpleLight(options: SimpleLightOptions)
   /** The volumetric lightmap's setting, by its field (`WorldOptions`), resolved over the page and
    *  the quality preset: `volumetricLightmap`, whether the precomputed light is read, on by
    *  default. Written, the setting named applies from the next frame over the preset — `null`

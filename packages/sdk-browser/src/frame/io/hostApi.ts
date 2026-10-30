@@ -5,6 +5,7 @@ import { readbackImage } from '../render/flush.ts'
 import { frameTargetsAwaited } from '../prepare/targetGrant.ts'
 import { defaultEngineCamera } from '../../camera/engineCamera.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
+import { breakHeldFrame } from '../backend/state/view.ts'
 
 /**
  * The contract's light store has changed. Nothing is recomputed here: the next image rereads the
@@ -23,6 +24,18 @@ export function refreshSceneLights(rt: WebgpuPagesRuntime) {
     unlit: lights.store.unlit,
     exposure: environmentExposure(lights.store.environment),
   })
+}
+
+/**
+ * The simple lights of the images to come have changed (`SceneLightStore.setSimpleLights`), perhaps at every image: the image held is
+ * drawn again and the cached capture dropped, and nothing else is: those lights feed no shadow map, no bounce and no cache of the
+ * scene's lights, and the next image pushes their slots alone.
+ */
+export function refreshSimpleLights(rt: WebgpuPagesRuntime) {
+  rt.capture.capturedRevision = -1
+  // Every view that shows the lights draws them again: the drawn one, the main one and those drawn beside it.
+  const { main, active, persistent } = rt.views
+  for (const view of new Set([main, active, ...persistent])) breakHeldFrame(rt, view)
 }
 
 /**

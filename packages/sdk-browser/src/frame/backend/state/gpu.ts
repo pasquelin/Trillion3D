@@ -186,6 +186,8 @@ export interface WebgpuGpuState {
   /** The view's hair strands: their visibility, macro groups and bounds, made at the first image that
    *  draws them (`../../../hair/frame.ts`). */
   hair?: HairViewGpu
+  /** The key the view's own states are kept under (`./viewKey.ts`), traded with the view. */
+  viewKey?: object
 }
 
 /** The copy of the opaque scene the distortion rereads and the offsets it accumulates, with their

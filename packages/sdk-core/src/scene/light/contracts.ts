@@ -319,7 +319,8 @@ export const POINT_FACES = 6
  *  (`LIGHT_FIELD.exposureBlend`, its first lane), the share of its draw range, its source's size and its greatest draw distance. */
 export const SCENE_LIGHT_FLOATS = 32
 /** Light-buffer header: the count, the rank plus one of the forward directional light
- *  (`LIGHT_HEADER_FORWARD`), then two reserved words. */
+ *  (`LIGHT_HEADER_FORWARD`), then the number of simple lights that follow the scene's and whether the hair strands are lit by them
+ *  (`SIMPLE_HEADER_AT`, `DirectLights.simple` and `simpleBits`, `SIMPLE_HEADER`). */
 export const SCENE_LIGHT_HEADER_FLOATS = 4
 /** The header word that holds the rank of the directional light the forward readers take
  *  (`SceneLightStore.forwardDirectionalSlot`) plus one, 0 for none: what a program tells that light

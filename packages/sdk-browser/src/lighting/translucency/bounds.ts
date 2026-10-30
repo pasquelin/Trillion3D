@@ -1,5 +1,6 @@
 import { LIGHT_FIELD, baseOf } from '../../../../sdk-core/src/scene/light/fields.ts'
-import { LIGHT_KIND } from '../../../../sdk-core/src/scene/light/contracts.ts'
+import { LIGHT_KIND, SCENE_LIGHT_FLOATS } from '../../../../sdk-core/src/scene/light/contracts.ts'
+import type { SimpleLights } from '../../../../sdk-core/src/scene/light/simpleLights.ts'
 import { DEG2RAD, QUARTER_PI } from '../../../../math/src/constants.ts'
 import type { TranslucencyVolumeValues } from '../../../../sdk-core/src/contracts/translucencyVolumeOptions.ts'
 import { TRANSLUCENCY_CASCADES } from './layout.ts'
@@ -171,11 +172,27 @@ function cellsOf(centre: number, radius: number, min: number, voxel: number, dim
   return last > first
 }
 
+/** Whether the local light whose record starts at `base` reaches a cell of `cascade`: its range is above 0 and its sphere meets the cube. */
+function reachesCell(packed: ArrayLike<number>, base: number, cascade: Cascade, dim: number) {
+  const radius = packed[base + LIGHT_FIELD.range]
+  let reaches = radius > 0
+  for (let k = 0; k < 3 && reaches; k++)
+    reaches = cellsOf(
+      packed[base + LIGHT_FIELD.position + k],
+      radius,
+      cascade.min[k],
+      cascade.voxel,
+      dim,
+    )
+  return reaches
+}
+
 /**
  * The lights each cascade is lit by, as their ranks (the light buffer's order): every directional light, and every
  * local light whose sphere of reach holds a cell of the cascade, written into `out` — the first cascade's, then the
  * second's —; `counts` receives how many each holds. `packed` is the light store's table (`SceneLightStore.packed`).
- * `out` is at least twice `count` long.
+ * `out` is at least twice `count` long. The simple lights that affect translucency follow the store's lights in the buffer (their rank
+ * is `count` plus their slot) and are listed after each cascade's own lights by the same reach.
  */
 export function cullLights(
   packed: ArrayLike<number>,
@@ -185,29 +202,26 @@ export function cullLights(
   dim: number,
   out: Uint32Array,
   counts: Uint32Array,
+  simple?: Pick<SimpleLights, 'count' | 'packed' | 'affectsTranslucency'>,
 ) {
   let at = 0
   for (let c = 0; c < TRANSLUCENCY_CASCADES; c++) {
     const cascade = cascades[c]
     const first = at
-    if (cascade.size > 0)
-      for (let slot = 0; slot < count; slot++) {
-        const base = baseOf(slot)
-        let reaches = kindOf(slot) === LIGHT_KIND.directional
-        if (!reaches) {
-          const radius = packed[base + LIGHT_FIELD.range]
-          reaches = radius > 0
-          for (let k = 0; k < 3 && reaches; k++)
-            reaches = cellsOf(
-              packed[base + LIGHT_FIELD.position + k],
-              radius,
-              cascade.min[k],
-              cascade.voxel,
-              dim,
-            )
-        }
-        if (reaches) out[at++] = slot
-      }
+    if (cascade.size > 0) {
+      for (let slot = 0; slot < count; slot++)
+        if (
+          kindOf(slot) === LIGHT_KIND.directional ||
+          reachesCell(packed, baseOf(slot), cascade, dim)
+        )
+          out[at++] = slot
+      for (let slot = 0; slot < (simple?.count ?? 0); slot++)
+        if (
+          simple!.affectsTranslucency(slot) &&
+          reachesCell(simple!.packed, slot * SCENE_LIGHT_FLOATS, cascade, dim)
+        )
+          out[at++] = count + slot
+    }
     counts[c] = at - first
   }
   return counts

@@ -56,6 +56,7 @@ import { SAMPLED_LIGHTS_RULES } from '../../../../sdk-core/src/contracts/sampled
 import { PATH_TRACING_RULES } from '../../../../sdk-core/src/contracts/pathTracingOptions.ts'
 import { LIGHT_PROFILE_RULES } from '../../../../sdk-core/src/contracts/lightProfileOptions.ts'
 import { RECT_LIGHT_ATLAS_RULES } from '../../../../sdk-core/src/contracts/rectLightAtlasOptions.ts'
+import { SIMPLE_LIGHT_RULES } from '../../../../sdk-core/src/contracts/simpleLightOptions.ts'
 import { DISTANCE_FIELD_OCCLUSION_RULES } from '../../../../sdk-core/src/contracts/distanceFieldOcclusionOptions.ts'
 import { GLOBAL_DISTANCE_FIELD_RULES } from '../../../../sdk-core/src/contracts/globalDistanceFieldOptions.ts'
 import { SURFACE_CACHE_RULES } from '../../../../sdk-core/src/contracts/surfaceCacheOptions.ts'
@@ -154,6 +155,7 @@ const TODAY: Record<keyof typeof WORLD_SETTINGS, boolean | number | string> = {
   // The light profiles' atlas: the reference's 256 texels a slice and 32 profiles.
   ...resolveSettings(LIGHT_PROFILE_RULES, {}),
   ...resolveSettings(RECT_LIGHT_ATLAS_RULES, {}),
+  ...resolveSettings(SIMPLE_LIGHT_RULES, {}),
   // The sampled lights: each its contract's default.
   ...resolveSettings(SAMPLED_LIGHTS_RULES, {}),
   ...resolveSettings(PATH_TRACING_RULES, {}),

@@ -110,7 +110,7 @@ fn injectedLamp(light:DirectLight,P:vec3f)->f32{
 /** What one light adds at the cell's point \`P\` of \`cascade\`: its colour through the harmonic into \`ambient\` and
  *  \`directional\`. */
 fn tvInjectWeighted(rank:u32,cascade:u32,P:vec3f,border:f32,weight:f32,mask:f32,traced:bool,ambient:ptr<function,vec4f>,directional:ptr<function,vec3f>){
- if(!lightReaches(rank,P)){return;}
+ if(!simpleInjected(rank)||!lightReaches(rank,P)){return;}
  let light=directLights.items[rank];
  let sun=isSun(light);
  var L=-light.directionCone.xyz;
@@ -151,7 +151,8 @@ const injectLoopText = (sampled: boolean) =>
     ? `for(var i=0u;i<count;i++){
   // A sun the samples do not hold is injected as the list does; the local lights come from the samples the fog's volume drew at the cell's point.
   let rank=tvRanks[first+i];
-  if(isSun(directLights.items[rank])&&mlp.flags2.x==0u){tvInject(rank,cascade,P,border,&ambient,&directional);}
+  // The simple lights the sampled lighting leaves to the classic pass are injected as the list gives them.
+  if(select(!sampledTakes(rank),mlp.flags2.x==0u,isSun(directLights.items[rank]))){tvInject(rank,cascade,P,border,&ambient,&directional);}
  }
  var sets=mlSetsAt(vec3u(cell.x,cell.y,cell.z+cascade*dim),P);
  var next=mlLowest(&sets,true);
