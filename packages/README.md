@@ -1,16 +1,16 @@
 # Package architecture — version 0.2.0
 
 This repository builds ESM JavaScript and TypeScript declarations into `dist/`, behind one public
-specifier, `trillion3d` ([SDK.md, "Entry points"](../docs/SDK.md#entry-points)). The compiler is
+specifier, `trillion3d` ([SDK.md, "Entry points"](../docs/sdk/entry-points.md#entry-points)). The compiler is
 built for five platforms, one package each (`compiler/<os>-<arch>`,
-[COMPILER.md](../docs/COMPILER.md#platform-packages)); installing:
+[COMPILER.md](../docs/compiler/installing-it.md#platform-packages)); installing:
 [README](../README.md#quick-start).
 
 | Package               | Public API                                                                             | Implementation                                                                                                                                                                                                                           |
 | --------------------- | -------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `math`                | the pure maths of `trillion3d` (matrices, vectors, boxes, frustums, batches)           | the pure maths package ([MATHS.md](../docs/MATHS.md#the-maths-package))                                                                                                                                                                  |
 | `sdk-core`            | versioned contracts, maths and batches, jobs, progress and cancellation, safety policy | pure TypeScript, no DOM, platform or UI import                                                                                                                                                                                           |
-| `sdk-browser`         | `createWorld` and its families ([SDK.md](../docs/SDK.md#families))                     | the WebGPU page raster, streaming, virtual textures, lighting, controls; witnesses and internal sessions behind the measurement entry point                                                                                              |
+| `sdk-browser`         | `createWorld` and its families ([SDK.md](../docs/sdk/families.md#families))                     | the WebGPU page raster, streaming, virtual textures, lighting, controls; witnesses and internal sessions behind the measurement entry point                                                                                              |
 | `sdk-node`            | `prepare`, `prepareMany`, `createCompilationJob`, the `trillion3d-compile` CLI         | native process and job adapter and its filesystem boundary                                                                                                                                                                               |
 | `sdk`                 | the `trillion3d` facade                                                                | the common, browser and Node branches                                                                                                                                                                                                    |
 | `page-codec-wasm`     | none directly                                                                          | the one encoder of geometry pages, the compiler's and the run-time cut's (in WebAssembly), the page format's constants, the test decoder, and the math kernels the governor may play ([MATHS.md](../docs/MATHS.md#batch-math-for-hosts)) |

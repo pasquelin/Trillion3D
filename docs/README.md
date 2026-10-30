@@ -2,7 +2,7 @@
 
 The one index of the repository's documentation.
 
-Start with [Create a world](SDK.md#create-a-world): `createWorld(canvasOrId)` owns the scene, the
+Start with [Create a world](sdk/create-a-world.md#create-a-world): `createWorld(canvasOrId)` owns the scene, the
 camera, the renderer and the loop.
 
 | Document                                               | Role                                                                                                                                                                                                          |

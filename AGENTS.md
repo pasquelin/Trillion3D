@@ -7,6 +7,8 @@ engine. The engine is the product; a scene only shows it, and a scene
 working is never the goal (CONTRIBUTING.md "The mission").
 
 [CONTRIBUTING.md](CONTRIBUTING.md) wins over this file; read only the sections your change touches.
+Never read a document whole (`docs/SDK.md` alone is about 150k tokens): list its headings with
+`grep -n '^#'`, then read only the section you need.
 One session carries one issue alone (CONTRIBUTING.md "Contribution workflow"); a session started
 with a skill follows it. Speak to the boss in short, simple French; the repository is English.
 Sub-agents run in the foreground, one task each, and launch none. Never the Fable model.

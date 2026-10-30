@@ -101,7 +101,7 @@ export async function auditAssetManifest(file: string) {
   for (const asset of assets) results.push(await auditAsset(root, asset, digests))
   return {
     version: 1,
-    policy: 'docs/COMPILER.md#content-licenses--independent-of-format',
+    policy: 'docs/compiler/input-formats.md#content-licenses--independent-of-format',
     scope:
       'Declared license and usage checked against repository rules; local file integrity verified. Evidence authenticity, license interpretation and legal compliance are not certified.',
     results,

@@ -2,7 +2,7 @@
 
 Physics is an option of the world, not a second world: [Jolt
 Physics](https://github.com/jrouwe/JoltPhysics) runs in a worker, and every body is an ordinary mesh
-with `physics` set. The module, the worker and its buffers are [ENGINE.md](ENGINE.md#physics), the
+with `physics` set. The module, the worker and its buffers are [ENGINE.md](engine/physics.md#physics), the
 cooked colliders [COMPILER.md](COMPILER.md), the rest of the SDK [SDK.md](SDK.md).
 
 ```js
@@ -203,7 +203,7 @@ wheelless.
   leaning into turns. A tracked vehicle: two or more a side, each track driven by its rearmost
   wheel, steered by slowing one track, pivoting on the spot at a standstill.
 - **Driving.** A vehicle is a `VehicleDriver`: `world.controls.vehicle = v` drives it with the keys
-  ([Camera controllers](SDK.md#camera-controllers)), `v.drive(input)` from code. The brake stops it,
+  ([Camera controllers](sdk/canvas-camera-and-teardown/camera-controllers.md#camera-controllers)), `v.drive(input)` from code. The brake stops it,
   then backs it up; the throttle first stops one rolling back. Parked — not driven since it was
   made or last stood still — it holds its brakes and its engine idles, so it rests on a slope and
   sleeps at once, never awake while its engine spins down. `v.speed` (m/s forward), `v.gear` (−1
@@ -299,11 +299,11 @@ vertex on the module's soft bodies.
 - **Drawing.** `mesh.physics.vertices` reads the vertices as they are drawn, `x, y, z` per geometry
   vertex in the geometry's frame, at the bodies' time: between the places the two steps that
   bracket it left them, as a body is drawn; the geometry is dynamic
-  ([Geometry rewritten every frame](SDK.md#geometry-rewritten-every-frame)). A compiled model's
+  ([Geometry rewritten every frame](sdk/canvas-camera-and-teardown/geometry-rewritten-every-frame.md#geometry-rewritten-every-frame)). A compiled model's
   cooked soft body draws through the GPU deformation source (`deformation/softSource.ts`,
   `soft/cookedSoft.ts`): its cooked render positions and indices are attached to the model's
   nodes, each step's vertices are copied in with their normals, and the deformation pass moves the
-  drawn pages ([GPU deformation](ENGINE.md#gpu-deformation)).
+  drawn pages ([GPU deformation](engine/gpu-deformation.md#gpu-deformation)).
 
 ## Stillness, distance and view
 
@@ -352,7 +352,7 @@ state around every moving body and the eye up to the simulation range, nearest f
 came in). No scene is refused for its size: a tile that does not fit waits, the farthest leaving for
 it. Another format or another engine build's cook is refused (`PHYSICS_FORMAT`); a model compiled
 without a physics cook collides nowhere. A tile or a soft body's settings the server refuses is
-`RESOURCE_HTTP_ERROR` on `world.physics.error` ([Files over HTTP](SDK.md#files-over-http)); a model
+`RESOURCE_HTTP_ERROR` on `world.physics.error` ([Files over HTTP](sdk/create-a-world.md#files-over-http)); a model
 leaving the scene drops its pending reads, no error.
 
 Tiles grip and bounce as the source's `KHR_physics_rigid_bodies` collider declares, else with
@@ -380,13 +380,13 @@ channel blocked by default) makes it stop at what blocks that channel and pass t
 ignores it (a trigger, the pawn); `objectTypes: [...]` makes it stop at the bodies of those object types
 instead, whatever they answer (`{ exact: true, objectTypes: ['worldStatic', 'worldDynamic'] }` meets the
 level and the movable bodies, a trigger included). Without `exact` or `shape`, `world.raycast` asks the engine's GPU
-ray query, on the triangles the world draws ([Picking](SDK.md#picking-moving-and-saving)). With
+ray query, on the triangles the world draws ([Picking](sdk/canvas-camera-and-teardown/picking-moving-and-saving.md#picking-moving-and-saving)). With
 physics off, an exact raycast throws `PHYSICS_OFF`.
 
 ## The character
 
 With physics on, `world.controls` `'character'` is the physics' own character: it pushes, rides and
-is pushed ([Camera controllers](SDK.md#camera-controllers)).
+is pushed ([Camera controllers](sdk/canvas-camera-and-teardown/camera-controllers.md#camera-controllers)).
 
 ### Movement modes
 

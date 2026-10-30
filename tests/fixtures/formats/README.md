@@ -4,7 +4,7 @@ The small source files the native compiler's tests read, one folder per input fo
 correction case: what each holds, then where it comes from and its licence in the
 [table](#provenance-and-licences). How a format adds its fixture, and what a golden's
 `expected.json` pins:
-[`docs/COMPILER.md`, "Adding a format"](../../../docs/COMPILER.md#adding-a-format).
+[`docs/COMPILER.md`, "Adding a format"](../../../docs/compiler/adding-a-format.md#adding-a-format).
 Test paths below are relative to `packages/asset-compiler-rust/`.
 
 ## Provenance and licences

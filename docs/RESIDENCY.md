@@ -3,8 +3,8 @@
 What stays in memory: the geometry pool, the cut that reads it, the virtual textures. A map: each
 mechanism's rule is stated where it lives, and this page names the file and the rules that span
 files. Paths are under `packages/sdk-browser/src/`. The budgets a host sets are
-[SDK.md](SDK.md#memory-budgets); the raster that draws the cut is
-[ENGINE.md](ENGINE.md#webgpu-page-raster); the shadow page pool is [SHADOWS.md](SHADOWS.md).
+[SDK.md](sdk/memory-budgets.md#memory-budgets); the raster that draws the cut is
+[ENGINE.md](engine/webgpu-page-raster.md#webgpu-page-raster); the shadow page pool is [SHADOWS.md](SHADOWS.md).
 
 ## One cut rule per cluster
 
@@ -41,7 +41,7 @@ files. Paths are under `packages/sdk-browser/src/`. The budgets a host sets are
 | Eviction by least recent use, never a page depended on  | `geometry/residency/streamedPages.ts`, `geometry/residency/queue.ts` |
 
 - The pool's unit is the STREAMING PAGE: a compiled page of 128 KiB resident and 256 clusters at
-  most ([FORMAT.md](FORMAT.md#cluster-dag)), a run-time cut's page alone where the cache gives none
+  most ([FORMAT.md](format/clustersjson.md#cluster-dag)), a run-time cut's page alone where the cache gives none
   (`geometry/rows/page/pageSlots.ts:pageUnit`, `geometry/residency/pageUnits.ts`). One slot holds
   one, its clusters packed at their offsets in it, never one a slot (`pages/pool/placement.ts`).
   The pool holds the root pages apart: its slots are the streaming pages `geometryPoolBytes` holds,
@@ -58,7 +58,7 @@ files. Paths are under `packages/sdk-browser/src/`. The budgets a host sets are
   from it; a budget that holds none of them says so by name (`root-cover`), the root cover still
   whole.
 - A page lands in its slot INSTALLED: the pool stages the bytes of the page on disk
-  ([FORMAT.md](FORMAT.md#pages)) and compute passes transcode them into the resident page at the
+  ([FORMAT.md](format/pages.md#pages)) and compute passes transcode them into the resident page at the
   page's offset in its streaming page's place — the pages that land together in one batch, run at
   the end of the microtask turn that staged the first: a first pass, a workgroup a page, unpacks
   the strips and writes every vertex the page stores; a second, a level of pages a dispatch, copies
@@ -113,7 +113,7 @@ files. Paths are under `packages/sdk-browser/src/`. The budgets a host sets are
   highest priority any view gives one of its pages, and of the pages they depend on, each at one
   more than the highest of its dependents — one per hop from streaming page to streaming page,
   however many groups a page holds, and theirs in turn as long as a priority rises
-  ([FORMAT.md](FORMAT.md#cluster-dag)). The requested ones already started or resident move to
+  ([FORMAT.md](format/clustersjson.md#cluster-dag)). The requested ones already started or resident move to
   the end of the use order, the views' own first, in their order. A caller may ask pages of its
   own at a priority it gives, kept as it is up to 0xffffffe0, the highest of the GPU's requests, and
   none at 0 (`prefetch`, the residency queue's third argument); left out, the pages are asked ahead
@@ -191,7 +191,7 @@ files. Paths are under `packages/sdk-browser/src/`. The budgets a host sets are
 
 ### Partitioned scenes
 
-A partitioned scene ([FORMAT.md](FORMAT.md#world-partition)) is read as the camera reaches it,
+A partitioned scene ([FORMAT.md](format/prepared-scene-tables.md#world-partition)) is read as the camera reaches it,
 never whole (`partition/`, `scene/drive/partitionFrame.ts`).
 
 | Mechanism                               | Where                                                             |
@@ -229,7 +229,7 @@ never whole (`partition/`, `scene/drive/partitionFrame.ts`).
 ## Out of memory
 
 The public contract (refusal codes, `gpu-out-of-memory`, what the page sees) is
-[SDK.md](SDK.md#out-of-memory-is-absorbed); the shadow pool's is [SHADOWS.md](SHADOWS.md#memory).
+[SDK.md](sdk/memory-budgets.md#out-of-memory-is-absorbed); the shadow pool's is [SHADOWS.md](shadows/memory.md#memory).
 One rule for every pool (`memory/outOfMemory.ts:halvedPool`): a refused pool is drawn again at
 half its bytes, down to its floor; the pool in place is never replaced by one the device refused,
 and no refusal loses the device.
@@ -240,7 +240,7 @@ and no refusal loses the device.
 | WebGPU frame targets | `src/frame/prepare/targetGrant.ts`: Hi-Z leaves first, then the frames hold |
 | WebGPU texture pool growth | `src/frame/io/memory.ts`: pool kept, asked again after a wait         |
 
-A lost device takes the loss path ([SDK.md](SDK.md#out-of-memory-is-absorbed)).
+A lost device takes the loss path ([SDK.md](sdk/memory-budgets.md#out-of-memory-is-absorbed)).
 
 ## Coverage counters
 
@@ -289,7 +289,7 @@ The fields are documented on the contract (`packages/sdk-core/src/contracts/metr
   its size: a view too large for it reads coarser tiles, all textures alike
   (`materials/virtual/residencyBias.ts`).
 - A texture reads the lane its chain was kept in by the compiler's quality gate
-  ([FORMAT.md](FORMAT.md#textures)): the engine never trades a pixel for memory on its own. A
+  ([FORMAT.md](format/textures.md#textures)): the engine never trades a pixel for memory on its own. A
   texture appended past the budget is refused (`TEXTURE_BUDGET`) and nothing drawn is evicted.
 - A flushed pose is deterministic: nothing it reads is missing (`pose-settle`).
 - The dicing reads the height map at the micro-triangles' corners, where no pixel posts a feedback

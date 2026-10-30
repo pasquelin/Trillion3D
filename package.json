@@ -53,6 +53,7 @@
     "!dist/*.sources.json",
     "README.md",
     "docs/SDK.md",
+    "docs/sdk",
     "docs/MATHS.md",
     "docs/PHYSICS.md",
     "LICENSE",

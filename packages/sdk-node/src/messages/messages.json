@@ -821,7 +821,7 @@
       "code": "ngon-untriangulable",
       "level": "warn",
       "message": "A polygon could not be cut into triangles cleanly and was filled as a fan.",
-      "cause": "A face the ear-clipping cut could not finish ([Polygon faces](COMPILER.md#polygon-faces)): self-crossing, or planeless (every corner collinear, zero area); it falls back to the fan from its first corner, which may overfill its outline",
+      "cause": "A face the ear-clipping cut could not finish ([Polygon faces](compiler/input-formats.md#polygon-faces)): self-crossing, or planeless (every corner collinear, zero area); it falls back to the fan from its first corner, which may overfill its outline",
       "action": "Triangulate or fix the face in the authoring tool (self-crossing or flat polygon)."
     },
     {
@@ -2349,7 +2349,7 @@
       "code": "INVALID_WORLD_ROOTS",
       "level": "error",
       "message": "The world roots' table could not be written as its records.",
-      "cause": "A world-roots table whose page, bundle, cluster or group names a value its fixed-size record cannot hold (a word past 32 bits, a missing field, a digest that is not 64 lowercase hexadecimal digits); the message names the field ([World super-roots](FORMAT.md#world-super-roots)).",
+      "cause": "A world-roots table whose page, bundle, cluster or group names a value its fixed-size record cannot hold (a word past 32 bits, a missing field, a digest that is not 64 lowercase hexadecimal digits); the message names the field ([World super-roots](format/prepared-scene-tables.md)).",
       "action": "Report it as a compiler bug, with the field the message names."
     },
     {

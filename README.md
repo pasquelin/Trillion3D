@@ -62,7 +62,7 @@ pnpm run test:native     # cargo test
 
 This builds the repository. The package is not on npm yet; from its first release, an application
 installs it instead — `npm install trillion3d`, then `npx trillion3d-compile` for its models; the
-supported platforms are in [COMPILER.md](docs/COMPILER.md#platform-packages).
+supported platforms are in [COMPILER.md](docs/compiler/installing-it.md#platform-packages).
 
 ```js
 import { createWorld, object, geometry, material, light } from 'trillion3d'
@@ -82,7 +82,7 @@ world.onFrame(({ delta }) => {
 ```
 
 The world owns the scene, the camera, the renderer and the loop, and pauses once the image is
-stable: [Create a world](docs/SDK.md#create-a-world). A model is compiled once by the native
+stable: [Create a world](docs/sdk/create-a-world.md#create-a-world). A model is compiled once by the native
 compiler, `trillion3d-compiler`, which a host drives through three streams (JSON events on stderr,
 a pointer on stdout, cancel requests on stdin) or through `prepare` in Node:
 [docs/COMPILER.md](docs/COMPILER.md).
@@ -91,7 +91,7 @@ a pointer on stdout, cancel requests on stdin) or through `prepare` in Node:
 
 Every consumer imports `trillion3d`; conditional exports give a worker or any environment the
 contracts, maths, jobs and diagnostics, Node the compiler process adapter, and a browser bundler
-`createWorld` and its families ([Entry points](docs/SDK.md#entry-points)).
+`createWorld` and its families ([Entry points](docs/sdk/entry-points.md#entry-points)).
 
 Without a bundler, a page imports the browser entry built as one module, `trillion3d/module`
 (`dist/trillion3d.module.js`), with its workers, WebAssembly modules and source map beside it. A
