@@ -1,5 +1,6 @@
 // The frame's shadow-map plan on the CPU: the lights it reads, and each shadowed light's mask
 // channel and first map, before the light buffer goes up.
+import { prepareDenoise } from '../denoise/denoisePass.ts'
 import type { SceneLight } from '../../../../../../sdk-core/src/scene/light/contracts.ts'
 import { LIGHT_SETTINGS } from '../../../../../../sdk-core/src/scene/light/contracts.ts'
 import { sourceRadiusOf, spotConesOf } from '../../../../../../sdk-core/src/scene/light/fields.ts'
@@ -240,6 +241,13 @@ function compileVsmPipelines(rt: WebgpuPagesRuntime, device: GPUDevice, layout: 
     )
       .prepare()
       .then(() => undefined),
+    ...(readShadowSetting(rt, 'shadowDenoise') && readShadowSetting(rt, 'shadowDenoiseIterations')
+      ? prepareDenoise(device, [
+          'sun',
+          'light',
+          onePassMaskFormat(readShadowSetting(rt, 'shadowOnePassProjectionMaxLightsPerPixel')),
+        ])
+      : []),
     prepareCastDiff(device),
     prepareCasterDecode(device),
   ].filter((compile): compile is Promise<void> => compile !== undefined)

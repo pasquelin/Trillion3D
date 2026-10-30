@@ -76,6 +76,14 @@ Trace options: `shadowSmrtAdaptiveRayCount` (1; 0 turns the vote off),
 plane bias `2 * max(0, dot(slope, step))` (slope held to 0.05) less the offset's gain
 (`vsmSunDitherUv`, `vsmSunDitherBias`, `vsmRayLine`, `vsm/trace/traceRayWgsl.ts`).
 
+## The shadow mask denoise (`shadowDenoise`, false by default)
+
+A deliberate addition beyond the reference. After the projection wrote the masks, an edge-aware a-trous
+filter (5x5 taps, `shadowDenoiseIterations` passes, 2 by default, 0 to 4) smooths the per-pixel grain and the
+8x4 blocks of the adaptive ray stop in the penumbra, before the lighting reads them. Weights: distance to the
+receiver's plane (depth with the normal), the normal, the shadow value. Pixels whose 3x3 neighbourhood is wholly
+0 or wholly 1 are skipped. Pass `vsm.denoise`. Measured: about 2 ms a pass on a 4112x2294 display, the grain removed; it stays off by default until a penumbra tile list cuts it under 0.4 ms. `false` (or 0 passes) leaves the masks as written.
+
 ## The prefiltered distant shadow
 
 With `shadowPrefilteredDistant` (false) each

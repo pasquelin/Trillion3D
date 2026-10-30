@@ -99,6 +99,12 @@ export interface PerLightInputs {
     layer: GPUTextureView,
     rect: readonly [number, number, number, number],
   ) => void
+  /** Told of each light once its layer is complete (after `afterMask`'s shadows), with the rectangle of pixels it reaches: the shadow mask denoise filters the layer there (`../denoise/`); absent, none. */
+  afterLayer?: (
+    encoder: GPUCommandEncoder,
+    layer: GPUTextureView,
+    rect: readonly [number, number, number, number],
+  ) => void
 }
 
 /** The pass's frame: one object a session, rewritten each frame (`beginPerLightFrame`). */
@@ -219,6 +225,7 @@ class PerLightFrame implements PerLightLights {
       mask.layers[i % mask.layers.length],
       [x0, y0, x1, y1],
     )
+    this.inputs.afterLayer?.(encoder, mask.layers[i % mask.layers.length], [x0, y0, x1, y1])
     // The last light's mask encoded: the layers hold the frame's.
     if (i === this.count - 1) this.stale = false
   }

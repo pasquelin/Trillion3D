@@ -129,7 +129,7 @@ export const SHADOW_VIEW_MEANINGS: Readonly<Record<ShadowViewField, string>> = {
   shadowOnePassProjection:
     'Whether the shadow of every shadowed local light is projected in one pass into the packed mask the clustered light loop reads (true, the default). false takes each shadowed local light out of that loop and lights it by a draw of its own after the batched lights, from a screen mask it clears, projects into and composites for that light alone: no cap on the lights a pixel keeps and no dither of the packed shares, at the cost of a projection, a mask and a draw per light. The suns are projected apart either way.',
   clusteredDeferredShading:
-    "Whether the lights of a pixel's cell are all lit in one pass over the image (true, the default). false lights each shadowed local light by a draw of its own after the batched lights, as shadowOnePassProjection false does (a light takes the per-light path where either is false); the suns and the unshadowed lights stay in the one pass. The images agree up to the dither the packed shadow shares take and the cap on the lights a pixel keeps.",
+    "Whether the lights of a pixel's cell, the shadowed local lights included, are all lit in one pass over the image, each shadow read in the packed mask (true). false (the default) lights each shadowed local light by a draw of its own after the batched lights, over the pixels it reaches, reading its lane of the packed mask (or, with shadowOnePassProjection false, its layer of the per-light mask); the suns and the unshadowed lights stay in the one pass. The images agree.",
   shadowForcePerLightMaskClear:
     "Whether the per-light projection's target is cleared before each light's projection (false, the default; it applies only with shadowOnePassProjection false). The projection writes every pixel it reaches, so the clear changes no image; it is a debugging switch.",
   shadowOnePassProjectionMaxLightsPerPixel:
@@ -196,6 +196,10 @@ export const SHADOW_VIEW_MEANINGS: Readonly<Record<ShadowViewField, string>> = {
     'The largest receiver-plane depth slope bias (50, the default) of a ray of a point, spot or rectangle light: low values show artifacts where the shadow resolution is short, high ones worsen light leaks near occluders and sparkles in shadow.',
   shadowSmrtRayLengthScaleDirectional:
     "The length of a directional light's ray (1.5, the default), in units of the receiver's distance to the eye: shorter limits the penumbra's size on the screen, longer needs more samples to keep the shadow attached to its contact.",
+  shadowDenoise:
+    'Whether the shadow masks are denoised in the screen after the projection wrote them and before the lighting reads them (false, the default; an addition of the engine): an edge-aware a-trous filter guided by depth and normal that removes the grain of the soft shadows, which flickers in motion, and the blocks the adaptive ray stop leaves in a deep penumbra. Pixels whose neighbourhood is wholly lit or wholly shadowed are left as they are. Off by default: it costs about 2 ms a pass on a 4112x2294 display, until a penumbra tile list cuts it under 0.4 ms. false is the masks as the projection wrote them.',
+  shadowDenoiseIterations:
+    'Passes (2, the default, from 0 to 4) of the shadow mask denoise, each with a step twice the one before: more smooths a wider penumbra at a cost a pass; 0 runs none. Applies only with shadowDenoise.',
   shadowResolutionLodBiasDirectional:
     "Resolution bias of a directional light's maps while it rests: each unit below 0 doubles the resolution, each above halves it (-1.5, the default and the value of 'cinematic'; 0 at the three lower quality levels). The clipmap never goes below the screen's own level.",
   shadowResolutionLodBiasDirectionalMoving:

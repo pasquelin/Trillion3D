@@ -14,6 +14,13 @@ import {
   vsmHairMasks,
 } from '../projection/hairProjectionPass.ts'
 import { PER_LIGHT_MASK_LAYERS } from '../projection/maskFormat.ts'
+import {
+  beginDenoiseFrame,
+  denoiseLayer,
+  denoiseProjected,
+  releaseDenoise,
+  type DenoiseView,
+} from '../denoise/denoisePass.ts'
 import { encodeVsmVisualize, vsmVisualizeRequest } from '../projection/visualizePass.ts'
 import {
   encodeFirstPersonSelfShadow,
@@ -308,6 +315,7 @@ function takePerLightPath(
   selfShadow: GPUTextureView[] | undefined,
   traced: RayTracedPlan | undefined,
   views: GPUTextureView[],
+  denoise: { view: DenoiseView; iterations: number } | undefined,
 ) {
   const { rt, device, vsm, plan, cam } = frame
   perLightRanks.length = context.lights.length
@@ -337,6 +345,20 @@ function takePerLightPath(
         contributors.length ? contributorsLocal(contributors) : undefined,
       ),
     hairShadow,
+    // The shadow mask denoise (`shadowDenoise`): the layer filtered once its light's shadow is complete.
+    afterLayer:
+      mask && denoise
+        ? (encoder, layer, rect) =>
+            denoiseLayer(
+              device,
+              encoder,
+              denoise.view,
+              denoise.iterations,
+              layer,
+              [mask.texture.width, mask.texture.height],
+              rect,
+            )
+        : undefined,
   })
 }
 
@@ -491,6 +513,12 @@ function encodeVsmProjection(
   const maxLights = readShadowSetting(rt, 'shadowOnePassProjectionMaxLightsPerPixel')
   // The one-pass projection, or each shadowed local light alone, lit after the others.
   const onePass = shadowsOnePass(rt)
+  // The shadow mask denoise (`shadowDenoise`, a deliberate addition beyond the reference): its filter passes, none for off.
+  const denoiseIterations = readShadowSetting(rt, 'shadowDenoise')
+    ? readShadowSetting(rt, 'shadowDenoiseIterations')
+    : 0
+  beginDenoiseFrame(device)
+  if (!denoiseIterations) releaseDenoise(device)
   const mask = ensureMask(device, vsm, width, height, {
     suns,
     onePass,
@@ -537,10 +565,34 @@ function encodeVsmProjection(
   // Each shadowed local light lit alone: from a layer of its own mask, or, with the one-pass projection and the grid's pass left out
   // of the lighting, from its lane of the packed mask.
   const perLightMask = onePass ? undefined : mask.perLight
+  const denoise = denoiseIterations
+    ? {
+        view: {
+          view: context.camera.view,
+          projection: context.camera.projection,
+          width: context.width,
+          height: context.height,
+          depth: source.depth,
+          normals: source.normalRough,
+        },
+        iterations: denoiseIterations,
+      }
+    : undefined
   const perLight = (onePass ? !shadowsBatched(rt) : perLightMask)
-    ? takePerLightPath(frame, context, source, perLightMask, hairShadow, selfLocals, traced, views)
+    ? takePerLightPath(
+        frame,
+        context,
+        source,
+        perLightMask,
+        hairShadow,
+        selfLocals,
+        traced,
+        views,
+        denoise,
+      )
     : undefined
   writeProjectionHold(frame, context, source, onePass, maxLights, gridWords)
+  vsm.projectionHold.inputs.denoise = denoiseIterations
   // What the pass writes and the light grid of a new buffer run it again.
   const held = vsm.projectionHold.held(
     mask.suns,
@@ -613,6 +665,16 @@ function encodeVsmProjection(
   if (suns && context.classic)
     encodeFieldShadowSuns(frame, steps.apart(), vsm.state.maps.shadows, suns, mask.sunsView)
   else releaseFieldShadow(rt.gpu)
+  // Every shadow is in the masks: they are denoised once, before the lighting reads them (a held projection keeps the result).
+  if (denoise)
+    denoiseProjected(device, steps, denoise.view, denoise.iterations, {
+      suns: mask.suns,
+      sunsView: mask.sunsView,
+      sunCount: suns,
+      locals: onePass ? mask.locals : undefined,
+      localsView: mask.localsView,
+      localFormat: mask.localFormat,
+    })
   vsm.projectionHold.keep()
   return 1
 }
