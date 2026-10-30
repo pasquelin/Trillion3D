@@ -8,6 +8,7 @@ import { shadowRootAt, shadowRootCount } from '../../casters/shadowRoots.ts'
 import {
   MOBILITY_DEFORMS,
   MOBILITY_MOVING,
+  MOBILITY_NO_CONTACT_SHADOW,
   MOBILITY_OFFSET_INVALIDATES,
   MOBILITY_OFTEN_MOVING,
   MOBILITY_SHADOWLESS,
@@ -29,14 +30,16 @@ const DYNAMIC = debugColor(0, 1, 1)
 const DYNAMIC_INVALIDATING = debugColor(0.5, 0, 0.5)
 const DYNAMIC_MAYBE = debugColor(0, 0, 1)
 const NO_SHADOW = debugColor(0.5, 0.5, 0.5)
+const CONTACT_SHADOW = debugColor(1, 1, 0)
 
 /**
- * The class of a placement by its mobility word (`casters/mobilityState.ts`): a placement that casts no shadow is grey; one cached as static is green, red when its deformation
+ * The class of a placement by its mobility word (`casters/mobilityState.ts`): a placement that casts no shadow into the maps is yellow where its object casts a contact shadow, grey where it does not; one cached as static is green, red when its deformation
  * invalidates its pages; one cached as dynamic is cyan, purple where it moves or deforms (it invalidates), blue where its offset may invalidate. A placement that moves is cached as dynamic at
  * once, so the red of a static placement that moved in the image is that of one that deforms alone.
  */
 export function casterClass(word: number): CasterClass {
-  if (word & MOBILITY_SHADOWLESS) return { color: NO_SHADOW, bounds: false }
+  if (word & MOBILITY_SHADOWLESS)
+    return { color: word & MOBILITY_NO_CONTACT_SHADOW ? NO_SHADOW : CONTACT_SHADOW, bounds: false }
   const deforms = (word & MOBILITY_DEFORMS) !== 0
   if (!(word & (MOBILITY_OFTEN_MOVING | MOBILITY_MOVING)))
     return deforms ? { color: STATIC_INVALIDATING, bounds: true } : { color: STATIC, bounds: false }
@@ -52,6 +55,7 @@ export const CASTER_LEGEND: readonly (readonly [string, number])[] = [
   ['Dynamic, Not Invalidating', DYNAMIC],
   ['Dynamic, Invalidating', DYNAMIC_INVALIDATING],
   ['Dynamic, Maybe Invalidating', DYNAMIC_MAYBE],
+  ['Contact Shadow', CONTACT_SHADOW],
 ]
 
 const overlays = new WeakMap<object, ReturnType<typeof createTextOverlay>>()

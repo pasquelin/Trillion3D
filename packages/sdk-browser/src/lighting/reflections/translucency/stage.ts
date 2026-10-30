@@ -77,6 +77,8 @@ import {
   tracedTranslucencyProgram,
   tracedTranslucencySceneEntries,
 } from './traceWgsl.ts'
+import { retire } from '../../../gpu/core/frameRetire.ts'
+import { viewState } from '../../../frame/backend/state/viewState.ts'
 
 /** The kernel's workgroup side. */
 const SIDE = 8
@@ -228,7 +230,15 @@ interface TracedTranslucencyState {
   readonly sceneGroup: ReturnType<typeof sceneTraceGroupBinder>
 }
 
-const states = new WeakMap<object, TracedTranslucencyState>()
+/** The traced translucency's images and parameters of a view let go with it (retired with the frame that may still name them). */
+const states = viewState<TracedTranslucencyState>((state) =>
+  retire(state.device, {
+    destroy: () => {
+      if (state.textures) destroyTextures(state.textures)
+      state.params?.destroy()
+    },
+  }),
+)
 
 function stateOf(rt: WebgpuPagesRuntime, device: GPUDevice) {
   let state = states.get(rt.gpu)

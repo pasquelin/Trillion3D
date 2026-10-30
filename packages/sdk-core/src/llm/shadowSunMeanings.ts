@@ -28,7 +28,7 @@ export const SHADOW_SUN_MEANINGS: Readonly<Record<ShadowSunField, string>> = {
   shadowOverlapScale:
     "Factor from 0 to 2 on the share of its span a near level overlaps into the next (the light's shadowCascadeTransition, 0.1): it moves the edge of the far-shadow test past the shadow distance, where a cascade follows, and the length of the distance-field cascade's fades. The quality levels write 0, 0.25 and 0.8 below the top one and 1 at 'cinematic'.",
   shadowFarField:
-    "Whether the cascade of the distance fields follows the near levels: where it does, the edge of the far-shadow test lies past the distance by the overlap of the last near level. No sun shadow is traced against the distance fields of the view: the shadow maps draw the clusters, which every mesh of the engine is made of, at any distance. It needs the scene's meshes to have distance fields and the light's distanceFieldShadows. The quality levels turn it off at the two coarser ones and on at 'cinematic'.",
+    "Whether the cascade of the distance fields follows the near levels: where it does, the edge of the far-shadow test lies past the distance by the overlap of the last near level. With virtual shadow maps no sun shadow is traced against the distance fields of the view (the shadow maps draw the clusters, which every mesh of the engine is made of, at any distance); with classic ones (shadowVirtualEnable off) the cascade is traced. It needs the scene's meshes to have distance fields and the light's distanceFieldShadows. The quality levels turn it off at the two coarser ones and on at 'cinematic'.",
   shadowMaxFarCascades:
     'The most far levels a directional light may have, whatever its farShadowCascades: 10 by default, 0 gives it none. Far levels are counted, not drawn (the shadow maps take every cluster caster at any distance): a light with some ends its near levels with the overlap and lets the distance-field cascade fade out by it.',
   shadowFarDistanceOverride:
@@ -47,6 +47,10 @@ export const SHADOW_SUN_MEANINGS: Readonly<Record<ShadowSunField, string>> = {
     'The meshes a tile of those lists has room for on average, 128 by default, at least 1: the room of the lists is that number times the tiles; a tile past it loses meshes (its shadow flickers), a larger number spends memory.',
   distanceFieldShadowCompactTiles:
     "Whether the tiles' lists lie one after the other in the room, a tile taking only what it holds (true, the default), or each tile has a place of its own, the room over the tiles, and a tile past its place loses meshes (false).",
+  distanceFieldShadowFullResolution:
+    "Whether the sun's distance-field cascade is traced at the image's size (true) or at half of it and upsampled with the depth as the weight (false, the default). Only while the shadows are classic (shadowVirtualEnable off).",
+  distanceFieldFarTransitionScale:
+    "Factor from 0 to 1 on the length of the far fade of the sun's distance-field cascade: 1 (the default) fades it over the same share of its length as the other cascades, 0 cuts it off sharply at its far end.",
   distanceFieldShadowSnapResolution:
     'The texels, at least 32 and 2048 by default, across the shadow space of those lists whose grid its origin is snapped to (4 texels a step, 4 texels off each side): the tile grid then moves in steps with the camera. A larger number moves it in finer steps.',
 }

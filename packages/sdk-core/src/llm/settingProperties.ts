@@ -456,7 +456,9 @@ const LIGHT_FUNCTION_MEANINGS: Readonly<Record<LightFunctionField, string>> = {
   lightFunctionDeferred:
     "Whether the lighting of the opaque image and the translucency volume's injection read the atlas (diffuse and specular alike); true by default.",
   lightFunctionFog:
-    "Whether the volumetric fog's local lights read the atlas; true by default. The fog's sun always reads it.",
+    "Whether the volumetric fog's lights read the atlas; true by default. The fog's sun reads it where the atlas holds a slot of it; where it does not (this setting false, the atlas not made, a limit that left the light out) the sun's light function is drawn into a texture of the fog's own, sized by lightFunctionFogSupersample.",
+  lightFunctionFogSupersample:
+    "The side of the texture the fog's sun light function is drawn into, over the volume's cells along the axis the sun faces most; a number above 0, 2 by default. The side is cut to a multiple of 32 and to the device's largest texture.",
   lightFunctionBounce:
     "Whether the bounce's lights read the atlas, the probes' rays and the screen probes' scene traces: a surface they hit is lit through the light functions; true by default.",
   lightFunctionTranslucent: 'Whether the translucent layers read the atlas; false by default.',

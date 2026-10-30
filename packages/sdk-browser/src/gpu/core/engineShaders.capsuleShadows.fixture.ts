@@ -1,11 +1,15 @@
 // The capsule shadows' WGSL texts of `ENGINE_SHADERS`: the shadow pass of each mode (the indirect one also over the meshes' distance-field
-// casters), the upsample draw with and without the second, ambient occlusion target, the pass that derives the light directions and the merge of the first-person self shadow into the masks, the ray traced shadow's kernel and its merge, the ray traced occlusion's kernel and its denoiser's passes, the shadow denoiser's passes and the diffuse denoiser's (the ray-traced sky light's).
+// casters), the upsample draw with and without the second, ambient occlusion target, the pass that derives the light directions and the merge of the first-person self shadow into the masks, the ray traced shadow's kernel and its merge, the ray traced occlusion's kernel and its denoiser's passes, the shadow denoiser's, the diffuse denoiser's (the ray-traced sky light's), the sun's distance-field cascade's trace and upsample, and the translucent object shadows' projection into a local light's layer and a sun's.
 import {
   capsuleShadowShader,
   type CapsuleMode,
 } from '../../lighting/capsuleShadows/capsuleShadowWgsl.ts'
 import { capsuleHooks } from '../../lighting/capsuleShadows/hooks.ts'
 import { lightDirectionShader } from '../../lighting/capsuleShadows/lightDirectionWgsl.ts'
+import {
+  fieldShadowTraceProgram,
+  fieldShadowUpsampleProgram,
+} from '../../lighting/shadows/classic/fieldShadow/fieldShadowWgsl.ts'
 import {
   occlusionFinalWgsl,
   occlusionInjestWgsl,

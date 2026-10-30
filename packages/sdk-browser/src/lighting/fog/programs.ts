@@ -7,6 +7,7 @@ import { TILE_SLICE_WGSL } from '../direct/lightingWgsl.ts'
 import { skyLightDiffuseWgsl } from '../../modules/sky/skyLight/read.ts'
 import { cloudShadowReadWgsl } from '../atmosphere/cloudShadowRead.ts'
 import { lightFunctionReadWgsl } from '../lightFunction/readWgsl.ts'
+import { sunFogReadWgsl } from './sunFunction/readWgsl.ts'
 import { rectSourceWgsl } from '../rectLightAtlas/readWgsl.ts'
 import { volumetricLightmapWgsl } from '../volumetricLightmap/sampleWgsl.ts'
 import {
@@ -15,7 +16,7 @@ import {
   type FogBindings,
   type FogProgramName,
 } from './bindings.ts'
-import { fogGridWgsl, FOG_CELLS_WGSL } from './gridWgsl.ts'
+import { fogGridWgsl, FOG_CELLS_WGSL, FOG_SURFACE_WGSL } from './gridWgsl.ts'
 import { FOG_FURTHEST_WGSL, FOG_INTEGRATE_WGSL } from './integrateWgsl.ts'
 import { FOG_STATIC_FORMAT } from './layout.ts'
 import { FOG_FRAME_STRUCT_WGSL, fogBlockOf } from './readWgsl.ts'
@@ -29,6 +30,7 @@ import {
   fogVoxelWgsl,
 } from './voxelWgsl.ts'
 import type { VoxelGraphSet } from './voxelGraph.ts'
+import type { SceneMaskPrograms } from '../rays/sceneTrace/sceneMaskPrograms.ts'
 
 const b = FOG_BINDING
 
@@ -98,6 +100,12 @@ const LIGHT_FUNCTION = lightFunctionReadWgsl({
   eye: 'frame.eye.xyz',
 })
 
+/** The sun's light function: the atlas's where it holds it, else the texture drawn for the fog alone. */
+const SUN_FUNCTION = sunFogReadWgsl(
+  { group: 0, texture: b.sunFunction, view: b.sunFunctionView, samplerName: 'fogSampler' },
+  LIGHT_FUNCTION,
+)
+
 /** The clouds' shade the scatter's sun is read through, by the volumes' sampler. */
 const CLOUD_SHADOW = cloudShadowReadWgsl({
   group: 0,
@@ -128,6 +136,7 @@ const scatterProgram = (
     FOG_FRAME_STRUCT_WGSL,
     scatterFog(local),
     LIGHT_FUNCTION,
+    SUN_FUNCTION,
     RECT_SOURCE,
     CLOUD_SHADOW,
     SKY_LIGHT,

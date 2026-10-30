@@ -4,6 +4,7 @@ import { blendablesAnimated } from '../render/encodeBlendables.ts'
 import { guidesMoved } from '../render/encodeGuides.ts'
 import { particlesMoved } from '../../particles/gpu/webgpuParticleFrame.ts'
 import { lightFunctionsWaiting } from '../../lighting/lightFunction/frame.ts'
+import { sunFogWaiting } from '../../lighting/fog/sunFunction/frame.ts'
 import { lightProfilesWaiting } from '../../lighting/lightProfile/frame.ts'
 import { ambientCubemapPending } from '../../lighting/deferred/ambientCubemapFrame.ts'
 import { surfaceCacheBusy } from '../../lighting/surfaceCache/frame.ts'
@@ -38,6 +39,7 @@ const TERMS: readonly (readonly [string, (rt: WebgpuPagesRuntime) => boolean | u
   ['postProcessMaterialsAnimated', blendablesAnimated],
   ['particles', particlesMoved],
   ['lightFunctions', lightFunctionsWaiting],
+  ['fogSunLightFunction', sunFogWaiting],
   ['lightProfiles', lightProfilesWaiting],
   ['ambientCubemap', ambientCubemapPending],
   ['graphsAnimated', (rt) => rt.vis.graphsAnimated],

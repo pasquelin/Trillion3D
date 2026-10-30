@@ -109,6 +109,7 @@ function writeFrame(
   image.rebuildSamples = knobs.rebuildSamples
   image.skipHidden = skipHidden
   image.voxels = voxels
+  image.lightingOnly = input.lightingOnly
   image.staticLight = input.staticLight
   image.staticBuilt = staticBuilt
   image.translucencyGi = input.translucencyGi
@@ -184,6 +185,7 @@ function newParts(device: GPUDevice, resources: FogVolumeResources, none: FogRea
       rebuildSamples: 0,
       skipHidden: false,
       voxels: false,
+      lightingOnly: false,
       staticLight: newFogStaticLight(),
       staticBuilt: false,
       translucencyGi: undefined,

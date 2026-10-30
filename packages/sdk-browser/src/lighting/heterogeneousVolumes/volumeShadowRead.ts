@@ -1,5 +1,6 @@
 import { readHeterogeneousVolumeSetting } from '../../../../sdk-core/src/contracts/heterogeneousVolumeOptions.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
+import { viewPublished } from '../../frame/backend/state/viewPublished.ts'
 
 /**
  * WHAT THE LIT PASSES KNOW OF THE VOLUMES' SHADOWS, apart from the frame that builds them (`liveShadingFrame.ts`), so that the lights'
@@ -14,14 +15,10 @@ export const volumeShadowsOn = (rt: WebgpuPagesRuntime) =>
   !!readHeterogeneousVolumeSetting(rt, 'heterogeneousVolumesAllowed') &&
   !!readHeterogeneousVolumeSetting(rt, 'heterogeneousVolumesShadows')
 
-const published = new WeakMap<object, GPUBuffer>()
+const published = viewPublished<GPUBuffer>()
 
 /** The buffer that holds the maps of the lights the last image built for the volumes' shadows, none where the volumes cast none. */
-export const heterogeneousShadowBufferOf = (gpu: object): GPUBuffer | undefined =>
-  published.get(gpu)
+export const heterogeneousShadowBufferOf = published.of
 
 /** Gives the buffer of the maps the image built, or none (`undefined`). */
-export function publishHeterogeneousShadowBuffer(gpu: object, buffer: GPUBuffer | undefined) {
-  if (buffer) published.set(gpu, buffer)
-  else published.delete(gpu)
-}
+export const publishHeterogeneousShadowBuffer = published.publish

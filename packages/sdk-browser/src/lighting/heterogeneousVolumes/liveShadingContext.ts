@@ -1,3 +1,4 @@
+import { length3 } from '../../../../math/src/vector/vector.ts'
 import { invertMatrix4 } from '../../../../math/src/matrix/matrix4Inverse.ts'
 import {
   readHeterogeneousVolumeSetting,
@@ -29,12 +30,15 @@ import {
   dropHeld,
   placementOf,
   bufferOf,
-  release,
+  dropIdleScene,
+  releaseViewVolumes,
+  sceneOf,
   states,
   stepImage,
 } from './liveShadingState.ts'
 import { type SparseVolumes } from './sparseVolumeLoad.ts'
 import { publishHeterogeneousShadowBuffer } from './volumeShadowRead.ts'
+import { viewKey } from '../../frame/backend/state/viewKey.ts'
 
 /** A setting of the heterogeneous volumes, as a number. */
 type Settings = (field: HeterogeneousVolumeField) => number
@@ -96,43 +100,51 @@ function heldStateOf(rt: WebgpuPagesRuntime, phase: 'shadows' | 'image') {
   // The camera map is the image's own: made again by the image, or none.
   if (phase === 'image') publishHeterogeneousCamera(gpu, undefined)
   const store = rt.context.sceneHeterogeneousVolumes
-  const found = states.get(gpu)
+  let found = states.get(viewKey(gpu))
+  // Every image of every view ticks the keeping delay of a scene part no view holds any more, whichever way its last holder left.
+  dropIdleScene(rt)
   if (
     !store?.count ||
     !readHeterogeneousVolumeSetting(rt, 'heterogeneousVolumes') ||
     !readHeterogeneousVolumeSetting(rt, 'heterogeneousVolumesAllowed')
   ) {
-    if (found) release(found)
-    publishHeterogeneousShadowBuffer(gpu, undefined)
-    states.delete(gpu)
+    // The scene's part is freed with the last view that held it, not by the first that turns the volumes off.
+    releaseViewVolumes(gpu)
     return undefined
   }
   const reader = rt.context.sparseVolumesFile
-  if (!reader || !gpu.hdrTexture || !gpu.hdrView || !gpu.depthView || !rt.lights.buffer)
+  const { device } = gpu
+  if (!reader || !device || !gpu.hdrTexture || !gpu.hdrView || !gpu.depthView || !rt.lights.buffer)
     return undefined
+  // A device made again (lost, recreated) leaves nothing of the old one to reuse: the scene's part is made again, and the view's state, which names the old part, is destroyed at once with the old device and rebuilt on the new part.
+  const scene = sceneOf(rt, device)
+  if (found && (found.device !== device || found.scene !== scene)) {
+    releaseViewVolumes(gpu, found.device !== device)
+    found = undefined
+  }
   const held: State = found ?? {
-    programs: new Map(),
-    failed: false,
-    uploads: new Map(),
-    frames: new Map(),
-    lastClock: 0,
+    device,
+    scene,
     caches: new Map(),
     buffers: new Map(),
     steps: new Map(),
     maps: [],
   }
-  states.set(gpu, held)
-  if (!held.reading && !held.failed)
-    held.reading = reader()
+  states.set(viewKey(gpu), held)
+  scene.holders.add(viewKey(gpu))
+  if (!held.scene.reading && !held.scene.failed)
+    held.scene.reading = reader()
       .then((sparse) => {
-        held.sparse = sparse
+        if (scene.closed) return
+        scene.sparse = sparse
         rt.run.gate.resourcesChanged()
       })
       .catch((error: unknown) => {
-        held.failed = true
+        if (scene.closed) return
+        scene.failed = true
         rt.diag.diagnosticFailure('sparse-volumes-load-failed', error)
       })
-  return held.sparse ? { held, sparse: held.sparse, store } : undefined
+  return held.scene.sparse ? { held, sparse: held.scene.sparse, store } : undefined
 }
 
 /** Lets go of the maps the last image built for the volumes' shadows. */
@@ -221,16 +233,16 @@ function placedVolumes(
   },
   settings: Settings,
 ) {
-  const dt = Math.max(c.clocks.realTime - (c.held.lastClock || c.clocks.realTime), 0)
+  const dt = Math.max(c.clocks.realTime - (c.held.scene.lastClock || c.clocks.realTime), 0)
   const volumes = [...c.values].filter(
     (volume) => volume.visible && volume.graph && c.sparse.volumeOfNode(volume.source),
   )
   const distance = (volume: ResolvedHeterogeneousVolume) => {
     const m = volume.matrix
-    return Math.hypot(m[12] - c.eye[0], m[13] - c.eye[1], m[14] - c.eye[2])
+    return length3(m[12] - c.eye[0], m[13] - c.eye[1], m[14] - c.eye[2])
   }
   if (settings('heterogeneousVolumesDepthSort')) volumes.sort((a, b) => distance(a) - distance(b))
-  if (volumes.length) c.held.lastClock = c.clocks.realTime
+  if (volumes.length) c.held.scene.lastClock = c.clocks.realTime
   return volumes.map((volume) => placementOf(c.held, c.sparse, volume, dt))
 }
 

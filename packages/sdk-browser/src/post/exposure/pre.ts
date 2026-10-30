@@ -6,6 +6,7 @@ import type { HeldExposure } from '../../../../sdk-core/src/contracts/exposureMa
 import { UNIT_EXPOSURE } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
 import { heldExposureOf } from './applied.ts'
 import { exposureSettings } from './frame.ts'
+import { viewKey } from '../../frame/backend/state/viewKey.ts'
 
 /**
  * THE PRE-EXPOSURE OF AN IMAGE: the number every light the image holds is multiplied by as it is
@@ -70,7 +71,7 @@ function preExposureNow(rt: WebgpuPagesRuntime, { exposure, held }: PreExposure)
 
 /** The pre-exposure of the view's image: the one `beginPreExposure` fixed, 1 before it. */
 export const preExposureOf = (rt: Pick<WebgpuPagesRuntime, 'gpu'>): PreExposure =>
-  states.get(rt.gpu) ?? UNIT
+  states.get(viewKey(rt.gpu)) ?? UNIT
 
 /**
  * Fixes the pre-exposure of the image about to be encoded, once, before any pass writes light: the
@@ -78,9 +79,12 @@ export const preExposureOf = (rt: Pick<WebgpuPagesRuntime, 'gpu'>): PreExposure 
  * `preExposureOf` for the whole image.
  */
 export function beginPreExposure(rt: WebgpuPagesRuntime) {
-  let state = states.get(rt.gpu)
+  let state = states.get(viewKey(rt.gpu))
   if (!state)
-    states.set(rt.gpu, (state = { now: 1, previous: 1, shown: 1, exposure: 1, held: undefined }))
+    states.set(
+      viewKey(rt.gpu),
+      (state = { now: 1, previous: 1, shown: 1, exposure: 1, held: undefined }),
+    )
   state.previous = state.now
   state.held = heldExposureOf(rt)
   state.exposure = state.held ? state.held.exposure : rt.gpu.exposure?.last || UNIT_EXPOSURE

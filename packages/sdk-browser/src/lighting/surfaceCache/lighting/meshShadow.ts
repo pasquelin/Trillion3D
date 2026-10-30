@@ -6,7 +6,7 @@ import type { WebgpuPagesRuntime } from '../../../frame/backend/runtime.ts'
 import { vsmMapSettings } from '../../shadows/vsm/frame/vsmFarShadow.ts'
 import { ledgerAdmitted, type HeldAllocation } from '../../../gpu/core/deviceLedger.ts'
 import { objectCapacity } from '../../rays/meshTrace/gridPasses.ts'
-import { boxBounds } from '../../distanceField/shadow/bounds.ts'
+import { boxBounds, type VolumeBounds } from '../../distanceField/shadow/bounds.ts'
 import {
   createDfshState,
   encodeShadowTiles,
@@ -103,6 +103,12 @@ function sunDirections(rt: WebgpuPagesRuntime) {
   return toLights
 }
 
+/** A sun the lists are made for: the unit direction toward it and the bounds of the volume its meshes are culled and listed to. */
+export interface ListedSun {
+  readonly toLight: readonly [number, number, number]
+  readonly bounds: VolumeBounds
+}
+
 /** Whether the scene has what the lists are made of: a mesh with a field and a sun that casts a shadow. */
 export function meshShadowWanted(rt: WebgpuPagesRuntime) {
   const objects = rt.distanceFields?.scene?.meshes
@@ -171,14 +177,12 @@ function ensureStore(
   return value
 }
 
-type Suns = ReturnType<typeof sunDirections>
 type SunStore = NonNullable<ReturnType<typeof ensureStore>>
 type SunView = NonNullable<ReturnType<typeof ensureDfshView>['view']>
 
 /** The suns' parameter blocks written into `blocks`: each sun's parameters, its ray bias, and where its lists lie in the store. */
 function writeSunBlocks(
-  suns: Suns,
-  bounds: readonly ReturnType<typeof boxBounds>[],
+  suns: readonly ListedSun[],
   eye: ArrayLike<number>,
   objectCount: number,
   options: Pick<SurfaceCacheSettings, 'surfaceCacheDirectLightingMeshSdfShadowRayBias'>,
@@ -187,8 +191,8 @@ function writeSunBlocks(
 ) {
   const at = DFSH_PARAMS.at
   blocks.fill(0)
-  suns.forEach((toLight, sun) => {
-    writeDfshParams(floats, words, sun, { eye, toLight, bounds: bounds[sun] }, settings, {
+  suns.forEach(({ toLight, bounds }, sun) => {
+    writeDfshParams(floats, words, sun, { eye, toLight, bounds }, settings, {
       objects: objectCount,
     })
     const base = (sun * DFSH_PARAMS_STRIDE) / 4
@@ -254,7 +258,7 @@ function meshShadowGroup(store: SunStore, objects: MeshFieldScene): MeshShadow {
 
 /**
  * Lists the meshes of `rt`'s scene for the suns on `encoder`, before the lighting's pass, for the cards' volume `reach` centimetres round
- * the eye `eye` (metres): the lists and the suns' uniform, as a group for the shadow pass, or none (and why in `state.dfsh`).
+ * the eye `eye` (metres), or for the volumes `suns` name (the first `DFSH_MAX_LIGHTS`; the sun's cascade of the view, `classic/fieldShadow/`): the lists and the suns' uniform, as a group for the shadow pass, or none (and why in `state.dfsh`).
  */
 export function encodeMeshShadow(
   state: MeshShadowState,
@@ -262,17 +266,21 @@ export function encodeMeshShadow(
   device: GPUDevice,
   encoder: GPUCommandEncoder,
   options: Pick<SurfaceCacheSettings, 'surfaceCacheDirectLightingMeshSdfShadowRayBias'>,
-  volume: { eye: ArrayLike<number>; reach: number },
+  volume: { eye: ArrayLike<number>; reach: number; suns?: readonly ListedSun[] },
 ): MeshShadow | undefined {
   const objects: MeshFieldScene | undefined = rt.distanceFields?.scene?.meshes
-  const suns = sunDirections(rt)
+  const suns =
+    volume.suns?.slice(0, DFSH_MAX_LIGHTS) ??
+    sunDirections(rt).map((toLight) => ({
+      toLight,
+      bounds: boxBounds([0, 0, 0], volume.reach / CM, toLight),
+    }))
   if (!objects || suns.length === 0 || objects.generation === 0 || objects.count === 0)
     return undefined
   dfshSettingsOf(rt, device.limits.maxTextureDimension2D, settings)
   const programs = dfshPrograms(device)
   if (!dfshProgramsReady(programs, settings)) return undefined
-  const bounds = suns.map((toLight) => boxBounds([0, 0, 0], volume.reach / CM, toLight))
-  const sides = bounds.map((b) => tilesOf(b, settings))
+  const sides = suns.map(({ bounds }) => tilesOf(bounds, settings))
   const held = state.dfsh.view?.shape
   const made = ensureDfshView(state.dfsh.view, device, {
     objects: Math.max(held?.objects ?? 0, objectCapacity(objects.count)),
@@ -287,7 +295,7 @@ export function encodeMeshShadow(
   const store = ensureStore(state, device, { tiles: view.shape.tiles, entries })
   if (!store) return undefined
   const tilesPerSun = view.shape.tiles * view.shape.tiles
-  writeSunBlocks(suns, bounds, volume.eye, objects.count, options, entries, tilesPerSun)
+  writeSunBlocks(suns, volume.eye, objects.count, options, entries, tilesPerSun)
   device.queue.writeBuffer(view.params, 0, floats)
   device.queue.writeBuffer(store.params, 0, blocks)
   encodeSunLists(encoder, device, programs, view, store, objects, sides, entries, tilesPerSun)

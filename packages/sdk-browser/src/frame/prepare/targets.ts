@@ -241,7 +241,7 @@ const scratch = [0, 0, 0, 0, 0, 0, 0, 0]
 
 /**
  * At every image's start: the translucency targets are remade alone when the settings that name their size (the share, the basis) no
- * longer fit them (`translucencyFits`) — the frame's other targets stay (the translucency targets alone are given
+ * longer fit them (`translucencyFits`) — the frame's other targets stay, and so do the sorted layers' buffers (the targets alone are given
  * back). Nothing is allocated where the numbers that decide the size are those it was last looked at with. Where the new targets are the
  * smaller kind, the swap waits for the programs they run to compile (`reducedCompiled`), the old targets drawing in the meantime: the layers
  * do not vanish. The bytes they take are followed in `gpu.targetBytes`.

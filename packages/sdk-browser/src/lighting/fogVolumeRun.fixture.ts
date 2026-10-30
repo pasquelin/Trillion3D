@@ -126,6 +126,7 @@ export function image(
     lightCells: [0, 0],
     frameIndex: 0,
     voxels: false,
+    lightingOnly: false,
     // No baked light; the sky light lights the volume by its harmonics, as a movable one does.
     staticLight: { ...newFogStaticLight(), skyDiffuse: true },
     staticBuilt: false,
@@ -174,6 +175,7 @@ export function frameScope(img: FogVolumeImage) {
       ).map((name) => [name, vec(at[name])]),
     ),
     offsets: Array.from({ length: 16 }, (_, k) => vec(at.offsets + 4 * k)),
+    traced: Array.from(new Uint32Array(words.buffer, at.traced * 4, 4)),
     frame: Array.from(new Uint32Array(words.buffer, at.frame * 4, 4)),
   }
 }

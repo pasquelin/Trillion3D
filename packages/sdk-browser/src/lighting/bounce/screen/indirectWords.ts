@@ -14,6 +14,7 @@ import {
 } from './indirectWordsWgsl.ts'
 import { tellLighting } from './frame.ts'
 import { screenProbeSettingsOf } from './settingsOf.ts'
+import { viewState } from '../../../frame/backend/state/viewState.ts'
 
 const NORMALS_VIEW = viewOf('normalRough')
 
@@ -63,6 +64,7 @@ const writerKernels = oncePerDevice((device: GPUDevice) => {
 
 /** The words of a view, at the size of its image, and the image they were last written in. */
 interface Held {
+  device: GPUDevice
   texture: GPUTexture
   view: GPUTextureView
   params: GPUBuffer
@@ -71,7 +73,10 @@ interface Held {
   group: GPUBindGroup | undefined
   identity: ReturnType<typeof createWebgpuBindIdentity>
 }
-const held = new WeakMap<WebgpuPagesRuntime['gpu'], Held>()
+/** The view's words given back with it (retired: this image's commands may still name them). */
+const held = viewState<Held>((state) =>
+  retire(state.device, { destroy: () => (state.texture.destroy(), state.params.destroy()) }),
+)
 const paramWords = new Uint32Array(4)
 const paramFloats = new Float32Array(paramWords.buffer)
 
@@ -79,7 +84,7 @@ function heldOf(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const [width, height] = rt.gpu.targetSize
   let state = held.get(rt.gpu)
   if (state && state.size[0] === width && state.size[1] === height) return state
-  if (state) retire(device, state.texture)
+  held.release(rt.gpu)
   const texture = device.createTexture({
     label: 'Trillion3D indirect words',
     size: [width, height],
@@ -87,6 +92,7 @@ function heldOf(rt: WebgpuPagesRuntime, device: GPUDevice) {
     usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
   })
   state = {
+    device,
     texture,
     view: texture.createView(),
     params: device.createBuffer({
@@ -163,10 +169,4 @@ export function writeIndirectWords(
 export function indirectWordsView(rt: WebgpuPagesRuntime) {
   const state = held.get(rt.gpu)
   return state && state.frame === rt.run.frame ? state.view : undefined
-}
-
-/** The view's words given back. */
-export function releaseIndirectWords(gpu: WebgpuPagesRuntime['gpu']) {
-  held.get(gpu)?.texture.destroy()
-  held.delete(gpu)
 }

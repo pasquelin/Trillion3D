@@ -1,4 +1,4 @@
-import { viewKey } from '../../../frame/backend/state/viewKey.ts'
+import { viewState } from '../../../frame/backend/state/viewState.ts'
 import type { LightGridSettings } from '../../../../../sdk-core/src/contracts/hitLightingOptions.ts'
 import { ceilDiv } from '../../../../../math/src/scalar/integers.ts'
 import {
@@ -312,20 +312,12 @@ function createLightGridHolder(device: GPUDevice) {
 }
 export type LightGridHolder = ReturnType<typeof createLightGridHolder>
 
-/** The light grid each view keeps (found by the view's key), so that it outlives the view's resizes. */
-const holders = new WeakMap<object, LightGridHolder>()
+/** The light grid each view keeps (found by the view's key), so that it outlives the view's resizes; given back with the view (retired: this image's commands may still name it). */
+const holders = viewState<LightGridHolder>((holder) => holder.dispose())
 
 /** The view's light grid, made at the first ask; every hit lighting of the view (the reflections', the screen probes', the radiance cache's) reads this one. */
 export function lightGridOf(gpu: { viewKey?: object }, device: GPUDevice): LightGridHolder {
-  const key = viewKey(gpu)
-  let holder = holders.get(key)
-  if (!holder) holders.set(key, (holder = createLightGridHolder(device)))
+  let holder = holders.get(gpu)
+  if (!holder) holders.set(gpu, (holder = createLightGridHolder(device)))
   return holder
-}
-
-/** Gives the view's light grid back (retired: this image's commands may still name it). */
-export function releaseLightGrid(gpu: { viewKey?: object }) {
-  const key = viewKey(gpu)
-  holders.get(key)?.dispose()
-  holders.delete(key)
 }

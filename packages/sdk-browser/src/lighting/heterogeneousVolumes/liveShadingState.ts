@@ -8,6 +8,7 @@ import {
   type ResolvedHeterogeneousVolume,
 } from '../../../../sdk-core/src/scene/heterogeneousVolume/contracts.ts'
 import { type WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
+import { idleTooLong } from '../../gpu/core/idleKeep.ts'
 import { type CompiledGraph, compileGraph } from '../../materials/graph/compile.ts'
 import { compileKept, isRefusal } from '../../materials/graph/kept.ts'
 import { SHADOW_TILE_POOL_WGSL, colorSampleWgsl } from '../../materials/virtual/wgsl.ts'
@@ -30,6 +31,10 @@ import type { PackResources } from './beerShadowMapPack.ts'
 import { type SparseVolumeFrameGpu, uploadSparseVolumeFrame } from './sparseVolumeGpu.ts'
 import { type SparseVolumes } from './sparseVolumeLoad.ts'
 import type { VoxelGrids } from './voxelGridShadows.ts'
+import { retire } from '../../gpu/core/frameRetire.ts'
+import { viewKey } from '../../frame/backend/state/viewKey.ts'
+import { publishHeterogeneousCamera } from './cameraMap.ts'
+import { publishHeterogeneousShadowBuffer } from './volumeShadowRead.ts'
 
 /** The pipelines of a program, by the slot they fill. */
 type PipelineSlot = 'cache' | 'march' | 'beer' | 'ao' | 'existence' | 'dilate' | 'bake' | 'avsm'
@@ -52,6 +57,7 @@ export interface Program {
 }
 
 interface Upload {
+  readonly owner: string
   readonly key: string
   readonly gpu: SparseVolumeFrameGpu
   readonly resolution: readonly [number, number, number]
@@ -63,20 +69,27 @@ export interface Targets {
   readonly images: [GPUTexture, GPUTexture]
 }
 
-export interface State {
+/** What the volumes keep for the whole scene, read and made once whatever the number of views: the sparse volumes' file and the frames uploaded
+ *  from it, the programs compiled for the graphs, the composition's pipelines, the sampler and the one-texel stand-ins. */
+export interface SceneState {
+  /** The runtime the part belongs to (`scenes`) and the views that hold it: it is freed when the last lets go. */
+  readonly owner: WebgpuPagesRuntime
+  /** The device the scene's resources are made on. */
+  readonly device: GPUDevice
+  readonly holders: Set<object>
+  /** The image the last view let go in, for the keeping delay of the part that stays (`dropIdleScene`). */
+  idleSince?: number
   programs: Map<string, Program>
   sparse?: SparseVolumes
   reading?: Promise<void>
   failed: boolean
+  /** Set once the part is replaced or dropped: a read of the sparse volumes' file still running lands nowhere. */
+  closed: boolean
+  /** The frames uploaded, by volume slot and frame index. */
   uploads: Map<string, Upload>
+  /** The frame each playing volume shows and the clock of its last advance: one animation for the whole scene, whatever the number of views. */
   frames: Map<string, number>
   lastClock: number
-  targets?: Targets
-  caches: Map<string, GPUTexture>
-  /** The buffers and images the frame writes, kept by role: a destroyed resource cannot be submitted, and one a frame writes
-   *  twice would keep the last write. */
-  buffers: Map<string, GPUBuffer>
-  steps: Map<string, GPUTexture>
   sampler?: GPUSampler
   stand?: GPUTexture
   /** A texture no pass reads, bound where a pass reads the cache it does not write. */
@@ -85,17 +98,9 @@ export interface State {
   standPages?: GPUTexture
   /** What the beer map and the velocity bindings hold where a pass does not use them. */
   standBeer?: GPUTexture
-  standBeerOut?: GPUTexture
+  /** The beer map's write stand-in of each storage format a view asked: views of a scene may differ, none destroys another's. */
+  standBeerOut: Map<GPUTextureFormat, GPUTexture>
   standVelocity?: GPUTexture
-  /** The camera's beer map and the volumes' radiance in two layers (`cameraMap.ts`), at the volumes' size. */
-  camera?: { texture: GPUTexture; view: GPUTextureView; size: readonly [number, number] }
-  /** The voxel grids the last shadows phase built (`voxelGridShadows.ts`), for the passes that read them. */
-  voxelGrids?: VoxelGrids
-  /** The maps of the lights the last image built (packed by `packShadowMaps`). */
-  maps: HeterogeneousShadowMap[]
-  /** The maps of the lights packed in one buffer for the passes that apply the lights (`beerShadowMapPack.ts`), none where there is none. */
-  packedMaps?: GPUBuffer
-  pack?: PackResources
   compose?: {
     layout: GPUBindGroupLayout
     pipeline?: GPURenderPipeline
@@ -110,7 +115,61 @@ export interface State {
   }
 }
 
+/** What a view keeps of the volumes: the images its size and its camera decide, the buffers and caches its frame writes, the maps of its lights, and the scene's part
+ *  (`scene`) it shares with the other views. */
+export interface State {
+  /** The device the view's resources are made on: the release retires them there. */
+  readonly device: GPUDevice
+  readonly scene: SceneState
+  targets?: Targets
+  caches: Map<string, GPUTexture>
+  /** The buffers and images the frame writes, kept by role: a destroyed resource cannot be submitted, and one a frame writes
+   *  twice would keep the last write. */
+  buffers: Map<string, GPUBuffer>
+  steps: Map<string, GPUTexture>
+  /** The camera's beer map and the volumes' radiance in two layers (`cameraMap.ts`), at the volumes' size. */
+  camera?: { texture: GPUTexture; view: GPUTextureView; size: readonly [number, number] }
+  /** The voxel grids the last shadows phase built (`voxelGridShadows.ts`), for the passes that read them. */
+  voxelGrids?: VoxelGrids
+  /** The maps of the lights the last image built (packed by `packShadowMaps`). */
+  maps: HeterogeneousShadowMap[]
+  /** The maps of the lights packed in one buffer for the passes that apply the lights (`beerShadowMapPack.ts`), none where there is none. */
+  packedMaps?: GPUBuffer
+  pack?: PackResources
+}
+
+/** The views' states, by the view's key (`viewKey`), and the scenes', by the runtime. */
 export const states = new WeakMap<object, State>()
+const scenes = new WeakMap<WebgpuPagesRuntime, SceneState>()
+
+/** The scene's part of the volumes' state, made at the first ask and again where the device changed (the old one destroyed at once). */
+export const sceneOf = (rt: WebgpuPagesRuntime, device: GPUDevice) => {
+  let scene = scenes.get(rt)
+  if (scene && scene.device !== device) {
+    const old = scene
+    old.closed = true
+    // The device was replaced: no command naming the old part will be submitted, so it goes at once.
+    releaseScene(old)
+    scene = undefined
+  }
+  if (!scene)
+    scenes.set(
+      rt,
+      (scene = {
+        owner: rt,
+        device,
+        holders: new Set(),
+        programs: new Map(),
+        failed: false,
+        closed: false,
+        uploads: new Map(),
+        standBeerOut: new Map(),
+        frames: new Map(),
+        lastClock: 0,
+      }),
+    )
+  return scene
+}
 
 /** The buffer of the role `key`, `size` bytes, made at the first ask and again if its size changed. */
 export function bufferOf(
@@ -146,35 +205,80 @@ export function stepImage(
   return image
 }
 
+/** Lets go of what a view held of the volumes. */
 export function release(held: State) {
   for (const buffer of held.buffers.values()) buffer.destroy()
   for (const image of held.steps.values()) image.destroy()
   held.buffers.clear()
   held.steps.clear()
-  for (const upload of held.uploads.values()) upload.gpu.destroy()
   for (const cache of held.caches.values()) cache.destroy()
   held.targets?.images.forEach((image) => image.destroy())
-  held.stand?.destroy()
-  held.standOut?.destroy()
-  held.standPages?.destroy()
-  held.standBeer?.destroy()
-  held.standBeerOut?.destroy()
-  held.standVelocity?.destroy()
   held.camera?.texture.destroy()
   held.camera = undefined
   held.maps = []
   held.packedMaps = undefined
   held.voxelGrids = undefined
-  held.uploads.clear()
   held.caches.clear()
-  held.targets = held.stand = held.standOut = held.standPages = undefined
-  held.standBeer = held.standBeerOut = held.standVelocity = undefined
+  held.targets = undefined
+}
+
+/** Takes what the scene's part holds on the GPU (the frames uploaded and the stand-ins) out of it at once, to be destroyed later: the scene made again meanwhile uploads its own. */
+function detachGpu(scene: SceneState) {
+  const gone: { destroy(): void }[] = [
+    ...[...scene.uploads.values()].map((upload) => upload.gpu),
+    ...[scene.stand, scene.standOut, scene.standPages, scene.standBeer, scene.standVelocity].filter(
+      (texture) => !!texture,
+    ),
+    ...scene.standBeerOut.values(),
+  ]
+  scene.uploads.clear()
+  scene.stand = scene.standOut = scene.standPages = undefined
+  scene.standBeerOut.clear()
+  scene.standBeer = scene.standVelocity = undefined
+  return { destroy: () => gone.forEach((resource) => resource.destroy()) }
+}
+
+/** Lets go of what the scene's part held on the GPU: the frames uploaded and the stand-ins. */
+export const releaseScene = (scene: SceneState) => detachGpu(scene).destroy()
+
+/** Lets go of the scene's part a runtime kept past its last view, after `IDLE_KEEP_IMAGES` images without one (a short off period re-reads and recompiles nothing). */
+export function dropIdleScene(rt: WebgpuPagesRuntime) {
+  const scene = scenes.get(rt)
+  if (scene && !scene.holders.size && idleTooLong(rt.run.frame, scene.idleSince ?? 0)) {
+    scene.closed = true
+    scenes.delete(rt)
+  }
+}
+
+/** A view's volumes released with the view, retired with the frame that may still name them: the state it held and the maps its lights published (the scene's part stays for the other views; with the last, its GPU part goes, retired, and the rest stays `IDLE_KEEP_IMAGES` images).
+ *  `replaced`: the view's device was replaced, so nothing can still be in flight on it and everything goes at once. */
+export function releaseViewVolumes(gpu: { viewKey?: object }, replaced = false) {
+  const key = viewKey(gpu)
+  const found = states.get(key)
+  states.delete(key)
+  if (found) {
+    const { device, scene } = found
+    const gone = (resource: { destroy(): void }) => retire(device, resource, replaced)
+    gone({ destroy: () => release(found) })
+    scene.holders.delete(key)
+    if (!scene.holders.size) {
+      // The GPU part is taken out at once and retired (the commands that may name it are done after the submit); the parsed file and the programs stay for a short off period (`dropIdleScene`).
+      scene.idleSince = scene.owner.run.frame
+      gone(detachGpu(scene))
+    }
+  }
+  publishHeterogeneousCamera(gpu, undefined)
+  publishHeterogeneousShadowBuffer(gpu, undefined)
 }
 
 /** Lets go of the held resources whose role (their key) `drops` names: the buffers, the images and the cache textures a switched-off option left. */
 export function dropHeld(held: State, drops: (key: string) => boolean) {
   for (const group of [held.buffers, held.steps, held.caches] as Map<string, { destroy(): void }>[])
-    for (const [key, resource] of group) if (drops(key)) (resource.destroy(), group.delete(key))
+    for (const [key, resource] of group)
+      if (drops(key)) {
+        resource.destroy()
+        group.delete(key)
+      }
 }
 
 /** The volume's graph compiled for this pass, kept: none where it does not compile or reads what the pass cannot bind. */
@@ -206,7 +310,7 @@ export function programOf(
   variant: HvVariant = 'plain',
 ): Program {
   const key = `${compiled.key}:${beer}:${holdout}:${variant}`
-  let program = held.programs.get(key)
+  let program = held.scene.programs.get(key)
   if (program) return program
   const sparse = sparseSlotsOf(compiled).length
   // A graph that reads more sparse volumes than the stage may sample textures for gets a program with no pipeline: nothing is drawn.
@@ -222,14 +326,14 @@ export function programOf(
       ),
     )
     program = { compiled, variant, layout: device.createBindGroupLayout({ entries: [] }) }
-    held.programs.set(key, program)
+    held.scene.programs.set(key, program)
     return program
   }
   const layout = device.createBindGroupLayout({
     entries: liveShadingLayoutEntries(sparse, compiled.uses.textures, beer, holdout, variant),
   })
   program = { compiled, variant, layout }
-  held.programs.set(key, program)
+  held.scene.programs.set(key, program)
   const module = device.createShaderModule({
     label: 'Trillion3D heterogeneous volume',
     code: liveShadingProgram(compiled, beer, holdout, variant),
@@ -321,14 +425,14 @@ export function composeOf(
   device: GPUDevice,
   format: GPUTextureFormat,
 ) {
-  if (held.compose?.format === format) return held.compose
+  if (held.scene.compose?.format === format) return held.scene.compose
   const layouts = {
     layout: device.createBindGroupLayout({ entries: compositeLayoutEntries() }),
     holdoutLayout: device.createBindGroupLayout({ entries: holdoutLayoutEntries() }),
     beerLayout: device.createBindGroupLayout({ entries: compositeBeerLayoutEntries() }),
   }
-  const compose: NonNullable<State['compose']> = { ...layouts, format }
-  held.compose = compose
+  const compose: NonNullable<SceneState['compose']> = { ...layouts, format }
+  held.scene.compose = compose
   const module = device.createShaderModule({
     label: 'Trillion3D heterogeneous volume compose',
     code: compositeProgram(),
@@ -351,7 +455,7 @@ export function composeOf(
   return compose
 }
 
-/** The upload of frame `index` of the sparse volume of `entry`, held under `owner`: made at the first ask, the one before it let go. */
+/** The upload of frame `index` of the sparse volume of `entry`, held under `owner`: made at the first ask, the one before it retired (commands of this image may still name it). */
 export function uploadOf(
   held: State,
   device: GPUDevice,
@@ -361,56 +465,64 @@ export function uploadOf(
   index: number,
 ) {
   const key = `${owner}:${index}`
-  const found = held.uploads.get(owner)
-  if (found?.key === key) return found
-  found?.gpu.destroy()
+  const { uploads } = held.scene
+  const found = uploads.get(key)
+  if (found) return found
+  for (const [other, old] of uploads)
+    if (old.owner === owner) {
+      uploads.delete(other)
+      retire(device, old.gpu)
+    }
   const upload: Upload = {
+    owner,
     key,
     gpu: uploadSparseVolumeFrame(device, sparse.frame(entry, index), key),
     resolution: entry.resolution,
   }
-  held.uploads.set(owner, upload)
+  uploads.set(key, upload)
   return upload
 }
 /** The one-texel stand-ins bound where a pass does not use a resource: the sampler, the cache, the page table, the beer map and the velocity. */
 export function ensureStandIns(held: State, device: GPUDevice, beerFormat: GPUTextureFormat) {
-  held.sampler ??= device.createSampler({ magFilter: 'linear', minFilter: 'linear' })
-  held.stand ??= device.createTexture({
+  held.scene.sampler ??= device.createSampler({ magFilter: 'linear', minFilter: 'linear' })
+  held.scene.stand ??= device.createTexture({
     label: 'Trillion3D heterogeneous volume stand-in',
     dimension: '3d',
     size: [1, 1, 1],
     format: 'rgba16float',
     usage: GPUTextureUsage.TEXTURE_BINDING,
   })
-  held.standPages ??= device.createTexture({
+  held.scene.standPages ??= device.createTexture({
     label: 'Trillion3D heterogeneous volume stand-in pages',
     dimension: '3d',
     size: [1, 1, 1],
     format: 'r32uint',
     usage: GPUTextureUsage.TEXTURE_BINDING,
   })
-  held.standOut ??= device.createTexture({
+  held.scene.standOut ??= device.createTexture({
     label: 'Trillion3D heterogeneous volume stand-in out',
     dimension: '3d',
     size: [1, 1, 1],
     format: HV_FORMAT,
     usage: GPUTextureUsage.STORAGE_BINDING,
   })
-  if (held.standBeerOut && held.standBeerOut.format !== beerFormat)
-    (held.standBeerOut.destroy(), (held.standBeerOut = undefined))
-  held.standBeer ??= device.createTexture({
+  held.scene.standBeer ??= device.createTexture({
     label: 'Trillion3D heterogeneous volume stand-in beer map',
     size: [1, 1],
     format: 'rgba16float',
     usage: GPUTextureUsage.TEXTURE_BINDING,
   })
-  held.standBeerOut ??= device.createTexture({
-    label: 'Trillion3D heterogeneous volume stand-in beer map out',
-    size: [1, 1],
-    format: beerFormat,
-    usage: GPUTextureUsage.STORAGE_BINDING,
-  })
-  held.standVelocity ??= device.createTexture({
+  if (!held.scene.standBeerOut.has(beerFormat))
+    held.scene.standBeerOut.set(
+      beerFormat,
+      device.createTexture({
+        label: 'Trillion3D heterogeneous volume stand-in beer map out',
+        size: [1, 1],
+        format: beerFormat,
+        usage: GPUTextureUsage.STORAGE_BINDING,
+      }),
+    )
+  held.scene.standVelocity ??= device.createTexture({
     label: 'Trillion3D heterogeneous volume stand-in velocity',
     size: [1, 1],
     format: VECTOR_FORMAT,
@@ -431,12 +543,12 @@ export function placementOf(
   const shown = advanceHeterogeneousVolumeFrame(
     {
       ...volume,
-      frame: volume.playing ? (held.frames.get(volume.id) ?? volume.frame) : volume.frame,
+      frame: volume.playing ? (held.scene.frames.get(volume.id) ?? volume.frame) : volume.frame,
     },
     frameCount,
     dt,
   )
-  held.frames.set(volume.id, shown)
+  held.scene.frames.set(volume.id, shown)
   const index = Math.min(Math.floor(shown), frameCount - 1)
   // The volume's voxels to the world: the frame's own transform, then the object's.
   const toWorld = new Float64Array(16)

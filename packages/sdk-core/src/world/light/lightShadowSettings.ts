@@ -31,6 +31,10 @@ declare module './light.ts' {
     /** Directional only: where that cascade ends, in metres, scaled by the view's
      *  `distanceFieldDistanceScale`; 512. */
     distanceFieldShadowDistance: number
+    /** Directional only: how far, in metres, a ray of that cascade goes toward the light; 100. */
+    distanceFieldShadowTraceDistance: number
+    /** Directional only: the share of a pixel's depth a ray of that cascade starts off the surface by, over a fixed 2 cm; 0.003. */
+    distanceFieldShadowRayStartOffsetDepthScale: number
   }
 }
 

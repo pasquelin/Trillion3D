@@ -70,8 +70,8 @@ export function shadowSetup(
     })
   const stand: BeerBind = {
     uniform: bufferOf(held, device, 'beer map stand-in', HV_SHADOW_BYTES, GPUBufferUsage.UNIFORM),
-    previous: held.standBeer!.createView(),
-    out: held.standBeerOut!.createView(),
+    previous: held.scene.standBeer!.createView(),
+    out: held.scene.standBeerOut.get(beerFormat)!.createView(),
   }
   const jobOf = (rank: number) =>
     bufferOf(

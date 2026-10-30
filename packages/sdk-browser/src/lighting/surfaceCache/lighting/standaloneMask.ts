@@ -13,9 +13,11 @@ import {
   lightFunctionTextures,
   usableGraphStandalone,
   writeGraphSlot,
+  type GraphSlot,
 } from '../../lightFunction/graphSlot.ts'
 import { MAP_BINDINGS, MAP_SAMPLER_BINDING } from '../../lightFunction/mapBindings.ts'
-import { joinTexture, mapsOf } from '../../lightFunction/maps.ts'
+import { joinTexture, mapsOf, type LightFunctionMaps } from '../../lightFunction/maps.ts'
+import type { Material } from '../../../../../sdk-core/src/world/material/material.ts'
 import type { AtlasFormat } from '../../lightFunction/renderWgsl.ts'
 import { createKernel, type Kernel } from '../kernel.ts'
 import { shadowMaskLayoutEntries } from './kernels.ts'
@@ -121,6 +123,60 @@ function kernelOf(device: GPUDevice, format: AtlasFormat, program: StandaloneMas
   return kernel
 }
 
+/** The block of a light function material for the programs that evaluate it apart from the atlas: its graph's values (each texture at the slot of
+ *  `places`), else its colour and the slot of its map; none while a texture of the graph has no slot. */
+export function materialBlockOf(
+  rt: WebgpuPagesRuntime,
+  maps: LightFunctionMaps,
+  graph: GraphSlot | undefined,
+  material: Material,
+  places: readonly (number | undefined)[],
+) {
+  const block = new ArrayBuffer(graph?.bytes ?? 16)
+  if (graph)
+    return writeGraphSlot(graph, material, block, rt.run.graphClocks, maps.slotOf)
+      ? block
+      : undefined
+  new Float32Array(block, 0, 3).set(material.surface().emissive)
+  new Uint32Array(block, 12, 1)[0] = places[0] ?? 0
+  return block
+}
+
+/** A light function material ready to be drawn or evaluated: its program, the block of its material, the bind entries of the maps it reads
+ *  (none for a plain material), and whether its maps are read at the detail the slot shows. */
+export interface ReadyMaterial {
+  readonly program: StandaloneMaskProgram
+  readonly block: ArrayBuffer
+  readonly entries: GPUBindGroupEntry[]
+  readonly warm: boolean
+}
+
+/**
+ * The material of a light function, ready for the programs that evaluate it apart from the atlas, or none yet: `programReady` says whether
+ * the compiled program of the material is, and its textures are asked to join the colour atlas of the maps (and, once all are in, to be
+ * read at the detail a slot of `slotSize` texels shows, which `warm` reports).
+ */
+export function readyMaterial(
+  rt: WebgpuPagesRuntime,
+  material: Material,
+  programReady: (program: StandaloneMaskProgram) => boolean,
+  slotSize: number,
+): ReadyMaterial | undefined {
+  const maps = mapsOf(rt)
+  const graph = usableGraphStandalone(material)
+  const program: StandaloneMaskProgram = { graph, mapped: !graph && !!material.emissiveMap }
+  const places = lightFunctionTextures(material).map((texture) => maps.slotOf(texture))
+  const entries = standaloneMaskMapped(program) ? maps.entries() : []
+  if (!programReady(program) || places.includes(undefined) || !entries) {
+    for (const texture of lightFunctionTextures(material))
+      if (maps.slotOf(texture) === undefined) joinTexture(rt, texture)
+    return undefined
+  }
+  const warm = maps.warm(material, slotSize)
+  const block = materialBlockOf(rt, maps, graph, material, places)
+  return block && { program, block, entries, warm }
+}
+
 /** A light ready to be evaluated: its program's kernel, the bytes of its block and the block of its material. */
 export interface ReadyLight {
   readonly light: StandaloneLight
@@ -159,34 +215,27 @@ export function readyStandalone(
   format: AtlasFormat,
   slotSize: number,
 ): { ready: ReadyLight[]; pending: boolean } {
-  const maps = mapsOf(rt)
   const ready: ReadyLight[] = []
   let pending = false
   for (const light of standaloneLightFunctions(rt)) {
-    const { material } = light
-    const graph = usableGraphStandalone(material)
-    const program: StandaloneMaskProgram = { graph, mapped: !graph && !!material.emissiveMap }
-    const kernel = kernelOf(device, format, program)
-    const places = lightFunctionTextures(material).map((texture) => maps.slotOf(texture))
-    const mapped = standaloneMaskMapped(program)
-    if (!kernel.ready || places.includes(undefined) || (mapped && !maps.entries())) {
-      for (const texture of lightFunctionTextures(material))
-        if (maps.slotOf(texture) === undefined) joinTexture(rt, texture)
+    const material = readyMaterial(
+      rt,
+      light.material,
+      (p) => kernelOf(device, format, p).ready,
+      slotSize,
+    )
+    if (!material) {
       pending = true
       continue
     }
-    if (!maps.warm(material, slotSize)) pending = true
-    const block = new ArrayBuffer(graph?.bytes ?? 16)
-    if (graph) {
-      if (!writeGraphSlot(graph, material, block, rt.run.graphClocks, maps.slotOf)) {
-        pending = true
-        continue
-      }
-    } else {
-      new Float32Array(block, 0, 3).set(material.surface().emissive)
-      new Uint32Array(block, 12, 1)[0] = (places[0] as number | undefined) ?? 0
-    }
-    ready.push({ light, kernel, mapped, bytes: standaloneMaskBytes(program), material: block })
+    if (!material.warm) pending = true
+    ready.push({
+      light,
+      kernel: kernelOf(device, format, material.program),
+      mapped: standaloneMaskMapped(material.program),
+      bytes: standaloneMaskBytes(material.program),
+      material: material.block,
+    })
   }
   return { ready, pending }
 }

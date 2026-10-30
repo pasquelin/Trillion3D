@@ -107,7 +107,7 @@ function drawCompose(
       layout: pass.beer ? compose.beerLayout : compose.layout,
       entries: [
         { binding: HV_BINDING.view, resource: { buffer } },
-        { binding: HV_BINDING.sampler, resource: held.sampler! },
+        { binding: HV_BINDING.sampler, resource: held.scene.sampler! },
         { binding: HV_BINDING.composeIn, resource: pass.from.createView() },
         ...(pass.beer
           ? [

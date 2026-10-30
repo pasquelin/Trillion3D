@@ -55,6 +55,10 @@ export const FOG_BINDING = {
   voxelEmitIn: 27,
   /** The light functions' atlas and its table (`lightFunctionReadWgsl`), read by the scatter. */
   lightFunction: 28,
+  /** The sun's light function drawn for the fog alone (`sunFunction/`): its texture and its view block, read by the scatter's sun
+   *  where the atlas does not hold its function. */
+  sunFunction: 130,
+  sunFunctionView: 131,
   /** The clouds' shade (`cloudShadowReadWgsl`): its block and the maps of the air's two lights, read
    *  by the scatter's sun through the volumes' sampler. */
   cloudShadow: 29,
@@ -116,6 +120,8 @@ const SCATTER_BINDINGS = {
   voxelIn: true,
   voxelEmitIn: true,
   lightFunction: true,
+  sunFunction: true,
+  sunFunctionView: true,
   cloudShadow: true,
   cloudShadowMap0: true,
   cloudShadowMap1: true,

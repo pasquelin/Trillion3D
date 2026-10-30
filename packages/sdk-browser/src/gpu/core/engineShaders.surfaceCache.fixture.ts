@@ -51,6 +51,7 @@ import { TILE_DEPTH_RANGE_WGSL } from '../../lighting/surfaceCache/lighting/tile
 import { directProgramOf } from '../../lighting/surfaceCache/lighting/directWgsl.ts'
 import {
   FIELD_SHADOW_COLOURED_WGSL,
+  fieldShadowProgramOf,
   FIELD_SHADOW_MESH_COLOURED_WGSL,
   FIELD_SHADOW_MESH_WGSL,
   FIELD_SHADOW_WGSL,

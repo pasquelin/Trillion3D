@@ -95,6 +95,8 @@ export function scatter(
     translucencyGi?: NonNullable<Parameters<typeof image>[3]>['translucencyGi']
     giTexels?: [number[], number[]]
     giTaps?: number[][]
+    /** The lights (a bit a rank, 32 ranks a word) whose ray traced shadow the volume holds, and the words of the cell as they read: a bit set where the ray reached the light (the volume holds the blocked ones). A number is the first word. */
+    traced?: { lights: number | number[]; seen: number | number[] }
   } = {},
 ) {
   const { lights = [], density = 0.1, falloff = 0 } = world
@@ -102,6 +104,8 @@ export function scatter(
   const cam = world.camera ?? (world.drawn ? camera(EYE, ...world.drawn) : CAM)
   const before = world.previousEye ? camera(world.previousEye, ...(world.drawn ?? [160, 90])) : cam
   const previous = world.before ? previousOf(before) : undefined
+  const heldWords = [world.traced?.lights ?? 0].flat()
+  const seenWords = [world.traced?.seen ?? 0xffffffff].flat()
   const img = image(
     cam,
     world.volumetric ?? true,
@@ -155,6 +159,8 @@ export function scatter(
     // No clouds' shade over the sun.
     cloudShadowOnSurface: () => 1,
     lightFunctionFogLocalOf: () => [1, 1, 1],
+    // Nor does the sun (`sunFunction/readWgsl.ts` has its own proofs).
+    fogSunFunctionOf: () => [1, 1, 1],
     textureSampleLevel: (texture: unknown, _s: unknown, uvw: number[]) =>
       texture === giVolume
         ? (world.giTaps?.push(uvw), [...world.giTexels![uvw[2] < 0.5 ? 0 : 1], 0])

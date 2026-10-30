@@ -42,6 +42,12 @@ import {
  * - `distanceFieldShadowSnapResolution` (2048, at least 32): the texels across the shadow
  *   space, less 4 on each side, whose grid the space's origin is snapped to (4 texels a step), so
  *   that the tile grid moves in steps with the camera.
+ *
+ * The cascade is traced on the view only while the shadows are classic (`shadowVirtualEnable` off): the pass is the reference's, a ray from each pixel
+ * toward the sun through the meshes listed by tile, at half the image's size and upsampled with the depth as the weight, laid into the sun's mask by the minimum.
+ * - `distanceFieldShadowFullResolution` (off): whether the cascade is traced at the image's size, else at half of it (`r.DFFullResolution`);
+ * - `distanceFieldFarTransitionScale` (1, from 0 to 1): the factor on the length of the cascade's far fade (`r.DFFarTransitionScale`);
+ * The distance a ray goes toward the sun and the share of a pixel's depth it starts off the surface by are the light's own (`lightShadowOptions.ts`).
  */
 export const SUN_SHADOW_RULES = /* @__PURE__ */ (() =>
   [
@@ -55,4 +61,6 @@ export const SUN_SHADOW_RULES = /* @__PURE__ */ (() =>
     count('distanceFieldShadowObjectsPerTile', 128, 1),
     flag('distanceFieldShadowCompactTiles', true),
     integer('distanceFieldShadowSnapResolution', 2048, [32, INT32_MAX]),
+    flag('distanceFieldShadowFullResolution', false),
+    number('distanceFieldFarTransitionScale', 1, [0, 1]),
   ] as const)()

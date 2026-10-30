@@ -73,6 +73,8 @@ const ENTRY: Record<
   voxelIn: computeTextureEntry(FOG_BINDING.voxelIn, 'float', '3d'),
   voxelEmitIn: computeTextureEntry(FOG_BINDING.voxelEmitIn, 'float', '3d'),
   lightFunction: lightFunctionLayoutEntry(FOG_BINDING.lightFunction),
+  sunFunction: computeTextureEntry(FOG_BINDING.sunFunction, 'float'),
+  sunFunctionView: computeUniformEntry(FOG_BINDING.sunFunctionView),
   cloudShadow: computeUniformEntry(FOG_BINDING.cloudShadow),
   cloudShadowMap0: computeTextureEntry(FOG_BINDING.cloudShadowMap0, 'float'),
   cloudShadowMap1: computeTextureEntry(FOG_BINDING.cloudShadowMap1, 'float'),

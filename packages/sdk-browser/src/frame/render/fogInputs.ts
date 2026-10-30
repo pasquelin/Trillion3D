@@ -8,6 +8,7 @@ import type { FogVolumeInputs, Scratch } from '../../lighting/fog/gpu.ts'
 import { fillFogStaticLight } from '../../lighting/fog/staticFrame.ts'
 import { newFogStaticLight } from '../../lighting/fog/staticLight.ts'
 import { lightFunctionResources } from '../../lighting/lightFunction/frame.ts'
+import { sunFogResources } from '../../lighting/fog/sunFunction/frame.ts'
 import { rectAtlasStandIn } from '../../lighting/rectLightAtlas/bindings.ts'
 import { rectAtlasResources } from '../../lighting/rectLightAtlas/frame.ts'
 import { opaquePyramidOf } from '../../lighting/reflections/frame.ts'
@@ -56,6 +57,7 @@ const inputs: Scratch<FogVolumeInputs> = {
   frameIndex: 0,
   preExposure: 1,
   exposure: 1,
+  lightingOnly: false,
   allocated: [0, 0],
   depth: undefined,
   hiz: undefined,
@@ -68,6 +70,7 @@ const inputs: Scratch<FogVolumeInputs> = {
   localTiles: undefined,
   cubemap: undefined,
   lightFunction: undefined,
+  sunFunction: undefined,
   rectAtlas: undefined,
   cloudShadow: undefined,
   sky: undefined,
@@ -149,6 +152,7 @@ export function fogInputsOf(
   inputs.volumes = rt.context.sceneVolumes
   inputs.graphMaps = rt.context.sceneVolumes?.count ? fogGraphMaps(rt) : undefined
   inputs.graphClocks = rt.run.graphClocks
+  inputs.lightingOnly = rt.run.diagnostic === 'lighting'
   inputs.lights = buffer
   inputs.tiles = contract.tiles ?? placeholders.tiles
   inputs.localTiles = (fogReadOf(rt) ?? placeholders.fog).tiles
@@ -165,6 +169,7 @@ export function fogInputsOf(
   inputs.exposure = pre.exposure
   inputs.lightFunction =
     lightFunctionResources(rt, 'lightFunctionFog') ?? placeholders.lightFunction
+  inputs.sunFunction = sunFogResources(rt, device)
   inputs.rectAtlas = rectAtlasResources(rt) ?? rectAtlasStandIn(device)
   inputs.cloudShadow = cloudShadowOf(rt) ?? cloudShadowStandIn(device)
   inputs.sky = skyLightReadOf(rt)
@@ -186,6 +191,7 @@ export function clearFogInputs() {
     inputs.cubemap =
     inputs.field =
     inputs.lightFunction =
+    inputs.sunFunction =
     inputs.rectAtlas =
     inputs.cloudShadow =
     inputs.sky =

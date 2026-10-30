@@ -39,7 +39,6 @@ import { transparentCounts } from '../backend/state/transparentCounts.ts'
 import { destroyAllRetired, destroyRetired } from '../../gpu/core/frameRetire.ts'
 import { bounceState } from '../backend/state/bounce.ts'
 import { viewTargetBytes } from '../backend/state/gpu.ts'
-import { releaseIndirectWords } from '../../lighting/bounce/screen/indirectWords.ts'
 import { releaseIrradianceField } from '../../lighting/bounce/irradianceField/cache.ts'
 import { releaseTranslucencyCache } from '../../lighting/translucencyGi/cache.ts'
 import { disposeDistanceFields } from '../../lighting/distanceField/frame.ts'
@@ -241,7 +240,6 @@ function disposeLighting(rt: WebgpuPagesRuntime) {
   rt.bounce.probes = undefined
   releaseTranslucencyCache(rt.bounce)
   releaseIrradianceField(rt.bounce)
-  releaseIndirectWords(gpu)
   rt.bounce.screen?.dispose()
   rt.bounce.screen = undefined
   rt.compose?.gpu?.dispose()

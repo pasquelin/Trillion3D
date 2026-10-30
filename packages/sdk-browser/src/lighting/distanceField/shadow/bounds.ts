@@ -95,6 +95,36 @@ export function boxBounds(
   return hullOfCorners(toLight, half * Math.sqrt(3) * CM)
 }
 
+/** The slice of a view's frustum between depths `near` and `far` (metres), seen from the eye along `forward`, `right` and `up` (unit) with the half-field tangents `tan`, and the sphere that holds it: the centre at depth `centre`, radius `radius` (metres). */
+export interface FrustumSlice {
+  readonly forward: ArrayLike<number>
+  readonly right: ArrayLike<number>
+  readonly up: ArrayLike<number>
+  readonly tan: readonly [number, number]
+  readonly near: number
+  readonly far: number
+  readonly centre: number
+  readonly radius: number
+}
+
+/**
+ * The bounds of a slice of the view's frustum (positions from the eye), for the light shining from `toLight`: the hull of the slice and of the space it
+ * sweeps toward the light, in the cube's order of corners (the slice's near corners first), the sphere that holds it (`FrustumSlice`).
+ */
+export function sliceBounds(slice: FrustumSlice, toLight: readonly number[]): VolumeBounds {
+  const { forward, right, up, tan, near, far } = slice
+  for (let corner = 0; corner < 8; corner++) {
+    const sx = CORNER_SIGNS[2 * (corner % 4)],
+      sy = CORNER_SIGNS[2 * (corner % 4) + 1]
+    const depth = corner < 4 ? near : far
+    for (let k = 0; k < 3; k++)
+      CORNERS[corner][k] =
+        forward[k] * depth + right[k] * sx * depth * tan[0] + up[k] * sy * depth * tan[1]
+  }
+  for (let k = 0; k < 3; k++) SPHERE[k] = forward[k] * slice.centre
+  return hullOfCorners(toLight, slice.radius * CM)
+}
+
 /** The hull of the eight `CORNERS` (a cube's) and what they sweep toward the light, the bounding sphere `SPHERE` of radius `radius` (centimetres). */
 function hullOfCorners(toLight: readonly number[], radius: number): VolumeBounds {
   for (let k = 0; k < 3; k++) {

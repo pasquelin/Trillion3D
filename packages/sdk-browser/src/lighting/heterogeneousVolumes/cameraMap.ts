@@ -1,3 +1,7 @@
+import { viewPublished } from '../../frame/backend/state/viewPublished.ts'
+import { oncePerDevice } from '../../gpu/core/oncePerDevice.ts'
+import { standInTexture } from '../../gpu/core/standIns.ts'
+
 /**
  * THE BEER MAP OF THE CAMERA, as the translucent layers read it (`cameraReadWgsl.ts`): the image of the volumes composited with the
  * translucency makes, one image, a map of where the rays of the camera meet extinction and the radiance the volumes lay on them,
@@ -11,32 +15,17 @@ export interface CameraMap {
   readonly factor: number
 }
 
-const published = new WeakMap<object, CameraMap>()
+const published = viewPublished<CameraMap>()
 
 /** The map the last image of `gpu` made, none where it made none. */
-export const heterogeneousCameraOf = (gpu: object): CameraMap | undefined => published.get(gpu)
+export const heterogeneousCameraOf = published.of
 
 /** Gives the map of the image being drawn, or none (`undefined`). */
-export function publishHeterogeneousCamera(gpu: object, map: CameraMap | undefined) {
-  if (map) published.set(gpu, map)
-  else published.delete(gpu)
-}
-
-const stands = new WeakMap<GPUDevice, GPUTextureView>()
+export const publishHeterogeneousCamera = published.publish
 
 /** The one-texel two-layer array a pass that reads no map binds. */
-export function cameraStandIn(device: GPUDevice) {
-  let view = stands.get(device)
-  if (!view) {
-    view = device
-      .createTexture({
-        label: 'Trillion3D heterogeneous volume camera map stand-in',
-        size: [1, 1, 2],
-        format: 'rgba16float',
-        usage: GPUTextureUsage.TEXTURE_BINDING,
-      })
-      .createView({ dimension: '2d-array' })
-    stands.set(device, view)
-  }
-  return view
-}
+export const cameraStandIn = oncePerDevice((device: GPUDevice) =>
+  standInTexture(device, 'Trillion3D heterogeneous volume camera map stand-in', 'rgba16float', {
+    layers: 2,
+  }).createView({ dimension: '2d-array' }),
+)

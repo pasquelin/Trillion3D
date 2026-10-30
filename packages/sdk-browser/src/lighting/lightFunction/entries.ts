@@ -33,6 +33,13 @@ function axesOf(light: SceneLight) {
   normalizeVector3(up)
 }
 
+/** The unit axes of `light` as fresh vectors: the one it shines along, its right and its up (`axesOf`). */
+export function lightAxesOf(light: SceneLight) {
+  axesOf(light)
+  const copy = (v: number[]): [number, number, number] => [v[0]!, v[1]!, v[2]!]
+  return { forward: copy(forward), right: copy(right), up: copy(up) }
+}
+
 /** The tangent of the cone `light`'s function is projected through, negative for none: a spot's own
  *  cone; a rectangle's light function cone when it has one. */
 function coneTangentOf(light: SceneLight) {

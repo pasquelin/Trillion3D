@@ -21,12 +21,9 @@ function attachments(kind: TimedPass['kind'], descriptor: unknown) {
 /** The pass timer of one device; `quiet` runs the bench's own commands uncounted. */
 export function createPassTimer(quiet: <T>(work: () => T) => T) {
   let device: GPUDevice | null = null,
-    set: GPUQuerySet | null = null,
-    resolved: GPUBuffer | null = null,
-    open = false,
-    slot = 0,
-    engineTimed = false
-  const passes: ({ label: string; kind: TimedPass['kind']; at: number } & PassWork)[] = []
+    ring: Window[] = [],
+    next = 0,
+    current: Window | null = null
   /** The pass encoders being tallied, by the record of the pass they run. */
   const records = new WeakMap<object, PassWork>()
   const labels = new WeakMap<object, string>()

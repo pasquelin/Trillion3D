@@ -96,7 +96,7 @@ const frameOf = (rt: Rt, device: GPUDevice) =>
 export type StandaloneLight = WearingLight
 
 /** The lights that wear a light function, in slot order, with their materials (`lightsWearing`). */
-const wearing = (rt: Rt) => lightsWearing(rt.lights.store, lightFunctionMaterialOf)
+export const wearing = (rt: Rt) => lightsWearing(rt.lights.store, lightFunctionMaterialOf)
 
 /** The version of each material whose graph's refusal was named, so that it is named once. */
 const named = new WeakMap<object, number>()

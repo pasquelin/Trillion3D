@@ -4,6 +4,7 @@ import {
   flagSetting as flag,
   integerSetting as integer,
   INT32_RANGE,
+  positiveSetting as positive,
   rulesOf,
   type SettingOptions,
   type SettingValues,
@@ -38,7 +39,9 @@ const LIGHT_FUNCTION_SIZE_RANGE = [2, 16] as const
  *  from 2 to 16, so 16 materials at the default —; `lightFunctionMaxLights` (−1, no limit) — the most
  *  lights that read the atlas; a light past it has no light function —; `lightFunctionFormat`
  *  (`'grey'`); `lightFunctionDeferred` (on) — the opaque lighting and the translucency volume's injection read the atlas —;
- *  `lightFunctionFog` (on) — the volumetric fog's local lights read it, its sun's always does —;
+ *  `lightFunctionFog` (on) — the volumetric fog's lights read it; the sun's, where the atlas holds no slot of it (the setting off,
+ *  the atlas not made, a limit that left it out), is drawn into a texture of the fog's own —;
+ *  `lightFunctionFogSupersample` (2) — the side of that texture over the volume's cells along the sun's most facing axis —;
  *  `lightFunctionBounce` (on) — the bounce's lights (the probes' rays, the screen probes' scene
  *  traces) read it —; `lightFunctionTranslucent` (off) — the translucent layers read it. */
 export const LIGHT_FUNCTION_RULES = /* @__PURE__ */ (() =>
@@ -50,6 +53,7 @@ export const LIGHT_FUNCTION_RULES = /* @__PURE__ */ (() =>
     choice('lightFunctionFormat', 'grey', LIGHT_FUNCTION_FORMATS),
     flag('lightFunctionDeferred', true),
     flag('lightFunctionFog', true),
+    positive('lightFunctionFogSupersample', 2),
     flag('lightFunctionBounce', true),
     flag('lightFunctionTranslucent', false),
   ] as const))()

@@ -8,13 +8,14 @@ import { disposeLightShafts } from '../../../modules/sky/lightShafts/frame.ts'
 import { disposeCloudView } from '../../../modules/sky/clouds/viewTargets.ts'
 import { disposeHairView } from '../../../hair/frame.ts'
 import { releaseSampledLightsView } from '../../../lighting/manyLightsSampled/release.ts'
+import { releaseViewVolumes } from '../../../lighting/heterogeneousVolumes/liveShadingState.ts'
 import { releaseFirstPersonSelfShadow } from '../../../lighting/shadows/firstPerson/selfShadow.ts'
 import { releaseScreenSpaceTracing } from '../../../lighting/screenSpaceTracing/stage.ts'
 import { releaseShadowDenoise } from '../../../lighting/shadows/denoise/shadowDenoiseFrame.ts'
 import { releaseRayTracedLocal } from '../../../lighting/shadows/rayTraced/rayTracedLocal.ts'
-import { releaseLightGrid } from '../../../lighting/rays/lightGrid/lightGridFrame.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import { viewKey } from './viewKey.ts'
+import { disposeViewStates } from './viewState.ts'
 import {
   VIEW_GPU_KEYS,
   VIEW_RUN_KEYS,
@@ -88,11 +89,12 @@ export function disposeViewPasses(gpu: WebgpuView['gpu']) {
   gpu.finish = gpu.effects = gpu.screenProbes = gpu.ambientOcclusion = gpu.subsurface = undefined
   // What the commands of this image already encoded may still name is retired, never destroyed at once, on the device each state holds.
   releaseScreenSpaceTracing(gpu)
-  // What the sampled lighting kept for the view (its light power and previous ranks, its kits' state, its volumes) is retired, never destroyed at once.
   releaseSampledLightsView(gpu)
+  releaseViewVolumes(gpu)
+  // The states the stages keep by view (`viewState`) go, each by its own disposer.
+  disposeViewStates(gpu)
   releaseShadowDenoise(gpu)
   releaseRayTracedLocal(gpu)
-  releaseLightGrid(gpu)
   releaseFirstPersonSelfShadow(gpu)
   disposeFogVolume(gpu)
   disposeTranslucencyVolume(gpu)

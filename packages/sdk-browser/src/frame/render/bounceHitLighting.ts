@@ -8,6 +8,7 @@ import type { CacheHitLighting } from '../../lighting/bounce/cache/cacheHitLit.t
 import { lightFunctionResources } from '../../lighting/lightFunction/frame.ts'
 import { lightProfileResources } from '../../lighting/lightProfile/frame.ts'
 import { lightProfileStandIn } from '../../lighting/lightProfile/profileStandIn.ts'
+import { preExposureOf } from '../../post/exposure/pre.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { viewKey } from '../backend/state/viewKey.ts'
 
@@ -31,11 +32,12 @@ function resolve(rt: WebgpuPagesRuntime, mine: Held): CacheHitLighting | undefin
     waterFrontOf(rt),
   ).hit
   mine.decided = !!settings && !!deferred && !!device
-  if (!settings || !deferred || !device || !hitLightingProbesRun(settings)) return undefined
+  if (!reflection || !settings || !deferred || !device || !hitLightingProbesRun(settings))
+    return undefined
   const lightFunction =
     lightFunctionResources(rt, 'lightFunctionBounce') ?? deferred.placeholders.lightFunction
   const lightProfile = lightProfileResources(rt) ?? lightProfileStandIn(device)
-  const exposure = reflection?.frame.exposure ?? 1
+  const exposure = preExposureOf(rt).exposure
   // The view's one light grid, prepared here once an image whoever asks (the reflections' hit lighting prepares the same one).
   const lightGrid = lightGridOf(rt.gpu, device)
   const lightGridView = lightGrid.prepare(rt.lights.store, settings.lightGrid, rt.run.frame)
@@ -57,7 +59,7 @@ function resolve(rt: WebgpuPagesRuntime, mine: Held): CacheHitLighting | undefin
 }
 
 /**
- * WHAT THE RADIANCE CACHE'S HIT LIGHTING NEEDS OF THIS IMAGE (`hardwareRayTracingLightingMode: 'hitLighting'`, the settings of the reflections' family): the settings, the light functions' atlas and the light profiles', as the bounce's lights read them (`lightFunctionBounce`), and the exposure of the view as the CPU knows it (`ReflectionFrame.exposure`, the view's `preExposureOf` of this image), not the GPU's uniform every view shares.
+ * WHAT THE RADIANCE CACHE'S HIT LIGHTING NEEDS OF THIS IMAGE (`hardwareRayTracingLightingMode: 'hitLighting'`, the settings of the reflections' family): the settings, the light functions' atlas and the light profiles', as the bounce's lights read them (`lightFunctionBounce`), and the exposure of the view as the CPU knows it (`preExposureOf`), not the GPU's uniform every view shares.
  * Checked first, so that an image where the settings do not light the probes' hits builds nothing: none then. Resolved once an image for a view, whoever asks (the screen probes, the cache's queue).
  */
 export function bounceHitLightingOf(rt: WebgpuPagesRuntime): CacheHitLighting | undefined {

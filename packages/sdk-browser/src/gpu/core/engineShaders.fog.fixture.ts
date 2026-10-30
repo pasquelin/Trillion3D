@@ -6,6 +6,13 @@ import { blendShader } from '../../blend/shader.ts'
 import { transmitWgsl } from '../../blend/transmission/transmitWgsl.ts'
 import { airShapeOf } from '../../lighting/atmosphere/shape.ts'
 import { heightFogWgsl } from '../../lighting/fog/fogPassWgsl.ts'
+import {
+  SEPARATE_BLUR_CODE,
+  separateComposeWgsl,
+  separateUpsampleWgsl,
+} from '../../lighting/fog/separateWgsl.ts'
+import { NO_SCENE_MASKS } from '../../lighting/rays/sceneTrace/sceneMaskPrograms.ts'
+import { fogTemporalWgsl } from '../../lighting/fog/separateTemporalWgsl.ts'
 import { composeProgram } from '../../modules/sky/clouds/composeWgsl.ts'
 import { cloudTraceProgram } from '../../modules/sky/clouds/traceWgsl.ts'
 import { material } from '../../../../sdk-core/src/world/material/index.ts'
@@ -22,6 +29,8 @@ import {
   LOCAL_SKY_PROGRAM,
 } from '../../lighting/fog/localPrograms.ts'
 import { voxelGraphSet } from '../../lighting/fog/voxelGraph.ts'
+import { sunFogRenderWgsl } from '../../lighting/fog/sunFunction/renderWgsl.ts'
+import { usableGraphStandalone } from '../../lighting/lightFunction/graphSlot.ts'
 
 /** The voxelisation of fog objects that wear a graph: a density from a parameter and the time, and one
  *  that reads a texture at the cell's position. */
@@ -41,7 +50,19 @@ function fogGraphShader(textured: boolean) {
   return fogGraphProgram(set)
 }
 
-/** The texts of the fog's passes: the volume's (`../../lighting/fog/`), the voxelisation of the objects
+/** The sun's light function drawn for the fog from a graph: a panned texture, or the sine of the time on a colour. */
+function sunFogGraphShader(textured: boolean) {
+  const g = material.graph('lightFunction')
+  const colour = textured
+    ? g.channel(g.textureSample(new Texture(), { uv: g.panner({ speed: [0.05, 0] }) }), 'rgb')
+    : g.constant(1, 0.5, 0.25)
+  g.output('emissive', g.multiply(colour, g.sine(g.time(), 2)))
+  const graph = usableGraphStandalone(material.lightFunction({ graph: g }))
+  if (!graph) throw new Error('the sun light function fixture does not compile')
+  return sunFogRenderWgsl({ graph, mapped: false })
+}
+
+/** The texts of the fog's passes: the volume's (`../../lighting/fog/`), the pass that traces the lights' shadows, the voxelisation of the objects
  *  that wear a graph, and the local fog volumes' — the sky light's term written into the light buffer,
  *  the culling by tile with and without the depth pyramid (`../../lighting/fog/localPrograms.ts`). */
 export const FOG_SHADERS = {
@@ -51,6 +72,11 @@ export const FOG_SHADERS = {
   // The sky scatters with the global field's coarse mip read through the hardware's filter (`float32-filterable`).
   FOG_SCATTERSKY_FILTERED_MIP: fogProgramsFor(true, true).scatterSky,
   FOG_SCATTERSKYSAMPLED_FILTERED_MIP: fogProgramsFor(true, true).scatterSkySampled,
+  FOG_TRACED: fogTracedProgram(NO_SCENE_MASKS),
+  FOG_SUN_FUNCTION_PLAIN: sunFogRenderWgsl({ mapped: false }),
+  FOG_SUN_FUNCTION_MAPPED: sunFogRenderWgsl({ mapped: true }),
+  FOG_SUN_FUNCTION_GRAPH: sunFogGraphShader(false),
+  FOG_SUN_FUNCTION_GRAPH_TEXTURED: sunFogGraphShader(true),
   FOG_VOXELIZE_GRAPH: fogGraphShader(false),
   FOG_VOXELIZE_GRAPH_TEXTURED: fogGraphShader(true),
   FOG_LOCAL_SKY: LOCAL_SKY_PROGRAM,
@@ -93,6 +119,7 @@ function noLocalAir() {
         skyLight: false,
         volumeShadowMap: false,
         closestDepth: false,
+        debugView: 0,
       },
       shape,
     ),

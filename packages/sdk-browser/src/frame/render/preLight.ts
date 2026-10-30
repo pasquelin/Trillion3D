@@ -19,6 +19,7 @@ import { cachedLightingPreExposureOf } from '../../post/exposure/frame.ts'
 import { placeScreenProbes, traceScreenProbes } from '../../lighting/bounce/screen/frame.ts'
 import { encodeAmbientOcclusion } from '../../lighting/ao/frame.ts'
 import { encodeFogVolume, fogVolumeMedium } from './encodeFogVolume.ts'
+import { encodeSunFogFunction } from '../../lighting/fog/sunFunction/frame.ts'
 import { encodeSampledVolume } from '../../lighting/manyLightsSampled/volumeFrame.ts'
 import { directTiles } from './encodeLights.ts'
 import { preExposureOf } from '../../post/exposure/pre.ts'
@@ -89,12 +90,14 @@ export function encodePreLight(
   // of the see-through surfaces (`encodeTranslucencyGi`; its cells take that volume's light): the resolve, the blends and the sky read it.
   // The sampled lighting of the volumes (the fog's, shared by the translucency volume where it holds), before the fog is built and apart from it.
   const volumeCells = directTiles()
-  encodeSampledVolume(rt, device, encoder, cam, fogVolumeMedium(rt), {
+  const medium = fogVolumeMedium(rt)
+  encodeSampledVolume(rt, device, encoder, cam, medium, {
     lightCells: [volumeCells[1]!, volumeCells[2]!],
     preExposure: preExposureOf(rt).now,
     cloudShadow: cloudShadowOf(rt) ?? cloudShadowStandIn(device),
     lampSoftening: fogSettingsOf(rt).volumetricFogLampSoftening,
   })
+  encodeSunFogFunction(rt, device, encoder, cam, medium)
   encodeFogVolume(rt, device, compute.begin(encoder), cam, direct)
   compute.end()
   // The light shafts' occlusion, which the resolve multiplies the fog's inscattering by: its mask's slots are written into the
@@ -170,8 +173,8 @@ function encodeIndirectLight(
   encodeTranslucencyGi(rt, device, encoder, cam)
   // The reflections, traced after the probes: they read the vectors the probes made of this image, and the probes' light, which they take the place of past the rays.
   // Where the view's method is the screen's, the rays march the depth and read the last lit image, in the place of the scene's trace.
-  if (screenReflectionsAsked(rt, reflects(overrides), !!reflections))
-    encodeScreenSpaceReflections(rt, device, encoder, cam)
+  const screen = screenReflectionsAsked(rt, reflects(overrides), !!reflections)
+  if (screen) encodeScreenSpaceReflections(rt, device, encoder, cam)
   else traceReflections(rt, encoder, reflections)
   // The ambient occlusion, where no global illumination is on (or, asked, over the probes' light): from the depth pyramid
   // this image built, before the lighting, which applies the texture it leaves.

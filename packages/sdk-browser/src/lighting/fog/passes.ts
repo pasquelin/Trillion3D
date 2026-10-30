@@ -49,6 +49,8 @@ export interface FogPassInputs {
   cubemap?: GPUTextureView
   /** The light functions' atlas and its table, or the stand-in that answers none. */
   lightFunction: GPUTextureView
+  /** The sun's light function drawn for the fog alone and its view block, or the stand-in that says none is drawn (`sunFogResources`). */
+  sunFunction: { readonly view: GPUTextureView; readonly block: GPUBuffer }
   /** The rectangle lights' atlas and its sampler, or the stand-in that holds no picture. */
   rectAtlas: RectAtlasResources
   /** The shade the clouds cast on the sun, or the stand-in that casts none. */
@@ -149,6 +151,8 @@ function scatterEntries(context: FogPassContext, input: FogPassInputs, textures:
     shadowPool: { buffer: vsm.pool },
     shadowView: { buffer: vsm.view },
     lightFunction: input.lightFunction,
+    sunFunction: input.sunFunction.view,
+    sunFunctionView: { buffer: input.sunFunction.block },
     rectAtlas: input.rectAtlas.view,
     rectSampler: input.rectAtlas.sampler,
     cloudShadow: { buffer: input.cloudShadow.block },
@@ -289,6 +293,10 @@ function encodeScatter(
   next[26] = volume?.samplesRead
   next[27] = input.rectAtlas.view
   next[28] = input.rectAtlas.sampler
+  next[29] = context.traced ?? null
+  next[30] = context.resources.tracedHeld()
+  next[31] = input.sunFunction.view
+  next[32] = input.sunFunction.block
   pass.setPipeline(pipeline)
   pass.setBindGroup(
     0,

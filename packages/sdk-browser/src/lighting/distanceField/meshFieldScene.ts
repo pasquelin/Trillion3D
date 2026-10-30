@@ -60,6 +60,10 @@ type SceneParts = {
   streaming: ReturnType<typeof createStreaming>
   budget: ReturnType<typeof createBudget>
   group: ReturnType<typeof createSceneGroup>
+  /** How many frames changed what the passes read of the fields: a placement added, moved or gone, a mip's records or bricks written. */
+  revision: number
+  /** The placements the last frame had. */
+  placed: number
   /** The atlas on the GPU, made at the first frame. */
   gpu?: AtlasGpu
   /** The roots the last frame placed: the cut's, then the stand-ins of the HLOD cells' actors. */
@@ -92,6 +96,10 @@ function updateScene(
     settings.meshDistanceFieldSurfaceBiasExpand,
   )
   tracker.requeue(indices.slice(written))
+  // Only the placements actually written count: those requeued for a later frame (the buffers are full) change nothing the passes read yet.
+  if (written || step.records.length || step.added.length || count !== scene.placed)
+    scene.revision++
+  scene.placed = count
   const remade = scene.group.over(gpu)
   const { current: group } = scene.group
   const assets = atlas.assets.length
@@ -127,6 +135,8 @@ export function createMeshFieldScene(
     streaming: createStreaming(device, sceneLayout),
     budget: createBudget(),
     group: createSceneGroup(device, sceneLayout, objects),
+    revision: 0,
+    placed: 0,
   }
   const { tracker, streaming } = scene
   return {
@@ -147,6 +157,10 @@ export function createMeshFieldScene(
     /** How many times the resources the bindings name were made anew; 0 before the first image of the field. */
     get generation() {
       return scene.group.generation
+    },
+    /** How many frames changed the placements or the bricks the passes read (moves, appearances, streaming); 0 before the first. */
+    get revision() {
+      return scene.revision
     },
     /** The bind group entries of the scene's seven bindings from `first`, over the resources now:
      *  a pass with bindings of its own binds them beside its own, and makes its group again when `generation` moves. */

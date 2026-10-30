@@ -111,7 +111,7 @@ const SHADOW_MAP_DEFAULTS = {
   shadowFirstPersonRequestMinLevelClamp: 8,
   shadowSubsurfaceMinSourceAngle: 5,
   shadowOnePassProjection: true,
-  clusteredDeferredShading: true,
+  clusteredDeferredShading: false,
   shadowForcePerLightMaskClear: false,
   shadowOnePassProjectionMaxLightsPerPixel: 16,
   shadowAllowScreenOverflowMessages: true,
@@ -140,6 +140,7 @@ const SUN_SHADOW_DEFAULTS = {
   ...{ distanceFieldShadowTileSize: 2, distanceFieldShadowTwoSidedBias: 1 },
   ...{ distanceFieldShadowObjectsPerTile: 128, distanceFieldShadowCompactTiles: true },
   distanceFieldShadowSnapResolution: 2048,
+  ...{ distanceFieldShadowFullResolution: false, distanceFieldFarTransitionScale: 1 },
 }
 
 /** The view's contact shadow settings at their defaults: on, no override of the lights' own. */
@@ -224,6 +225,10 @@ test('the shadow settings read by their rules, a light’s own beside them', () 
     ...{ shadowDistance: 400, shadowCascades: 4, shadowCascadeExponent: 3 },
     ...{ shadowCascadeTransition: 0.1, farShadowCascades: 0, farShadowDistance: 3000 },
     ...{ distanceFieldShadows: true, distanceFieldShadowDistance: 512 },
+    ...{
+      distanceFieldShadowTraceDistance: 100,
+      distanceFieldShadowRayStartOffsetDepthScale: 0.003,
+    },
   })
   assert.equal(SHADOW_DISTANCE_DEFAULT, 400)
   assert.equal(resolveSetting(SHADOW_RULES.shadowDistanceScale, 2), 2)
@@ -240,6 +245,13 @@ test('the shadow settings read by their rules, a light’s own beside them', () 
   refuses('distanceFieldDistanceScale', 0, /from 0.0001 to 10000/)
   refuses('distanceFieldShadowQuality', 4, /from 0 to 3/)
   refuses('distanceFieldShadowTileSize', 0, /above 0/)
+  refuses('distanceFieldFarTransitionScale', 1.5, /from 0 to 1/)
+  assert.throws(
+    () => resolveLightShadow({ distanceFieldShadowTraceDistance: 0 }),
+    /above 0/,
+    'distanceFieldShadowTraceDistance',
+  )
+  refuses('distanceFieldShadowFullResolution', 'yes', /true or false/)
   refuses('shadowMaxFarCascades', -1, /at least 0/)
   refuses('distanceFieldShadowObjectsPerTile', 0, /at least 1/)
   refuses('distanceFieldShadowCompactTiles', 'yes', /true or false/)

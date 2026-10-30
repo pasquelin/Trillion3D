@@ -35,6 +35,17 @@ export const NO_LIGHT_FUNCTION_WGSL = wgslBlock(
   'fn lightFunctionOf(light:DirectLight,P:vec3f)->vec3f{return vec3f(1.0);}\nfn lightFunctionFogLocalOf(light:DirectLight,P:vec3f)->vec3f{return vec3f(1.0);}',
 )
 
+/** The numbers a program that reads a light function by its kind shares: pi, the table's entry size, the kind ranks. */
+export const LIGHT_FUNCTION_KINDS_WGSL = wgslBlock(
+  'LIGHT_FUNCTION_KINDS_WGSL',
+  [],
+  `const LF_PI:f32=3.14159265358979;
+const LF_ENTRY:u32=${ENTRY_VEC4S}u;
+const LF_POINT:u32=${KINDS.point}u;
+const LF_SPOT:u32=${KINDS.spot}u;
+const LF_RECT:u32=${KINDS.rect}u;`,
+)
+
 /** The atlas and the reads of its texels, bilinear, and of the table. */
 const lightFunctionAtlasText = (
   b: LightFunctionBindings,
@@ -42,11 +53,6 @@ const lightFunctionAtlasText = (
   b.storage ? 'texture_storage_2d<rgba32uint,read>' : 'texture_2d<u32>'
 };
 fn lightFunctionLoad(texel:vec2u)->vec4u{return textureLoad(lightFunctionAtlas,texel${b.storage ? '' : ',0'});}
-const LF_PI:f32=3.14159265358979;
-const LF_ENTRY:u32=${ENTRY_VEC4S}u;
-const LF_POINT:u32=${KINDS.point}u;
-const LF_SPOT:u32=${KINDS.spot}u;
-const LF_RECT:u32=${KINDS.rect}u;
 fn lightFunctionTexel(texel:vec2i)->vec3f{
  let last=vec2i(i32(textureDimensions(lightFunctionAtlas).x)-1);
  return bitcast<vec4f>(lightFunctionLoad(vec2u(clamp(texel,vec2i(0),last)))).rgb;
@@ -96,11 +102,14 @@ const LIGHT_FUNCTION_OF_TEXT = `fn lightFunctionOf(light:DirectLight,P:vec3f)->v
  let fade=saturate((head.x-distance)/(head.x*0.2));
  return mix(vec3f(disabled),sampled*sampled,fade);
 }
-/** The same for a local light of the volumetric fog: white where the fog's local lights are set not
- *  to read the light functions (\`lightFunctionFog\`); the fog's sun always reads them. */
-fn lightFunctionFogLocalOf(light:DirectLight,P:vec3f)->vec3f{
+// Whether the volumetric fog reads the light through the atlas: it wears a function the atlas holds and the setting lightFunctionFog is on (the atlas is read, not a stand-in).
+fn lightFunctionFogHolds(light:DirectLight)->bool{
  let dims=textureDimensions(lightFunctionAtlas);
- if(!hasLightFunction(light)||dims.y<=dims.x||lightFunctionWord(${ATLAS_NUMBERS_AT}u).w<0.5){return vec3f(1.0);}
+ return hasLightFunction(light)&&dims.y>dims.x&&lightFunctionWord(${ATLAS_NUMBERS_AT}u).w>=0.5;
+}
+// The same for a local light of the volumetric fog: white where the fog's lights are set not to read the light functions.
+fn lightFunctionFogLocalOf(light:DirectLight,P:vec3f)->vec3f{
+ if(!lightFunctionFogHolds(light)){return vec3f(1.0);}
  return lightFunctionOf(light,P);
 }`
 
@@ -119,7 +128,7 @@ fn lightFunctionFogLocalOf(light:DirectLight,P:vec3f)->vec3f{
 export const lightFunctionReadWgsl = (b: LightFunctionBindings) =>
   wgslBlock(
     `lightFunctionReadWgsl(${lightFunctionBindingsLabel(b)})`,
-    [hasLightFunctionWgsl],
+    [hasLightFunctionWgsl, LIGHT_FUNCTION_KINDS_WGSL],
     `${lightFunctionAtlasText(b)}
 ${LIGHT_FUNCTION_OF_TEXT}`,
   )

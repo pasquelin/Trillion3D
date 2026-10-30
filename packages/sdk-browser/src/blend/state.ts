@@ -93,6 +93,8 @@ export function createWebgpuBlendState(context: SkyQualityOptions = {}) {
     visibleBlend,
     /** Normalised frustum planes of the frame, against which an item is rejected. */
     blendPlanes: new Float64Array(FRUSTUM_PLANE_VALUES),
+    /** The image (`run.frame`) the transparents were last prepared for (`prepareBlend`), -1 before the first. */
+    preparedFrame: -1,
     ...tableState(),
     ...translucentState(),
     ...recordState(view),

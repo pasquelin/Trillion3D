@@ -29,6 +29,8 @@ export const FOG_VOLUME_FLAG = {
   matches: 64,
   /** A rectangle light that names a picture tints its light in the volume by it (`volumetricFogRectLightTexture`). */
   rectTexture: 128,
+  /** The lighting view is shown: the voxelised objects scatter with the lighting view's diffuse colour, not their own. */
+  lightingOnly: 256,
 } as const
 
 /** What one image tells the volume about its camera: the matrices as column-major arrays — the
@@ -86,6 +88,8 @@ export interface FogVolumeImage {
   skipHidden: boolean
   /** Whether the objects of the volume material domain were voxelised into this image's volume. */
   voxels: boolean
+  /** Whether the image shows the lighting view (`lightViewCode` 3). */
+  lightingOnly: boolean
   /** What the volume takes of the baked light (`FogStaticLight`), and whether the static term's pass
    *  wrote its volume this image (it needs the lightmap and a term to add): the sky light is left to
    *  that pass only then. */
@@ -111,9 +115,13 @@ export interface FogVolumeImage {
 /** The depth buffer's map to a view depth, `a` and `b`, rewritten each image. */
 const depthMap: [number, number] = [0, 0]
 
-/** The bits of an unsigned integer as the float that holds them, for the frame's integer word. */
+/** The bits of an unsigned integer as the float that holds them, for the frame's integer words. */
 const bits = new Uint32Array(1)
 const asFloat = new Float32Array(bits.buffer)
+const putInteger = (out: Float32Array, at: number, value: number) => {
+  bits[0] = value
+  out[at] = asFloat[0]!
+}
 
 /** The grid's fields: its cells, the depth numbers, the read's texture coordinates. */
 function writeGrid(out: Float32Array, image: FogVolumeImage) {
@@ -202,6 +210,7 @@ function writeMedium(out: Float32Array, image: FogVolumeImage) {
     (settings.volumetricFogUsesHistory ? FOG_VOLUME_FLAG.usesHistory : 0) |
     (medium.useFogColors ? FOG_VOLUME_FLAG.fogColors : 0) |
     (image.voxels ? FOG_VOLUME_FLAG.voxels : 0) |
+    (image.lightingOnly ? FOG_VOLUME_FLAG.lightingOnly : 0) |
     (settings.volumetricFogLocalShadows ? FOG_VOLUME_FLAG.localShadows : 0) |
     (settings.volumetricFogRectLightTexture ? FOG_VOLUME_FLAG.rectTexture : 0) |
     (settings.fogMatchesVolume ? FOG_VOLUME_FLAG.matches : 0)

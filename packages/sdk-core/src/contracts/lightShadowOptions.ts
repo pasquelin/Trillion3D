@@ -4,6 +4,7 @@ import {
   distanceSetting as distance,
   flagSetting as flag,
   nonNegativeSetting as nonNegative,
+  positiveSetting as positive,
   resolveSettings,
   rulesOf,
   type SettingOptions,
@@ -27,7 +28,9 @@ import {
  * - `farShadowCascades` (0) and `farShadowDistance` (3000 metres): the levels between its distance
  *   and this one, valid while the far distance is past the shadow distance by more than a metre;
  * - `distanceFieldShadows` (on): whether the distance-field cascade is made, from the near levels'
- *   end to `distanceFieldShadowDistance` (512 metres), `true` the default, `false` none.
+ *   end to `distanceFieldShadowDistance` (512 metres), `true` the default, `false` none;
+ * - `distanceFieldShadowTraceDistance` (100 metres): how far a ray of that cascade goes toward the light;
+ * - `distanceFieldShadowRayStartOffsetDepthScale` (0.003): the share of a pixel's depth its ray starts off the surface by, over a fixed 2 cm.
  */
 export const LIGHT_SHADOW_RULES = /* @__PURE__ */ (() =>
   rulesOf([
@@ -39,6 +42,8 @@ export const LIGHT_SHADOW_RULES = /* @__PURE__ */ (() =>
     distance('farShadowDistance', 3000),
     flag('distanceFieldShadows', true),
     distance('distanceFieldShadowDistance', 512),
+    positive('distanceFieldShadowTraceDistance', 100, 'a finite number of metres above 0'),
+    nonNegative('distanceFieldShadowRayStartOffsetDepthScale', 0.003),
   ] as const))()
 
 /** The field of one shadow setting of a light. */

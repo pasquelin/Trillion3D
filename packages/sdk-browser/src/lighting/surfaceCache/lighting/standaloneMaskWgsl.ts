@@ -51,7 +51,7 @@ export const standaloneMaskBytes = (p: StandaloneMaskProgram) =>
   STANDALONE_LIGHT_BYTES + (p.graph?.bytes ?? PLAIN_BYTES)
 
 /** The structure of the block (the light's, then the material's) and the colour the material gives at a coordinate. */
-function materialText(p: StandaloneMaskProgram) {
+export function materialText(p: StandaloneMaskProgram) {
   if (!p.graph)
     return {
       given: `struct Given{light:LightBlock,colour:vec3f,map:u32,}`,
@@ -81,18 +81,19 @@ ${neighbours} return ${emission ? `${emission}(ctx,given.values)` : fallbackOf('
   }
 }
 
-/** The types the material's text reads: the maps' where the material samples them, the light's block and the material's given values, bound in group 1. */
-const standaloneDeclarations = (
+/** The types the material's text reads: the maps' where the material samples them, the light's block and the material's given values, bound in `group`. */
+export const standaloneDeclarations = (
   maps: string,
   given: string,
+  group = 1,
 ) => `${maps}/** A light's block: the rows of the matrix that takes a world point to its axes, then the tangent of a spot's outer cone, the fade
  *  distance and the disabled brightness, then the light's slot and its kind's. */
 struct LightBlock{toLight:array<vec4f,4>,shape:vec4f,ids:vec4u,}
 ${given}
-@group(1) @binding(${STANDALONE_MASK_GIVEN_BINDING}) var<uniform> given:Given;`
+@group(${group}) @binding(${STANDALONE_MASK_GIVEN_BINDING}) var<uniform> given:Given;`
 
 /** The coordinate of the material at a point, in the light's axes. */
-const LIGHT_FUNCTION_UV = `/** The coordinate of the material at the point \`P\` (metres): the point in the light's axes, as the light vector with its x and z swapped
+export const LIGHT_FUNCTION_UV = `/** The coordinate of the material at the point \`P\` (metres): the point in the light's axes, as the light vector with its x and z swapped
  *  so that xy lie across the light's direction. */
 fn lightFunctionUv(P:vec3f)->vec2f{
  let placed=P.x*given.light.toLight[0]+P.y*given.light.toLight[1]+P.z*given.light.toLight[2]+given.light.toLight[3];

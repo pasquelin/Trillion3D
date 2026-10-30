@@ -92,6 +92,7 @@ export function prepareBlend(
   // The image's reject count is its view's own, the GPU's, read back a few images late (`verdictRead.ts`).
   if (!skyOnly)
     run.blendFrustumRejected = blendState.expand?.peekVerdict(viewKey(rt.gpu))?.latest.rejected ?? 0
+  if (!skyOnly) blendState.preparedFrame = run.frame
   const elapsed = msSince(cpuStart)
   timing.transparentPrepareMs += elapsed
   return true

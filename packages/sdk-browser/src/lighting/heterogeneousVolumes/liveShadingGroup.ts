@@ -94,9 +94,12 @@ function graphEntries(c: VolumeGroupInputs): GPUBindGroupEntry[] {
     ...slotsGpu.flatMap((slot, k) => {
       const t = svtBindings(k)
       return [
-        { binding: t.pageTable, resource: (slot?.gpu.pageTable ?? held.standPages!).createView() },
-        { binding: t.tilesA, resource: (slot?.gpu.tiles[0] ?? held.stand!).createView() },
-        { binding: t.tilesB, resource: (slot?.gpu.tiles[1] ?? held.stand!).createView() },
+        {
+          binding: t.pageTable,
+          resource: (slot?.gpu.pageTable ?? held.scene.standPages!).createView(),
+        },
+        { binding: t.tilesA, resource: (slot?.gpu.tiles[0] ?? held.scene.stand!).createView() },
+        { binding: t.tilesB, resource: (slot?.gpu.tiles[1] ?? held.scene.stand!).createView() },
       ]
     }),
     { binding: HV_BINDING.values, resource: { buffer: valuesBuffer } },
@@ -120,18 +123,24 @@ function sideEntries(
 ): GPUBindGroupEntry[] {
   const { held, giView, velocity, taaStand, holdout } = c
   return [
-    { binding: HV_BINDING.giVolume, resource: giView ?? held.stand!.createView() },
+    { binding: HV_BINDING.giVolume, resource: giView ?? held.scene.stand!.createView() },
     { binding: HV_BINDING.shadow, resource: { buffer: beer.uniform } },
     { binding: HV_BINDING.beerPrevious, resource: beer.previous },
     { binding: HV_BINDING.beerOut, resource: beer.out },
-    { binding: HV_BINDING.velocity, resource: velocity?.view ?? held.standVelocity!.createView() },
+    {
+      binding: HV_BINDING.velocity,
+      resource: velocity?.view ?? held.scene.standVelocity!.createView(),
+    },
     { binding: HV_BINDING.taaView, resource: { buffer: velocity?.taaView ?? taaStand } },
-    { binding: HV_BINDING.ambient, resource: (textures.ambient ?? held.stand!).createView() },
-    { binding: HV_BINDING.existence, resource: (textures.existence ?? held.stand!).createView() },
+    { binding: HV_BINDING.ambient, resource: (textures.ambient ?? held.scene.stand!).createView() },
+    {
+      binding: HV_BINDING.existence,
+      resource: (textures.existence ?? held.scene.stand!).createView(),
+    },
     ...[HV_BINDING.bakedExtinction, HV_BINDING.bakedAlbedo, HV_BINDING.bakedEmission].map(
       (binding, i) => ({
         binding,
-        resource: (textures.baked?.[i] ?? held.stand!).createView(),
+        resource: (textures.baked?.[i] ?? held.scene.stand!).createView(),
       }),
     ),
     ...(holdout ? [{ binding: HV_BINDING.holdout, resource: holdout.view }] : []),
@@ -163,13 +172,13 @@ export function volumeGroup(
       { binding: HV_BINDING.depth, resource: rt.gpu.depthView! },
       {
         binding: HV_BINDING.cacheOut,
-        resource: (writing ? (textures.cache ?? cache) : held.standOut!).createView(view),
+        resource: (writing ? (textures.cache ?? cache) : held.scene.standOut!).createView(view),
       },
       {
         binding: HV_BINDING.cacheIn,
-        resource: (writing ? (textures.read ?? held.stand!) : cache).createView(view),
+        resource: (writing ? (textures.read ?? held.scene.stand!) : cache).createView(view),
       },
-      { binding: HV_BINDING.sampler, resource: held.sampler! },
+      { binding: HV_BINDING.sampler, resource: held.scene.sampler! },
       { binding: HV_BINDING.imageIn, resource: images[0].createView() },
       { binding: HV_BINDING.imageOut, resource: images[1].createView() },
       ...graphEntries(c),
