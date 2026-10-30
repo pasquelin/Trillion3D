@@ -239,8 +239,19 @@ export async function runFrames(
 
 /** Draws frames until `settle` of them are images the GPU timer measured, `timeoutMs` at most:
  *  the pipelines compiled and the pages resident. Returns the frames it took, or throws. */
+/** Why the world's session failed, once no session has opened for `SESSION_FAILED_MS` with an error held; else null. An
+ *  optional family's refusal leaves an error on a world whose session opens: it ends nothing. */
+export function sessionFailure(world: World, held: { since?: number }) {
+  const { error, sessions } = world.diagnostic as unknown as { error?: { code?: string; message?: string } | null; sessions: number }
+  if (!error || sessions > 0) return (held.since = undefined), null
+  held.since ??= performance.now()
+  return performance.now() - held.since > SESSION_FAILED_MS ? `${error.code ?? ''} ${error.message ?? ''}` : null
+}
+const SESSION_FAILED_MS = 15000
+
 export async function warmUp(rig: FrameRig, clock: BenchClock, timeoutMs: number, settle: number) {
   const start = performance.now()
+  const held = {}
   let frames = 0,
     timed = 0
   while (timed < settle) {
@@ -248,6 +259,8 @@ export async function warmUp(rig: FrameRig, clock: BenchClock, timeoutMs: number
       throw new Error(
         `BENCH_WARMUP: no timed image after ${(timeoutMs / 1000).toFixed(0)} s (${frames} frames)`,
       )
+    const failed = sessionFailure(rig.world, held)
+    if (failed) throw new Error(`BENCH_WARMUP: the session failed to open: ${failed}`)
     const [record] = await runFrames(rig, clock, 1)
     frames++
     timed = record.drawn && record.engineGpuMs !== null ? timed + 1 : timed

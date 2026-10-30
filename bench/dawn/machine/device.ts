@@ -10,6 +10,7 @@ import { installDissect, readSpec } from '../passes/dissectHooks.ts'
 import { installWorkHooks } from '../passes/passWorkHooks.ts'
 import { profiledAdapter } from '../report/profiles.ts'
 import { guardLayouts } from './layoutGuard.ts'
+import { TIMED_APART, TIMED_ENCODER } from '../../../packages/sdk-browser/src/gpu/core/timedEncoder.ts'
 
 /** What one frame asked of the GPU: passes (timed or not), copies, bytes written, objects made
  *  (render bundles recorded included). */
@@ -117,6 +118,10 @@ export function installGpu(profile: {
   })
   counted(g.GPUQueue.prototype, 'writeTexture', () => add('writes'))
   const encoder = g.GPUCommandEncoder.prototype
+  // BENCH_SPLIT: each step of a compute run its own timed pass, on every frame (`gpuTimingDetail` does it on sampled frames).
+  if (process.env.BENCH_SPLIT)
+    for (const key of [TIMED_ENCODER, TIMED_APART])
+      Object.defineProperty(encoder, key, { get: () => true, configurable: true })
   for (const [name, kind] of [
     ['beginRenderPass', 'render'],
     ['beginComputePass', 'compute'],

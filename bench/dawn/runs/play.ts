@@ -7,7 +7,7 @@ import { installGpu } from '../machine/device.ts'
 import { dissectModules, dissectSpec } from '../passes/dissectHooks.ts'
 import { installBrowser } from '../page/dom.ts'
 import { machineFor } from '../machine/machine.ts'
-import { REFRESH_MS, createClock, runFrames, settleLoading, warmUp } from '../capture/frames.ts'
+import { REFRESH_MS, createClock, runFrames, sessionFailure, settleLoading, warmUp } from '../capture/frames.ts'
 import { gpuBusy } from '../machine/gpuBusy.ts'
 import type { BenchOptions } from './options.ts'
 import { pageAddress, readPage, runPage } from '../page/page.ts'
@@ -80,8 +80,9 @@ export async function playScenario(options: BenchOptions, stem: string) {
   const rig = { browser, gpu, world }
   // The device is the engine's own, asked when its session opens: frames run until it submits.
   const deadline = performance.now() + options.timeoutS * 500
+  const held = {}
   while (!gpu.held.device) {
-    if (performance.now() > deadline)
+    if (performance.now() > deadline || sessionFailure(world, held))
       throw new Error(
         `BENCH_DEVICE: the engine submitted nothing to a GPU device\n${worldFailure(world)}`,
       )
@@ -91,6 +92,11 @@ export async function playScenario(options: BenchOptions, stem: string) {
   const device = gpu.held.device
   device.addEventListener('uncapturederror', (event) => {
     errors.push(String((event as GPUUncapturedErrorEvent).error.message).slice(0, 400))
+    // A shader that does not compile never will: the play ends at the first such error.
+    if (errors.at(-1)!.includes('Error while parsing WGSL')) {
+      console.error(`BENCH_WGSL: ${errors.at(-1)}`)
+      process.exit(4)
+    }
     if (errors.length > 20) {
       console.error(`BENCH_GPU_ERRORS: ${errors.length} errors, the first:\n${errors[0]}`)
       process.exit(4)

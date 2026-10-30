@@ -60,7 +60,11 @@ import { createWorld as engineWorld, animation as engineAnimation } from '${engi
 export function createWorld(...args) {
   const world = engineWorld(...args);
   // Settings a session reads once when it opens (BENCH_WORLD, a JSON of groups), set as the world is made.
-  for (const [group, values] of Object.entries(JSON.parse(process.env.BENCH_WORLD ?? '{}'))) world[group] = values;
+  for (const [group, values] of Object.entries(JSON.parse(process.env.BENCH_WORLD ?? '{}'))) {
+    // An unknown group would be a plain property that changes nothing.
+    if (!(group in world)) throw new Error('BENCH_WORLD: the world has no setting group ' + group);
+    world[group] = values;
+  }
   (globalThis.benchWorlds ??= []).push(world);
   return world;
 }
