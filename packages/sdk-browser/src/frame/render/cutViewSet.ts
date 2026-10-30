@@ -38,7 +38,11 @@ export function writeCutViewSet(
   let filter = filters.get(uniforms)
   // The roots the view does not draw whatever its lists say, the host's switch on lists apart: those its
   // owner does not see among them.
-  const forced = hiddenFromViews(rt, rt.views.active === rt.views.main, owner)
+  // The custom depth's view follows the main view's rules (the stand-ins of first-person objects are left out), and leaves out as well
+  // every root whose object does not ask for it (`ViewOverrides.customDepthCapture`).
+  const custom = rt.views.active.overrides.customDepthCapture
+  const viewed = hiddenFromViews(rt, rt.views.active === rt.views.main || !!custom, owner)
+  const forced = custom?.hidden(viewed) ?? viewed
   // The main view alone is tested against the depth it drew (`hzbOccludedRanks`).
   const occluded = rt.views.active === rt.views.main ? hzbOccludedRanks(rt) : undefined
   const listed = filtering && (hidden.length > 0 || showOnly !== null)

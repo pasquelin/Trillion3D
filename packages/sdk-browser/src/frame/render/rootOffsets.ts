@@ -13,13 +13,18 @@ export function createRootOffsets() {
   const rows: (RootOffsetRow | undefined)[] = []
   const always: number[] = []
   let channelled = 0
+  // The roots whose objects ask for the custom depth, and a count that moves whenever the set does.
+  const asking = new Set<number>()
+  let askRevision = 0
   /** Whether the object of `row` is in a lighting channel set other than the default's. */
   const isChannelled = (row: RootOffsetRow | undefined) =>
     placementStoredChannelsOf(row?.bits ?? 0) !== 0
+  const asksCustomDepth = (row: RootOffsetRow | undefined) => (row?.customDepth ?? 0) !== 0
   const asksAlways = (row: RootOffsetRow | undefined) => row?.cache === 'always'
   /** Whether two rows say the same. */
   const same = (a: RootOffsetRow, b: RootOffsetRow) =>
     a.bits === b.bits &&
+    a.customDepth === b.customDepth &&
     a.evaluate === b.evaluate &&
     a.velocity === b.velocity &&
     a.disable === b.disable &&
@@ -35,12 +40,20 @@ export function createRootOffsets() {
     always: (): readonly number[] => always,
     /** How many roots' objects are in a lighting channel other than the default's. */
     channelled: () => channelled,
+    /** The ranks of the roots whose objects ask for the custom depth, and a count that moves with the set. */
+    askingCustomDepth: (): ReadonlySet<number> => asking,
+    customDepthRevision: () => askRevision,
     /** Root `rank` takes `row` (none: it says nothing). True when it changed what a placement, a page or an item holds. */
     hold(rank: number, row: RootOffsetRow | undefined) {
       const previous = rows[rank]
       if (previous === row || (previous && row && same(previous, row))) return false
       rows[rank] = row
       channelled += +isChannelled(row) - +isChannelled(previous)
+      if (asksCustomDepth(row) !== asksCustomDepth(previous)) {
+        if (asksCustomDepth(row)) asking.add(rank)
+        else asking.delete(rank)
+        askRevision++
+      }
       if (asksAlways(row) && !asksAlways(previous)) always.push(rank)
       else if (!asksAlways(row) && asksAlways(previous)) always.splice(always.indexOf(rank), 1)
       return true
@@ -56,6 +69,8 @@ export function createRootOffsets() {
       rows.length = 0
       always.length = 0
       channelled = 0
+      asking.clear()
+      askRevision++
     },
   }
   return offsets

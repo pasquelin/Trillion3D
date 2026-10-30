@@ -75,3 +75,22 @@ test('a session that holds fewer roots keeps no row of those it lost', () => {
   held.shrink(0)
   assert.equal(held.channelled(), 0)
 })
+
+test('the roots whose objects ask for the custom depth are listed, and the count moves only when the set does', () => {
+  const offsets = createRootOffsets()
+  const asks = { ...row(0), customDepth: 1 << 16 }
+  assert.equal(offsets.customDepthRevision(), 0)
+  offsets.hold(2, asks)
+  offsets.hold(3, row(0))
+  assert.deepEqual([...offsets.askingCustomDepth()], [2])
+  assert.equal(offsets.customDepthRevision(), 1)
+  // Another stencil value is the same request: the set did not move.
+  offsets.hold(2, { ...asks, customDepth: (1 << 16) | 5 })
+  assert.equal(offsets.customDepthRevision(), 1)
+  offsets.hold(2, row(0))
+  assert.equal(offsets.askingCustomDepth().size, 0)
+  assert.equal(offsets.customDepthRevision(), 2)
+  offsets.hold(4, asks)
+  offsets.clear()
+  assert.equal(offsets.askingCustomDepth().size, 0)
+})

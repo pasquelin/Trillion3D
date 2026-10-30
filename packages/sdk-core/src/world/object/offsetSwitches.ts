@@ -7,6 +7,11 @@ import {
   isShadowCapsules,
   type ShadowCapsuleBody,
 } from '../../contracts/capsuleShadowOptions.ts'
+import {
+  isCustomDepthStencilValue,
+  isCustomDepthStencilWriteMask,
+  type CustomDepthStencilWriteMask,
+} from '../../contracts/customDepthAbi.ts'
 import { OBJECT_MOBILITIES, type ObjectMobility } from '../../contracts/objectAbi.ts'
 import {
   DEFAULT_LIGHTING_CHANNELS,
@@ -55,6 +60,9 @@ import {
  * stays under that shadow.
  * `lightingChannels` (channel 0 alone) says which of the three lighting channels the object is in: a light
  * lights it, and a light's shadow holds it, only where they share a channel (`../../contracts/lightingChannelsAbi.ts`).
+ * `renderCustomDepth` (false) draws the object into the custom depth (`../../contracts/customDepthOptions.ts`), whatever stands in front
+ * of it, with `customDepthStencilValue` (0, from 0 to 255) written into the custom stencil under `customDepthStencilWriteMask`
+ * (`'default'`, or the bits written, `../../contracts/customDepthAbi.ts`).
  * And two that hide it by who looks: `ownerNoSee` (false) hides the object from the views that belong to
  * its owner, `onlyOwnerSee` (false) from every view but those (`Camera.owner`; a view with no owner
  * belongs to no one). The view that owns the object is the one whose camera's `owner` is the object
@@ -96,6 +104,9 @@ export interface OffsetSwitches {
   lightingChannels: Readonly<LightingChannels>
   ownerNoSee: boolean
   onlyOwnerSee: boolean
+  renderCustomDepth: boolean
+  customDepthStencilValue: number
+  customDepthStencilWriteMask: CustomDepthStencilWriteMask
   revision: number
 }
 
@@ -119,6 +130,9 @@ const DEFAULTS: Readonly<OffsetSwitches> = {
   lightingChannels: DEFAULT_LIGHTING_CHANNELS,
   ownerNoSee: false,
   onlyOwnerSee: false,
+  renderCustomDepth: false,
+  customDepthStencilValue: 0,
+  customDepthStencilWriteMask: 'default',
   revision: 0,
 }
 
@@ -230,6 +244,17 @@ const SWITCHES = {
   ),
   ownerNoSee: switchRule('ownerNoSee', isBoolean, 'true or false'),
   onlyOwnerSee: switchRule('onlyOwnerSee', isBoolean, 'true or false'),
+  renderCustomDepth: switchRule('renderCustomDepth', isBoolean, 'true or false'),
+  customDepthStencilValue: switchRule(
+    'customDepthStencilValue',
+    isCustomDepthStencilValue,
+    'a whole number from 0 to 255',
+  ),
+  customDepthStencilWriteMask: switchRule(
+    'customDepthStencilWriteMask',
+    isCustomDepthStencilWriteMask,
+    "'default', 255, or one bit: 1, 2, 4, 8, 16, 32, 64 or 128",
+  ),
 }
 
 /** The name of a switch as a node's property. */

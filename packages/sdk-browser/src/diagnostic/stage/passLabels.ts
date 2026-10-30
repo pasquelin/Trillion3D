@@ -213,6 +213,9 @@ export const BLOOM_PASS = 'Trillion3D bloom'
 /** Both passes of every outline, its scan and its line over the display image
  *  (`../../post/effects/webgpuOutline.ts`). */
 export const OUTLINE_PASS = 'Trillion3D outline'
+/** The emission of the custom depth and stencil from the visibility of the objects asking for them
+ *  (`../../visibility/customDepth/customDepthEmit.ts`). */
+export const CUSTOM_DEPTH_PASS = 'Trillion3D custom depth'
 /** The HDR composition, alone or presenting the canvas too (`../../lighting/deferred/deferred.ts`). */
 export const HDR_COMPOSITION_PASS = 'Trillion3D HDR composition'
 export const HDR_PRESENT_PASS = 'Trillion3D HDR composition + present'
@@ -412,6 +415,7 @@ export const ENGINE_PASSES = [
   definePass({ label: DEPTH_OF_FIELD_PASS, stage: 'effects', block: 'other' }),
   definePass({ label: BLOOM_PASS, stage: 'effects', block: 'other' }),
   definePass({ label: OUTLINE_PASS, stage: 'effects', block: 'other' }),
+  definePass({ label: CUSTOM_DEPTH_PASS, stage: 'geometry', block: 'visibility' }),
   definePass({ label: HDR_COMPOSITION_PASS, stage: 'present', block: 'other' }),
   definePass({ label: HDR_PRESENT_PASS, stage: 'present', block: 'other' }),
   definePass({ label: DIRECT_PRESENT_PASS, stage: 'present', block: 'other' }),

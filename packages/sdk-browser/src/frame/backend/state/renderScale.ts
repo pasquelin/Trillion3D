@@ -5,6 +5,7 @@ import {
   type RenderScaleBounds,
 } from '../../scale/renderScaleOption.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
+import { frameStart } from '../../scheduling.ts'
 import { drawsLit } from '../../../visibility/shader/shadeMode.ts'
 import { taaWanted } from './gpu.ts'
 
@@ -105,6 +106,18 @@ export const sameFrameSize = (a: FrameSize, b: FrameSize) =>
 export const displayApart = (gpu: WebgpuPagesRuntime['gpu']) =>
   !!gpu.displayTexture && gpu.displayTexture !== gpu.colorTexture
 
+/** The size an image drawn at `scale` takes in the targets, written into `out`: what `drawFrameAt` sets as `gpu.targetSize`. */
+export function renderedSize(rt: WebgpuPagesRuntime, scale: number, out: number[]) {
+  const { allocatedSize, displaySize } = rt.gpu,
+    apart = displayApart(rt.gpu)
+  for (let i = 0; i < 2; i++)
+    out[i] = apart
+      ? Math.min(allocatedSize[i], renderExtent(displaySize[i], scale))
+      : allocatedSize[i]!
+}
+
+const drawnSize = [0, 0]
+
 /**
  * Draws this image at `scale` in the targets in place, made at the bounds' maximum (`frameSizeOf`):
  * the image is drawn in their top-left `targetSize`, the view's exact size (`renderExtent`), the targets
@@ -118,12 +131,10 @@ export const displayApart = (gpu: WebgpuPagesRuntime['gpu']) =>
  */
 export function drawFrameAt(rt: WebgpuPagesRuntime, scale: number, steered = false) {
   const { gpu } = rt,
-    { allocatedSize, displaySize, targetSize } = gpu,
+    { displaySize, targetSize } = gpu,
     apart = displayApart(gpu)
-  const axis = (i: number) =>
-    apart ? Math.min(allocatedSize[i], renderExtent(displaySize[i], scale)) : allocatedSize[i]
-  const width = axis(0),
-    height = axis(1)
+  renderedSize(rt, scale, drawnSize)
+  const [width, height] = drawnSize as [number, number]
   targetSize[0] = width
   targetSize[1] = height
   rt.vis.gpuHiz?.extent(width, height)
@@ -133,4 +144,38 @@ export function drawFrameAt(rt: WebgpuPagesRuntime, scale: number, steered = fal
       ? scale
       : width / displaySize[0]
   rt.views.active.scale.drew(drawn, apart && steered && drawn === scale)
+}
+
+/** The scale and steering the drawn view's next image takes (`drawFrameAt`): `bypass` where its temporal pass does not run (no pass, or
+ *  switched off), which the composition upscales spatially where the targets are scaled, else the bounds' maximum. */
+export function scaleOfImage(rt: WebgpuPagesRuntime, bypass: boolean) {
+  const { scale } = rt.views.active
+  if (bypass && !scalesTargets(rt)) {
+    chosen.scale = scale.bounds.max
+    chosen.steered = scale.bounds.max === scale.wanted()
+  } else {
+    chosen.scale = scale.wanted()
+    chosen.steered = !rt.run.textureConverging
+  }
+  return chosen
+}
+const chosen = { scale: 1, steered: false }
+
+/** The frame each runtime's main view was counted ahead for (`countMainImage`). */
+const countedAhead = new WeakMap<WebgpuPagesRuntime, number>()
+
+/**
+ * Counts the main view's image about to be drawn: its scale controller reads the display's cadence at the frame's start, and the image is
+ * numbered among the main view's. The image's entry does it (`ahead` false); a pass that must know the size of the image before then
+ * (the custom depth) does it first (`ahead`), and the entry of the same frame leaves it as done.
+ */
+export function countMainImage(rt: WebgpuPagesRuntime, ahead = false) {
+  const at = frameStart()
+  if (!ahead && countedAhead.get(rt) === at) {
+    countedAhead.delete(rt)
+    return
+  }
+  if (ahead) countedAhead.set(rt, at)
+  rt.views.main.scale.tick(at, rt.timing.gpuTiming?.supported === true)
+  rt.views.mainImages++
 }

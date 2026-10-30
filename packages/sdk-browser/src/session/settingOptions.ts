@@ -43,6 +43,7 @@ import type { SubsurfaceScatteringOptions } from '../../../sdk-core/src/contract
 import type { TranslucencyVolumeOptions } from '../../../sdk-core/src/contracts/translucencyVolumeOptions.ts'
 import type { TranslucencyGiOptions } from '../../../sdk-core/src/contracts/translucencyGiOptions.ts'
 import type { HairStrandsOptions } from '../../../sdk-core/src/contracts/hairStrandsOptions.ts'
+import type { CustomDepthOptions } from '../../../sdk-core/src/contracts/customDepthOptions.ts'
 import type { HeterogeneousVolumeOptions } from '../../../sdk-core/src/contracts/heterogeneousVolumeOptions.ts'
 import type { PathTracingOptions } from '../../../sdk-core/src/contracts/pathTracingOptions.ts'
 import type { SampledLightsOptions } from '../../../sdk-core/src/contracts/sampledLightsOptions.ts'
@@ -92,6 +93,7 @@ export interface SettingOptions
     SubsurfaceScatteringOptions,
     SingleLayerWaterOptions,
     HairStrandsOptions,
+    CustomDepthOptions,
     HeterogeneousVolumeOptions,
     PathTracingOptions,
     SampledLightsOptions,

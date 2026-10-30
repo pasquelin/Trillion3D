@@ -23,7 +23,9 @@ import {
  * `outputs` the first of the placement's deformed results in the outputs' buffer (two words a page
  * of the placement, `NO_OUTPUTS` for a placement that deforms none of its pages); `infoShift` what
  * a page's index adds to reach its cluster record, `pageBase` the packed rank of the placement's
- * first page (`DagCutLinks.pageBase`).
+ * first page (`DagCutLinks.pageBase`); `customDepth` the object's custom depth word (`customDepthWord`,
+ * `../../../../../sdk-core/src/contracts/customDepthAbi.ts`): its request, stencil value and write mask, which the custom depth's emission reads
+ * through the `placement` of a drawn cluster. It sits in the padding of the record, which does not grow.
  */
 export const PLACEMENT_INFO = fieldLayout('PlacementInfo', [
   ['deform', 'u32'],
@@ -34,6 +36,7 @@ export const PLACEMENT_INFO = fieldLayout('PlacementInfo', [
   ['outputs', 'u32'],
   ['infoShift', 'u32'],
   ['pageBase', 'u32'],
+  ['customDepth', 'u32'],
 ] as const)
 
 /** Words of a record, and its bytes. */

@@ -7,6 +7,7 @@ import {
   PLACEMENT_NO_CONTACT_SHADOW,
 } from '../../dag/info/placementInfoLayout.ts'
 import { storedChannelsOf } from '../../../../../sdk-core/src/contracts/lightingChannelsAbi.ts'
+import { customDepthWord } from '../../../../../sdk-core/src/contracts/customDepthAbi.ts'
 import type { SurfaceRow } from '../surfaceRow.ts'
 import type { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
 import {
@@ -41,6 +42,8 @@ export interface RootOffsetRow {
   /** The object's bits (`objectBits`): first person, holdout, no contact shadow, its lighting channels stored, what its views see of
    *  it; 0 for none of them. */
   bits: number
+  /** The object's custom depth word (`customDepthWord`): its request, its stencil value and its write mask; 0 for an object that does not ask. */
+  customDepth: number
 }
 
 /** What the views read of an object, in the bits of its row above every placement bit (`PLACEMENT_OBJECT_BITS` leaves them out of a
@@ -74,6 +77,7 @@ const DEFAULT_OFFSET_ROW: RootOffsetRow = {
   always: false,
   cache: 'auto',
   bits: 0,
+  customDepth: 0,
 }
 
 const NO_NODE = {}
@@ -99,6 +103,11 @@ export function objectOffsetRow(
     always: facts?.always === true,
     cache: s.shadowCache,
     bits: objectBits(s),
+    customDepth: customDepthWord(
+      s.renderCustomDepth,
+      s.customDepthStencilValue,
+      s.customDepthStencilWriteMask,
+    ),
   }
 }
 

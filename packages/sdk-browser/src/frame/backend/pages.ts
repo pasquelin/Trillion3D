@@ -8,6 +8,7 @@ import { followFrameDifference } from '../render/frameDifference.ts'
 import { applySkyToRuntime } from '../render/encodeCloudsSky.ts'
 import { reflectionCaptureHosts } from '../render/reflectionCaptureState.ts'
 import { renderSkyMeshes, type PersistentViews } from '../render/encodeSkyMeshes.ts'
+import { renderCustomDepth } from '../render/encodeCustomDepth.ts'
 import { removeWebgpuView, renderWebgpuView, resizeWebgpuView } from './state/persistentView.ts'
 import {
   backendHostApi,
@@ -69,6 +70,8 @@ export const webgpuPagesEngine = ((context, rt = createWebgpuPagesRuntime(contex
     render(camera) {
       // The sky meshes the real-time sky capture shows in the place of the atmosphere, drawn aside before the main image.
       renderSkyMeshes(rt, camera, persistentViews)
+      // The custom depth of the objects that ask for it, drawn aside likewise.
+      renderCustomDepth(rt, camera, persistentViews)
       renderWebgpuPages(rt, camera)
     },
     ...backendHostApi(rt),

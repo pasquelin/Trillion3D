@@ -27,6 +27,9 @@
  * - `skyMeshCapture`: the view is a face of the sky meshes' capture (`encodeSkyMeshes.ts`): its image is the scene's sky surfaces alone, drawn through
  *   the blend pass's plan with no lighting, shadow, fog, sky, cloud nor effect, and with a depth buffer where `depthBuffer` says so
  *   (`encodeSkyMeshFace.ts`); none, the view is not one;
+ * - `customDepthCapture`: the view is the custom depth's (`frame/render/encodeCustomDepth.ts`): it draws only the objects that ask for the custom
+ *   depth, `hidden` the roots of the others it leaves out of its cut, and its image is the visibility of those objects alone, which `emit` writes into the
+ *   custom depth targets (`encodeCustomDepthView`); none, the view is not one;
  * - `readLit`: handed the encoder and the lit image (linear HDR, before exposure and any effect)
  *   of every image the view draws, ahead of the lit image's turn (`adoptLitImage`).
  */
@@ -45,6 +48,19 @@ export interface ViewOverrides {
   readonly lodScale: number
   readonly reflectionCapture: boolean
   readonly skyMeshCapture?: { readonly depthBuffer: boolean; readonly empty: () => void }
+  readonly customDepthCapture?: {
+    /** The ranks of the roots the view does not draw, those of the objects that do not ask for the custom depth. */
+    readonly hidden: (viewed: readonly number[]) => readonly number[]
+    /** Encodes the emission into the custom depth targets once the visibility is drawn (`drawn`), else the targets cleared. */
+    readonly emit: (encoder: GPUCommandEncoder, drawn: boolean) => void
+    /** The temporal jitter the view is drawn with, the main view's for this image (`customDepthTemporalAAJitter`), in the pixels of `grid`
+     *  (zero: none, the view is steady); `matrix` holds the view-projection it shifts. Written by the view's owner before each image. */
+    readonly jitter: {
+      readonly offset: Float64Array
+      readonly grid: Float64Array
+      readonly matrix: Float64Array
+    }
+  }
   readonly readLit?: LitReader
 }
 

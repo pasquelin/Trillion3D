@@ -5,7 +5,7 @@ import { renderGpuCut } from './gpuCut.ts'
 import { uploadWorlds } from './worldUpload.ts'
 import { holdWebgpuFrame } from '../loop/hold.ts'
 import { beginNoiseImage } from './noiseFrame.ts'
-import { taaRuns } from '../backend/state/renderScale.ts'
+import { countMainImage, taaRuns } from '../backend/state/renderScale.ts'
 import { advanceImageNumber } from '../loop/imageNumber.ts'
 import { followFirstImage } from '../loop/firstImage.ts'
 import { frameTargetsAwaited, requestFrameTargets } from '../prepare/targetGrant.ts'
@@ -21,7 +21,6 @@ import { followContactShadows } from '../../lighting/contactShadow/frame.ts'
 import { followSimpleLights } from './encodeLights.ts'
 import { beginTaaFrame } from '../../post/taa/frame.ts'
 import { lightingPhase } from '../../lighting/surfaceCache/lighting/phase.ts'
-import { frameStart } from '../scheduling.ts'
 import { askFramePipelines } from '../loop/framePipelines.ts'
 import { adoptGrownCut } from '../../placement/webgpuGrownCut.ts'
 import { startGrownCut } from '../../placement/growth/grownCutStart.ts'
@@ -87,10 +86,7 @@ function enterImage(rt: WebgpuPagesRuntime, camera: ViewCamera, aspect: number |
   startGrownCut(rt)
   // The display's cadence, read on the main view's frames at the frame's rAF timestamp: the
   // render-scale budget, and its cost where the device cannot timestamp.
-  if (rt.views.active === rt.views.main && !capture.capturing) {
-    rt.views.main.scale.tick(frameStart(), rt.timing.gpuTiming?.supported === true)
-    rt.views.mainImages++
-  }
+  if (rt.views.active === rt.views.main && !capture.capturing) countMainImage(rt)
   run.lastCamera = camera
   // Image entry: order and its guarantees live in `../gate/gateCore.ts`, which also copies the host
   // camera into the engine's — everything that follows only reads the latter. The list of nodes

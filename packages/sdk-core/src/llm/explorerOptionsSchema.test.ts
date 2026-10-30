@@ -55,6 +55,7 @@ import { DEPTH_OF_FIELD_RULES } from '../contracts/depthOfFieldRules.ts'
 import { EXPOSURE_RULES } from '../contracts/exposureOptions.ts'
 import { SKY_QUALITY_RULES } from '../modules/sky/quality.ts'
 import { HAIR_STRANDS_RULES } from '../contracts/hairStrandsOptions.ts'
+import { CUSTOM_DEPTH_RULES } from '../contracts/customDepthOptions.ts'
 import { HETEROGENEOUS_VOLUME_RULES } from '../contracts/heterogeneousVolumeOptions.ts'
 
 const validate = new Ajv({ allErrors: true }).compile(EXPLORER_OPTIONS_SCHEMA)
@@ -161,6 +162,7 @@ test('a switch the host leaves out is set in the engine as the schema advertises
     ...SUBSURFACE_SCATTERING_RULES,
     ...SINGLE_LAYER_WATER_RULES,
     ...HAIR_STRANDS_RULES,
+    ...CUSTOM_DEPTH_RULES,
     ...HETEROGENEOUS_VOLUME_RULES,
     ...SAMPLED_LIGHTS_RULES,
     ...PATH_TRACING_RULES,

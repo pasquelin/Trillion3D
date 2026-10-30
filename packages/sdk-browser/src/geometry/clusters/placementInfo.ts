@@ -83,6 +83,7 @@ const make = (s: InfoTables, rank: number) => {
   words[base + at.outputs] = s.outputsBase[rank] >= 0 ? s.outputsBase[rank] : NO_OUTPUTS
   words[base + at.infoShift] = source.infoShift(rank)
   words[base + at.pageBase] = source.pageBase(rank)
+  words[base + at.customDepth] = object?.customDepth ?? 0
 }
 
 /** The deformed results of every placement laid out again, two words a page, the placements that

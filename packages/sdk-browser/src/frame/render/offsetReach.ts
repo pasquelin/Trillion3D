@@ -172,7 +172,9 @@ function readRoots(rt: WebgpuPagesRuntime) {
     // object (`objectBits`: first person, holdout, lets the contact shadow rays through, its lighting channels, what its
     // views see of it). A node that holds no switch has none of them.
     const row =
-      facts || switches?.shadowCache === 'always' || (switches && objectBits(switches) !== 0)
+      facts ||
+      switches?.shadowCache === 'always' ||
+      (switches && (objectBits(switches) !== 0 || switches.renderCustomDepth))
         ? objectOffsetRow(node, boundsCentre(root, [0, 0, 0]), facts, switches)
         : undefined
     // Its bounds grow while its offset may be evaluated, wherever the camera is: the object’s own

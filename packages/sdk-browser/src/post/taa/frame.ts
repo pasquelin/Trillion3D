@@ -7,12 +7,13 @@ import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import type { AccumulatedImage } from '../../lighting/deferred/program.ts'
 import type { Responsive } from '../../blend/responsive.ts'
 import { writtenFilter } from '../../blend/display/displayFilter.ts'
+import { shownTranslucency, shownTranslucencyDrawn, shownTranslucencyScaled } from '../../blend/translucency.ts'
 import {
-  shownTranslucency,
-  shownTranslucencyDrawn,
-  shownTranslucencyScaled,
-} from '../../blend/translucency.ts'
-import { drawFrameAt, scalesTargets, taaRuns } from '../../frame/backend/state/renderScale.ts'
+  drawFrameAt,
+  renderedSize,
+  scaleOfImage,
+  taaRuns,
+} from '../../frame/backend/state/renderScale.ts'
 import { dropTaaHistory } from './landing.ts'
 import { noiseFrame } from '../../frame/render/noiseFrame.ts'
 import type { MeasuredScene } from './analysis.ts'
@@ -136,19 +137,19 @@ export function beginTaaFrame(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   if (!temporal || !active) {
     // No temporal upscaler: the dynamic scale still steers a beauty image, which the composition
     // upscales spatially; a capture or a diagnostic view is drawn at the bounds' maximum.
-    const { scale } = rt.views.active
-    if (scalesTargets(rt)) return drawFrameAt(rt, scale.wanted(), !rt.run.textureConverging)
-    return drawFrameAt(rt, scale.bounds.max, scale.bounds.max === scale.wanted())
+    const { scale, steered } = scaleOfImage(rt, true)
+    return drawFrameAt(rt, scale, steered)
   }
   const state = temporal.frame,
-    { gate, textureConverging } = rt.run
+    { gate } = rt.run
   const revision = gate.temporalRevision
   if (revision !== undefined && revision !== state.viewSeen) {
     dropTaaHistory(state)
     state.viewSeen = revision
   }
   // Drawn at the controller's scale, which a texture convergence image does not steer.
-  drawFrameAt(rt, rt.views.active.scale.wanted(), !textureConverging)
+  const { scale, steered } = scaleOfImage(rt, false)
+  drawFrameAt(rt, scale, steered)
   // The jitter is in the pixels the frame is drawn in; its phases follow the ratio to the display.
   const { targetSize, displaySize } = rt.gpu
   state.phases = upscalePhases(targetSize[0], displaySize[0])
@@ -164,8 +165,38 @@ export function beginTaaFrame(rt: WebgpuPagesRuntime, cam: EngineCamera) {
     targetSize[1],
   )
 }
+/** The jitter the active view's capture follows (`ViewOverrides.customDepthCapture.jitter`), none where it is steady. */
+function followedJitter(rt: WebgpuPagesRuntime) {
+  const lent = rt.views.active.overrides?.customDepthCapture?.jitter
+  return lent && lent.grid[0] > 0 ? lent : undefined
+}
+
+/**
+ * What the main view's image about to be drawn takes, as `beginTaaFrame` will set it: its size in the targets into `size`, and, where its
+ * temporal pass runs, its jitter in pixels into `jitter` (the same sample of the same phases); false, `jitter` untouched, where the pass
+ * does not run. A history `beginTaaFrame` drops on the view's cut restarts the sample at zero, which only that call knows.
+ */
+export function aheadTaaImage(rt: WebgpuPagesRuntime, size: number[], jitter: Float64Array) {
+  const temporal = rt.gpu.temporal
+  const runs = !!temporal && taaRuns(rt)
+  renderedSize(rt, scaleOfImage(rt, !runs).scale, size)
+  if (!runs) return false
+  taaJitter(temporal.frame.sample, jitter, upscalePhases(size[0]!, rt.gpu.displaySize[0]))
+  return true
+}
+
 /** Render matrix of this image: the camera's when the image does not accumulate. */
 export function taaRenderMatrix(rt: WebgpuPagesRuntime, cam: EngineCamera): ArrayLike<number> {
+  const lent = followedJitter(rt)
+  if (lent)
+    return jitterViewProjection(
+      lent.matrix,
+      cam.viewProjection,
+      lent.offset[0],
+      lent.offset[1],
+      lent.grid[0],
+      lent.grid[1],
+    )
   const temporal = rt.gpu.temporal
   return temporal?.frame.active ? temporal.frame.viewProjection : cam.viewProjection
 }
@@ -173,6 +204,16 @@ export function taaRenderMatrix(rt: WebgpuPagesRuntime, cam: EngineCamera): Arra
  *  `beginTaaFrame` set — the same clip offset, from the same jitter and grid, as the render
  *  matrix's —, the camera's own when the image does not accumulate. */
 export function taaRenderProjection(rt: WebgpuPagesRuntime, cam: EngineCamera, out: Float64Array) {
+  const lent = followedJitter(rt)
+  if (lent)
+    return jitterViewProjection(
+      out,
+      cam.projection,
+      lent.offset[0],
+      lent.offset[1],
+      lent.grid[0],
+      lent.grid[1],
+    )
   const frame = rt.gpu.temporal?.frame
   if (!frame?.active) return copyMatrix4(out, cam.projection)
   const { jitter, jitterGrid } = frame

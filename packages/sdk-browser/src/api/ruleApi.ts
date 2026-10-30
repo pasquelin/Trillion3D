@@ -208,6 +208,8 @@ export interface ExplorerRuleApi {
    *  visibility buffer's samples and merging, the voxel volume's size, pages, allocation, march and shadow terms, and the rays a strand's
    *  pixel casts toward a light; read by the next frame. */
   setHairStrands: FamilyWriter<'hairStrands'>
+  /** Writes the custom depth's setting `field` (`customDepthOptions.ts`): whether it is drawn, keeps its targets and writes the stencil, when in the frame it is drawn, its jitter and its fast clear; read by the next frame. */
+  setCustomDepth: FamilyWriter<'customDepth'>
   /** Writes the heterogeneous volumes' setting `field` (`heterogeneousVolumeOptions.ts`): whether the volumes are drawn, allowed by the device profile, cast shadows and are composited with the translucency; read by the next frame. */
   setHeterogeneousVolumeRendering: FamilyWriter<'heterogeneousVolumeRendering'>
   /** Writes the sampled lighting's setting `field` (`sampledLightsOptions.ts`): whether the view is lit by it, its draw, rays and filters; read by the next image. */

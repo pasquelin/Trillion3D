@@ -31,6 +31,7 @@ import type { MeshDistanceFieldTraceOptions } from '../../../../sdk-core/src/con
 import type { ScreenSpaceTracingOptions } from '../../../../sdk-core/src/contracts/screenSpaceTracingOptions.ts'
 import type { SingleLayerWaterOptions } from '../../../../sdk-core/src/contracts/singleLayerWaterOptions.ts'
 import type { HairStrandsOptions } from '../../../../sdk-core/src/contracts/hairStrandsOptions.ts'
+import type { CustomDepthOptions } from '../../../../sdk-core/src/contracts/customDepthOptions.ts'
 import type { HeterogeneousVolumeOptions } from '../../../../sdk-core/src/contracts/heterogeneousVolumeOptions.ts'
 import type { SampledLightsOptions } from '../../../../sdk-core/src/contracts/sampledLightsOptions.ts'
 import type { SubsurfaceScatteringOptions } from '../../../../sdk-core/src/contracts/subsurfaceScatteringOptions.ts'
@@ -350,6 +351,11 @@ export interface WorldImageSettings {
    *  back its default, one left out stays —; one a setting does not take is refused. */
   get hairStrands(): FamilyValues<'hairStrands'>
   set hairStrands(options: HairStrandsOptions)
+  /** The custom depth's settings, each by its field (`WorldOptions`), resolved over the page: `customDepth` (1: on, its targets made when an object
+   *  asks; 0 off, 2 kept, 3 kept with the stencil), `customDepthOrder` (2), `customDepthTemporalAAJitter` (true) and `customDepthEnableFastClear` (false).
+   *  Written, the settings named apply from the next frame — one `null` gives it back its default, one left out stays —; one a setting does not take is refused. */
+  get customDepth(): FamilyValues<'customDepth'>
+  set customDepth(options: CustomDepthOptions)
   /** The heterogeneous volumes' settings, each by its field (`WorldOptions`), resolved over the page: `heterogeneousVolumes` (true) — whether
    *  the volumes of a sparse texture a scene declares are drawn —, `heterogeneousVolumesAllowed` (true) — whether the device profile allows them —,
    *  `heterogeneousVolumesShadows` (false) and `heterogeneousVolumesTranslucency` (false). Written, the settings named apply from the next

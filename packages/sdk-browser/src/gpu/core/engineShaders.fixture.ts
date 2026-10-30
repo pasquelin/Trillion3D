@@ -53,6 +53,7 @@ import { HIT_LIGHTING_SHADERS } from './engineShaders.hitLighting.fixture.ts'
 import { SKY_LIGHT_TRACED_SHADERS } from './engineShaders.skyLightTraced.fixture.ts'
 import { SAMPLED_LIGHTS_SHADERS } from './engineShaders.manyLights.fixture.ts'
 import { SCREEN_SPACE_TRACING_SHADERS } from './engineShaders.screenSpaceTracing.fixture.ts'
+import { CUSTOM_DEPTH_SHADERS } from './engineShaders.customDepth.fixture.ts'
 import { BLEND_SHADER } from './shaderTexts.fixture.ts'
 import { waterCopyShader, waterMaskShader } from '../../blend/water/waterPassWgsl.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
@@ -259,6 +260,7 @@ export const ENGINE_SHADERS: Record<string, string> = {
   ...SKY_LIGHT_TRACED_SHADERS,
   ...SAMPLED_LIGHTS_SHADERS,
   ...SCREEN_SPACE_TRACING_SHADERS,
+  ...CUSTOM_DEPTH_SHADERS,
   BLEND_EXPAND_SHADER,
   BLEND_ORDER_SHADER,
   BLEND_VERDICT_SHADER,

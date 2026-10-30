@@ -75,6 +75,8 @@ import { SINGLE_LAYER_WATER_RULES } from '../contracts/singleLayerWaterOptions.t
 import { SINGLE_LAYER_WATER_MEANINGS } from './singleLayerWaterMeanings.ts'
 import { HAIR_STRANDS_RULES } from '../contracts/hairStrandsOptions.ts'
 import { HAIR_STRANDS_MEANINGS } from './hairStrandsMeanings.ts'
+import { CUSTOM_DEPTH_RULES } from '../contracts/customDepthOptions.ts'
+import { CUSTOM_DEPTH_MEANINGS } from './customDepthMeanings.ts'
 import { HETEROGENEOUS_VOLUME_RULES } from '../contracts/heterogeneousVolumeOptions.ts'
 import { HETEROGENEOUS_VOLUME_MEANINGS } from './heterogeneousVolumeMeanings.ts'
 import { SAMPLED_LIGHTS_RULES } from '../contracts/sampledLightsOptions.ts'
@@ -746,6 +748,7 @@ export const settingRuleProperties = () => ({
   ...ruleProperties(SUBSURFACE_SCATTERING_RULES, SUBSURFACE_SCATTERING_MEANINGS),
   ...ruleProperties(SINGLE_LAYER_WATER_RULES, SINGLE_LAYER_WATER_MEANINGS),
   ...ruleProperties(HAIR_STRANDS_RULES, HAIR_STRANDS_MEANINGS),
+  ...ruleProperties(CUSTOM_DEPTH_RULES, CUSTOM_DEPTH_MEANINGS),
   ...ruleProperties(HETEROGENEOUS_VOLUME_RULES, HETEROGENEOUS_VOLUME_MEANINGS),
   ...ruleProperties(SAMPLED_LIGHTS_RULES, SAMPLED_LIGHTS_MEANINGS),
   ...ruleProperties(PATH_TRACING_RULES, PATH_TRACING_MEANINGS),

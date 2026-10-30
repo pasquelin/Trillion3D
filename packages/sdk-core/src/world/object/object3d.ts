@@ -14,6 +14,7 @@ import type { SceneLink } from './sceneLink.ts'
 import { defineOffsetSwitches, type ShadowCacheInvalidation } from './offsetSwitches.ts'
 import type { ObjectMobility } from '../../contracts/objectAbi.ts'
 import type { LightingChannels } from '../../contracts/lightingChannelsAbi.ts'
+import type { CustomDepthStencilWriteMask } from '../../contracts/customDepthAbi.ts'
 import type { ShadowCapsuleBody } from '../../contracts/capsuleShadowOptions.ts'
 
 /** Scratch values of the pose methods below — the world reads too: none of them allocates. */
@@ -167,6 +168,15 @@ export class Object3D extends TransformNode {
   /** Whether the object is drawn for the views that belong to its owner alone, hidden from every
    *  other view, those of cameras that name no owner included; `false` by default. */
   declare onlyOwnerSee: boolean
+  /** Whether the object is drawn into the custom depth of the view (`customDepth`), whatever stands in front of it, for an outline or a
+   *  post-process material to read; `false` by default. */
+  declare renderCustomDepth: boolean
+  /** The value, from 0 to 255, the object's pixels write into the custom stencil (the `customDepth` mode that writes it, 3); 0 by default. */
+  declare customDepthStencilValue: number
+  /** How the object writes its stencil value: `'default'` writes the whole value, 255 or one bit (1, 2, 4, 8, 16, 32, 64, 128) the value under
+   *  that mask, on the pixels where the object is in front among the objects that ask; the bits are not merged ignoring the depth;
+   *  `'default'` by default. */
+  declare customDepthStencilWriteMask: CustomDepthStencilWriteMask
   override get parent(): Object3D | null {
     return super.parent as Object3D | null
   }

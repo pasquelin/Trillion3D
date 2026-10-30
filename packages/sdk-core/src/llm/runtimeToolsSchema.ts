@@ -38,6 +38,7 @@ import { COLOR_GRADING_RULES } from '../contracts/colorGradingOptions.ts'
 import { SUBSURFACE_SCATTERING_RULES } from '../contracts/subsurfaceScatteringOptions.ts'
 import { VOLUMETRIC_FOG_RULES } from '../contracts/volumetricFogOptions.ts'
 import { HAIR_STRANDS_RULES } from '../contracts/hairStrandsOptions.ts'
+import { CUSTOM_DEPTH_RULES } from '../contracts/customDepthOptions.ts'
 import { HETEROGENEOUS_VOLUME_RULES } from '../contracts/heterogeneousVolumeOptions.ts'
 import { SINGLE_LAYER_WATER_RULES } from '../contracts/singleLayerWaterOptions.ts'
 import { TRANSLUCENCY_VOLUME_RULES } from '../contracts/translucencyVolumeOptions.ts'
@@ -573,6 +574,11 @@ const MEDIUM_SETTING_TOOLS: Trillion3dTool[] = [
     'trillion3d_set_hair_strands',
     "Changes from the next frame how the hair strands — the curves a scene file carries — are drawn and shadowed: whether they are (off by default), the samples and merging of their visibility buffer, the voxel volume that counts the strands a light's ray crosses (its size, pages, allocation, jitter and the opaque depth written into it), the density, bias and step of the shadow's march, and the rays a strand's pixel casts toward a light through its shadow map.",
     HAIR_STRANDS_RULES,
+  ),
+  /* @__PURE__ */ settingTool(
+    'trillion3d_set_custom_depth',
+    'Changes from the next frame the custom depth: a second depth of the view, and a stencil, that holds only the objects which set renderCustomDepth, whatever stands in front of them, for an outline or a post-process material to read. Whether it is drawn and keeps its targets or writes the stencil (customDepth), when in the frame it is drawn (customDepthOrder), whether it keeps the temporal jitter and whether its target is cleared by the fast path.',
+    CUSTOM_DEPTH_RULES,
   ),
   /* @__PURE__ */ settingTool(
     'trillion3d_set_heterogeneous_volume_rendering',

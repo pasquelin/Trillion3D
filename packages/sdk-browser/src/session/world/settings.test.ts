@@ -39,6 +39,7 @@ import { COLOR_GRADING_RULES } from '../../../../sdk-core/src/contracts/colorGra
 import { VOLUMETRIC_FOG_RULES } from '../../../../sdk-core/src/contracts/volumetricFogOptions.ts'
 import { SINGLE_LAYER_WATER_RULES } from '../../../../sdk-core/src/contracts/singleLayerWaterOptions.ts'
 import { HAIR_STRANDS_RULES } from '../../../../sdk-core/src/contracts/hairStrandsOptions.ts'
+import { CUSTOM_DEPTH_RULES } from '../../../../sdk-core/src/contracts/customDepthOptions.ts'
 import { HETEROGENEOUS_VOLUME_RULES } from '../../../../sdk-core/src/contracts/heterogeneousVolumeOptions.ts'
 import { SUBSURFACE_SCATTERING_RULES } from '../../../../sdk-core/src/contracts/subsurfaceScatteringOptions.ts'
 import { TRANSLUCENCY_VOLUME_RULES } from '../../../../sdk-core/src/contracts/translucencyVolumeOptions.ts'
@@ -135,6 +136,8 @@ const TODAY: Record<keyof typeof WORLD_SETTINGS, boolean | number | string> = {
   ...resolveSettings(SINGLE_LAYER_WATER_RULES, {}),
   // The hair strands: off, a new project's defaults.
   ...resolveSettings(HAIR_STRANDS_RULES, {}),
+  // The custom depth: the reference's defaults.
+  ...resolveSettings(CUSTOM_DEPTH_RULES, {}),
   // The heterogeneous volumes: the reference's defaults.
   ...resolveSettings(HETEROGENEOUS_VOLUME_RULES, {}),
   // The screen probes: the level `ultra`, its other settings the contract's defaults.

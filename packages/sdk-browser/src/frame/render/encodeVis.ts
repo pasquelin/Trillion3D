@@ -36,7 +36,9 @@ export function encodeVis(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engine
   const [width, height] = gpu.targetSize
   // A face of the sky meshes' capture draws its sky surfaces alone, by the blend pass (`ViewOverrides.skyMeshCapture`).
   if (rt.views.active.overrides.skyMeshCapture) return encodeSkyMeshFace(rt, device, cam)
-  followTargets(rt) // The lobes and the translucency targets follow what they name.
+  // The view of the custom depth draws the visibility of the objects that ask for it alone (`ViewOverrides.customDepthCapture`).
+  if (rt.views.active.overrides.customDepthCapture) return encodeCustomDepthView(rt, device, cam)
+  followTargets(rt) // The lobes, the closure slices and the translucency targets follow what they name.
   // A scene with no opaque page draws the surfaces' clear alone.
   if (!run.gpuSelection || layout.packedPages.length === layout.blendedPageCount)
     return encodeEmptySurfaces(rt, device, cam, depthTarget)
@@ -69,4 +71,43 @@ export function encodeVis(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engine
   })
   // A captured scene that is due is drawn between this image and the next.
   skyLightSubmitted(rt)
+}
+
+/**
+ * The image of the custom depth view (`ViewOverrides.customDepthCapture`): the visibility of the objects its cut kept, rastered as the main view's
+ * is, then emitted into the custom depth targets in the place of the surfaces' shading. A scene with no opaque page draws nothing: the targets are
+ * cleared.
+ */
+function encodeCustomDepthView(rt: WebgpuPagesRuntime, device: GPUDevice, cam: EngineCamera) {
+  const { gpu, vis, run, layout } = rt
+  const capture = rt.views.active.overrides.customDepthCapture!
+  const [width, height] = gpu.targetSize
+  const empty = !run.gpuSelection || layout.packedPages.length === layout.blendedPageCount
+  // What the main view's image needs to be drawn (`encodeVis`).
+  const drawable =
+    !empty &&
+    !!vis.visBindGroupLayout &&
+    !!gpu.cache &&
+    !!vis.concatPos &&
+    !!gpu.depthView &&
+    !!vis.visView &&
+    !!vis.visPipelineBack &&
+    !!vis.shadeClasses &&
+    !!vis.pageTable
+  if (drawable) {
+    followTargets(rt)
+    ensureGpuRaster(rt, device)
+    ensureVisBindings(rt, device, cam, vis.gpuBins!.cap)
+  }
+  withRenderEncoder(rt, device, (encoder) => {
+    if (drawable) {
+      run.noOccluderHistory = false
+      run.gpuComputeDispatches = 0
+      const raster = visibilityRasterStages(rt, device, encoder)
+      if (!raster) throw new Error('VISIBILITY_RASTER_UNAVAILABLE')
+      encodeWebgpuVisibilityPasses(rt, encoder, raster)
+    }
+    capture.emit(encoder, drawable)
+    submitColorCopy(rt, device, encoder, height, width)
+  })
 }
