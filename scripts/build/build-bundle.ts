@@ -23,6 +23,8 @@ const MODULES = [
   'sdk-browser/src/wasm/kernels.wasm',
   'sdk-browser/src/gpu/noise/blueNoise.bin',
   'sdk-browser/src/lighting/direct/skinTable.bin',
+  'sdk-browser/src/modules/sky/clouds/cloudPattern.bin',
+  'sdk-browser/src/modules/sky/clouds/cloudNoise.bin',
   'sdk-browser/src/physics/joltPhysics.wasm',
   'sdk-browser/src/physics/joltPhysicsThreads.wasm',
 ]

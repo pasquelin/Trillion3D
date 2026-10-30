@@ -14,6 +14,9 @@ const RESSOURCES: [string, string][] = [
   ['sdk-browser/src/gpu/noise', 'blueNoise.bin'],
   // The preintegrated skin table the skin shading model reads.
   ['sdk-browser/src/lighting/direct', 'skinTable.bin'],
+  // The cloud material's layout pattern and noise volume, the reference material's own texture data.
+  ['sdk-browser/src/modules/sky/clouds', 'cloudPattern.bin'],
+  ['sdk-browser/src/modules/sky/clouds', 'cloudNoise.bin'],
   ['sdk-browser/src/physics', 'joltPhysics.wasm'],
   ['sdk-browser/src/physics', 'joltPhysicsThreads.wasm'],
   ['sdk', 'package.json'],
