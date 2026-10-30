@@ -162,13 +162,13 @@ test('a displaced class’s resolve is a module of its own over a group of its o
   // declares the two bindings its group adds.
   const displaced = shadeShader({ displaced: true })
   assert.doesNotMatch(SHADE_SHADER, /solveDisplaced|prismDepth|prism\./)
-  assert.match(SHADE_SHADER, /let bary=perspectiveBarycentric/)
-  assert.match(displaced, /var bary=perspectiveBarycentric/)
+  assert.match(SHADE_SHADER, /let bary=pb\.value/)
+  assert.match(displaced, /var bary=pb\.value/)
   assert.match(displaced, /if\(prism\.tessellation!=0u&&tessellatedFlags\(page\)\)\{/)
   // The solve is the reference's as it is: the weights it gives are taken, no guard of its own
   // (no validity word, no test of the placement's determinant nor of the depth).
   assert.doesNotMatch(displaced, /\bsolved\.ok|\bs\.ok\b|PrismValue|1e-20|!\(depth>0\.0\)/)
-  assert.match(displaced, /bary=s\.value;stepX=s\.dx;stepY=s\.dy;solved=true;/)
+  assert.match(displaced, /bary=s\.value;stepX=s\.dx;stepY=s\.dy;/)
   const added = Object.values(DISPLACED_SHADE_BINDINGS)
   assert.deepEqual(declaredBindings(displaced), [...declaredBindings(SHADE_SHADER), ...added])
   // Their layout: the resolve's entries and those two — the depth, and the uniform.

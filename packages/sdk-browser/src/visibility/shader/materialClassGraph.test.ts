@@ -38,7 +38,7 @@ test('the resolve of a graph reads its values from the material table and asks t
   // An output it does not wire is its default; one it wires is held to its range.
   assert.match(fragment, /metal=ormMetalness\(1\.0,saturate\(0\.00000000\)\);/)
   // The weights one pixel right and one down are declared once, for the footprints and the normal's change.
-  assert.equal(text.match(/bx=perspectiveBarycentric\(/g)?.length, 1)
+  assert.equal(text.match(/bx=bary\+stepX;/g)?.length, 1)
   assert.match(fragment, /if\(HAS_TANGENT&&\(true\)\)\{tangents=/)
   assert.doesNotMatch(fragment, /\|\|true/)
   // The pixel asks one of the graph's reads, never one of the maps': the tile request is its own.

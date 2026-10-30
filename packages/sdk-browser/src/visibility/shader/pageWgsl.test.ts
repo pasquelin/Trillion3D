@@ -14,6 +14,7 @@ import {
 } from '../../materials/virtual/wgsl.ts'
 import { rasterSource } from '../raster/shader.ts'
 import { SHADE_SHADER } from './shadeWgsl.ts'
+import { PIXEL_BARYCENTRIC_WGSL } from './pixelBarycentricWgsl.ts'
 import { VIS_SHADER } from './visShader.fixture.ts'
 import { wrapLinear } from '../wrapModes.fixture.ts'
 import { ENGINE_SHADERS } from '../../gpu/core/engineShaders.fixture.ts'
@@ -81,11 +82,12 @@ test('maskKeepWgsl declares fn maskKeep only once in the rasters, camera and sha
   assert.equal(shadow.name, 'maskKeepWgsl(maskAlphaWgsl(true))')
 })
 
-test('affineBarycentric declares fn affineBarycentric only once in shading, never in the raster', () => {
-  // The affine weights reach the shaders through the perspective ones, their one caller.
+test('the shading solves its weights in one function, declared once, and the raster never derives them', () => {
+  // The weights and their steps come from one solve (`pixelBarycentric`), the affine weights of the perspective ones never.
   const affineBarycentric = perspectiveBarycentric.deps.find((d) => d.name === 'affineBarycentric')!
   assert.match(wgslSource(affineBarycentric), /fn affineBarycentric\(/)
-  eachOnce(affineBarycentric.text, { SHADE_SHADER })
+  eachOnce(PIXEL_BARYCENTRIC_WGSL.text, { SHADE_SHADER })
+  assert.doesNotMatch(SHADE_SHADER, /fn affineBarycentric\(/)
   // The raster decides coverage on its three edges, not on derived weights.
   assert.doesNotMatch(SMALL_SHADER, /affineBarycentric/)
 })

@@ -13,26 +13,18 @@ import { normalCurvatureOfModel } from '../../materials/surface/surfaceModelWord
  *  before. A displaced row's pixel is placed on its displaced triangle (`solveDisplaced`,
  *  `../tessellation/prismWgsl.ts`): the weights of the surface position the depth gives, and their
  *  steps to the next pixel, which the texture derivatives and the normal's change read. */
-export const DISPLACED_PIXEL = ` var solved=false;var stepX=vec3f(0.0);var stepY=vec3f(0.0);
- if(prism.tessellation!=0u&&tessellatedFlags(page)){
+export const DISPLACED_PIXEL = ` if(prism.tessellation!=0u&&tessellatedFlags(page)){
   let s=solveDisplaced(page,tri,pos.xy);
-  bary=s.value;stepX=s.dx;stepY=s.dy;solved=true;
+  bary=s.value;stepX=s.dx;stepY=s.dy;
  }
 `
-export const DISPLACED_GRADIENTS = `  if(solved){ddx=t.uva*stepX.x+t.uvb*stepX.y+t.uvc*stepX.z;ddy=t.uva*stepY.x+t.uvb*stepY.y+t.uvc*stepY.z;}
+/** The barycentric weights one pixel right (`bx`) and one down (`by`), the pixel's weights moved by
+ *  their steps (`pixelBarycentric`, or the displaced triangle's own where the pixel was solved on it): what the
+ *  normal's change across the pixel and a graph's footprints read. */
+export const NEIGHBOUR_WEIGHTS = (indent: string) =>
+  `${indent}let bx=bary+stepX;
+${indent}let by=bary+stepY;
 `
-const DISPLACED_STEPS = `   if(solved){bx=bary+stepX;by=bary+stepY;}
-`
-
-/** The barycentric weights one pixel right (`bx`) and one down (`by`), those of the displaced
- *  triangle's own steps where the pixel was solved on it (`DISPLACED_STEPS`): what the normal's
- *  change across the pixel and a graph's footprints read. */
-export const NEIGHBOUR_WEIGHTS = (displaced: boolean, indent: string) => {
-  const declare = displaced ? 'var' : 'let'
-  return `${indent}${declare} bx=perspectiveBarycentric(s0,s1,s2,t.iw,p+vec2f(1.0,0.0),area);
-${indent}${declare} by=perspectiveBarycentric(s0,s1,s2,t.iw,p+vec2f(0.0,1.0),area);
-${displaced ? DISPLACED_STEPS : ''}`
-}
 
 /** What a voxel class's resolve adds to the text (`VOXEL`): its own module alone holds it, made
  *  the first time a voxel class is asked (`shadePipelines.ts`); every other class compiles the text

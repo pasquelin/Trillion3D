@@ -239,13 +239,13 @@ export const PHYSICAL_RESOLVE_WGSL = wgslBlock(
 fn mapCoord(m:Material,i:u32)->PhysicalCoord{return physicalCoords[mapChannel(m.channels,i)];}
 /** The UV sets past the first that \`used\` (\`channelSets\`) names, decoded at the corners \`k\` of the
  *  header \`h\` where its page has them; the pixel holds the first set's otherwise. */
-fn physicalOtherUvs(page:PageInfo,h:ClusterHeader,k:vec3u,s0:vec2f,s1:vec2f,s2:vec2f,p:vec2f,bary:vec3f,iw:vec3f,used:u32){
+fn physicalOtherUvs(page:PageInfo,h:ClusterHeader,k:vec3u,bary:vec3f,dx:vec3f,dy:vec3f,used:u32){
  if((used>>1u)==0u){return;}
  let end=normalTexels();
  for(var s=1u;s<${MAX_UV_SETS}u;s++){
   if((used&(1u<<s))!=0u&&pageHasUvSet(page,h,s)){
    let uv=pageUvSet3(page,h,k,s,end);let a=uv[0];let b=uv[1];let c=uv[2];
-   let g=uvGradients(s0,s1,s2,p,a,b,c,iw);
+   let g=uvGradients(dx,dy,a,b,c);
    physicalCoords[s]=PhysicalCoord(a*bary.x+b*bary.y+c*bary.z,g[0],g[1],b-a,c-a);
   }
  }
@@ -280,7 +280,7 @@ export const physicalUvRead = (
  if(HAS_PHYSICAL){
   var used=channelSets(m.channels)${sets};
   if(lobes!=0u){used|=channelSets(physicalRecord.channels);}
-  physicalOtherUvs(page,t.h,t.k,s0.xy,s1.xy,s2.xy,p,bary,t.iw,used);
+  physicalOtherUvs(page,t.h,t.k,bary,stepX,stepY,used);
  }`
 
 /** The lobes of a lit pixel, once its normal, roughness and flag are final: in the stored tangents'

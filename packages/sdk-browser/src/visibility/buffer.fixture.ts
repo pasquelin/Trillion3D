@@ -4,6 +4,8 @@ import { surfaceOf, type PageSurface } from '../geometry/pages/surface.ts'
 import type { VisPage } from './types.ts'
 import { triangleAt } from '../../../../bench/oracles/browser/cpu-image/projection.ts'
 import { UV_GRADIENTS_WGSL } from './shader/uvGradientsWgsl.ts'
+import { PIXEL_BARYCENTRIC_WGSL } from './shader/pixelBarycentricWgsl.ts'
+import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { shaderRun } from '../materials/texture/shaderRun.fixture.ts'
 import type { EngineCamera } from '../camera/engineCamera.ts'
 import { DEFAULT_PIXEL_RATIO } from '../session/engine/common.ts'
@@ -88,14 +90,22 @@ export function visibilityUvDerivatives(
   const uva: [number, number] = uv ? [uv.getX(tri.i0), uv.getY(tri.i0)] : [0, 0]
   const uvb: [number, number] = uv ? [uv.getX(tri.i1), uv.getY(tri.i1)] : [0, 0]
   const uvc: [number, number] = uv ? [uv.getX(tri.i2), uv.getY(tri.i2)] : [0, 0]
-  const at = (p: { x: number; y: number }) => [p.x, p.y],
+  const at = (p: { x: number; y: number }) => [p.x, p.y, 0],
     iw = [tri.a.invW, tri.b.invW, tri.c.invW]
-  const [dx, dy] = uvGradients(at(tri.a), at(tri.b), at(tri.c), [x, y], uva, uvb, uvc, iw)
+  const [s0, s1, s2] = [at(tri.a), at(tri.b), at(tri.c)]
+  const area = (s2[0]! - s1[0]!) * (s0[1]! - s1[1]!) - (s2[1]! - s1[1]!) * (s0[0]! - s1[0]!)
+  const steps = pixelBarycentric(s0, s1, s2, iw, [x, y], area)
+  const [dx, dy] = uvGradients(steps.dx, steps.dy, uva, uvb, uvc)
   return { duDx: dx[0], dvDx: dx[1], duDy: dy[0], dvDy: dy[1] }
 }
 
-/** The resolve's own UV gradients (`UV_GRADIENTS_WGSL`), run as shipped: the columns `d(u,v)/dx`
+/** The resolve's own UV gradients (`UV_GRADIENTS_WGSL`) over the weights' steps (`PIXEL_BARYCENTRIC_WGSL`), run as shipped: the columns `d(u,v)/dx`
  *  and `d(u,v)/dy`. */
-const { uvGradients } = shaderRun<{
-  uvGradients: (...corners: number[][]) => [number[], number[]]
-}>(UV_GRADIENTS_WGSL, ['uvGradients'], { mat2x2f: (dx: number[], dy: number[]) => [dx, dy] })
+const { uvGradients, pixelBarycentric } = shaderRun<{
+  uvGradients: (...args: number[][]) => [number[], number[]]
+  pixelBarycentric: (...args: unknown[]) => { value: number[]; dx: number[]; dy: number[] }
+}>(
+  wgslBlock('visibilityUvGradients', [PIXEL_BARYCENTRIC_WGSL, UV_GRADIENTS_WGSL], ''),
+  ['uvGradients', 'pixelBarycentric'],
+  { mat2x2f: (dx: number[], dy: number[]) => [dx, dy] },
+)

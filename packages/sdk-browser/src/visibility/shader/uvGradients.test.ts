@@ -3,6 +3,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { UV_GRADIENTS_WGSL } from './uvGradientsWgsl.ts'
+import { PIXEL_BARYCENTRIC_WGSL } from './pixelBarycentricWgsl.ts'
 import { SHADE_SHADER } from './shadeWgsl.ts'
 import { uvDerivatives } from '../uvDerivatives.fixture.ts'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
@@ -18,7 +19,9 @@ import { WORLD_TABLE } from '../../geometry/dag/worlds/worldTable.ts'
 
 test('the resolve reads the one gradient formula and keeps no copy', () => {
   assert.equal(SHADE_SHADER.split(UV_GRADIENTS_WGSL.text).length - 1, 1)
-  assert.match(SHADE_SHADER, /=uvGradients\(/)
+  assert.match(SHADE_SHADER, /=uvGradients\(stepX,stepY,/)
+  assert.equal(SHADE_SHADER.split(PIXEL_BARYCENTRIC_WGSL.text).length - 1, 1)
+  assert.equal(SHADE_SHADER.match(/=pixelBarycentric\(/g)?.length, 1)
   assert.doesNotMatch(SHADE_SHADER.replace(UV_GRADIENTS_WGSL.text, ''), /dUdx|dsdx/)
 })
 

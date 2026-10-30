@@ -2,7 +2,6 @@ import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { wgslBlock, type WgslDecl } from '../../../../math/src/wgsl/decl.ts'
 import { unitOrZero } from '../../../../math/src/wgsl/inverseTranspose.ts'
 import { faceNormal } from '../../../../math/src/wgsl/geometry.ts'
-import { edgeFunction, perspectiveBarycentric } from '../../../../math/src/wgsl/barycentric.ts'
 import { interleavedGradientNoise } from '../../../../math/src/wgsl/sampling.ts'
 import { unitToSigned3 } from '../../../../math/src/wgsl/reals.ts'
 import { octDecode, octEncode } from '../../../../math/src/wgsl/octahedral.ts'
@@ -89,7 +88,7 @@ const PHYSICAL_HIT_WGSL = wgslBlock(
   ],
   `var<private> hitLobes:PhysicalLobes;
 fn mapCoord(m:Material,i:u32)->PhysicalCoord{return physicalCoords[mapChannel(m.channels,i)];}
-fn physicalOtherUvs(page:PageInfo,h:u32,k:vec3u,s0:vec2f,s1:vec2f,s2:vec2f,p:vec2f,bary:vec3f,iw:vec3f,used:u32){}
+fn physicalOtherUvs(page:PageInfo,h:u32,k:vec3u,bary:vec3f,dx:vec3f,dy:vec3f,used:u32){}
 fn physicalLobes(pixel:vec2f,N:vec3f,coatBase:vec3f,e1:vec3f,e2:vec3f,screenFace:f32,coatFace:f32,tangents:CotangentFrame,stored:bool,curvature:f32)->u32{
  var v=physicalValues(N,coatBase,e1,e2,screenFace,coatFace,tangents,stored);
  v.coatRough=max(v.coatRough,curvature);
@@ -103,7 +102,7 @@ fn physicalLobes(pixel:vec2f,N:vec3f,coatBase:vec3f,e1:vec3f,e2:vec3f,screenFace
 /**
  * What the resolve's text reads of a triangle and of a page, for a hit: the triangle's corners rebuilt from the hit (`shadeHit`), the page's record made of the hit's material and flags, and the
  * functions of the resolve that read a page's geometry stood in for — the vertex colour is the hit's, the tangents are never stored (the frame is built from the texture coordinates). The
- * barycentric weights are the hit's own, given to the library's perspective weights through a unit screen triangle (see `shadeHit`).
+ * barycentric weights are the hit's own (see `shadeHit`).
  */
 const HIT_STAND_INS = wgslBlock(
   'HIT_STAND_INS',
@@ -147,11 +146,10 @@ fn shadeHit(h:PtHit,pixel:vec2f)->SurfaceOut{
  t.uva=uva;t.uvb=uva+h.uvEdge1;t.uvc=uva+h.uvEdge2;
  t.iw=vec3f(1.0);t.h=0u;t.k=vec3u(0u);
  let w0=t.w0;let w1=t.w1;let w2=t.w2;
- // A unit screen triangle whose weights at (b1,b2) are the hit's own barycentrics (the library's perspective weights with unit 1/w return them).
- let s0=vec3f(0.0);let s1=vec3f(1.0,0.0,0.0);let s2=vec3f(0.0,1.0,0.0);
  let c0=vec4f(0.0,0.0,0.0,1.0);let c1=c0;let c2=c0;
- let p=vec2f(b1,b2);
  let area=1.0;
+ // The weights' steps, one unit of the unit screen triangle right and down: the hit's neighbours span the whole triangle.
+ let stepX=vec3f(-1.0,1.0,0.0);let stepY=vec3f(-1.0,0.0,1.0);
  var rgb=m.baseColor;
  var uv=select(vec2f(0.0),h.uv,h.attributed);
  var ddx=vec2f(0.0);
@@ -251,7 +249,7 @@ export const shadeHitProgram = (graph?: CompiledGraph) => {
   const o: ShadeOptions = {
     voxel: false,
     displaced: false,
-    graph: graph && shadeGraph(graph, false),
+    graph: graph && shadeGraph(graph),
     screenFace: '1.0',
   }
   const body = HIT_HEAD() + SURFACE_READS(o) + SURFACE_NORMALS(o) + SURFACE_TAIL(o)
@@ -284,8 +282,6 @@ export const shadeHitProgram = (graph?: CompiledGraph) => {
     interleavedGradientNoise,
     TILE_NOISE_WGSL,
     faceNormal,
-    edgeFunction,
-    perspectiveBarycentric,
     unitToSigned3,
   ])
 }

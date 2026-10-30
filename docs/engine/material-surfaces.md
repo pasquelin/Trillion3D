@@ -23,7 +23,7 @@ workgroup's barriers:
 A bin holds pixels — one word each, its coordinates and its write mask — or quads — two words, the
 top-left pixel and a nibble a pixel of the quad —, the reference's two modes: a class whose shading
 reads a neighbour's derivative is binned by quad, any other by pixel. Every gradient a class reads
-is its triangle's own, analytic (`uvGradients`), so its bin holds pixels unless the
+is its triangle's own, analytic (`uvGradients`, from the steps of `pixelBarycentric`), so its bin holds pixels unless the
 `shadeBinningMode` setting forces quads; a quad's lane on a pixel of another class has nothing to
 write and nothing to give, and does nothing (`shadesPixel`). Each class the resident clusters wear
 (`PresentClasses`, counted as the clusters' records are written) then shades its bin (`shade_cs`, `visibility/shader/shadeEntryWgsl.ts`) and stores its pixels

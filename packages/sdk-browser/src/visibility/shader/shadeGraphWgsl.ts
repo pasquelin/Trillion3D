@@ -92,7 +92,7 @@ const VERTEX_COLOR = ` mgPixel.vertexColor=vec4f(1.0);
 `
 
 /** The context at the pixel, and at the pixels the footprint is found at where a texture is read. */
-function prologue(g: CompiledGraph, displaced: boolean) {
+function prologue(g: CompiledGraph) {
   const neighbours = g.uses.textures || !!g.functions.normal
   const near = (at: string, step: 'ddx' | 'ddy', by: string) =>
     `mgNeighbour[${at}]=mgPixel;mgNeighbour[${at}].uvs=array<vec2f,${MAX_UV_SETS}>(${Array.from(
@@ -109,7 +109,7 @@ function prologue(g: CompiledGraph, displaced: boolean) {
  mgPixel.vertexNormal=unitOrZero(t.n0*bary.x+t.n1*bary.y+t.n2*bary.z);
  mgPixel.pixelNormal=mgPixel.vertexNormal;
  mgPixel.viewForward=mgViewForward(uni.viewProj,uni.eye,mgPixel.world);
-${g.uses.colour ? VERTEX_COLOR : ''}${NEIGHBOUR_WEIGHTS(displaced, ' ')}${
+${g.uses.colour ? VERTEX_COLOR : ''}${NEIGHBOUR_WEIGHTS(' ')}${
     neighbours
       ? ` ${near('0', 'ddx', 'bx')}
  ${near('1', 'ddy', 'by')}
@@ -291,16 +291,15 @@ ${BOTTOM_FRAME}
 `
 }
 
-/** The pieces the surface resolve splices for the program `g`; `displaced` where the module places
- *  its pixels on a displaced triangle, whose neighbours' weights are its own (`DISPLACED_STEPS`). */
-export function shadeGraph(g: CompiledGraph, displaced: boolean): ShadeGraph {
+/** The pieces the surface resolve splices for the program `g`. */
+export function shadeGraph(g: CompiledGraph): ShadeGraph {
   const call = outputCall(g, 'mgPixel,mgGiven')
   const held = heldOutputs(g, call)
   return {
     decl: pixelWgsl(g),
     request: shadeRequestWgsl(g),
     sets: `|${g.uses.sets}u`,
-    prologue: prologue(g, displaced),
+    prologue: prologue(g),
     diagnostic: `  base=${held.rgb}+${held.emissive};\n`,
     normal: !!g.functions.normal || !!g.functions.clearCoatBottomNormal,
     late: late(g, held, call),

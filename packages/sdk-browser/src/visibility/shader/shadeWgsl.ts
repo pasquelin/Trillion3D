@@ -2,7 +2,8 @@ import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import type { WgslDecl } from '../../../../math/src/wgsl/decl.ts'
 import { SHADE_DECL_WGSL, shadeDeclWgsl } from './shadeDeclWgsl.ts'
 import { unitOrZero } from '../../../../math/src/wgsl/inverseTranspose.ts'
-import { edgeFunction, perspectiveBarycentric } from '../../../../math/src/wgsl/barycentric.ts'
+import { edgeFunction } from '../../../../math/src/wgsl/barycentric.ts'
+import { PIXEL_BARYCENTRIC_WGSL } from './pixelBarycentricWgsl.ts'
 import { faceNormal } from '../../../../math/src/wgsl/geometry.ts'
 import { TILE_NOISE_WGSL } from '../../materials/texture/samplingFootprint.ts'
 import { interleavedGradientNoise } from '../../../../math/src/wgsl/sampling.ts'
@@ -57,7 +58,6 @@ import { NO_WPO, type WpoSet } from '../../materials/graph/wpoProgram.ts'
 import { wpoGraphWgsl } from './wpoGraphWgsl.ts'
 import { shadeGraph, type ShadeGraph } from './shadeGraphWgsl.ts'
 import {
-  DISPLACED_GRADIENTS,
   DISPLACED_PIXEL,
   NEIGHBOUR_WEIGHTS,
   STORED_TANGENT_FRAME_WGSL,
@@ -107,14 +107,16 @@ fn shadePageSurface(page:PageInfo,pos:vec4f,id:u32)->SurfaceOut{
  let area=edgeFunction(s1.xy,s2.xy,s0.xy);
  if(SHADE_STAGE==3u){shadeProbe=bitcast<u32>(dot(t.p0+t.p1+t.p2+t.w0+t.w1+t.w2,vec4f(1.0))+dot(t.n0+t.n1+t.n2,vec3f(1.0))+select(0.0,dot(t.uva+t.uvb+t.uvc,vec2f(1.0)),HAS_UV)+dot(t.iw,vec3f(1.0)));return emptySurface();}
  var rgb=m.baseColor;
- ${o.displaced ? 'var' : 'let'} bary=perspectiveBarycentric(s0,s1,s2,t.iw,p,area);
+ // The pixel's weights and their steps one pixel right and down, solved once (\`pixelBarycentric\`).
+ let pb=pixelBarycentric(s0,s1,s2,t.iw,p,area);
+ ${o.displaced ? 'var' : 'let'} bary=pb.value;${o.displaced ? 'var' : 'let'} stepX=pb.dx;${o.displaced ? 'var' : 'let'} stepY=pb.dy;
 ${o.displaced ? DISPLACED_PIXEL : ''}${o.voxel ? VOXEL_PIXEL : ''} var uv=vec2f(0.0);
  var ddx=vec2f(0.0);var ddy=vec2f(0.0);
  if(HAS_UV){
   uv=t.uva*bary.x+t.uvb*bary.y+t.uvc*bary.z;
-  let g=uvGradients(s0.xy,s1.xy,s2.xy,p,t.uva,t.uvb,t.uvc,t.iw);
+  let g=uvGradients(stepX,stepY,t.uva,t.uvb,t.uvc);
   ddx=g[0];ddy=g[1];
-${o.displaced ? DISPLACED_GRADIENTS : ''} }
+ }
 `
 
 /** The pixel's other texture sets, its tile request and the reads of its maps (a graph's context first). */
@@ -183,8 +185,9 @@ ${o.graph?.diagnostic ?? ''}${o.voxel ? VOXEL_DIAGNOSTIC : ''}  let depth=dot(ba
 export const SURFACE_NORMALS = (
   o: ShadeOptions,
 ) => ` var metal=ormMetalness(m.metalness,metalSample.z);var rough=ormRoughness(m.roughness,roughSample.y);
-${o.voxel ? VOXEL_SURFACE : ''} // Original vertices may straddle the near plane; recover the clipped winding.
-  let screenFace=${o.screenFace ?? 'select(-1.0,1.0,area*c0.w*c1.w*c2.w<0.0)'};
+${o.voxel ? VOXEL_SURFACE : ''} // The side the screen sees the triangle from: the sign of the weights' steps (\`pixelBarycentric\`), right
+  // for original vertices that straddle the near plane too.
+  let screenFace=${o.screenFace ?? 'select(-1.0,1.0,pb.dx.y*pb.dy.x-pb.dx.x*pb.dy.y>0.0)'};
   let world3=worldMatrix3(page.world);
   // Face winding of a singular pose does NOT come from its zero determinant: on a flattened
   // face, the adjugate already put the normal on the side of the transformed-edge cross product,
@@ -204,7 +207,7 @@ ${o.voxel ? VOXEL_SURFACE : ''} // Original vertices may straddle the near plane
    N=unitOrZero(n0*bary.x+n1*bary.y+n2*bary.z);
    if(DOUBLE_SIDED){N*=face;}
    if(${normalCurvatureOfModel('m.model')}){
-${o.graph ? '' : NEIGHBOUR_WEIGHTS(o.displaced, '    ')}
+${o.graph ? '' : NEIGHBOUR_WEIGHTS('    ')}
     let faceSide=select(1.0,face,DOUBLE_SIDED);
     let dNx=unitOrZero(n0*bx.x+n1*bx.y+n2*bx.z)*faceSide-N;
     let dNy=unitOrZero(n0*by.x+n1*by.y+n2*by.z)*faceSide-N;
@@ -279,7 +282,7 @@ export const shadeShader = ({
   graph?: CompiledGraph
   wpo?: WpoSet
 } = {}) => {
-  const o: ShadeOptions = { voxel, displaced, graph: graph && shadeGraph(graph, displaced) }
+  const o: ShadeOptions = { voxel, displaced, graph: graph && shadeGraph(graph) }
   const parts = [SURFACE_HEAD, SURFACE_READS, SURFACE_VIEWS, SURFACE_NORMALS, SURFACE_TAIL]
   return wgslProgram(parts.map((part) => part(o)).join(''), [
     SHADE_ENTRY_WGSL,
@@ -308,7 +311,7 @@ export const shadeShader = ({
     interleavedGradientNoise,
     TILE_NOISE_WGSL,
     edgeFunction,
-    perspectiveBarycentric,
+    PIXEL_BARYCENTRIC_WGSL,
     faceNormal,
     unitToSigned3,
     visPageIndex,
