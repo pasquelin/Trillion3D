@@ -42,14 +42,12 @@ export async function createCloudTextures(device: GPUDevice) {
     createGlobalMask(device),
     createLightningVolume(device),
   ])
-  const failed = made.find((result) => result.status === 'rejected')
-  if (failed) {
-    for (const result of made) if (result.status === 'fulfilled') result.value.destroy()
-    throw failed.reason
+  const textures = made.flatMap((result) => (result.status === 'fulfilled' ? [result.value] : []))
+  if (textures.length < made.length) {
+    for (const texture of textures) texture.destroy()
+    throw made.find((result) => result.status === 'rejected')?.reason
   }
-  const [noise, pattern, profile, mask, lightning] = made.map(
-    (result) => (result as PromiseFulfilledResult<GPUTexture>).value,
-  )
+  const [noise, pattern, profile, mask, lightning] = textures
   return {
     noise,
     pattern,

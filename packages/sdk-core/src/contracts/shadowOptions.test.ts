@@ -34,7 +34,7 @@ const SHADOW_MAP_DEFAULTS = {
   ...{ shadowClipmapCullDynamicTightly: true, shadowForceInvalidateDirectional: false },
   ...{ shadowPrefilteredDistant: false, shadowPrefilteredDistantHistoryBlendFactor: 0.87 },
   ...{ shadowMarkCoarsePagesLocal: 1, shadowResolutionLodBiasDirectional: -1.5 },
-  ...{ shadowResolutionLodBiasDirectionalMoving: -1.5, shadowResolutionLodBiasLocal: 0 },
+  ...{ shadowResolutionLodBiasDirectionalMoving: -1.5, shadowResolutionLodBiasLocal: -1 },
   ...{ shadowResolutionLodBiasLocalMoving: 1, shadowLightActiveFrameCount: 10 },
   ...{ shadowRayCountDirectional: 8, shadowSamplesPerRayDirectional: 4 },
   ...{ shadowRayCountLocal: 8, shadowSamplesPerRayLocal: 4, shadowMaxPhysicalPages: 4096 },
@@ -248,7 +248,8 @@ const ROWS = {
   shadowMarkCoarsePagesLocal: [2, 2, 2],
   shadowResolutionLodBiasDirectional: [0, 0, 0],
   shadowResolutionLodBiasDirectionalMoving: [0, 0, 0],
-  shadowResolutionLodBiasLocal: [1, 1, 0],
+  // Finer than the reference's 1 and 0 from the second level: its spot shadows step in texels (declared).
+  shadowResolutionLodBiasLocal: [1, -1, -1],
   shadowResolutionLodBiasLocalMoving: [2, 2, 1],
   shadowRayCountDirectional: [0, 4, 8],
   shadowSamplesPerRayDirectional: [2, 2, 4],

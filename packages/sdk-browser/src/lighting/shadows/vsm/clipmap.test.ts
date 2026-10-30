@@ -39,7 +39,7 @@ test('the levels: 6 to 22, a radius of 2^(L+1) cm, a depth range of 1000 radii',
   assert.equal(VSM_SUN_DEPTH_KEEP, 0.9)
 })
 
-test("the sun's bias at rest and moving is -1.5, a local light's 0 and 1", () => {
+test("the sun's bias at rest and moving is -1.5, a local light's -1 and 1", () => {
   const { shadows } = { shadows: VSM_DEFAULT_SHADOWS }
   assert.deepEqual(
     [
@@ -49,7 +49,7 @@ test("the sun's bias at rest and moving is -1.5, a local light's 0 and 1", () =>
       ],
       ...[shadows.shadowResolutionLodBiasLocal, shadows.shadowResolutionLodBiasLocalMoving],
     ],
-    [-1.5, -1.5, 0, 1],
+    [-1.5, -1.5, -1, 1],
   )
   assert.equal(
     frame(new VsmCacheManager(), [0, 0, 0]).levelBias,
@@ -246,7 +246,11 @@ test("a local light reads the moving bias as the sun does, and marks its last mi
     made > rest && made >= half && half >= rest,
     `${made}, ${half}, ${rest}: coarser while it moves`,
   )
-  assert.equal(rest, mip(11, { shadowResolutionLodBiasLocalMoving: 0 }), 'at rest: its own bias')
+  assert.equal(
+    rest,
+    mip(11, { shadowResolutionLodBiasLocal: 0, shadowResolutionLodBiasLocalMoving: 0 }),
+    'at rest: its own bias',
+  )
   const flags = (mode: 0 | 1 | 2) =>
     addVsmLocalLightShadow(
       new VsmCacheManager(),

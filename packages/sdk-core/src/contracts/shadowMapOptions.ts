@@ -113,7 +113,7 @@ const FILTERING_AND_LOD_RULES = /* @__PURE__ */ (() =>
     positive('shadowSmrtRayLengthScaleDirectional', 1.5),
     number('shadowResolutionLodBiasDirectional', -1.5, [-16, 16]),
     number('shadowResolutionLodBiasDirectionalMoving', -1.5, [-16, 16]),
-    number('shadowResolutionLodBiasLocal', 0, [-16, 16]),
+    number('shadowResolutionLodBiasLocal', -1, [-16, 16]),
     number('shadowResolutionLodBiasLocalMoving', 1, [-16, 16]),
     count('shadowLightActiveFrameCount', 10, 1),
   ] as const)()
@@ -274,7 +274,7 @@ const RAY_AND_RESOLUTION_RULES = /* @__PURE__ */ (() =>
  * | `shadowSmrtRayLengthScaleDirectional` | 1.5 | |
  * | `shadowResolutionLodBiasDirectional` | -1.5 | 0 0 0 -1.5 |
  * | `shadowResolutionLodBiasDirectionalMoving` | -1.5 | 0 0 0 -1.5 |
- * | `shadowResolutionLodBiasLocal` | 0 | 1 1 0 0 |
+ * | `shadowResolutionLodBiasLocal` | -1 | 1 -1 -1 -1 |
  * | `shadowResolutionLodBiasLocalMoving` | 1 | 2 2 1 0 |
  * | `shadowLightActiveFrameCount` | 10 | |
  * | `shadowRayCountDirectional` | 8 | 0 4 8 16 |
@@ -567,7 +567,8 @@ const BALANCED_SHADOWS = {
   shadowMarkCoarsePagesLocal: 2,
   shadowResolutionLodBiasDirectional: 0,
   shadowResolutionLodBiasDirectionalMoving: 0,
-  shadowResolutionLodBiasLocal: 1,
+  // -1 from this level up, finer than the reference's rows (1, 0, 0): their spot shadows step in texels (declared, 2026-10-30).
+  shadowResolutionLodBiasLocal: -1,
   shadowResolutionLodBiasLocalMoving: 2,
   shadowRayCountDirectional: 4,
   shadowSamplesPerRayDirectional: 2,
@@ -583,7 +584,7 @@ const FINE_SHADOWS = {
   shadowMarkCoarsePagesLocal: 2,
   shadowResolutionLodBiasDirectional: 0,
   shadowResolutionLodBiasDirectionalMoving: 0,
-  shadowResolutionLodBiasLocal: 0,
+  shadowResolutionLodBiasLocal: -1,
   shadowResolutionLodBiasLocalMoving: 1,
   shadowRayCountDirectional: 8,
   shadowSamplesPerRayDirectional: 4,
@@ -599,7 +600,7 @@ const CINEMATIC_SHADOWS = {
   shadowMarkCoarsePagesLocal: 1,
   shadowResolutionLodBiasDirectional: -1.5,
   shadowResolutionLodBiasDirectionalMoving: -1.5,
-  shadowResolutionLodBiasLocal: 0,
+  shadowResolutionLodBiasLocal: -1,
   shadowResolutionLodBiasLocalMoving: 0,
   shadowRayCountDirectional: 16,
   shadowSamplesPerRayDirectional: 8,

@@ -201,7 +201,7 @@ export const SHADOW_VIEW_MEANINGS: Readonly<Record<ShadowViewField, string>> = {
   shadowResolutionLodBiasDirectionalMoving:
     "Resolution bias of a directional light while it moves — its direction changed — (-1.5, the default and the value of 'cinematic'; 0 at the three lower levels); it falls back to shadowResolutionLodBiasDirectional over shadowLightActiveFrameCount frames, and is never finer than that.",
   shadowResolutionLodBiasLocal:
-    "Resolution bias of a point, spot or rectangle light's maps while it rests (0, the default): each unit below 0 doubles the resolution, each above halves it. The quality levels write 1, 1 and 0 below the top one and 0 at 'cinematic'.",
+    "Resolution bias of a point, spot or rectangle light's maps while it rests (-1, the default): each unit below 0 doubles the resolution, each above halves it. The quality levels write 1, -1 and -1 below the top one and -1 at 'cinematic': from 'balanced' up, the edges of a small lamp's shadows show no texel steps.",
   shadowResolutionLodBiasLocalMoving:
     "Resolution bias of a point, spot or rectangle light while it moves or was just made (1, the default: half the resolution); it falls back to shadowResolutionLodBiasLocal over shadowLightActiveFrameCount frames, and is never finer than that. The quality levels write 2, 2 and 1 below the top one and 0 at 'cinematic'.",
   shadowLightActiveFrameCount:

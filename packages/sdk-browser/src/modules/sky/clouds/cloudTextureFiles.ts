@@ -30,8 +30,8 @@ function fileReader(name: string, bytes: number, resource: () => Promise<BufferS
       const read = await sourceBytes(source)
       if (read.length !== bytes)
         throw new RangeError(`the cloud ${name} holds ${read.length} bytes, not ${bytes}`)
-      // A texture upload takes no shared memory; the bytes read are never in any.
-      return read as Uint8Array<ArrayBuffer>
+      // A texture upload takes no shared memory: bytes a host hands in it are copied out.
+      return read.buffer instanceof ArrayBuffer ? (read as Uint8Array<ArrayBuffer>) : new Uint8Array(read)
     })().catch((error: unknown) => {
       pending = undefined
       throw error
