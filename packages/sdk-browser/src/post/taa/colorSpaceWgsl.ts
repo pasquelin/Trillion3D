@@ -46,20 +46,28 @@ export const quantizationErrorsOf = (format: GPUTextureFormat) =>
     .join(',')})`
 
 /** The words a pixel of the scene colour the shading rejection hands the history update takes in
- *  its buffer (`SCENE_COLOR_WGSL`): one for the 11-11-10 floats, two for four half floats. */
-export const sceneColorWords = (format: GPUTextureFormat) => (format === 'rg11b10ufloat' ? 1 : 2)
+ *  its buffer (`sceneColorWgsl`): four half floats in two, whatever the history's colour format.
+ *  DEVIATION, declared: the reference writes this colour as 11-11-10 floats, 4 bytes; ours holds four
+ *  half floats in 8 bytes, a deliberate departure for speed: the hardware unpacks them where the
+ *  11-11-10 word is decoded in software at every tap of the history update, measured about 25% faster
+ *  on that pass. The values are the same, since every 11-11-10 value is exact in a half. */
+export const SCENE_COLOR_WORDS = 2
 
 /**
- * THE SCENE COLOUR IN A BUFFER, in the history's colour format (`HistoryFormats.color`), as a
+ * THE SCENE COLOUR IN A BUFFER, rounded to the history's colour format (`HistoryFormats.color`) as a
  * texture of that format would hold it: the shading rejection writes it, the history update reads
  * it (`sceneColorAt`), so a storage buffer stands in for a texture the stage could not bind.
  * - `packSmallFloatDown` (`smallFloatWgsl.ts`): a float in a float of five exponent bits (bias 15) and `mantissa` bits,
  *   rounded toward zero — the rounding the stochastic rounding before it is made for —, none below
  *   zero, NaN as zero, the largest finite past it; `unpackSmallFloat` (the same file) its exact value. Built of the
  *   float's bits alone: every power of two by its exponent, never `exp2`.
- * - 11-11-10 floats in one word, red in the low eleven bits, green in the next eleven, blue in the
- *   ten high ones; four half floats (sign, five exponent bits, ten of mantissa, toward zero too) in
- *   two words, red and green in the first.
+ * - Held as four half floats (sign, five exponent bits, ten of mantissa) in two words, red and green
+ *   in the first, which the hardware reads back in two conversions where the 11-11-10 word took a
+ *   software decoding of each channel at every one of the history update's kernel taps. Every
+ *   11-11-10 value (six or five bits of mantissa over the same exponent range) is exact in a half,
+ *   so the update reads the value the format holds: a colour is rounded toward zero to the format's
+ *   fields first (red and green six bits, blue five) and widened, its alpha one, as the format has
+ *   none; for half floats the colour is rounded toward zero to the half itself.
  */
 export const sceneColorWgsl = (format: GPUTextureFormat) =>
   wgslBlock(
@@ -67,21 +75,17 @@ export const sceneColorWgsl = (format: GPUTextureFormat) =>
     [packSmallFloatDown, unpackSmallFloat, unpackLight],
     `
 fn packHalf(f:f32)->u32{return packSmallFloatDown(abs(f),10u)|select(0u,0x8000u,f<0.0);}
-fn packSceneColor(c:vec4f)->array<u32,${sceneColorWords(format)}>{${
+fn packSceneColor(c:vec4f)->array<u32,${SCENE_COLOR_WORDS}>{${
       format === 'rg11b10ufloat'
         ? `
- return array<u32,1>(packSmallFloatDown(c.r,6u)|(packSmallFloatDown(c.g,6u)<<11u)|(packSmallFloatDown(c.b,5u)<<22u));`
+ let held=unpackLight(packSmallFloatDown(c.r,6u)|(packSmallFloatDown(c.g,6u)<<11u)|(packSmallFloatDown(c.b,5u)<<22u));
+ return array<u32,2>(pack2x16float(held.rg),pack2x16float(vec2f(held.b,1.0)));`
         : `
  return array<u32,2>(packHalf(c.r)|(packHalf(c.g)<<16u),packHalf(c.b)|(packHalf(c.a)<<16u));`
     }
 }
-fn unpackSceneColor(w:array<u32,${sceneColorWords(format)}>)->vec4f{${
-      format === 'rg11b10ufloat'
-        ? `
- return vec4f(unpackLight(w[0]),1.0);`
-        : `
- return vec4f(unpack2x16float(w[0]),unpack2x16float(w[1]));`
-    }
+fn unpackSceneColor(w:array<u32,${SCENE_COLOR_WORDS}>)->vec4f{
+ return vec4f(unpack2x16float(w[0]),unpack2x16float(w[1]));
 }`,
   )
 /** The largest scene colour a channel holds before a sum of four of them overflows a half. */

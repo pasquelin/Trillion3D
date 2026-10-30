@@ -12,7 +12,7 @@ import {
   type StorageForm,
   type StorageResource,
 } from './storageForms.ts'
-import { sceneColorWords } from './colorSpaceWgsl.ts'
+import { SCENE_COLOR_WORDS } from './colorSpaceWgsl.ts'
 import { MEASURE_LAYER_COUNT, MEASURE_LAYERS } from './flickerLumaWgsl.ts'
 import { FIELD_FORMAT, FIELD_LAYERS } from './reprojectionFieldWgsl.ts'
 import { slotsOf, type FrameSequence } from './historyFrames.ts'
@@ -41,8 +41,8 @@ const TRANSIENT_FORMATS = {
 const guideLayersOf = (sequence: FrameSequence) => (sequence.storage > 1 ? 2 : 1)
 const fieldLayersOf = (field: boolean) => (field ? 2 : 1)
 /** The scene colour the shading rejection writes as a buffer in the history's colour format
- *  (`sceneColorWords`), which the history update reads. */
-const sceneColorBytes = (color: GPUTextureFormat) => 4 * sceneColorWords(color)
+ *  (`SCENE_COLOR_WORDS`), which the history update reads. */
+const SCENE_COLOR_BYTES = 4 * SCENE_COLOR_WORDS
 /** What the reprojection field adds beside its layers: its boundary. */
 const BOUNDARY_FORMAT = FIELD_FORMAT
 
@@ -61,11 +61,11 @@ export const analysisBytesPerPixel = (
   sequence: FrameSequence,
   field: boolean,
   antiAliased: boolean,
-  { antiAlias, guide, color, measure, mask, luma }: AnalysisFormats,
+  { antiAlias, guide, measure, mask, luma }: AnalysisFormats,
 ) =>
   bytesOf(TRANSIENT_FORMATS) +
   MEASURE_LAYER_COUNT * texelBytesOf(measure) +
-  sceneColorBytes(color) +
+  SCENE_COLOR_BYTES +
   texelBytesOf(antiAlias) +
   (antiAliased ? ANTI_ALIAS_MASK.texelBytes[mask] + LDR_LUMA.texelBytes[luma] : 0) +
   guideLayersOf(sequence) * texelBytesOf(guide) +
@@ -274,7 +274,7 @@ function makeViews(
     flicker: pool.target('Trillion3D TAA flicker history', FLICKER_FORMAT),
     sceneColor: pool.buffer(
       'Trillion3D TAA scene colour',
-      pool.size.width * pool.size.height * sceneColorWords(shape.formats.color),
+      pool.size.width * pool.size.height * SCENE_COLOR_WORDS,
     ),
     luma: storageTarget(pool, LDR_LUMA, shape.formats.luma, shape.antiAlias),
     thin: pool.target('Trillion3D TAA thin geometry', THIN_GEOMETRY_FORMAT),

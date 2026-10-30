@@ -12,7 +12,7 @@ import {
   colorSpacesWgsl,
   ditherWgsl,
   sceneColorWgsl,
-  sceneColorWords,
+  SCENE_COLOR_WORDS,
   type Precision,
 } from './colorSpaceWgsl.ts'
 import { REPROJECTION_VECTOR_WGSL } from './velocityWgsl.ts'
@@ -44,9 +44,9 @@ export const taaPrelude = (shape: UpdateShape, p: Precision = FULL_PRECISION) =>
     ],
     `${layer.layerText(shape.filtered, 'bindings')}
 fn sceneColorAt(c:vec2i)->vec4f{
- let at=(u32(c.y)*u32(view.analysisGrid.x)+u32(c.x))*${sceneColorWords(shape.color)}u;
- var words:array<u32,${sceneColorWords(shape.color)}>;
- for(var k=0u;k<${sceneColorWords(shape.color)}u;k++){words[k]=sceneColor[at+k];}
+ let at=(u32(c.y)*u32(view.analysisGrid.x)+u32(c.x))*${SCENE_COLOR_WORDS}u;
+ var words:array<u32,${SCENE_COLOR_WORDS}>;
+ for(var k=0u;k<${SCENE_COLOR_WORDS}u;k++){words[k]=sceneColor[at+k];}
  return unpackSceneColor(words);
 }`,
   )

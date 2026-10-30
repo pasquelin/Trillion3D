@@ -93,17 +93,10 @@ test('the scene colour packs each channel as its format rounds toward zero, and 
       assert.equal(run.unpackSmallFloat(code, m), decode(code, m), `code ${code} of ${m} bits`)
   }
   assert.equal(run.packHalf(-2.5), 0x8000 | truncated(2.5, 10), 'a half keeps its sign')
-  // Red in the low eleven bits, green in the next eleven, blue in the high ten, as the format lays them.
   const colour = [Math.fround(0.3), Math.fround(17.25), Math.fround(60000)]
-  const [word] = run.packSceneColor([...colour, 1])
-  assert.equal(
-    word >>> 0,
-    (truncated(colour[0], 6) |
-      (truncated(colour[1], 6) << 11) |
-      (truncated(colour[2], 5) << 22)) >>>
-      0,
-  )
-  assert.deepEqual(run.unpackSceneColor([word]), [
+  // The channels are held as halves, widened from the format's fields; the alpha is one.
+  const words = run.packSceneColor([...colour, 1])
+  assert.deepEqual(run.unpackSceneColor(words), [
     decode(truncated(colour[0], 6), 6),
     decode(truncated(colour[1], 6), 6),
     decode(truncated(colour[2], 5), 5),

@@ -20,7 +20,7 @@ import {
 import { THIN_GEOMETRY_FORMAT } from '../../../packages/sdk-browser/src/post/taa/thinGeometryWgsl.ts'
 import { REJECTION_FORMAT } from '../../../packages/sdk-browser/src/post/taa/rejectionWgsl.ts'
 import { FIELD_FORMAT } from '../../../packages/sdk-browser/src/post/taa/reprojectionFieldWgsl.ts'
-import { sceneColorWords } from '../../../packages/sdk-browser/src/post/taa/colorSpaceWgsl.ts'
+import { SCENE_COLOR_WORDS } from '../../../packages/sdk-browser/src/post/taa/colorSpaceWgsl.ts'
 import { ANTI_ALIAS_MASK } from '../../../packages/sdk-browser/src/post/taa/storageForms.ts'
 import { outputBytes } from '../../../packages/sdk-browser/src/post/taa/historyResolve.ts'
 import { historyFormatsOf } from '../../../packages/sdk-browser/src/post/taa/historyShape.ts'
@@ -97,7 +97,7 @@ export const TAA_DISPLAY_BYTES =
  */
 const TAA_GUIDE = texelBytesOf(TAA_FORMATS.guide),
   TAA_FIELD = texelBytesOf(FIELD_FORMAT),
-  TAA_SCENE_COLOR = 4 * sceneColorWords(TAA_FORMATS.color),
+  TAA_SCENE_COLOR = 4 * SCENE_COLOR_WORDS,
   TAA_LUMA = 1,
   TAA_OFFSET = texelBytesOf(TAA_FORMATS.antiAlias),
   TAA_MASK = TAA_KNOBS.antiAliasIterations > 0 ? ANTI_ALIAS_MASK.texelBytes[TAA_FORMATS.mask] : 0,

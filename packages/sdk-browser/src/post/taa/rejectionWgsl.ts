@@ -27,7 +27,7 @@ import {
   quantizationError,
   quantizationErrorsOf,
   sceneColorWgsl,
-  sceneColorWords,
+  SCENE_COLOR_WORDS,
 } from './colorSpaceWgsl.ts'
 import { flickerMeasureWgsl } from './flickerMeasureWgsl.ts'
 import { rcpOf, rejectionTypes, type RejectionTypes } from './rejectionTypes.ts'
@@ -311,7 +311,7 @@ const loadText = (colorFormat: GPUTextureFormat, lumaForm: StorageForm) => {
    let at=u32(g.y)*u32(view.analysisGrid.x)+u32(g.x);
    let dithered=ditherFloat(scene,frameRandom(g,u32(view.jitter.w)).x,${quantizationErrorsOf(colorFormat)});
    let packed=packSceneColor(vec4f(dithered,image.a));
-   for(var k=0u;k<${sceneColorWords(colorFormat)}u;k++){sceneColorOut[at*${sceneColorWords(colorFormat)}u+k]=packed[k];}
+   for(var k=0u;k<${SCENE_COLOR_WORDS}u;k++){sceneColorOut[at*${SCENE_COLOR_WORDS}u+k]=packed[k];}
    if(view.quality.y>0.0){
     let luma=luma601(scene);
 ${lumaStoreText(lumaForm)}
