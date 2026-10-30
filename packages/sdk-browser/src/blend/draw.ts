@@ -1,6 +1,6 @@
 import { skyLightReadOf } from '../frame/render/skyLightState.ts'
 import { bindForwardReflection } from '../lighting/reflections/group.ts'
-import { blendEntries } from './identity.ts'
+import { blendEntries, blendGroupsOf } from './identity.ts'
 import { waterRank } from './plan/planCull.ts'
 import { markDrawn } from './translucency.ts'
 import { createBlendOverdraw } from './overdraw.ts'
@@ -51,13 +51,13 @@ import {
 function blendBindGroup(rt: WebgpuPagesRuntime, device: GPUDevice) {
   return device.createBindGroup({
     layout: rt.vis.blendBindGroupLayout!,
-    entries: (rt.blendState.identity.entries[0] ??= blendEntries(rt)),
+    entries: (blendGroupsOf(rt).identity.entries[0] ??= blendEntries(rt)),
   })
 }
 
 /** The same group on the layout of the display-filtered pipelines (`blendGroupLayouts`): without the rectangle lights' pictures where that layout holds none. */
 function filteredBlendGroup(rt: WebgpuPagesRuntime, device: GPUDevice) {
-  const entries = (rt.blendState.identity.entries[0] ??= blendEntries(rt))
+  const entries = (blendGroupsOf(rt).identity.entries[0] ??= blendEntries(rt))
   return device.createBindGroup({
     layout: blendGroupLayouts(device).filtered,
     entries: entries.filter(notRectPicture),
@@ -85,10 +85,12 @@ export function litBlendPipelines(
 
 /** The bind group every item shares in the image (group 0), made once per identity: the one a pass that draws
  *  the blend's programs without its runs — the water's composite — binds. */
-export const sharedBlendGroup = (rt: WebgpuPagesRuntime, device: GPUDevice, filtered = false) =>
-  filtered && !blendGroupLayouts(device).pictures
-    ? (rt.blendState.filteredGroups[rt.blendState.identity.slot] ??= filteredBlendGroup(rt, device))
-    : (rt.blendState.sharedGroups[rt.blendState.identity.slot] ??= blendBindGroup(rt, device))
+export function sharedBlendGroup(rt: WebgpuPagesRuntime, device: GPUDevice, filtered = false) {
+  const { identity, sharedGroups, filteredGroups } = blendGroupsOf(rt)
+  return filtered && !blendGroupLayouts(device).pictures
+    ? (filteredGroups[identity.slot] ??= filteredBlendGroup(rt, device))
+    : (sharedGroups[identity.slot] ??= blendBindGroup(rt, device))
+}
 
 /**
  * Encodes slots `from` to `to` of the pass into an open render pass: one `drawIndirect` per SLOT,
@@ -112,7 +114,7 @@ export function drawBlendRuns(
   device: GPUDevice,
   pass: GPURenderPassEncoder,
   pipelines: RankedPipelines,
-  { filter, reflected = true, nearFirst = false, water, view = 0, group }: BlendRuns = {},
+  { filter, reflected = true, nearFirst = false, water, view = 0, group, waiting }: BlendRuns = {},
 ) {
   const { blendState } = rt,
     args = blendState.argsBuffer!
@@ -147,7 +149,10 @@ export function drawBlendRuns(
       if (pipeline && pipeline !== bound) pass.setPipeline(pipeline)
       bound = pipeline
     }
-    if (!bound) continue
+    if (!bound) {
+      if (waiting) waiting.slots++
+      continue
+    }
     encoded++
     pass.drawIndirect(args, base + slot * 16)
   }
@@ -170,6 +175,8 @@ export type BlendRuns = {
   view?: number
   /** The first group the runs are drawn with: the blend group of the image (`sharedBlendGroup`) unless a pass draws them on a layout of its own (a pass with a display `filter` draws on the filtered layout's group, `blendGroupLayouts`, and so passes none). */
   group?: GPUBindGroup
+  /** Counts the slots the view keeps whose pipeline was not compiled yet: they were asked and not drawn. */
+  waiting?: { slots: number }
 }
 
 /**
@@ -195,7 +202,7 @@ export function drawBlendPass(
   key?: Partial<ContractKey>,
   views: DrawViews = ALL_VIEWS,
 ): boolean {
-  const { gpu, vis, blendState } = rt,
+  const { gpu, blendState } = rt,
     filter = gpu.displayFilter?.active ? gpu.displayFilter : undefined
   // Nothing to encode without runs, or without the arguments the GPU wrote for them.
   if (!blendState.runCount || !blendState.argsBuffer || !gpu.translucency?.active) return false
@@ -212,7 +219,7 @@ export function drawBlendPass(
   // The alpha holdout lays the image's alpha itself: the composition leaves it as it is.
   const holdout = holdoutPassOn(rt)
   const passes = filter ? undefined : pipelines.dualPasses,
-    inView = blendState.transmissive > 0 && !noTransmissiveInView(blendState),
+    inView = blendState.transmissive > 0 && !noTransmissiveInView(blendState, gpu),
     dual = passes && inView && blendState.chromatic ? passes : undefined,
     drawn = passes && !inView ? passes.blends : pipelines
   // Diagnostic only: the counting variant opens an occlusion query around the pass.
@@ -362,7 +369,7 @@ export function encodeHoldout(
   key?: Partial<ContractKey>,
   particles?: (held: GPUTextureView) => void,
 ) {
-  const { gpu, vis, blendState } = rt,
+  const { gpu, blendState } = rt,
     targets = gpu.translucency
   if (!holdoutPassOn(rt) || !blendState.runCount || !blendState.argsBuffer) return 0
   if (!targets?.active || !gpu.hdrView) return 0

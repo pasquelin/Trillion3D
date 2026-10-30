@@ -72,8 +72,9 @@ function scene({ runs = 1, depth = true, ready = true } = {}) {
       }
     },
   } as unknown as GPUCommandEncoder
+  const viewKey = {}
   const rt = {
-    gpu: { targetSize: [64, 32] },
+    gpu: { targetSize: [64, 32], viewKey },
     run: { frame: 5, gpuDrawCalls: 0, depthDrawn: true },
     vis: {
       materialTable: { viewFor() {} },
@@ -92,8 +93,15 @@ function scene({ runs = 1, depth = true, ready = true } = {}) {
       slotPipelines: [0],
       planRegion: { args: 0 },
       maxPlanEntries: 4,
-      identity: { slot: 0 },
-      sharedGroups: [],
+      viewGroups: new WeakMap([
+        [viewKey, { identity: { slot: 0 }, sharedGroups: [], filteredGroups: [] }],
+      ]),
+      // One own slot of item 0, a layer of the main view (`slotMayDraw`).
+      slotOwns: [0],
+      ownSeeds: [0],
+      seeds: [0],
+      drawsPacked: new Uint32Array(4),
+      frameViews: [{ exclude: 1 << 5, require: 0 }],
     },
   } as unknown as WebgpuPagesRuntime
   const draw = () =>

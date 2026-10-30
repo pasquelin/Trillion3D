@@ -72,6 +72,8 @@ export const TEXTURE_EVICTION_PASS = 'Trillion3D texture eviction queue'
  *  accumulation and application, the order and expansion, the display mask and the display filter. */
 export const TRANSPARENTS_PASS = 'Trillion3D transparents'
 export const BLEND_RESPONSIVE_PASS = 'Trillion3D blend responsiveness'
+/** The sky surfaces drawn into the lit image ahead of the atmosphere, the fog and the clouds (`../../frame/render/encodeSkyPass.ts`). */
+export const SKY_SURFACES_PASS = 'Trillion3D sky surfaces'
 /** The alpha holdout (`../../blend/holdout.ts`): the target's start from the lit image's alpha, the
  *  layers drawn into it, and its visibility laid back over the lit image's alpha. */
 export const HOLDOUT_START_PASS = 'Trillion3D alpha holdout start'
@@ -366,6 +368,7 @@ export const ENGINE_PASSES = [
   definePass({ label: TILE_CLASSIFICATION_PASS, stage: 'lighting', block: 'other' }),
   definePass({ label: SURFACE_COLOUR_PASS, stage: 'lighting', block: 'other' }),
   definePass({ label: HEIGHT_FOG_PASS, stage: 'lighting', block: 'other' }),
+  definePass({ label: SKY_SURFACES_PASS, stage: 'lighting', block: 'other' }),
   definePass({ label: LIGHT_FUNCTION_ATLAS_PASS, stage: 'lighting', block: 'other' }),
   definePass({ label: RECT_ATLAS_ADD_PASS, stage: 'lighting', block: 'other' }),
   definePass({ label: RECT_ATLAS_COPY_PASS, stage: 'lighting', block: 'other' }),

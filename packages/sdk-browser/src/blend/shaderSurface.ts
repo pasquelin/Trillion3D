@@ -13,7 +13,7 @@ import { shadingNumberOfModel } from '../materials/surface/shadingModelCode.ts'
 import { shadingFlagsOfNumber } from '../materials/surface/pixelModel.ts'
 import { COTANGENT_FRAME_WGSL } from '../geometry/cluster/cotangentFrameWgsl.ts'
 import { FACING_SHIFT, FACING_WGSL } from './facing.ts'
-import { TRI_CHANNELS_BITS, TRI_CHANNELS_SHIFT, WORDS } from './vertexReadsWgsl.ts'
+import { TRI_CHANNELS_BITS, TRI_CHANNELS_SHIFT, WORDS, materialFlagOf } from './vertexReadsWgsl.ts'
 import { blendRequestWgsl } from './requestWgsl.ts'
 import { BLEND_TANGENT_FRAME_WGSL } from './tangentFrameWgsl.ts'
 import { COLOR_SAMPLE_WGSL, DATA_SAMPLE_WGSL } from '../materials/virtual/wgsl.ts'
@@ -163,7 +163,8 @@ fn blendSurface(in:VSOut,front:bool,g:BlendGrads,base:vec4f)->BlendSurface{
  let geometric=blendGeometricNormal(in,front,g.q0,g.q1);
  var N=geometric;
  let face=select(-1.0,1.0,front);
- let alpha=blendAlpha(in,base);
+ // A sky surface is opaque wherever it is kept: its cutout (blendKeeps) reads the base alpha, the layer it writes does not.
+ let alpha=select(blendAlpha(in,base),1.0,${materialFlagOf('sky')});
  ${graphs?.model ? 'var' : 'let'} rgb=in.color.xyz*base.xyz;
 ${graphs?.model ? UNLIT_GRAPH_RGB : ''} var roughTexel=1.0;var metalTexel=1.0;var aoTexel=1.0;
  if(in.maps.x!=0u){let c=blendUv(in,g,${WRAP_MAP.rough}u);roughTexel=dataSample(in.maps.x,c.uv,c.ddx,c.ddy,sampled).g;}

@@ -155,7 +155,6 @@ function settleFrameSelection(timing: WebgpuPagesCore['timing'], submitted: bool
 function submittedReadbacks(rt: WebgpuPagesCore, published: boolean) {
   rt.vis.voxelSteps?.submitted()
   rt.vis.gpuRaster?.tessellation?.losses.submitted()
-  rt.blendState.expand?.submitted()
   if (published) rt.vis.textures?.feedback.submitted()
   rt.lights.tiles?.submitted()
   rt.bounce.probes?.submitted()

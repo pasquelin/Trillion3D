@@ -2,7 +2,7 @@
 //! objects, with their bytes.
 use super::super::place::{objects, triangles};
 use super::*;
-use super::{actor, build, Actor, Builder, Job, Spent, Wears, DAG, MERGE};
+use super::{actor, all_sky, build, Actor, Builder, Job, Spent, Wears, DAG, MERGE};
 use crate::hlod::flatten::{merge, step, timed, Placements, Sides, SourceMesh};
 use crate::hlod::options::{HlodMapSides, MERGE_FLOORS};
 use crate::HlodLayer;
@@ -12,7 +12,7 @@ use std::collections::{BTreeMap, BTreeSet};
 /// its mesh given a cluster DAG when the layer asks for one (`clusterDag`); `Err` with the reason
 /// it could not be made.
 fn flattened_actor(
-    (hlod, cell): (&HlodLayer, usize),
+    (hlod, cell, sky): (&HlodLayer, usize, bool),
     made: crate::hlod::flatten::Built,
     (builder, mut spent): (&Builder, Spent),
 ) -> Result<Job> {
@@ -33,7 +33,7 @@ fn flattened_actor(
         .zip(made.stage_ms)
         .for_each(|(total, ms)| *total += ms);
     let flat = (made.flat, made.atlas);
-    let actor = actor((cell, hlod), flat, (builder, &mut spent))?;
+    let actor = actor((cell, hlod, sky), flat, (builder, &mut spent))?;
     Ok(Job {
         made: Ok(vec![actor]),
         spent,
@@ -90,7 +90,8 @@ pub(super) fn approximated_actor(
 ) -> Result<Job> {
     let scene = (placements(instances, members), objects(instances, members));
     let made = crate::hlod::flatten::approximated(hlod, scene, (builder.library, seen))?;
-    flattened_actor((hlod, cell), made, (builder, Spent::default()))
+    let sky = all_sky(builder.sky, instances, members);
+    flattened_actor((hlod, cell, sky), made, (builder, Spent::default()))
 }
 
 /// The actor simplified layer `hlod` makes of cell `cell`, first drawn `seen` metres away, from
@@ -106,7 +107,8 @@ pub(super) fn simplified_actor(
     builder: &Builder,
 ) -> Result<Job> {
     let made = crate::hlod::flatten::simplified(hlod, (instances, members), seen, builder.library)?;
-    flattened_actor((hlod, cell), made, (builder, Spent::default()))
+    let sky = all_sky(builder.sky, instances, members);
+    flattened_actor((hlod, cell, sky), made, (builder, Spent::default()))
 }
 
 /// The bytes simplified layer `hlod`'s actor holds while it is made from the objects `members`
@@ -157,7 +159,8 @@ fn flat_merge(
     };
     let made = merge::merged_flat(&parts, (builder.library, builder.checkpoint), &flattening)?;
     drop(parts);
-    flattened_actor((hlod, cell), Ok(made), (builder, spent))
+    let sky = all_sky(builder.sky, instances, members);
+    flattened_actor((hlod, cell, sky), Ok(made), (builder, spent))
 }
 
 /// Merged layer `hlod`'s actors of cell `cell`, first drawn `seen` metres away

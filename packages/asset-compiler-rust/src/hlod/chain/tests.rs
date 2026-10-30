@@ -111,12 +111,13 @@ pub(crate) fn built<T>(instances: &[Instance], run: impl FnOnce(&builds::Builder
     let library =
         crate::hlod::flatten::Library::new(source, &materials, (&o, 0)).expect("the library");
     let hlod = crate::tests::fixtures::hlod_chain();
-    let classes = crate::hlod::flatten::merge::classes(source.0, &materials);
+    let classes = crate::hlod::flatten::merge::classes(source.0, &materials, &[]);
     let builder = builds::Builder {
         checkpoint: &|| Ok(()),
         progress: &|_| {},
         library: &library,
         classes: &classes,
+        sky: &[],
         o: &o,
         hlod: &hlod,
         room: o.ram_budget_bytes(),

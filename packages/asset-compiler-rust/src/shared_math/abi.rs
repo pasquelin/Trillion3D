@@ -120,7 +120,8 @@ pub const DEFAULT_TEMPORAL_AA_LEVEL: &str = "max";
 /// The job fields naming the responsive objects and setting materials by name, the command
 /// line's flags holding them as JSON, the key of a glTF material's `extras` naming its
 /// responsiveness, the levels of a material's responsiveness, `off` first, and the one `true`
-/// names, and the settings a material may name.
+/// names, the key of a glTF material's `extras` marking it as a sky material, and the settings a
+/// material may name.
 pub const RESPONSIVE_FIELD: &str = "responsive";
 pub const RESPONSIVE_OPTION: &str = "--responsive=";
 pub const MATERIALS_FIELD: &str = "materials";
@@ -128,7 +129,8 @@ pub const MATERIALS_OPTION: &str = "--materials=";
 pub const RESPONSIVE_EXTRA: &str = "responsive";
 pub const RESPONSIVE_LEVELS: [&str; 3] = ["off", "medium", "full"];
 pub const DEFAULT_RESPONSIVE_LEVEL: &str = "full";
-pub const MATERIAL_SETTINGS: [&str; 1] = ["responsive"];
+pub const SKY_EXTRA: &str = "sky";
+pub const MATERIAL_SETTINGS: [&str; 2] = ["responsive", "sky"];
 /// The job field naming the voxelized objects, the command line's flag holding it as JSON, and the
 /// key of a glTF mesh's `extras` asking for voxels.
 pub const VOXELIZE_FIELD: &str = "voxelize";

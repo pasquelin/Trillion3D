@@ -23,6 +23,7 @@ import {
 } from '../../modules/sky/skyLight/faceWgsl.ts'
 import { FILTER_CODE } from '../../modules/sky/skyLight/filterWgsl.ts'
 import { IRRADIANCE_CODE } from '../../modules/sky/skyLight/irradianceWgsl.ts'
+import { SKY_MESH_CODE } from '../../modules/sky/skyLight/skyMeshWgsl.ts'
 import { AIR_SHADERS, airProgramsOf } from '../../lighting/atmosphere/airPrograms.fixture.ts'
 import { opaqueHazeProgram } from '../../lighting/atmosphere/opaqueHazeWgsl.ts'
 import { airShapeOf, DEFAULT_AIR_SHAPE } from '../../lighting/atmosphere/shape.ts'
@@ -154,7 +155,9 @@ export const SKY_SHADERS: Record<string, string> = {
   SKY_LIGHT_COPY_CODE: COPY_CODE,
   SKY_LIGHT_SKY_FACE_CODE: skyFaceProgram(DEFAULT_AIR_SHAPE).code,
   SKY_LIGHT_FOG_FACE_CODE: fogFaceProgram(DEFAULT_AIR_SHAPE).code,
+  SKY_LIGHT_FOG_FACE_DEPTH_CODE: fogFaceProgram(DEFAULT_AIR_SHAPE, true).code,
   COMPOSE_FACE_CODE,
+  SKY_MESH_CODE,
   FILTER_CODE,
   IRRADIANCE_CODE,
   // The atmosphere's tables, haze, sky and sums (`../../lighting/atmosphere/`).

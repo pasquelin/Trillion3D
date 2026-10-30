@@ -7,7 +7,7 @@ import * as G from '../scene/host/graph/graph.fixture.ts'
 import { Color } from '../../../sdk-core/src/world/math/color.ts'
 import { surfaceOf, type PageSurface } from '../geometry/pages/surface.ts'
 import { prepareWebgpuBlend } from './prepare.ts'
-import { voidStaleBlendGroups } from './identity.ts'
+import { BLEND_IDENTITY_DEPTH, blendGroupsOf, voidStaleBlendGroups } from './identity.ts'
 import { blendLightResources } from './lighting.ts'
 import { createWebgpuBlendState } from './state.ts'
 import { refreshBlendPlan, planItem } from './plan/plan.ts'
@@ -98,7 +98,7 @@ export function prepared() {
   })
   blendState.expand = {
     buffers: { verdict },
-    counts: { epoch: -1, rejected: 0, inView: 0 },
+    peekVerdict: () => undefined,
   } as never
   blendState.visibleBlend.push(...blendState.blendGpu)
   // The indirect arguments the draws read, as the kit's indirect draws do.
@@ -189,11 +189,12 @@ export function replay(blendState: ReturnType<typeof prepared>['blendState'], gp
       feedbackWritten: true,
     },
   } as unknown as WebgpuPagesRuntime
-  // Groups are already built on these resources, in both identity slots: their identity is primed
+  // Groups are already built on these resources, in every identity slot: their identity is primed
   // on them, so the pass need not rebuild them — this test observes draw order, not group
   // construction. The lighting is resolved once, as `encodeBlend` does before any pass.
   voidStaleBlendGroups(rt, blendLightResources(rt))
-  // The shared group is posted ahead for the same reason.
-  blendState.sharedGroups[0] = blendState.sharedGroups[1] = {} as GPUBindGroup
+  // The shared group is posted ahead for the same reason, in every identity slot the view holds.
+  const { sharedGroups } = blendGroupsOf(rt)
+  for (let slot = 0; slot < BLEND_IDENTITY_DEPTH; slot++) sharedGroups[slot] = {} as GPUBindGroup
   return { rt, encoder, passes, textureCopies, drawn }
 }

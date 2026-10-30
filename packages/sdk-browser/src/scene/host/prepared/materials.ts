@@ -83,7 +83,10 @@ async function build(materials: readonly TableMaterial[], rank: number, slot: Sl
       )
   }
   assign('map', entry.map)
-  if (entry.kind !== 'unlit') {
+  // A sky material is shown as its base colour and its emissive alone (`SurfaceDeclaration.sky`).
+  const sky = entry.sky === true
+  if (sky) params.sky = true
+  if (entry.kind !== 'unlit' && !sky) {
     params.metalness = entry.metalness
     params.roughness = entry.roughness
     assign('metalnessMap', entry.metalnessMap)
@@ -92,11 +95,14 @@ async function build(materials: readonly TableMaterial[], rank: number, slot: Sl
     params.normalScale = new Vector2(entry.normalScale, entry.normalScaleY)
     assign('aoMap', entry.aoMap)
     params.aoMapIntensity = entry.aoIntensity
-    params.emissive = new Color(entry.emissive)
-    assign('emissiveMap', entry.emissiveMap)
     extensionParams(entry, params, assign)
   }
-  if (entry.kind === 'physical') {
+  // A sky material outputs through its emissive, whatever else it leaves unread.
+  if (sky || entry.kind !== 'unlit') {
+    params.emissive = new Color(entry.emissive)
+    assign('emissiveMap', entry.emissiveMap)
+  }
+  if (entry.kind === 'physical' && !sky) {
     params.transmission = entry.transmission
     // Only a declared `KHR_materials_ior` refracts (`refracts`, `../../../geometry/pages/surfaceRecord.ts`).
     if (entry.hasIor) params.ior = entry.ior
@@ -124,7 +130,7 @@ async function build(materials: readonly TableMaterial[], rank: number, slot: Sl
   )
   await Promise.all(pending)
   params.family =
-    entry.kind === 'unlit' ? 'basic' : entry.kind === 'physical' ? 'physical' : 'standard'
+    entry.kind === 'unlit' || sky ? 'basic' : entry.kind === 'physical' ? 'physical' : 'standard'
   if (entry.name) params.name = entry.name
   return declareSurface(params as SurfaceDeclaration)
 }

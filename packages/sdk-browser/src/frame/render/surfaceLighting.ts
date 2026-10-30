@@ -30,6 +30,7 @@ import {
   subsurfaceTransmittanceDistance,
 } from '../../lighting/subsurface/frame.ts'
 import { encodeAfterWater, encodeSkyAndClouds } from './encodeClouds.ts'
+import { encodeSkyPass } from './encodeSkyPass.ts'
 import { encodeLightShaftBloom } from '../../modules/sky/lightShafts/frame.ts'
 import { encodePreLight } from './preLight.ts'
 import { preparePathTracing } from '../../lighting/pathTracing/frame.ts'
@@ -204,7 +205,7 @@ function lightSurfaces(
   if (draw) run.gpuDrawCalls += deferred.light(encoder, gpu.hdrView!)
 }
 
-/** What is drawn over the lit surfaces, in its order: the sky, the fog over the whole image, the haze on the
+/** What is drawn over the lit surfaces, in its order: the sky surfaces, the sky, the fog over the whole image, the haze on the
  *  surfaces and the clouds (`air`), a see-through view's background, the transparents (`blendKey`) and the
  *  particles, drawn into the translucency target, the see-through views' edges, the light shafts' bloom; the lit image whole is kept for the next image's reflections.
  *  Returns what the composition goes on from: the responsiveness the transparents wrote and the
@@ -220,6 +221,9 @@ function drawOverLit(
   blendKey: ReturnType<typeof bindBlend> | undefined,
   volumes?: () => void,
 ) {
+  // The sky surfaces, over the lit surfaces and ahead of everything that is laid over the image, on the groups over the lights the lit pass
+  // resolved (`lightSurfaces` made its resources after the first binding): they read nothing the sky, the fog and the volumes make.
+  encodeSkyPass(rt, device, encoder, !!blendKey)
   // The sky where no surface was drawn, the fog over it and the surfaces, the haze on the surfaces and
   // the clouds over them, before the transparents are drawn.
   encodeSkyAndClouds(rt, device, encoder, cam, air)
@@ -389,7 +393,7 @@ export function encodeSurfaceLighting(
   encodeToneAndHair(rt, device, encoder, cam)
   // The transparents are selected and ordered first; light lists encode before resolve, its inputs —
   // every lighting resource the blend group names made with them.
-  const blendRuns = prepareBlend(rt, encoder)
+  const blendRuns = prepareBlend(rt, encoder, cam)
   // What the sun's page marking reads of the transparents, in the lights (`encodeDirectLights`): the
   // water's depth, and the front layer where no image before left one.
   // The change of each light's power since the image before, measured at the head of the lighting for every sampling that follows.

@@ -10,7 +10,7 @@ import { createInfoWriter } from '../clusters/infoWrite.ts'
 import { CLUSTER_INFO } from '../dag/info/clusterInfoLayout.ts'
 import { createMaterialTable } from '../../materials/table/materialTable.ts'
 import { surfaceWritten } from '../pages/surfaceWrites.ts'
-import { FLAG_DISPLACED, FLAG_HAS_MAP } from '../../visibility/types.ts'
+import { FLAG_DISPLACED, FLAG_FOG_FREE, FLAG_HAS_MAP } from '../../visibility/types.ts'
 import type { Texture } from '../../../../sdk-core/src/texture/contract.ts'
 import { rowFlags, surfaceRow } from './surfaceRow.ts'
 import type { VisMaterial } from '../../visibility/materialType.ts'
@@ -103,6 +103,15 @@ test('a surface displaced by a height map the atlas holds marks its rows displac
   assert.equal(marked({ ...displaced, displacement: undefined }, 3), false, 'no numbers: flat')
   assert.equal(marked({ ...displaced, displacementMap: undefined }, 3), false, 'no map: flat')
   assert.equal(marked(surfaceOf(G.standardSurface()), 3), false)
+})
+
+test('a sky surface takes no fog of its own, as a surface that opts out of it does not: the fog composition lays it once', () => {
+  const layers = { mapLayer: new Map<Texture, number>(), dataLayer: new Map<Texture, number>() }
+  const fogFree = (surface: VisMaterial) => (surfaceRow(surface, layers).bits & FLAG_FOG_FREE) !== 0
+  const plain = surfaceOf(G.standardSurface())
+  assert.equal(fogFree(plain), false)
+  assert.equal(fogFree({ ...plain, sky: true }), true)
+  assert.equal(fogFree({ ...plain, fog: false }), true)
 })
 
 /** A surface wearing a graph that colours it from a parameter, and reads a texture where asked. */

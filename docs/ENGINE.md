@@ -3309,6 +3309,32 @@ not in the capture (it is a light of its own). The cube's side is the part's `cu
 power of two), or the quality's `skyLightResolutionOverride` when that is 16 or more: the override is the
 real-time capture's alone.
 
+The sky pass. The surfaces of a sky material (the compiler's `sky` property) are drawn by a pass of their own, `encodeSkyPass`
+(`frame/render/encodeSkyPass.ts`), into the lit image right after the opaque surfaces are lit and before the atmosphere, the fog and
+the clouds are laid over it, as the sky pass of the base pass comes ahead of them: unlit, at an alpha of one (a cutout keeps its mask),
+tested against the opaque depth and writing none. They are in no layer of the translucency: the plan marks them in the item's filter
+word (`ITEM_FILTER.sky`) and the expansion keeps them out of every view but their own (`SKY_VIEW`, `blend/expand/expansionViews.ts`),
+so the front pass, the hierarchical depth, the shadow page marking, the screen traces, the cards and the shadows never see them. They
+take no fog of their own (`FLAG_FOG_FREE` on their row): the fog composition lays it once, the dome in it.
+
+The sky meshes. Where the scene has a sky material drawn (`sceneHasSkyMaterial`, `frame/render/skyRoots.ts`: a root whose
+surface has the compiler's `sky` property, not hidden by its host, or a sky surface of the plan that no node stands for, an actor of an
+HLOD cell or of the world DAG), the faces of the real-time capture show the sky meshes in the place
+of the atmosphere. Before the main view, each face is a light draw (`frame/render/encodeSkyMeshes.ts`, `encodeSkyMeshFace.ts`): the
+blend pass's own plan (cut, cull, sort, expansion, runs) called for the 90 degree camera of the face at the light's place, drawing the sky
+surfaces alone (the plan's sky view, the same runs as the sky pass; the face's cut is `Camera.showOnly` of the sky nodes while each sky
+surface has one) into the face's colour and depth targets in one pass, with no lighting, shadow, fog, sky, cloud nor
+effect (`ViewOverrides.skyMeshCapture`); the view of the face only holds its cut and its targets. A sky surface is opaque, its cutout
+alone reading the base alpha. With `skyLightDepthBuffer` (on) the pass writes the depth of the meshes (`BlendModePipelines.skyFace`):
+they cover each other by their distance, the depth is copied beside the image into the meshes' cube (`modules/sky/skyLight/skyMeshes.ts`,
+`skyMeshDepthMain`), and the height fog is laid over each pixel at the distance of the mesh drawn there (`fogFaceProgram`'s `depth`,
+`fogBeyondAlong`), an endless ray only where no mesh is; off, the meshes are painted in their sort order and the fog is laid along an
+endless ray. The fog is laid once, by the capture, never by the faces' own surfaces (`FLAG_FOG_FREE` on the sky surfaces' rows). The
+image is copied into the face multiplied by the pre-exposure (`skyMeshMain`), the clouds going over it as over the atmosphere. The
+quality settings slice it as they slice the capture (`skyLightTimeSlicing`, `skyLightFacesPerFrame`); the first images draw all six
+faces, and the atmosphere shows until the cube is whole. A face whose program is still compiling waits and is never given up; a compile error is said once (`sky-meshes-failed`) and the faces are tried
+again when the plan's sky surfaces change.
+
 **Reflections.** A reflection ray that leaves the scene reaches the sky along its direction
 (`reflectionEnvironment`, `lighting/reflections/field.ts`): the sky light's cube, sharp for a ray, at the
 roughness of the lobe for the field's read; a scene with an atmosphere and no sky light shows none, the

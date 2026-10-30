@@ -2519,6 +2519,14 @@
       "message": "A light's IES brightness switch was left out: it is not true or false.",
       "cause": "A light's `extras.useIesBrightness` is not a boolean; the switch is omitted and the light keeps its own intensity",
       "action": "Give `useIesBrightness` true or false, or leave it out."
+    },
+    {
+      "id": "T3D-W235",
+      "code": "SKY_EXTRA_IGNORED",
+      "level": "warn",
+      "message": "A material's sky extra is not usable, so the material is not a sky material.",
+      "cause": "A material's `extras.sky` that is not a boolean; the extra is left unread and the report names the material",
+      "action": "Give `extras.sky` true or false, or leave it out."
     }
   ]
 }

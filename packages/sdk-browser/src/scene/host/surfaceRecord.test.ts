@@ -49,3 +49,16 @@ test('A record written for vertex tangents turns its normal scale factor', () =>
   const record = G.standardSurface({ normalScale, forVertexTangents: true })
   assert.equal(record.normalScaleY, -0.5, 'the engine rebuilds the frame: the factor turned')
 })
+
+// A sky material is shown as its base colour alone, whatever its family: no light reaches it, and the
+// maps only a lit surface reads are left out of its record.
+test('A sky surface of a lit family reads what an unlit one reads and its emissive', () => {
+  const lit = G.standardSurface({ metalness: 0.5, roughness: 0.25, emissive: 0xffffff })
+  assert.equal(lit.lit, true)
+  assert.equal(lit.sky, false)
+  const sky = G.standardSurface({ metalness: 0.5, roughness: 0.25, emissive: 0xffffff, sky: true })
+  assert.equal(sky.sky, true)
+  assert.equal(sky.lit, false, 'no light reaches it')
+  assert.equal(sky.metalness, 0, 'no metal and roughness maps nor factors are read')
+  assert.deepEqual(sky.emissive, [1, 1, 1], 'it outputs through its emissive')
+})

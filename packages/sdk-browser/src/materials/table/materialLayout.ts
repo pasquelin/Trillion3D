@@ -62,8 +62,9 @@ export const MATERIAL_RECORD = fieldLayout('Material', [
   ['flags', 'u32'],
 ] as const)
 /** The bits of a record's `flags`, a bit each: `fogPerPixel`, the fog is worked out for each pixel
- *  (`VisMaterial.computeFogPerPixel`; always for water); `contactShadows`, the material asks (`asksContact`). */
-export const MATERIAL_FLAG = { fogPerPixel: 1, contactShadows: 2 } as const
+ *  (`VisMaterial.computeFogPerPixel`; always for water); `contactShadows`, the material asks (`asksContact`); `sky`, the material of a
+ *  sky dome (`VisMaterial.sky`): the surface is drawn by the sky pass, unlit, ahead of the atmosphere and the fog, and the atmosphere draws no sky pixel of its own where one exists. */
+export const MATERIAL_FLAG = { fogPerPixel: 1, contactShadows: 2, sky: 4 } as const
 /** Words and `rgba32uint` texels of one record. */
 export const MATERIAL_RECORD_WORDS = MATERIAL_RECORD.words,
   MATERIAL_RECORD_TEXELS = MATERIAL_RECORD_WORDS / 4

@@ -19,7 +19,7 @@ import { cloudFogStandIn } from '../modules/sky/clouds/cloudFogStandIn.ts'
 import { CLOUD_FOG_BLOCK } from '../modules/sky/clouds/translucentRead.ts'
 import type { CloudShown } from '../modules/sky/clouds/viewTargets.ts'
 import type { WebgpuPagesRuntime } from '../frame/backend/runtime.ts'
-import { translucentCloudVertex } from './cloudVertex.ts'
+import { cloudVertexStandIns, translucentCloudVertex } from './cloudVertex.ts'
 import { createWebgpuBlendPipelines } from './pipelines.ts'
 import { blendShader } from './shader.ts'
 import type { BlendGpuItem } from './state.ts'
@@ -231,5 +231,16 @@ test('programs that read no cloud are given the stand-ins of the device: no writ
   assert.equal(
     idle.writes.some((words) => words.length === CLOUD_FOG_BLOCK.words),
     false,
+  )
+})
+
+test('the sky surfaces take the stand-ins and hold nothing for the image: the clouds drawn after are still bound to the transparents', () => {
+  const reading = runtimeOf(true, SHOWN, 7)
+  const sky = cloudVertexStandIns(reading.device)
+  assert.equal(sky.fog, cloudFogStandIn(reading.device))
+  assert.equal(
+    translucentCloudVertex(reading.rt, reading.device).fog.colour,
+    SHOWN.colour,
+    'the image’s clouds are made when the transparents ask',
   )
 })

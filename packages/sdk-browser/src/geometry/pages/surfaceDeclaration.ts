@@ -127,6 +127,15 @@ export type SurfaceDeclaration = {
    *  their history every image.
    *  @defaultValue `'off'`, the normal accumulation */
   readonly responsive?: ResponsiveLevel
+  /** True marks the material of a sky dome mesh (`VisMaterial.sky`): it is shown as its base colour alone,
+   *  as an unlit surface is, whatever its family — no light reaches it, and its maps other than the
+   *  base colour's are not read —, it is drawn by the sky pass, in the lit image
+   *  after the opaque surfaces and before the atmosphere, the fog and the clouds (opaque, tested against the depth and writing none,
+   *  in no layer of the translucency), takes no part in the opaque passes (depth, shadow
+   *  casting, occlusion, surface cache), and the sky light's real-time capture shows the meshes that wear one in place
+   *  of the atmosphere.
+   *  @defaultValue `false` */
+  readonly sky?: boolean
   readonly lineWidth?: number
   readonly dashSize?: number
   readonly gapSize?: number

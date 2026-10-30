@@ -604,6 +604,8 @@ const SKY_QUALITY_MEANINGS: Readonly<
     "Whether opaque meshes shadow the sky and the clouds from the sun in the sky light's capture.",
   skyLightAlwaysClear:
     "Whether the sky light's capture is cleared to black before the sky is drawn.",
+  skyLightDepthBuffer:
+    "Whether the sky meshes of the sky light's real-time capture are drawn with a depth buffer, so that they cover each other correctly and the height fog is laid at their distance; off, the fog is laid along an endless ray.",
   skyLightResolutionOverride:
     "Side in texels of the sky light's real-time capture, from 16, in place of the sky light's own; a lower value leaves its own. A captured scene and a specified cubemap keep the sky light's own side.",
   skyLightCubemapMaxResolution:

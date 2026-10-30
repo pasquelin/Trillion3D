@@ -22,7 +22,11 @@ import {
 } from '../materials/surface/translucencyLighting.ts'
 import { shadingModelCode } from '../materials/surface/shadingModelCode.ts'
 import { writeMaterialRecord, type MaterialSurface } from '../materials/table/materialRecord.ts'
-import { MATERIAL_RECORD, MATERIAL_RECORD_WORDS } from '../materials/table/materialLayout.ts'
+import {
+  MATERIAL_FLAG,
+  MATERIAL_RECORD,
+  MATERIAL_RECORD_WORDS,
+} from '../materials/table/materialLayout.ts'
 import { GRAPH_SHADING_MODELS } from '../../../sdk-core/src/world/material/graph/outputs.ts'
 import { cloudVertexText } from './cloudVertexText.ts'
 import { locationsOf } from './vertexLocations.fixture.ts'
@@ -371,4 +375,27 @@ test('a graph that wires a negative shading model number is lit as the default m
       `let number=select\\(${GRAPH_SHADING_MODELS.defaultLit}u,u32\\(g\\.model\\),g\\.model>=0\\);`,
     ),
   )
+})
+
+test('a sky material sets the sky flag of its record', () => {
+  const record = new Uint32Array(MATERIAL_RECORD_WORDS)
+  const flagsOf = (sky: boolean) => {
+    writeMaterialRecord(
+      record,
+      0,
+      {
+        baseColor: [1, 1, 1],
+        emissive: [0, 0, 0],
+        attenuationColor: [1, 1, 1],
+        transparent: true,
+        alphaTest: 0,
+        sky,
+      } as unknown as MaterialSurface,
+      { mapLayer: new Map(), dataLayer: new Map() } as never,
+      0,
+    )
+    return record[MATERIAL_RECORD.at.flags]
+  }
+  assert.equal(flagsOf(true) & MATERIAL_FLAG.sky, MATERIAL_FLAG.sky)
+  assert.equal(flagsOf(false) & MATERIAL_FLAG.sky, 0)
 })

@@ -3,9 +3,41 @@ import {
   type BlendBindResources,
   type BlendLighting,
 } from '../gpu/bind/blendBindEntries.ts'
+import { createWebgpuBindIdentity, type WebgpuBindIdentity } from '../gpu/bind/bindIdentity.ts'
+import { viewKey } from '../frame/backend/state/viewKey.ts'
 import { liveResources } from '../gpu/bind/liveEntries.ts'
 import { BLEND_VIEW_SIZE } from './viewLayout.ts'
 import type { WebgpuPagesRuntime } from '../frame/backend/runtime.ts'
+
+/** The groups of the transparents in one view: what they currently name, the group every item shares and the one of the display-filtered
+ *  pipelines (their layout is another where `blendGroupLayouts` says so), each by identity slot. */
+export type BlendViewGroups = {
+  identity: WebgpuBindIdentity
+  sharedGroups: (GPUBindGroup | undefined)[]
+  filteredGroups: (GPUBindGroup | undefined)[]
+}
+
+/** The identities each view holds. */
+export const BLEND_IDENTITY_DEPTH = 4
+
+/** The groups of the view being drawn (`viewKey`). Four identities are held (`BLEND_IDENTITY_DEPTH`), each with its groups: the shadow maps' tables a lit pass binds are
+ *  double-buffered, their frames take turns, and the sky surfaces' groups (stand-ins for what the image makes later, `bindSkySurfaces`)
+ *  are one more of each. */
+export function blendGroupsOf(rt: WebgpuPagesRuntime) {
+  const key = viewKey(rt.gpu),
+    { viewGroups } = rt.blendState
+  let groups = viewGroups.get(key)
+  if (!groups)
+    viewGroups.set(
+      key,
+      (groups = {
+        identity: createWebgpuBindIdentity(BLEND_IDENTITY_DEPTH),
+        sharedGroups: [],
+        filteredGroups: [],
+      }),
+    )
+  return groups
+}
 
 /** One resource contract for construction and invalidation, with owners read lazily: the page
  *  cache and the float pool every item reads. */
@@ -59,11 +91,11 @@ export function blendEntries(rt: WebgpuPagesRuntime) {
  *  image's `lighting` on `blendState`, which the live entries read. */
 export function voidStaleBlendGroups(rt: WebgpuPagesRuntime, lighting: BlendLighting) {
   const { vis, blendState } = rt,
-    identity = blendState.identity
+    { identity, sharedGroups, filteredGroups } = blendGroupsOf(rt)
   blendState.lighting = lighting
   identity.entries[0] ??= blendEntries(rt)
   if (!identity.entriesMoved(vis.blendBindGroupLayout)) return
   const { slot } = identity
-  blendState.sharedGroups[slot] = undefined
-  blendState.filteredGroups[slot] = undefined
+  sharedGroups[slot] = undefined
+  filteredGroups[slot] = undefined
 }

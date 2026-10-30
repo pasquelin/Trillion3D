@@ -13,6 +13,7 @@ import { releaseScreenSpaceTracing } from '../../../lighting/screenSpaceTracing/
 import { releaseShadowDenoise } from '../../../lighting/shadows/denoise/shadowDenoiseFrame.ts'
 import { releaseRayTracedLocal } from '../../../lighting/shadows/rayTraced/rayTracedLocal.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
+import { viewKey } from './viewKey.ts'
 import {
   VIEW_GPU_KEYS,
   VIEW_RUN_KEYS,
@@ -112,6 +113,7 @@ export function releaseWebgpuView(rt: WebgpuPagesRuntime, view: WebgpuView) {
   view.hiz?.destroy()
   view.hiz = undefined
   disposeViewPasses(view.gpu)
+  rt.blendState.expand?.releaseVerdict(viewKey(view.gpu))
   // A canvas of its own is withdrawn; the main view's, which a view placed on it presents into,
   // stays.
   if (view.gpu.presenter !== viewGpu(rt, rt.views.main).presenter) view.gpu.presenter?.dispose()

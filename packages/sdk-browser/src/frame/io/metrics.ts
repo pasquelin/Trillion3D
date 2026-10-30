@@ -1,3 +1,4 @@
+import { disposeSkyMeshes } from '../render/encodeSkyMeshes.ts'
 import { disposeSampledLights } from '../../lighting/manyLightsSampled/frame.ts'
 import { disposeSampledVolumes } from '../../lighting/manyLightsSampled/volumeFrame.ts'
 import { disposeSampledHair } from '../../lighting/manyLightsSampled/hairFrame.ts'
@@ -272,6 +273,7 @@ export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
   // Disposed, it presents nothing any more: the same withdrawal as a loss, surface included.
   markWebgpuLost(rt)
   // The main view's resources are released below; a capture under way releases its own view.
+  disposeSkyMeshes(rt)
   for (const view of rt.views.persistent.splice(0)) releaseViewNow(rt, view)
   useWebgpuView(rt, rt.views.main)
   rt.run.gate.release()

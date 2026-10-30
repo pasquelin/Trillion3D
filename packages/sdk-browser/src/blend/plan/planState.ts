@@ -1,6 +1,5 @@
 import { planRegion } from './planLayout.ts'
 import { viewState } from '../expand/expansionViews.ts'
-import { FRUSTUM_PLANE_VALUES } from '../../../../math/src/geometry/frustum/frustum.ts'
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts'
 import type { BlendExpand } from '../expand/expand.ts'
 import type { BlendKernels } from '../expand/expandKernels.ts'
@@ -26,11 +25,9 @@ export function planState() {
      *  argument buffers (`planLayout.ts`). */
     maxPlanEntries: 1,
     planRegion: planRegion(1),
-    /** What the GPU verdict reads moved this many times (`../expand/expansionFrame.ts`): its counts come
-     *  back under it, and a count read under the current one still holds. */
+    /** What the GPU verdict reads, apart from a view's own frustum, moved this many times (`../expand/expansionFrame.ts`): each view's
+     *  counts come back under its own epoch, which follows this one and the view's planes. */
     verdictEpoch: 0,
-    /** The frustum planes the last verdict judged with. */
-    judgedPlanes: new Float64Array(FRUSTUM_PLANE_VALUES),
     /** The expansion's views and the draws' (`../expand/expansionViews.ts`). */
     ...viewState(),
   }
@@ -54,9 +51,5 @@ export function planTotals() {
     /** An item of the plan is single-layer water (`WATER_BASE`): the water pass is drawn
      *  (`water/waterPass.ts`), built with the plan. */
     water: false,
-    /** Bind group ALL items share, by identity slot. */
-    sharedGroups: [] as (GPUBindGroup | undefined)[],
-    /** The same group for the display-filtered pipelines, by identity slot, where their layout is another (`blendGroupLayouts`). */
-    filteredGroups: [] as (GPUBindGroup | undefined)[],
   }
 }

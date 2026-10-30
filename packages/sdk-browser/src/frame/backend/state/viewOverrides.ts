@@ -24,6 +24,9 @@
  * - `reflectionCapture`: the view is a capture of the scene that lights it (the sky light's captured
  *   scene), not a view of the page; the height fog then shows by its `inReflectionCaptures` and not by
  *   its `inMainView` (`../../render/fogView.ts`);
+ * - `skyMeshCapture`: the view is a face of the sky meshes' capture (`encodeSkyMeshes.ts`): its image is the scene's sky surfaces alone, drawn through
+ *   the blend pass's plan with no lighting, shadow, fog, sky, cloud nor effect, and with a depth buffer where `depthBuffer` says so
+ *   (`encodeSkyMeshFace.ts`); none, the view is not one;
  * - `readLit`: handed the encoder and the lit image (linear HDR, before exposure and any effect)
  *   of every image the view draws, ahead of the lit image's turn (`adoptLitImage`).
  */
@@ -41,6 +44,7 @@ export interface ViewOverrides {
   readonly staticSceneOnly: boolean
   readonly lodScale: number
   readonly reflectionCapture: boolean
+  readonly skyMeshCapture?: { readonly depthBuffer: boolean; readonly empty: () => void }
   readonly readLit?: LitReader
 }
 

@@ -40,6 +40,7 @@ function writeOrderFrame(blendState: WebgpuBlendState, eye: ArrayLike<number>) {
   doubles[3] = 0
   writeFramePlanes(words, blendState.blendPlanes, eye)
   words[FRAME_HEAD.items] = blendState.blendGpu.length
+  words[FRAME_HEAD.cuts] = layout.cuts
   words.set(blendState.ownSeeds, layout.ownSeeds)
   words.set(blendState.ownSlots, layout.ownSlots)
 }

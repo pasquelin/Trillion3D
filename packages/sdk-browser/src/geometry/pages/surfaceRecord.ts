@@ -53,17 +53,20 @@ const valueIf = (on: boolean, value: number | undefined, fallback: number, off =
 const colourIf = (on: boolean, colour: SurfaceColour | undefined, fallback: number): Rgb =>
   on && colour ? rgb(colour) : [fallback, fallback, fallback]
 
-/** What a surface of `family` reads, decided once per declaration. */
+/** What a surface of `family` reads, decided once per declaration; a sky surface reads what an unlit
+ *  one reads, its base colour and its emissive, whatever its family. */
 function reading(d: SurfaceDeclaration) {
   const { family } = d,
-    lit = litFamily(family),
+    shaded = d.sky !== true,
+    lit = litFamily(family) && shaded,
     side = d.side ?? 'front'
   return {
     model: familyModel(family),
     lit,
+    emits: lit || !shaded,
     side,
-    standard: metalRoughFamily(family),
-    physical: family === 'physical',
+    standard: metalRoughFamily(family) && shaded,
+    physical: family === 'physical' && shaded,
     sheet: lit && side === 'double',
   }
 }
@@ -113,9 +116,9 @@ const renderSettings = (d: SurfaceDeclaration) => ({
 /** Its colours, its glow scaled by its intensity, its metal and roughness — a Phong surface's
  *  read off its exponent —, its side and alpha. */
 function factors(d: SurfaceDeclaration, reader: Reading) {
-  const { lit, side, standard, sheet } = reader
+  const { lit, emits, side, standard, sheet } = reader
   const model = modelOf(d, reader)
-  const emissive = lit ? d.emissive : undefined,
+  const emissive = emits ? d.emissive : undefined,
     glow = emissive ? (d.emissiveIntensity ?? 1) : 0
   return {
     baseColor: rgb(UNCOLOURED.has(d.family) ? WHITE : (d.color ?? WHITE)),
@@ -128,6 +131,7 @@ function factors(d: SurfaceDeclaration, reader: Reading) {
     lit,
     ...renderSettings(d),
     responsive: d.responsive,
+    sky: d.sky === true,
     side,
     alphaTest: d.alphaTest ?? 0,
     emissive: emissive ? (rgb(emissive).map((c) => c * glow) as Rgb) : ([0, 0, 0] as Rgb),
@@ -143,7 +147,7 @@ function factors(d: SurfaceDeclaration, reader: Reading) {
 
 /** Its map slots, each read only by a model that samples it. */
 function slots(d: SurfaceDeclaration, reader: Reading) {
-  const { model, lit, standard, physical, sheet } = reader
+  const { model, lit, emits, standard, physical, sheet } = reader
   return {
     map:
       model === SURFACE_MODEL.matcap ? mapIf(true, d.matcap) : mapIf(d.family !== 'normal', d.map),
@@ -151,7 +155,7 @@ function slots(d: SurfaceDeclaration, reader: Reading) {
     roughnessMap: mapIf(standard, d.roughnessMap),
     normalMap: mapIf(lit, d.normalMap),
     aoMap: mapIf(lit, d.aoMap),
-    emissiveMap: mapIf(lit, d.emissiveMap),
+    emissiveMap: mapIf(emits, d.emissiveMap),
     subsurfaceMap: mapIf(sheet || modelOf(d, reader) === PIXEL_MODEL.subsurface, d.subsurfaceMap),
     anisotropyMap: mapIf(physical, d.anisotropyMap),
     clearcoatMap: mapIf(physical, d.clearcoatMap),
@@ -247,13 +251,15 @@ const shape = (d: SurfaceDeclaration) => ({
 const raster = (d: SurfaceDeclaration) => ({
   name: d.name ?? '',
   family: d.family,
-  opacity: d.opacity ?? 1,
-  // A shadow catcher is the image behind it, darkened where a shadow falls: always blended.
-  transparent: d.transparent === true || d.family === 'shadow',
-  blending: d.blending ?? 'normal',
+  opacity: d.sky === true ? 1 : (d.opacity ?? 1),
+  // A shadow catcher is the image behind it, darkened where a shadow falls: always blended. A sky
+  // surface is out of every opaque pass (depth, shadow, cache), kept in the plan of the blends only to be drawn by the sky pass
+  // (`blend/sceneRefresh.ts`: its own view of the expansion), opaque and tested against the opaque depth, writing none.
+  transparent: d.transparent === true || d.family === 'shadow' || d.sky === true,
+  blending: d.sky === true ? 'normal' : (d.blending ?? 'normal'),
   twoSidedPasses: d.twoSidedPasses === true,
-  depthTest: d.depthTest !== false,
-  depthWrite: d.depthWrite !== false,
+  depthTest: d.sky === true || d.depthTest !== false,
+  depthWrite: d.sky !== true && d.depthWrite !== false,
   flatShading: d.flatShading === true,
   forVertexTangents: d.forVertexTangents,
   shininess: d.family === 'phong' ? (d.shininess ?? DEFAULT_SHININESS) : undefined,

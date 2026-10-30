@@ -3,6 +3,7 @@ import {
   DEFAULT_TEMPORAL_AA_LEVEL,
   RESPONSIVE_EXTRA,
   RESPONSIVE_LEVELS,
+  SKY_EXTRA,
   TEMPORAL_AA_LEVELS,
   VOXELIZE_EXTRA,
 } from '../contracts/compilerAbi.ts'
@@ -35,5 +36,5 @@ export const voxelize: JsonSchemaProperty = /* @__PURE__ */ (() =>
 /** The `materials` option (`materialOptions.ts`, `resolveMaterials`), the levels listed. */
 export const materials: JsonSchemaProperty = /* @__PURE__ */ (() => ({
   type: 'object',
-  description: `Settings by exact material name, each { responsive }, winning over the responsive option and the material's own extras.${RESPONSIVE_EXTRA}. responsive is how far the temporal anti-aliasing trusts the history on the material's pixels: one of ${RESPONSIVE_LEVELS.map((level) => `'${level}'`).join(', ')} (off the normal accumulation; medium reads the pixels as a pixel animation and rejects their history more aggressively; full restarts their history every image), true is '${DEFAULT_RESPONSIVE_LEVEL}', false is 'off'; default 'off'.`,
+  description: `Settings by exact material name, each { responsive, sky }, winning over the responsive option and the material's own extras.${RESPONSIVE_EXTRA} and extras.${SKY_EXTRA}. sky is true for the material of a sky dome mesh: the engine shows it as its colour alone, draws it as the sky after the opaque surfaces and captures it in place of the atmosphere in the sky light's real-time capture; default false. responsive is how far the temporal anti-aliasing trusts the history on the material's pixels: one of ${RESPONSIVE_LEVELS.map((level) => `'${level}'`).join(', ')} (off the normal accumulation; medium reads the pixels as a pixel animation and rejects their history more aggressively; full restarts their history every image), true is '${DEFAULT_RESPONSIVE_LEVEL}', false is 'off'; default 'off'.`,
 }))()

@@ -21,7 +21,7 @@ import {
 } from './expandBuffers.ts'
 import { VERDICT_GROUP } from '../verdict/verdictWgsl.ts'
 import { VERDICT_WORDS } from '../verdict/verdictLayout.ts'
-import { createVerdictRead } from '../verdict/verdictRead.ts'
+import { createVerdictRead, type ViewVerdict } from '../verdict/verdictRead.ts'
 import { sameValues } from '../../../../math/src/matrix/matrixElements.ts'
 
 export type BlendExpand = ReturnType<typeof expandApi>
@@ -38,7 +38,7 @@ type BlendPlanUpload = {
 }
 
 /** The uploads and the verdict's clear of the kernels' buffers: the only writes the host sends them. */
-function expandUploads(
+export function expandUploads(
   device: GPUDevice,
   buffers: ExpandBuffers,
   items: number,
@@ -46,6 +46,8 @@ function expandUploads(
 ) {
   const uni = new Uint32Array(UNI_WORDS),
     sent: (Uint32Array | undefined)[] = []
+  // The cut words the buffer holds: none sent yet, it is zero.
+  let sentCuts = new Uint32Array(0)
   const write = (buffer: GPUBuffer, word: number, source: Uint32Array, words?: number) =>
     writeWords(device.queue, buffer, word, source, words)
   return {
@@ -59,6 +61,13 @@ function expandUploads(
       if (plan.seeds.length) write(buffers.plan, plan.region.seeds, plan.seeds)
       sendSteps(device, buffers.steps, plan.stepWords, slots.steps)
       if (plan.keyWords.length) write(buffers.keyed, 0, plan.keyWords)
+    },
+    /** The cut words alone, `words` from word `at` of the frame data (`frameCutsAt`): sent where they differ from the last sent. */
+    uploadCuts(at: number, words: Uint32Array) {
+      if (sentCuts.length !== words.length) sentCuts = new Uint32Array(words.length)
+      if (sameValues(sentCuts, words)) return
+      sentCuts.set(words)
+      write(buffers.frame, at, words)
     },
     /** The uniform of view `view` (`expansionViews.ts`) of the plan's `counts`, `region` and `scene`, written where it differs from the
      *  last write: the filter, the instances' start and the arguments' place of the view. */
@@ -117,8 +126,10 @@ function expandApi(
   const { order, expansion, verdict } = kernels
   const read = createVerdictRead(device)
   return {
-    /** The last verdict counts that came back (`../verdict/verdictRead.ts`). */
-    counts: read.latest,
+    /** The verdict counts of the view under `key` (`viewKey`), made with its first image (`../verdict/verdictRead.ts`). */
+    verdictOf: read.of,
+    /** The verdict counts of the view under `key` if it asked for some. */
+    peekVerdict: read.peek,
     ...expandUploads(device, buffers, items, slots),
     /** The frustum verdict of every item (`../verdict/verdictWgsl.ts`), first in the open compute pass, on
      *  the cut's cold words `cells` where the world's cell states lie, if it follows one. */
@@ -145,12 +156,12 @@ function expandApi(
         }
       }
     },
-    /** This image's counts to the readback, under the verdict's `epoch`, once the pass ended. */
-    readCounts(encoder: GPUCommandEncoder, epoch: number) {
-      read.copy(encoder, buffers.verdict, epoch)
+    /** This image's counts to the readback of its view `verdict`, under the view's epoch, once the pass ended. */
+    readCounts(encoder: GPUCommandEncoder, verdict: ViewVerdict) {
+      read.copy(encoder, buffers.verdict, verdict)
     },
-    /** After the image's submit: its counts map. */
-    submitted: read.submitted,
+    /** The view under `key` is removed: its verdict readback goes (`../verdict/verdictRead.ts`). */
+    releaseVerdict: read.release,
     dispose() {
       read.destroy()
       noCells.destroy()

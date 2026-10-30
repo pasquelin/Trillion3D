@@ -65,10 +65,16 @@ export const MATERIALS_OPTION = '--materials='
 /** The key of a glTF material's `extras` naming its responsiveness — `"extras": { "responsive":
  *  true }` or a level of `RESPONSIVE_LEVELS` —, the lowest source of a material's level. */
 export const RESPONSIVE_EXTRA = 'responsive'
-/** The settings a material may name in `materials`: `responsive`. */
-export const MATERIAL_SETTINGS = ['responsive'] as const
-/** One material's settings as the compiler reads them: the level as its name. */
-export type MaterialSettingsWire = { responsive?: ResponsiveLevel }
+/** The key of a glTF material's `extras` marking it as a sky material — `"extras": { "sky": true }` —,
+ *  the lowest source of the property. A sky material is the one a sky dome mesh wears: the engine shows
+ *  it as its colour alone (no light reaches it), draws it as the sky after the opaque surfaces, and
+ *  captures it in place of the atmosphere in the sky light's real-time capture. */
+export const SKY_EXTRA = 'sky'
+/** The settings a material may name in `materials`: `responsive`, `sky`. */
+export const MATERIAL_SETTINGS = ['responsive', SKY_EXTRA] as const
+/** One material's settings as the compiler reads them: the responsive level as its name, the sky
+ *  property as a boolean. */
+export type MaterialSettingsWire = { responsive?: ResponsiveLevel; sky?: boolean }
 
 /** The key of a glTF material's `extras` naming its displacement — `"extras": { "displacement":
  *  { "texture": { "index": 3 }, "tessellation": true } }` —, the only source of it: glTF has no

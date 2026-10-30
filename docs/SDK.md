@@ -2905,6 +2905,16 @@ light's capture as well as on its sky: the clouds read the sun's shadow map wher
 `cloudSampleLightShadowMap` is on and the first light of the air casts a shadow that is projected this
 image.
 
+**The sky meshes of the capture.** `skyLightDepthBuffer` (on) gives the faces of the real-time capture a depth buffer
+where they show the scene's sky meshes (the surfaces of a sky material): the meshes cover each other by their
+distance, and the height fog is laid over each pixel at the distance of the mesh drawn there, an endless ray only
+where no mesh is. Off, the meshes are painted in their sort order and the fog is laid along an endless ray.
+
+```js
+// Fog at the true distance of the sky dome in the sky light's capture (the default); off lays it along an endless ray.
+world.skyQuality = { skyLightDepthBuffer: false }
+```
+
 **The settings.** `cloudShadowMapSpatialFiltering` (1, read from 0 to 4), `cloudShadowMapNewFrameWeight`
 (1, read from 0 to 1), `cloudLocalLightShadowSamples` (12, read from 0 to 128), `cloudRenderTargetScale`
 (1, read from 0.1 to 1) and `cloudEmptySpaceSkippingDepthKm` (40, read from 1) take any number and are
@@ -2912,8 +2922,7 @@ read held to the range, as the console variables they come from are: 8 filter pa
 is 1. The sky occlusion map's settings (`cloudSkyAO`, `cloudSkyAOResolutionMax`, `cloudSkyAOTraceSamples`,
 `cloudSkyAOFiltering`, `cloudSkyAOSnapKm`) are in [the sky module](#sky-module). Removed, because nothing in
 the engine could read them: `lightShaftAfterDof` (the shafts are added to the lit image; the other image
-the switch could send them to, a translucency drawn apart, does not exist here), `skyLightDepthBuffer` (the
-capture draws no mesh, so its depth is the far everywhere and the switch changed no pixel), and the sky
+the switch could send them to, a translucency drawn apart, does not exist here), and the sky
 light's `indirectLightingIntensity`, `samplesPerPixel`, `affectReflection` and
 `affectGlobalIllumination` (the reference reads them in its ray-traced and path-traced lighting only). A
 scene or a call naming one is refused with the field's name.

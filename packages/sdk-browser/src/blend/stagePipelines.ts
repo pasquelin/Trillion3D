@@ -133,7 +133,8 @@ export interface VariantPipelines {
 /** The blend modes' pipelines by variant on `module`, the stage `stage` drawing them, three culls each:
  *  every target of the pass — the translucency or modulation target, the request where `feedback`
  *  writes it —, or with `single` the first alone, the pass under the dual blend holding one attachment,
- *  and with `single` and `feedback` the first and the request. */
+ *  and with `single` and `feedback` the first and the request; with `depthWrite` the depth of the pixels they draw is written
+ *  (the sky meshes' capture, `skyFace`). */
 export function modePipelines(
   device: GPUDevice,
   module: GPUShaderModule,
@@ -141,6 +142,7 @@ export function modePipelines(
   { entryPoint, writeMask }: { entryPoint: string; writeMask: GPUColorWriteFlags },
   feedback: boolean,
   single = false,
+  depthWrite = false,
 ) {
   return pipelinesByVariant(device, (variant) => {
     const mode = variantBlending(variant)!
@@ -159,7 +161,7 @@ export function modePipelines(
         },
         targets: single ? targets.slice(0, feedback ? 2 : 1) : targets,
       },
-      false,
+      depthWrite,
       reflectedGroups(device),
     )
   })
@@ -263,6 +265,9 @@ export interface BlendModePipelines extends RankedPipelines {
     filtered?: boolean
     holdout?: boolean
   }): void
+  /** The sky meshes' capture's (`encodeSkyMeshFace`): the blends' own stage, each pixel's depth written, asked as the draw reaches
+   *  a rank (`drawBlendRuns` counts the slots left waiting for one). */
+  readonly skyFace: RankedPipelines
   /** The responsiveness pass's, the layers' marks in their own target (`drawResponsive`). */
   readonly responsive: RankedPipelines
   /** The alpha holdout's, what each layer leaves of the background visible, in a target of its own

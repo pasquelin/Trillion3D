@@ -7,6 +7,8 @@ import { dropTaaHistory } from '../../post/taa/landing.ts'
 import { followFrameDifference } from '../render/frameDifference.ts'
 import { applySkyToRuntime } from '../render/encodeCloudsSky.ts'
 import { reflectionCaptureHosts } from '../render/reflectionCaptureState.ts'
+import { renderSkyMeshes, type PersistentViews } from '../render/encodeSkyMeshes.ts'
+import { removeWebgpuView, renderWebgpuView, resizeWebgpuView } from './state/persistentView.ts'
 import {
   backendHostApi,
   backendSetters,
@@ -15,6 +17,13 @@ import {
   prepareSession,
   type PagesSession,
 } from './backendApi.ts'
+/** What the sky meshes' capture draws and gives up its faces' views with. */
+const persistentViews: PersistentViews = {
+  render: renderWebgpuView,
+  resize: resizeWebgpuView,
+  remove: removeWebgpuView,
+}
+
 /** WebGPU raster of cluster pages, cut on the GPU — frustum and per-cluster error band —, its one
  *  cut (#1483). The state lives in the runtime; each method hands it to the module that owns that
  *  responsibility. A caller that keeps the runtime it made hands it as the second argument. */
@@ -58,6 +67,8 @@ export const webgpuPagesEngine = ((context, rt = createWebgpuPagesRuntime(contex
     ...backendSetters(rt),
     prepare: () => prepareSession(rt, context, session),
     render(camera) {
+      // The sky meshes the real-time sky capture shows in the place of the atmosphere, drawn aside before the main image.
+      renderSkyMeshes(rt, camera, persistentViews)
       renderWebgpuPages(rt, camera)
     },
     ...backendHostApi(rt),

@@ -1,7 +1,7 @@
-import { ceilDiv } from '../../../math/src/scalar/integers.ts'
+import { bitWords, ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { NO_INDEX } from '../../../math/src/constants.ts'
 import { blendVertexShift, planRegion } from './plan/planLayout.ts'
-import { orderFrameWords } from './frame/frameHead.ts'
+import { frameCutsAt, orderFrameWords } from './frame/frameHead.ts'
 import { instanceBlocks } from './expand/viewRoom.ts'
 import { orderStepCount } from './order/orderSteps.ts'
 import type { WebgpuBlendState } from './state.ts'
@@ -77,8 +77,13 @@ export function buildBlendStatics(blendState: WebgpuBlendState, uniformStride: n
   blendState.runCount = 0
   blendState.orderKeys = new Float64Array(Math.max(1, items.length))
   blendState.orderPriorities = Int32Array.from(items, (item) => item.priority)
-  blendState.frameDoubles = new Float64Array(ceilDiv(orderFrameWords(entries), 2))
+  blendState.frameDoubles = new Float64Array(ceilDiv(orderFrameWords(entries, items.length), 2))
   blendState.frameWords = new Uint32Array(blendState.frameDoubles.buffer)
+  blendState.frameLayout.cuts = frameCutsAt(entries)
+  blendState.cutWords = blendState.frameWords.subarray(
+    blendState.frameLayout.cuts,
+    blendState.frameLayout.cuts + bitWords(items.length),
+  )
   blendState.orderStepWords = new Uint32Array(
     orderStepCount(entries) * (blendState.uniformStride / 4),
   )

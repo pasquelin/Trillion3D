@@ -26,6 +26,7 @@ import { litImageShown } from '../prepare/contractLight.ts'
 import { viewProj } from '../backend/helpers.ts'
 import { noiseFrame } from './noiseFrame.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
+import { skyDrawn } from './skyRoots.ts'
 import { airRequests, airShapeOfRuntime, atmosphereDeclared } from './airState.ts'
 import { writeAirlessFrame } from './airlessFrame.ts'
 import { atmosphereHoldout, encodeOpaqueHaze, encodeSky } from './encodeAtmosphere.ts'
@@ -217,8 +218,10 @@ export function encodeSkyAndClouds(
   air: boolean,
 ) {
   if (rt.gpu.hdrView) measureBeforeTranslucency(rt, encoder, rt.gpu.hdrView)
+  // The sky pixels are the dome's where the sky pass drew one this image: the atmosphere draws none of its own there.
+  const dome = skyDrawn(rt)
   const lay = () => {
-    if (air) encodeSky(rt, encoder)
+    if (air && !dome) encodeSky(rt, encoder)
     encodeHeightFog(rt, encoder, air)
     if (air) encodeOpaqueHaze(rt, encoder)
   }

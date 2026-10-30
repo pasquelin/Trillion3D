@@ -34,14 +34,12 @@ import { SKY_CUBE_WGSL } from './cubeWgsl.ts'
  *   shades nothing where the scene has no clouds), as the haze's cells do; shadowed
  *   (`skyLightShadowFromOpaque`), it reads the shade of the opaque scene as well. The table is
  *   built unshaded.
- * - `fogFaceMain` lays the distant height fog over it: the fog seen along an endless ray from the
- *   capture's position (`fogBeyond`; no volume is bound, the capture holds no volumetric fog), its
- *   light, multiplied by the pre-exposure, added and what is under it multiplied by what the fog
- *   lets through.
- *   The reference reads the depth of the capture in two places, the draw of the sky-material meshes and the
- *   height fog's depth texture, and has a switch for it (on by default); this capture draws no mesh, so its
- *   depth is the cleared far everywhere, which the endless ray of `fogBeyond` is: the switch would change no
- *   pixel, so it is no setting here.
+ * - `fogFaceMain` lays the distant height fog over it: the fog seen from the capture's position along the
+ *   pixel's ray (no volume is bound, the capture holds no volumetric fog), its light, multiplied by the
+ *   pre-exposure, added and what is under it multiplied by what the fog lets through. The ray is endless
+ *   (`fogBeyond`) where the face shows the atmosphere; where it shows the scene's sky meshes with their
+ *   depth (`fogFaceProgram`'s `depth`, `skyMeshDepthMain` in `skyMeshWgsl.ts`) it ends at the distance of the
+ *   mesh drawn there, an endless one only where no mesh is.
  * - `composeFaceMain` lays the clouds traced for the face (a texture of the cloud divider's side,
  *   read bilinearly) and the lower hemisphere's colour over the face: below the horizon, the
  *   lower colour, multiplied by the pre-exposure, replaces the clouds' light by its coverage and the
@@ -69,6 +67,15 @@ const FACE_BLOCK = `${FACE_LAYOUT.wgsl}
 fn pixelDirection(pixel:vec4f)->vec3f{
  let uv=pixel.xy*face.size.y*2.0-1.0;
  return normalize(faceDirection(uv,face.face.x));
+}`
+
+/** The distance along the pixel's ray to the sky mesh drawn there, from the depth the meshes' cube keeps (the hardware depth of a camera of
+ *  infinite far plane, its near distance the block's `eye.w`): the endless ray's where no mesh was drawn, its depth being the far, zero. */
+const FACE_MESH_DEPTH = `@group(1) @binding(1) var meshDepth:texture_2d<f32>;
+fn meshReach(pixel:vec4f)->f32{
+ let z=textureLoad(meshDepth,vec2i(pixel.xy),0).x;
+ if(z<=0.0){return FOG_FAR_DEPTH;}
+ return face.eye.w/z*length(faceDirection(pixel.xy*face.size.y*2.0-1.0,face.face.x));
 }`
 
 /** The pre-exposure the face's light is written multiplied by: the block's `size.w`. */
@@ -117,13 +124,14 @@ export const skyFaceProgram = (shape: AirShape, shadowed = false) =>
     shape,
   )
 
-export const fogFaceProgram = (shape: AirShape) =>
+/** The fog over a face; with `depth`, over the face of the sky meshes' capture, at the distance of the mesh in each pixel (`meshReach`). */
+export const fogFaceProgram = (shape: AirShape, depth = false) =>
   airProgram(
     FOG_FACE_AIR,
-    `${FACE_BLOCK}
+    `${FACE_BLOCK}${depth ? FACE_MESH_DEPTH : ''}
 @fragment fn fogFaceMain(@builtin(position) pixel:vec4f)->@location(0) vec4f{
  let dir=cubeToScene(pixelDirection(pixel));
- let beyond=fogBeyond(dir,face.eye.xyz);
+ let beyond=${depth ? 'fogBeyondAlong(dir*meshReach(pixel),face.eye.xyz,false,vec2f(0.0),false)' : 'fogBeyond(dir,face.eye.xyz)'};
  return vec4f(preExposed(beyond.rgb),beyond.a);
 }`,
     // The capture holds the scene's fog without the local fog volumes: no program of it holds their code.

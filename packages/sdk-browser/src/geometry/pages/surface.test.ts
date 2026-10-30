@@ -110,3 +110,22 @@ test('a lit surface whose graph wires a thin translucent output transmits, whate
   )
   assert.equal(transmission({ family: 'physical', transmission: 0.3 }), 0.3)
 })
+
+test('a sky surface is a blended layer that replaces what is behind it, tested against the depth and writing none', () => {
+  const sky = declareSurface({
+    family: 'standard',
+    sky: true,
+    opacity: 0.4,
+    blending: 'additive',
+    depthTest: false,
+    depthWrite: true,
+  })
+  assert.equal(sky.transparent, true, 'the opaque passes draw nothing of it')
+  assert.equal(sky.opacity, 1)
+  assert.equal(sky.blending, 'normal')
+  assert.equal(sky.depthTest, true)
+  assert.equal(sky.depthWrite, false)
+  const plain = declareSurface({ family: 'standard', opacity: 0.4 })
+  assert.equal(plain.transparent, false)
+  assert.equal(plain.opacity, 0.4)
+})

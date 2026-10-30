@@ -148,7 +148,8 @@ function readMaps(mat: VisMaterial, layers: MaterialLayers, into: SurfaceRow) {
 function materialBits(mat: VisMaterial, into: SurfaceRow) {
   let bits = 0
   if (mat.lit) bits |= FLAG_LIT
-  if (mat.fog === false) bits |= FLAG_FOG_FREE
+  // A sky surface is drawn ahead of the fog (`encodeSkyPass.ts`), which is laid over the image whole afterwards: it takes none of its own.
+  if (mat.fog === false || mat.sky === true) bits |= FLAG_FOG_FREE
   bits |= responsiveCode(mat.responsive) << RESPONSIVE_SHIFT
   if (mat.side === 'double') bits |= FLAG_DOUBLE
   if (into.map) bits |= FLAG_HAS_MAP

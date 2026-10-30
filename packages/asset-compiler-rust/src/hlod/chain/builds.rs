@@ -64,6 +64,9 @@ pub(crate) struct Builder<'a> {
     pub progress: &'a (dyn Fn(Value) + Sync),
     pub library: &'a Library,
     pub classes: &'a crate::hlod::flatten::merge::Classes,
+    /// The sky property of each material of the source scene, by its glTF rank
+    /// (`MaterialOptions::sky_flags`): an actor made of sky materials alone wears a sky material.
+    pub sky: &'a [bool],
     pub o: &'a Options,
     pub hlod: &'a Hlod,
     pub room: usize,
@@ -123,6 +126,8 @@ pub(crate) enum Wears {
     Flattened {
         images: Vec<Image>,
         double_sided: bool,
+        /// Whether every source it flattens wears a sky material (`Builder::sky`): its material is one.
+        sky: bool,
     },
     Merged(Option<u64>),
 }
@@ -192,11 +197,21 @@ struct Spent {
     pub(crate) tone_gap: Option<[f64; 2]>,
 }
 
+/// Whether the objects `members` of `instances` all wear a sky material (`Builder::sky`): the
+/// actor flattening them wears one; a cell holding a plain material too has a plain actor.
+fn all_sky(sky: &[bool], instances: &[Instance], members: &[usize]) -> bool {
+    !members.is_empty()
+        && (members.iter()).all(|&i| {
+            let rank = instances[i].material;
+            rank.is_some_and(|rank| sky.get(rank as usize).copied().unwrap_or(false))
+        })
+}
+
 /// The flat mesh's build — its DAG when `hlod`'s `clusterDag` asks it, built as its `meshBuild`
 /// says (`build`) — and the actor of cell `cell` around it, its atlas cooked into its images and
 /// let go; what its DAG build and its images' cook took added to `spent`.
 fn actor(
-    (cell, hlod): (usize, &crate::HlodLayer),
+    (cell, hlod, sky): (usize, &crate::HlodLayer, bool),
     (flat, atlas): (crate::hlod::flatten::Flat, crate::hlod::flatten::Atlas),
     (builder, spent): (&Builder, &mut Spent),
 ) -> Result<Actor> {
@@ -243,6 +258,7 @@ fn actor(
         wears: Wears::Flattened {
             images,
             double_sided,
+            sky,
         },
         triangles,
         voxels: Vec::new(),

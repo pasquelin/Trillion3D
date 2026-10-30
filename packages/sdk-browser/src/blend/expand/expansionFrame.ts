@@ -1,6 +1,8 @@
 import { noteFileSlots, writeKeyRecords, writeMovedKeyRecords } from '../keyRecords.ts'
 import { BLEND_ORDER_PASS } from '../../diagnostic/stage/passLabels.ts'
 import type { BlendExpand } from './expand.ts'
+import type { ViewVerdict } from '../verdict/verdictRead.ts'
+import { viewKey } from '../../frame/backend/state/viewKey.ts'
 import type { WebgpuBlendState } from '../state.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import type { GpuSelection } from '../../gpu/core/selection.ts'
@@ -13,11 +15,12 @@ const PASS: GPUComputePassDescriptor = { label: BLEND_ORDER_PASS }
 /**
  * What the GPU verdict reads, sent where it moved: the plan with every key record, or the key
  * records noted stale since (`noteKeyRecord`) — each one in a cell file once a file's slot moved
- * (`noteFileSlots`); the frustum planes, compared with those the last verdict judged; and where the
+ * (`noteFileSlots`); and where the
  * cut's cold words hold the world's cell and file words, which the verdict reads itself
  * (`cellDraws`): a switch rewrites no record. Each move counts in `verdictEpoch`, under which the
  * verdict's counts come back (`../verdict/verdictRead.ts`) — a switch only while a transmissive
- * item lies in a cell file, the in-view count then following it.
+ * item lies in a cell file, the in-view count then following it. The frustum is the view's own: its planes are compared
+ * with those its last verdict judged (`followVerdict`), so that no other view moves the epoch its counts come back under.
  */
 function sendVerdictInputs(
   blendState: WebgpuBlendState,
@@ -44,10 +47,6 @@ function sendVerdictInputs(
       blendState.verdictEpoch++
     }
   }
-  if (!sameValues(blendState.blendPlanes, blendState.judgedPlanes)) {
-    blendState.judgedPlanes.set(blendState.blendPlanes)
-    blendState.verdictEpoch++
-  }
   const revision = world?.revision ?? -1
   if (revision !== blendState.cellRevision) {
     blendState.cellRevision = revision
@@ -58,15 +57,35 @@ function sendVerdictInputs(
   blendState.frameWords[FRAME_HEAD.fileStates] = states?.files ?? 0
 }
 
+/** Moves the epoch of a view's counts when what its verdict reads moved since its last image: the scene's inputs (`verdictEpoch`), its own planes or its own sky cut (`cutSkyItems`: a cut item drops its bit in the verdict). */
+function followVerdict(blendState: WebgpuBlendState, verdict: ViewVerdict) {
+  if (verdict.seen !== blendState.verdictEpoch) {
+    verdict.seen = blendState.verdictEpoch
+    verdict.epoch++
+  }
+  if (!sameValues(blendState.blendPlanes, verdict.judged)) {
+    verdict.judged.set(blendState.blendPlanes)
+    verdict.epoch++
+  }
+  const { cutWords } = blendState
+  if (!sameValues(cutWords, verdict.cuts)) {
+    verdict.cuts.set(cutWords)
+    verdict.epoch++
+  }
+}
+
 /**
- * Whether no distortion can be drawn this image: the counts an image judged under the same inputs
+ * Whether no distortion can be drawn in the view of `gpu` this image: the counts its own image judged under the same inputs
  * came back with no transmissive item in view (`VERDICT_IN_VIEW`): without a refracting surface in view
  * the distortion would only copy the scene onto itself.
  * An image with any input moved since draws it, and the GPU's depth test decides what it covers.
- * The CPU never waits for the answer: until one comes back for the current inputs, it is drawn.
+ * The CPU never waits for the answer: until one comes back for the current inputs of the view, it is drawn.
+ * Each view reads its own counts, judged against its own frustum (a planar view's too); a face of the sky meshes' capture has no slot, reads none and draws.
  */
-export const noTransmissiveInView = ({ expand, verdictEpoch }: WebgpuBlendState) =>
-  !!expand && expand.counts.epoch === verdictEpoch && expand.counts.inView === 0
+export const noTransmissiveInView = (blendState: WebgpuBlendState, gpu: { viewKey?: object }) => {
+  const verdict = blendState.expand?.peekVerdict(viewKey(gpu))
+  return !!verdict && verdict.latest.epoch === verdict.epoch && verdict.latest.inView === 0
+}
 
 /**
  * What the image asks of the kernels: the verdict's inputs where they moved and the frame data,
@@ -74,9 +93,15 @@ export const noTransmissiveInView = ({ expand, verdictEpoch }: WebgpuBlendState)
  * order and expansion; then the verdict's counts to the readback.
  *
  * Dispatches of the same compute pass are ordered and see the previous writes: the expansion reads
- * the keep words the verdict wrote.
+ * the keep words the verdict wrote. The main image and each planar view read the counts of their own verdict back, each judging its own
+ * frustum and expanding the whole plan from its own camera; `skyOnly`: a face of the sky meshes' capture expands its sky view alone
+ * (`planFrameViews`) and reads no counts.
  */
-export function encodeBlendExpansion(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
+export function encodeBlendExpansion(
+  rt: WebgpuPagesRuntime,
+  encoder: GPUCommandEncoder,
+  skyOnly = false,
+) {
   const { blendState } = rt,
     expand = blendState.expand,
     { runCount, seeds } = blendState
@@ -87,16 +112,22 @@ export function encodeBlendExpansion(rt: WebgpuPagesRuntime, encoder: GPUCommand
   // (`cellDraws`).
   const cut = rt.run.gpuSelection
   sendVerdictInputs(blendState, expand, cut)
+  // A face of the sky meshes' capture reads no counts back.
+  const verdict = skyOnly
+    ? undefined
+    : expand.verdictOf(viewKey(rt.gpu), blendState.cutWords.length)
+  if (verdict) followVerdict(blendState, verdict)
   expand.uploadFrame(blendState.frameWords, blendState.frameLayout.words)
+  expand.uploadCuts(blendState.frameLayout.cuts, blendState.cutWords)
   expand.clearVerdict(encoder)
   // The views the image's draws read: its items' passes, its responsive layers (`expansionViews.ts`).
-  planFrameViews(rt)
+  planFrameViews(rt, skyOnly)
   const counts = { entries: seeds.length, runs: runCount }
-  blendState.frameViews.forEach((view, at) => {
-    if (view.active)
+  blendState.frameViews.forEach((frameView, at) => {
+    if (frameView.active)
       expand.uploadView(
         at,
-        view,
+        frameView,
         blendState.maxPlanEntries,
         counts,
         blendState.planRegion,
@@ -107,5 +138,5 @@ export function encodeBlendExpansion(rt: WebgpuPagesRuntime, encoder: GPUCommand
   expand.judge(pass, cut?.cellStates?.view)
   expand.encode(pass, blendState.orderSteps, counts, blendState.frameViews)
   pass.end()
-  expand.readCounts(encoder, blendState.verdictEpoch)
+  if (verdict) expand.readCounts(encoder, verdict)
 }

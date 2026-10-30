@@ -20,6 +20,7 @@ import { FACE_LAYOUT, SKY_FACE_AIR, SKY_FACE_AIR_SHADOWED, skyViewCapture } from
 import { BLOCK_STRIDE, CUBE_FACES } from './layout.ts'
 import type { SkyLightPipelines } from './pipelines.ts'
 import type { SkyLightTargets } from './targets.ts'
+import type { SkyMeshes } from './skyMeshes.ts'
 
 /** What the face passes keep from frame to frame: the groups, made again when the identities they
  *  were made of change. */
@@ -32,6 +33,8 @@ export interface FaceHolds {
   shadowedGroup?: GPUBindGroup
   fogHeld?: Held
   fogGroup?: GPUBindGroup
+  /** The face block with the depth of each face of the sky meshes' cube beside it, for the fog laid at their distance. */
+  depthGroups?: { for: [SkyLightTargets, SkyMeshes]; groups: GPUBindGroup[] }
   traceHeld?: Held
   traceGroups: { air: GPUBindGroup; cloud: GPUBindGroup }[]
   /** The clouds' tracing's group 2, where its key has one (`CloudTraceKey`): the sun's shadow maps
@@ -98,12 +101,14 @@ function skyAndFogGroups(
       }),
     })
   }
-  if (air && fog && !sameHeld(holds.fogHeld, [air.buffer, fog])) {
-    holds.fogHeld = [air.buffer, fog]
+  // The fog reads the light buffer alone, whichever air holds it: the stand-in of a scene with no atmosphere lays it over its sky meshes too.
+  const fogAir = input.air
+  if (fogAir && fog && !sameHeld(holds.fogHeld, [fogAir.buffer, fog])) {
+    holds.fogHeld = [fogAir.buffer, fog]
     holds.fogGroup = device.createBindGroup({
       layout: layouts.fogAir,
       entries: [
-        { binding: AIR_BINDING.air, resource: { buffer: air.buffer } },
+        { binding: AIR_BINDING.air, resource: { buffer: fogAir.buffer } },
         ...fogReadBindEntries(AIR_FOG_BINDINGS, fog),
       ],
     })
@@ -151,6 +156,31 @@ function traceGroupsOf(
   }))
 }
 
+/** The groups of the face block and the depth of the sky meshes' cube, made again when either is. */
+function depthGroupsFor(
+  device: GPUDevice,
+  { layouts }: SkyLightPipelines,
+  holds: FaceHolds,
+  t: SkyLightTargets,
+  meshes: SkyMeshes | undefined,
+) {
+  if (!meshes?.depthBuffer) return
+  const held = holds.depthGroups?.for
+  if (held?.[0] === t && held[1] === meshes) return
+  holds.depthGroups = {
+    for: [t, meshes],
+    groups: Array.from({ length: CUBE_FACES }, (_, face) =>
+      device.createBindGroup({
+        layout: layouts.faceDepth,
+        entries: [
+          { binding: 0, resource: { buffer: t.blocks.face, size: FACE_LAYOUT.words * 4 } },
+          { binding: 1, resource: meshes.depthLayer(face)! },
+        ],
+      }),
+    ),
+  }
+}
+
 /** The face block and the groups over the air, the fog and the clouds, for this frame's inputs. */
 export function groupsFor(
   device: GPUDevice,
@@ -168,6 +198,7 @@ export function groupsFor(
       }),
     }
   skyAndFogGroups(device, made, holds, t, input)
+  depthGroupsFor(device, made, holds, t, input.skyMeshes)
   const traced = capturedClouds(input)
   if (!traced || !input.fog) return
   const { air, clouds, key } = traced

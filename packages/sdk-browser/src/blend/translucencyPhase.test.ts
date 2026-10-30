@@ -95,13 +95,19 @@ test('each draw of a split image reads a view of the items of its passes, past t
   assert.deepEqual([drawViews[0].colour, drawViews[1].colour], [1, 3])
   assert.deepEqual(
     views.map((view) => view.active),
-    [true, true, false, true, false, false, false],
+    [true, true, false, true, false, false, false, false, false],
   )
-  // The pass before leaves the others out and starts past view 0's block; the others follow it.
-  const bit = translucencyPassBit
+  // The pass before leaves the others out, and the sky surfaces (the bit past the passes' and the responsive one), and starts past view 0's block; the others follow it.
+  const bit = translucencyPassBit,
+    SKY = 1 << 5
   assert.deepEqual(
     [views[1].exclude, views[1].instanceBase, views[3].exclude, views[3].instanceBase],
-    [EVERY_PASS & ~bit('beforeDepthOfField'), 30, EVERY_PASS & ~bit('afterDepthOfField'), 40],
+    [
+      SKY | (EVERY_PASS & ~bit('beforeDepthOfField')),
+      30,
+      SKY | (EVERY_PASS & ~bit('afterDepthOfField')),
+      40,
+    ],
   )
   // No responsive item: no responsiveness view.
   assert.deepEqual([drawViews[0].responsive, drawViews[1].responsive], [-1, -1])

@@ -142,7 +142,7 @@ function drawnSurface(rt: WebgpuPagesRuntime, device: GPUDevice, prepared: boole
 }
 
 /** The parameters deferred resolve rereads, but for the light count and the grid's tiles. */
-function fillDirectParams(
+export function fillDirectParams(
   rt: WebgpuPagesRuntime,
   cam: EngineCamera,
   environment: WebgpuPagesRuntime['lights']['store']['environment'],

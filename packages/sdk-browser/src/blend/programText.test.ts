@@ -43,7 +43,8 @@ import { shaderRun } from '../materials/texture/shaderRun.fixture.ts'
 // The view joined the translucency global illumination volume's grid and slices' law (`giGrid`, `giZ`).
 // The vertex stage no longer leaves an item of another pass out (`otherPass`, the view's `translucencyPass` and the item's are gone): each draw expands its own items alone (`expand/expansionViews.ts`).
 // Retaken for the vertex stage's triangle word: the item's lighting channels and the material's facts it carries for the fragment (`TRI_LIGHTING_CHANNELS_SHIFT`, `TRI_MATERIAL_SHIFT`).
-const VERTEX = '9143a8cd283204cfe1cce9e0207d21ba57c9e44961624c10e84c89f109c129d2'
+// Retaken for the sky material's flag in the triangle word (`MATERIAL_FLAG.sky`): the opaque layer a sky surface writes (`blendSurface`).
+const VERTEX = 'c5b8547fd6c33381d3794e9f44ef7b59bce5de276873ef520cda9f83c90b59b2'
 // Retaken when the blend module took that vertex, the per-material responsiveness it writes for
 // the temporal pass where its material asks one, and the stored tangents' frame in a
 // module of its own (`tangentFrameWgsl.ts`) for the normal map and the lobes both, and then the
@@ -147,7 +148,9 @@ const VERTEX = '9143a8cd283204cfe1cce9e0207d21ba57c9e44961624c10e84c89f109c129d2
 // Retaken for c9's fourth deduplication sweep (29/10): the held layers' read (`loadHeld`) and the packed tables' reads
 // (`packedTableWgsl`) declared once: the same operations.
 // Retaken for the simple lights' word (30/10): the lights' tile slice declares the simple light word, `sampledTakes` reads it, and its text holds no backtick.
-const BLEND = '4ae0eab99056b5dd6f4ab262f98bbb921548100deda34b6b5afa3a1656e9b9f1'
+// Retaken for the sky meshes capture (29/10): a sky surface writes an opaque layer (`blendSurface`: its cutout alone reads the base alpha),
+// and the fog beyond a ray is worked out over any reach (`fogBeyondAlong`, `fogBeyondWith` its endless one).
+const BLEND = '233855545faa24e86c4a435cf9be28368043e879e4e5da7c7dd7d8798ebafb5d'
 
 const CUTS = ['narrow', 'unshadowed', 'rectless', 'sunless', 'localless', 'lobeless'] as const
 /** Every contract key: bit `k` of the rank sets `CUTS[k]`. */

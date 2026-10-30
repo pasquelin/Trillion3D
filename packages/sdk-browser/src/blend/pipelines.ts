@@ -50,6 +50,7 @@ import { blendModeConstant } from '../materials/surface/materialBlending.ts'
 import { createFrontStages, prepareFrontStage } from './frontStage.ts'
 import { createRadianceMarkStage, prepareRadianceMarkStage } from './radianceMarkStage.ts'
 import { createDualPasses } from './dualPasses.ts'
+import { createSkyFacePipelines } from './skyFace.ts'
 import { waterWgsl } from './water/waterStageWgsl.ts'
 import { createWaterPipelines } from './water/waterPipelines.ts'
 import { createForwardVariants, type ForwardLit } from '../lighting/deferred/forwardVariants.ts'
@@ -577,6 +578,7 @@ async function blendProgram(setup: BlendProgramSetup, key: ContractKey): Promise
     },
     lit: (frame, lobed) => setup.programs().pick(frame, lobed)?.pipelines,
     litAwaited: (frame, lobed) => setup.programs().awaited(frame, lobed),
+    skyFace: createSkyFacePipelines(device, module, layout, selected, feedback),
     responsive: responsiveOf(transmission, responsiveBlends),
     holdout: holdoutOf(transmission, holdoutBlends),
     at: blendAtOf(transmission, set),

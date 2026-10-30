@@ -3,7 +3,7 @@ import type { BlendLighting } from '../gpu/bind/blendBindEntries.ts'
 import { vsmOrStandIns } from '../lighting/shadows/vsm/frame/vsmConsumers.ts'
 import type { WebgpuPagesRuntime } from '../frame/backend/runtime.ts'
 import { lightFunctionResources } from '../lighting/lightFunction/frame.ts'
-import { translucentCloudVertex } from './cloudVertex.ts'
+import { cloudVertexStandIns, translucentCloudVertex } from './cloudVertex.ts'
 import { FLAGS_VIEW } from '../materials/surface/surfaceOutputs.ts'
 import { translucencyVolumeView } from '../lighting/translucency/frame.ts'
 import { translucencyGiSampler, translucencyGiView } from '../lighting/translucencyGi/frame.ts'
@@ -18,11 +18,13 @@ const records = new WeakMap<object, BlendLighting>()
  * Lighting resources the blend pass binds: exactly those the opaque resolve just resolved,
  * and the deferred-resolve placeholders for those that do not exist yet. One resolve for both
  * passes, so the blend pass owns no light of its own (P6). `contract`: those the frame resolved.
- * The record is the runtime's own, written in place by each call.
+ * The record is the runtime's own, written in place by each call. `sky`: the sky surfaces' (unlit, fog-free), drawn before the clouds and the
+ * volumes of the image are made: those are the stand-ins and nothing of them is held for the image.
  */
 export function blendLightResources(
   rt: WebgpuPagesRuntime,
   contract = directLightResources(rt),
+  sky = false,
 ): BlendLighting {
   const { placeholders } = rt.gpu.deferred!
   const fog = contract.fog ?? placeholders.fog
@@ -30,7 +32,8 @@ export function blendLightResources(
   // The translucent layers read the light functions where the setting says (`lightFunctionTranslucent`).
   const lightFunction =
     lightFunctionResources(rt, 'lightFunctionTranslucent') ?? placeholders.lightFunction
-  const clouds = translucentCloudVertex(rt, rt.gpu.device!)
+  const device = rt.gpu.device!,
+    clouds = sky ? cloudVertexStandIns(device) : translucentCloudVertex(rt, device)
   let into = records.get(rt.blendState)
   if (!into) records.set(rt.blendState, (into = {} as BlendLighting))
   into.directLights = contract.lights!
@@ -64,7 +67,7 @@ export function blendLightResources(
   into.rectAtlas = profiles.rectView
   into.rectSampler = profiles.rectSampler
   // The heterogeneous volumes' camera map this image made (composited with the translucency), or the stand-in that holds nothing.
-  into.volumeCamera = heterogeneousCameraOf(rt.gpu)?.view ?? cameraStandIn(rt.gpu.device!)
+  into.volumeCamera = (!sky && heterogeneousCameraOf(rt.gpu)?.view) || cameraStandIn(device)
   // The clouds' shade and the cloud image the programs that read the clouds read per vertex, or
   // their stand-ins (`cloudVertex.ts`).
   into.cloudShade = clouds.shade

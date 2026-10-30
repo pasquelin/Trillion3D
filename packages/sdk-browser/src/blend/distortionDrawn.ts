@@ -20,6 +20,6 @@ export const drawsDistortion = (
     gpu.backdrop?.active &&
     gpu.deferred?.uniform &&
     gpu.hdrTexture &&
-    !noTransmissiveInView(blendState)
+    !noTransmissiveInView(blendState, gpu)
   )
 }

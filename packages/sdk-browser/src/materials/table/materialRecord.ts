@@ -79,7 +79,8 @@ function factors(mat: MaterialSurface, worn: boolean, clip: number | undefined) 
   scratch[F.irisDistance] = mat.irisDistance ?? 0
   scratchInts[F.flags] =
     (mat.computeFogPerPixel === true || mat.water === true ? MATERIAL_FLAG.fogPerPixel : 0) |
-    (asksContact(mat) ? MATERIAL_FLAG.contactShadows : 0)
+    (asksContact(mat) ? MATERIAL_FLAG.contactShadows : 0) |
+    (mat.sky === true ? MATERIAL_FLAG.sky : 0)
   for (let i = 0; i < 3; i++) scratch[F.subsurface + i] = worn ? 0 : (mat.subsurfaceColor?.[i] ?? 0)
   scratchInts[F.model] = modelWord(mat)
 }

@@ -204,6 +204,8 @@ pub(crate) struct Published {
     pub name: String,
     pub images: Vec<Image>,
     pub double_sided: bool,
+    /// Whether it is a sky material: its glTF material carries `extras.sky` (`SKY_EXTRA`).
+    pub sky: bool,
 }
 
 /// The glTF material named `name` wearing a flattened material's textures, `[base, normal,
@@ -217,12 +219,12 @@ pub(crate) struct Published {
 /// `KHR_materials_anisotropy`'s texture, its strength factor one — the map holds the strength, zero
 /// where the layer bakes none —, which the engine does not draw yet. The base image's alpha, as
 /// `coverage` says, the material's opacity — drawn blended — or its mask — cut at `MASK_CUTOFF`.
-/// Drawing both faces when `double_sided` (`Atlas::double_sided`). A baked specular rides in the
+/// Drawing both faces when `double_sided` (`Atlas::double_sided`), a sky material when `sky`. A baked specular rides in the
 /// metal-roughness map's first channel, which no glTF slot names: no material input reads it.
 fn flattened_material(
     name: &str,
     (slots, strength): ([Option<usize>; 6], Option<f32>),
-    (double_sided, coverage): (bool, Coverage),
+    (double_sided, coverage, sky): (bool, Coverage, bool),
 ) -> Value {
     let [base, normal, metal_rough, emission, occlusion, anisotropy] = slots;
     let mut pbr = json!({"baseColorTexture": {"index": base}});
@@ -239,6 +241,10 @@ fn flattened_material(
         "doubleSided": double_sided,
     });
     wear_coverage(&mut material, coverage);
+    // A sky material's proxy is one (`MaterialOptions::sky_flags` reads it back from the extras).
+    if sky {
+        material["extras"] = json!({ crate::shared_math::abi::SKY_EXTRA: true });
+    }
     if let Some(index) = normal {
         material["normalTexture"] = json!({"index": index});
     }

@@ -5,7 +5,7 @@
 // within its rounding margin of a plane, a margin measured from the eye.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { hasBit } from '../../../../math/src/scalar/bits.ts'
+import { hasBit, setBit } from '../../../../math/src/scalar/bits.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 import { gpuVerdict } from './verdictRun.fixture.ts'
 import { blendVerdictCpu } from './verdict.fixture.ts'
@@ -106,4 +106,38 @@ test('the scenes hold front-only, back-only and double-sided items, each planned
     verdictScene(64, lcgRandom(13), false).blendState.blendGpu.map((item) => item.surface.side),
   )
   assert.deepEqual([...sides].sort(), ['back', 'double', 'front'])
+})
+
+test('an item the frame cuts is kept out and in no view, the others and the other counts as they were', () => {
+  const { blendState, counts } = verdictScene(97, lcgRandom(5), false)
+  const whole = gpuVerdict(blendState, counts)
+  const kept = blendState.blendGpu.map((_, i) => i).filter((i) => hasBit(whole.keep, i))
+  assert.ok(kept.length > 2)
+  // One in the first word, one in the last.
+  const cut = [kept[0], kept[kept.length - 1]]
+  for (const item of cut) setBit(blendState.frameWords, item, blendState.frameLayout.cuts)
+  // The cut items that lie in view leave the in-view count: the oracle's count without their transmission says how many.
+  const seen = blendVerdictCpu(blendState).inView,
+    transmits = cut.map((i) => blendState.blendGpu[i].transmissive)
+  for (const i of cut) blendState.blendGpu[i].transmissive = false
+  const cutInView = seen - blendVerdictCpu(blendState).inView
+  cut.forEach((i, at) => (blendState.blendGpu[i].transmissive = transmits[at]))
+  const after = gpuVerdict(blendState, counts)
+  blendState.blendGpu.forEach((_, i) =>
+    assert.equal(hasBit(after.keep, i), hasBit(whole.keep, i) && !cut.includes(i), `item ${i}`),
+  )
+  assert.equal(after.rejected, whole.rejected)
+  assert.equal(after.inView, whole.inView - cutInView)
+})
+
+test('a transmissive item the frame cuts is in no view: every item cut leaves none in view', () => {
+  const { blendState, counts } = verdictScene(97, lcgRandom(5), false)
+  const whole = gpuVerdict(blendState, counts)
+  assert.ok(whole.inView > 0)
+  blendState.blendGpu.forEach((_, i) =>
+    setBit(blendState.frameWords, i, blendState.frameLayout.cuts),
+  )
+  const after = gpuVerdict(blendState, counts)
+  assert.equal(after.inView, 0)
+  assert.equal(after.rejected, whole.rejected, 'still counted as drawn')
 })

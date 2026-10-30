@@ -18,6 +18,7 @@ import { faceCamera } from './faces.ts'
 import { BLOCK_STRIDE } from './layout.ts'
 import type { SkyLightPipelines } from './pipelines.ts'
 import type { SkyLightTargets } from './targets.ts'
+import { SKY_MESH_NEAR } from './skyMeshWgsl.ts'
 
 const PASS: GPUComputePassDescriptor = { label: 'Trillion3D sky light clouds' }
 const SKY_TABLE_PASS: GPUComputePassDescriptor = { label: 'Trillion3D sky light sky table' }
@@ -53,7 +54,7 @@ function writeFace(
   const { at } = FACE_LAYOUT
   const { light } = input.part
   faceUints.set([face, light.lowerHemisphereIsSolidColor ? 1 : 0, withClouds ? 1 : 0, 0], at.face)
-  faceFloats.set([...input.position, 0], at.eye)
+  faceFloats.set([...input.position, SKY_MESH_NEAR], at.eye)
   faceFloats.set([t.width, 1 / t.width, t.cloudSide, input.preExposure], at.size)
   faceFloats.set(lowerHemisphereOf(light), at.lower)
   writeBlock(device, t.blocks.face, face * BLOCK_STRIDE, faceFloats)
@@ -148,18 +149,23 @@ function traceFace(
  *  and a clear of the colour. */
 interface FaceWork {
   readonly atmosphereDrawn: boolean
+  /** The sky meshes' image is drawn in the place of the atmosphere. */
+  readonly meshesDrawn: boolean
   readonly composing: boolean
   readonly clearing: boolean
 }
 
 function faceWork(withSky: boolean, withClouds: boolean, input: SkyLightInputs): FaceWork {
-  const atmosphereDrawn = withSky && input.atmosphere && input.air !== undefined
+  // The scene's sky meshes, where it has a sky material, are drawn instead of the atmosphere (the reference's `bSceneHasSkyMaterial`).
+  const meshesDrawn = withSky && !!input.skyMeshes?.ready
+  const atmosphereDrawn = withSky && !meshesDrawn && input.atmosphere && input.air !== undefined
   const composing =
     withClouds && (input.part.light.lowerHemisphereIsSolidColor || input.clouds !== undefined)
   // The colour is cleared before the sky where the setting says (`skyLightAlwaysClear`), else only
   // where no sky is drawn over it.
-  const clearing = withSky && (!atmosphereDrawn || input.part.quality.skyLightAlwaysClear)
-  return { atmosphereDrawn, composing, clearing }
+  const clearing =
+    withSky && !meshesDrawn && (!atmosphereDrawn || input.part.quality.skyLightAlwaysClear)
+  return { atmosphereDrawn, meshesDrawn, composing, clearing }
 }
 
 const faceTarget: GPURenderPassColorAttachment = {
@@ -182,12 +188,15 @@ const shadowedSky = (made: SkyLightPipelines, input: SkyLightInputs) =>
 
 /** Whether the sky the faces draw is compiled: a capture draws no face with the unshaded sky in
  *  place of the shaded one, nor from a sky table not built yet, which would move its slices on over
- *  a wrong cube. */
+ *  a wrong cube; nor with the fog program that reads the meshes' depth missing, where the fog is laid over their image
+ *  (`facePass`: the meshes drawn, the fog read and shown). */
 export const skyCompiled = (made: SkyLightPipelines, input: SkyLightInputs) =>
   (shadowedSky(made, input)?.ready ?? true) &&
-  (!made.shape.skyView.fast || made.pipelines.skyView.ready)
+  (!made.shape.skyView.fast || made.pipelines.skyView.ready) &&
+  (!(input.skyMeshes?.ready && input.skyMeshes.depthBuffer && input.fog && input.fogShown) ||
+    made.fogDepth.ask().ready)
 
-/** The render pass of face `face`: the sky, the fog over it, then the clouds laid over. */
+/** The render pass of face `face`: the sky, or the sky meshes' image, the fog over it, then the clouds laid over. */
 function facePass(
   made: SkyLightPipelines,
   holds: FaceHolds,
@@ -199,9 +208,12 @@ function facePass(
 ) {
   const { pipelines } = made
   faceTarget.view = t.faceTargets[face]
+  const offset = [face * BLOCK_STRIDE]
+  // The meshes' image replaces what was there, in a pass of its own (`SkyMeshes.drawFace`), the fog and the clouds go over it.
+  if (work.meshesDrawn)
+    input.skyMeshes!.drawFace(encoder, t.faceTargets[face], face, input.preExposure)
   faceTarget.loadOp = work.clearing ? 'clear' : 'load'
   const pass = encoder.beginRenderPass(FACE)
-  const offset = [face * BLOCK_STRIDE]
   if (work.atmosphereDrawn) {
     // Compiled: the capture waits for it (`skyCompiled`).
     const shadowed = shadowedSky(made, input)
@@ -212,11 +224,16 @@ function facePass(
       pass.setBindGroup(1, holds.faceGroup!.group, offset)
       pass.draw(3)
     }
-    const fog = input.fog && input.fogShown ? pipelines.fog.get() : undefined
+  }
+  if (work.atmosphereDrawn || work.meshesDrawn) {
+    // Over the sky meshes with their depth, the fog is laid at the distance of the mesh in each pixel.
+    const deep = work.meshesDrawn && input.skyMeshes!.depthBuffer
+    const shown = holds.fogGroup && input.fog && input.fogShown
+    const fog = shown ? (deep ? made.fogDepth.ask() : pipelines.fog).get() : undefined
     if (fog) {
       pass.setPipeline(fog)
       pass.setBindGroup(0, holds.fogGroup!)
-      pass.setBindGroup(1, holds.faceGroup!.group, offset)
+      pass.setBindGroup(1, deep ? holds.depthGroups!.groups[face] : holds.faceGroup!.group, offset)
       pass.draw(3)
     }
   }
@@ -277,7 +294,7 @@ function drawFaces(
   input: SkyLightInputs,
 ) {
   const work = faceWork(withSky, withClouds, input)
-  if (!work.atmosphereDrawn && !work.composing && !work.clearing) return
+  if (!work.atmosphereDrawn && !work.meshesDrawn && !work.composing && !work.clearing) return
   groupsFor(device, made, holds, t, input)
   if (work.atmosphereDrawn) buildSkyTable(device, made, holds, encoder, t, input)
   const traced = withClouds ? capturedClouds(input) : undefined

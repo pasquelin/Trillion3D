@@ -20,6 +20,7 @@ pub(super) fn flags_of(wears: &Wears, materials: &[Value]) -> u32 {
         Wears::Flattened {
             images,
             double_sided,
+            ..
         } => {
             flattened = json!({ "doubleSided": double_sided });
             wear_coverage(&mut flattened, coverage_of(images));

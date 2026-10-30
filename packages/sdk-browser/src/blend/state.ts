@@ -11,7 +11,7 @@ import {
   SKY_QUALITY_RULES,
   type SkyQualityOptions,
 } from '../../../sdk-core/src/modules/sky/quality.ts'
-import { createWebgpuBindIdentity } from '../gpu/bind/bindIdentity.ts'
+import type { BlendViewGroups } from './identity.ts'
 import type { BlendLighting } from '../gpu/bind/blendBindEntries.ts'
 import type { BlendOverdraw } from './overdraw.ts'
 import type { TransparentCompaction } from './transparent/compact.ts'
@@ -114,10 +114,9 @@ function tableState() {
     ...transparentOcclusionState(),
     /** Table entries changed by the residency journal, awaiting a partial upload. */
     dirtySpans: createChangedRuns(),
-    /** What the transparent groups currently name: a moved identity voids them. Two are held,
-     *  with the groups of each: the shadow maps' tables a lit pass binds are double-buffered, and
-     *  their frames take turns. */
-    identity: createWebgpuBindIdentity(2),
+    /** The transparent groups of each view, by `viewKey`: the main image, a face of the sky meshes' capture and a planar view keep
+     *  their own, so one view's resources never void another's (`blendGroupsOf`). */
+    viewGroups: new WeakMap<object, BlendViewGroups>(),
     /** Lighting resources of the image, resolved once by `encodeBlend`: every translucent layer
      *  binds the same. */
     lighting: undefined as BlendLighting | undefined,
@@ -156,6 +155,13 @@ function translucentState() {
     /** The passes of the image the items' surfaces are drawn in, as a set of `translucencyPassBit`s:
      *  what the frame splits its layers by (`splitsTranslucency`). Set with the records. */
     translucencyPasses: 0,
+    /** The items whose surface is a sky material (`MATERIAL_FLAG.sky`): drawn by the sky pass alone (`encodeSkyPass.ts`) and by the
+     *  sky meshes' capture, in no layer. Set with the records, so a change of a surface's sky flag is the revision of the list. */
+    skyItems: [] as BlendGpuItem[],
+    /** The rank in `blendGpu` of each of `skyItems`, in the same order: the bit of the frame's cut words the view's cut sets (`cutSkyItems`). */
+    skyRanks: [] as number[],
+    /** How many of `skyItems` the view being prepared leaves out (`cutSkyItems`); its sky view opens while some stay. */
+    skyCut: 0,
     /** What the front pass writes (`frontStageOf`): the reflecting surface the trace answers once an
      *  item reflects (lit, of the physical model), its lobes once one carries a lobe. Set with the
      *  records. */

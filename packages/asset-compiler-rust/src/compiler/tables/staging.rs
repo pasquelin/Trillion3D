@@ -26,11 +26,14 @@ pub(super) fn surface_tables(
     materials: &crate::MaterialOptions,
     (described, hlod): (&Value, &[usize]),
 ) -> Result<(Materials, Value, Vec<usize>)> {
-    let (responsive, ignored) = materials.responsive_levels(described);
+    let (responsive, mut ignored) = materials.responsive_levels(described);
+    let (sky, sky_ignored) = materials.sky_flags(described);
+    ignored.extend(sky_ignored);
     let mut surfaces = Materials {
         table: Vec::new(),
         interned: BTreeMap::new(),
         responsive,
+        sky,
         ignored,
         densities: uv_density::by_material(g, bin, mesh_map.keys().copied())?,
     };

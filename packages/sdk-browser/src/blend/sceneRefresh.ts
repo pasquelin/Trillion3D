@@ -10,6 +10,7 @@ import {
 import { refreshBlendPlan } from './plan/plan.ts'
 import { itemFilterWord } from './expand/expansionViews.ts'
 import { forgetViews } from './expand/viewRoom.ts'
+import type { BlendGpuItem } from './state.ts'
 import type { WebgpuPagesRuntime } from '../frame/backend/runtime.ts'
 import { sameMatrixFloat32 } from '../../../math/src/matrix/matrixElements.ts'
 import { frontStageOf } from './frontStage.ts'
@@ -36,6 +37,9 @@ export function refreshBlendScene(rt: WebgpuPagesRuntime, device: GPUDevice, pos
     blendState.lobed = false
     blendState.responsive = false
     blendState.channelled = false
+    blendState.skyItems = []
+    blendState.skyRanks = []
+    blendState.skyCut = 0
     blendState.translucencyPasses = 0
     blendState.frontOutputs = 0
     blendState.frontLit = false
@@ -65,17 +69,31 @@ function writeBlendRecords(rt: WebgpuPagesRuntime, queue: GPUQueue, buffer: GPUB
     responsive = false,
     channelled = false,
     passes = 0
+  const sky: BlendGpuItem[] = [],
+    skyRanks: number[] = []
   for (let i = 0; i < items.length; i++) {
     const item = items[i]
     const needs = writeBlendItemRecord(packed, blendState.itemInts, i, item, vis)
     item.lobed = (needs & ITEM_NEEDS.lobed) !== 0
-    lobed ||= item.lobed
-    responsive ||= (needs & ITEM_NEEDS.responsive) !== 0
-    channelled ||= (needs & ITEM_NEEDS.channelled) !== 0
     const pass = needs >> ITEM_NEEDS.passShift
-    passes |= 1 << pass
-    // The words the expansion's views filter the item by: its pass and its responsiveness (`expansionViews.ts`).
-    blendState.drawsPacked[i * 4 + 3] = itemFilterWord(pass, (needs & ITEM_NEEDS.responsive) !== 0)
+    // A sky surface is a layer of none: the sky pass draws it, ahead of the layers (`expansionViews.ts`), and the passes and
+    // the responsiveness of the layers are the others'.
+    const isSky = item.surface.sky === true
+    if (isSky) {
+      sky.push(item)
+      skyRanks.push(i)
+    } else {
+      lobed ||= item.lobed
+      responsive ||= (needs & ITEM_NEEDS.responsive) !== 0
+      channelled ||= (needs & ITEM_NEEDS.channelled) !== 0
+      passes |= 1 << pass
+    }
+    // The words the expansion's views filter the item by: its pass and its responsiveness, or its being a sky surface.
+    blendState.drawsPacked[i * 4 + 3] = itemFilterWord(
+      pass,
+      (needs & ITEM_NEEDS.responsive) !== 0,
+      isSky,
+    )
   }
   blendState.expand?.uploadDraws(blendState.drawsPacked)
   forgetViews(blendState)
@@ -83,8 +101,13 @@ function writeBlendRecords(rt: WebgpuPagesRuntime, queue: GPUQueue, buffer: GPUB
   blendState.responsive = responsive
   blendState.channelled = channelled
   blendState.translucencyPasses = passes
-  blendState.frontOutputs = frontStageOf(items)
-  blendState.frontLit = items.some((item) => blendFrontLit(item.surface))
+  blendState.skyItems = sky
+  blendState.skyRanks = skyRanks
+  // The view being prepared cuts them again (`cutSkyItems`).
+  blendState.skyCut = 0
+  const layers = sky.length ? items.filter((item) => item.surface.sky !== true) : items
+  blendState.frontOutputs = frontStageOf(layers)
+  blendState.frontLit = layers.some((item) => blendFrontLit(item.surface))
   queue.writeBuffer(buffer, 0, packed.buffer, 0, packed.byteLength)
 }
 

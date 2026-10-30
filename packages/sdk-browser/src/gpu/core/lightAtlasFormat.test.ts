@@ -133,6 +133,7 @@ test('the word format writes the text the passes held before the setting existed
   // Re-pinned after the morning's sweeps of 29/10, which changed these programs' shared text; and for the screen probes' rays, whose noise is drawn at their probe's tile (`spRayNoiseTexel`) and whose hits tell motion by one test (`spHitMoving`).
   // Re-pinned for the eye's words the screen probes' parameters hold and the two pose tables the scene stage binds: a hit of the field's march takes the speed of the placement that lit it (`spMarchMoving`).
   // Re-pinned 30/10 for the simple lights' word (the tile slice's walk of the lights past the scene's, `DirectLights.simple`): trace, traced, rays, scene, sceneFog, mesh and gi, the programs that list the lights' walk.
+  // Re-pinned for the fog beyond a ray worked out over any reach (`fogBeyondAlong`, the sky meshes' capture): sceneFog, the scene trace that holds the fog's text.
   assert.deepEqual(got, {
     fixup: '9bfe3a2ea6d87e7f',
     filter: '7750a8b19dac1573',
@@ -144,7 +145,7 @@ test('the word format writes the text the passes held before the setting existed
     gather: '7b9bf7a82866a0be',
     rays: '80c32d0b8fee9b4d',
     scene: '126511477aeda362',
-    sceneFog: '1f63c84a7754675a',
+    sceneFog: 'a365fd8391d22fa0',
     mesh: '16744bbde30e2f0a',
     stage: 'c430211b501cfedb',
     gi: '91366573820fe081',

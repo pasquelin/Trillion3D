@@ -70,7 +70,7 @@ pub(crate) fn place(
             image_rank += 1;
             texture_rank += 1;
         }
-        let looks = (material.double_sided, coverage);
+        let looks = (material.double_sided, coverage, material.sky);
         let made = flattened_material(&material.name, (slot, strength), looks);
         for (used, name) in used.iter_mut().zip(EXTENSIONS) {
             *used |= made.pointer(&format!("/extensions/{name}")).is_some();

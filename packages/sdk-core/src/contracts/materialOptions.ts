@@ -16,6 +16,12 @@
  * 3. the material's own `extras.responsive` in the glTF (`RESPONSIVE_EXTRA`), a level, `true` or
  *    `false` as in 1;
  * 4. `off`.
+ *
+ * Each material's sky property — the material of a sky dome mesh, which the engine shows as its colour
+ * alone, draws as the sky after the opaque surfaces and captures in place of the atmosphere in the
+ * sky light's real-time capture — is a boolean resolved the same way, the first source naming it
+ * winning: `materials[name].sky`, then the material's own `extras.sky` (`SKY_EXTRA`), then `false`.
+ *
  * A job naming none of them compiles as before. A value left out or `null` names nothing, as the
  * compiler reads it.
  */
@@ -28,6 +34,7 @@ import {
   RESPONSIVE_FIELD,
   RESPONSIVE_LEVELS,
   RESPONSIVE_OPTION,
+  SKY_EXTRA,
   TEMPORAL_AA_FIELD,
   TEMPORAL_AA_LEVELS,
   TEMPORAL_AA_OPTION,
@@ -54,9 +61,11 @@ export type ResponsiveOption = NamePattern | NameMatch
  *  `DEFAULT_RESPONSIVE_LEVEL`, `false` for `off`. */
 export type ResponsiveSetting = ResponsiveLevel | boolean
 
-/** One material's settings: `responsive`, its temporal responsiveness. */
+/** One material's settings: `responsive`, its temporal responsiveness; `sky`, whether it is a sky
+ *  material (a boolean, `false` by default). */
 export type MaterialSettings = {
   responsive?: ResponsiveSetting
+  sky?: boolean
 }
 
 /** The settings of materials, by their exact names in the glTF. */
@@ -130,7 +139,7 @@ export const resolveResponsive = matchResolver<ResponsiveOption>('responsive')
 
 /**
  * The material settings the compiler reads for `option`: none when left out; each entry holding
- * only `MATERIAL_SETTINGS`, `responsive` as the name of its level.
+ * only `MATERIAL_SETTINGS`, `responsive` as the name of its level and `sky` as a boolean.
  * @param option - The settings by material name, or none.
  * @returns The compiler's form, `undefined` for none.
  * @throws TypeError naming what the host wrote wrong.
@@ -148,6 +157,10 @@ export function resolveMaterials(
       const wire: MaterialSettingsWire = {}
       if (fields.responsive != null)
         wire.responsive = responsiveLevel(fields.responsive, `${what}.responsive`)
+      if (fields.sky != null) {
+        if (typeof fields.sky !== 'boolean') refuse(`${what}.${SKY_EXTRA} must be true or false`)
+        wire.sky = fields.sky
+      }
       return [name, wire]
     }),
   )

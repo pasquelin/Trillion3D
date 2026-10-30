@@ -524,6 +524,9 @@ light, and no node names one.
 - A material's `responsive` ([Temporal anti-aliasing](COMPILER.md#temporal-anti-aliasing)): only a
   material above `off` has the field, `"medium"` or `"full"`, the compiler's one resolution of the
   job's `materials`, its `responsive` match and the material's `extras`.
+- A material's `sky` ([A sky material](COMPILER.md#a-sky-material)): only a sky material has the field,
+  `true`, the compiler's one resolution of the job's `materials` and the material's `extras`. The
+  table's version is unchanged: a reader that does not know it reads a plain material.
 - Versions: `SCENE_TABLES_VERSION` 9, `NODE_TABLE_VERSION` 7, `MATERIAL_TABLE_VERSION` 6,
   `GEOMETRY_TABLE_VERSION` (`rust/compiler/tables.rs`, `core/scene/core/tableContracts.ts`).
   Material table 6 names the level in `responsive`; versions 4 and 5 wrote `responsive: true` and a

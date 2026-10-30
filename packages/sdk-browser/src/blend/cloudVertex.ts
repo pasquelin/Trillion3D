@@ -59,7 +59,7 @@ interface Held {
 const held = new WeakMap<WebgpuPagesRuntime, Held>()
 
 /** The stand-ins of a device, one set for as long as it lives. */
-const standIns = oncePerDevice((device: GPUDevice): CloudVertexSet => {
+export const cloudVertexStandIns = oncePerDevice((device: GPUDevice): CloudVertexSet => {
   const shade = cloudShadowStandIn(device)
   return {
     shade: { block: shade.block, map: shade.maps[0], sampler: shade.sampler },
@@ -84,7 +84,7 @@ function heldOf(rt: WebgpuPagesRuntime, device: GPUDevice): Held {
         fogBlock: block('fog', CLOUD_FOG_BLOCK.words),
         fogWords: new Float32Array(CLOUD_FOG_BLOCK.words),
         frame: -1,
-        set: standIns(device),
+        set: cloudVertexStandIns(device),
       }),
     )
   }
@@ -133,7 +133,7 @@ export function translucentCloudVertex(
   device: GPUDevice,
   set = cloudShadowOf(rt),
 ): CloudVertexSet {
-  const none = standIns(device)
+  const none = cloudVertexStandIns(device)
   if (!rt.vis.blendPipelines?.reads?.clouds) return none
   const h = heldOf(rt, device)
   if (h.frame !== rt.run.frame) {

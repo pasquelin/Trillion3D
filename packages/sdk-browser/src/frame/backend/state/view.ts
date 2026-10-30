@@ -40,6 +40,8 @@ export const VIEW_RUN_KEYS = [
   'selectedTriangles',
   'submittedTriangles',
   'frustumRejected',
+  // The blended items the view's own frustum rejected (`prepareBlend`).
+  'blendFrustumRejected',
   'lodLevel',
   'occluded',
   'postHidden',
@@ -275,6 +277,14 @@ export const mainViewGpu = (rt: Pick<WebgpuPagesRuntime, 'gpu' | 'views'>) =>
 export function breakHeldFrame(rt: Pick<WebgpuPagesRuntime, 'run' | 'views'>, view: WebgpuView) {
   if (view === rt.views.active) rt.run.gate.viewReplaced()
   else if (view.hold) view.hold.view++
+}
+
+/** After a view drawn aside rendered: breaks the main view's hold when that view drew an image (not one held, nor one it waited for) and
+ *  `composited` — the main view composites what it drew (a mirror, the cube of the sky meshes once it is read). Whether it did. */
+export function breakMainHeld(rt: Pick<WebgpuPagesRuntime, 'run' | 'views'>, composited = true) {
+  if (!composited || rt.run.frameHeld || rt.run.heldEmpty) return false
+  breakHeldFrame(rt, rt.views.main)
+  return true
 }
 
 /** The drawn view's image is out of date: the main view's by the shared resource revision, as

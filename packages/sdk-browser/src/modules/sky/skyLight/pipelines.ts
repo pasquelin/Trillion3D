@@ -56,6 +56,15 @@ function skyLightLayouts(device: GPUDevice, shape: AirShape) {
     skyAir: layout(airLayoutEntries(SKY_FACE_AIR, FRAGMENT, shape)),
     skyAirShadowed: layout(airLayoutEntries(SKY_FACE_AIR_SHADOWED, FRAGMENT, shape)),
     fogAir: layout(airLayoutEntries(FOG_FACE_AIR, FRAGMENT, shape)),
+    // The face block, and beside it the depth of the sky meshes the fog is laid at (`fogFaceProgram`).
+    faceDepth: layout([
+      computeUniformEntry(
+        0,
+        { hasDynamicOffset: true, minBindingSize: FACE_LAYOUT.words * 4 },
+        FRAGMENT,
+      ),
+      computeTextureEntry(1, 'unfilterable-float', '2d', FRAGMENT),
+    ]),
     face: layout([
       computeUniformEntry(
         0,
@@ -166,6 +175,16 @@ export function createSkyLightPipelines(
         FACE_ENTRIES.sky,
         REPLACE,
         'Trillion3D sky light sky shadowed',
+      ),
+    ),
+    /** The fog laid at the depth of the sky meshes (`skyLightDepthBuffer`): compiled when first asked, the capture waiting for it (`skyCompiled`). */
+    fogDepth: lazily(() =>
+      draw(
+        module('Trillion3D sky light fog depth', fogFaceProgram(shape, true).code),
+        [layouts.fogAir, layouts.faceDepth],
+        FACE_ENTRIES.fog,
+        OVER,
+        'Trillion3D sky light fog depth',
       ),
     ),
     pipelines: {

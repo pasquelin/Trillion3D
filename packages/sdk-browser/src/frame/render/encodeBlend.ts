@@ -2,6 +2,11 @@ import { drawsFrontBeforeSampledMarking } from '../../lighting/manyLightsSampled
 import { cpuNow, msSince } from '../../diagnostic/stopwatch.ts'
 import { countBlendDraws, drawBlendPass, encodeHoldout } from '../../blend/draw.ts'
 import { writeBlendView } from '../../blend/uniforms.ts'
+import { cutSkyItems } from '../../blend/expand/expansionViews.ts'
+import { viewSky } from './skyRoots.ts'
+import { viewKey } from '../backend/state/viewKey.ts'
+import type { BlendGpuItem } from '../../blend/state.ts'
+import type { EngineCamera } from '../../camera/engineCamera.ts'
 import { encodeBlendExpansion } from '../../blend/expand/expansionFrame.ts'
 import { orderBlendPasses } from '../../blend/order/order.ts'
 import { encodeTransparentInstances } from '../../blend/transparent/draw.ts'
@@ -30,15 +35,25 @@ import { composeHairStrands } from '../../hair/lighting.ts'
 import type { ContractKey } from '../../lighting/deferred/contractCuts.ts'
 import { transparentCounts } from '../backend/state/transparentCounts.ts'
 
+const NO_SKY: ReadonlySet<BlendGpuItem> = new Set()
+
 /** World-space eye of the image, the view uniform's: with no camera the lists keep their order. */
 const blendEye = (rt: WebgpuPagesRuntime) => (rt.run.lastCamera ? rt.run.gate.cam.eye : undefined)
 
 /**
  * The transparents of an image, selected, ordered and expanded ahead of anything that draws them:
  * `false` without the pass's resources. The compaction reads the mask this very frame's cluster cut
- * wrote, a few commands earlier in the same buffer, and writes the instance list the runs draw from.
+ * wrote, a few commands earlier in the same buffer, and writes the instance list the runs draw from; the sky surfaces it expands are
+ * those the view of `cam` draws (`viewSky`). `skyOnly`: a face of the sky meshes
+ * prepares the sky view alone: no occlusion test of the main view strips its clusters, the sky view is the one expanded, the
+ * main image's views and verdict counts are left as they are, and the frustum verdict runs on the planes of the face's own camera (`orderBlendPasses`).
  */
-export function prepareBlend(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder): boolean {
+export function prepareBlend(
+  rt: WebgpuPagesRuntime,
+  encoder: GPUCommandEncoder,
+  cam: EngineCamera,
+  skyOnly = false,
+): boolean {
   const { gpu, vis, run, timing, blendState } = rt
   const ready = !!(
     blendState.blendGpu.length &&
@@ -60,14 +75,22 @@ export function prepareBlend(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder)
   )
   if (!ready) return false
   const cpuStart = cpuNow()
-  encodeTransparentInstances(rt, encoder)
+  // A face of the sky meshes strips nothing the main view's occlusion test hid (`encodeTransparentInstances`).
+  encodeTransparentInstances(rt, encoder, !skyOnly)
+  const main = rt.views.active === rt.views.main
+  // With no sky surface it clears the cut words a scene that had some left.
+  cutSkyItems(
+    blendState,
+    blendState.skyItems.length ? viewSky(rt, cam.viewSet, main).items : NO_SKY,
+  )
   // The few own entries' order on the CPU, the frame's head for the GPU — the eye, the frustum
   // planes —; the GPU judges every item and sorts them far to near (a blend writes no depth).
   orderBlendPasses(blendState, blendEye(rt))
   // The GPU judges, orders and expands the plan: instances, one indirect argument per slot.
-  encodeBlendExpansion(rt, encoder)
-  // The image's reject count is the GPU's, read back a few images late (`verdictRead.ts`).
-  run.blendFrustumRejected = blendState.expand?.counts.rejected ?? 0
+  encodeBlendExpansion(rt, encoder, skyOnly)
+  // The image's reject count is its view's own, the GPU's, read back a few images late (`verdictRead.ts`).
+  if (!skyOnly)
+    run.blendFrustumRejected = blendState.expand?.peekVerdict(viewKey(rt.gpu))?.latest.rejected ?? 0
   const elapsed = msSince(cpuStart)
   timing.transparentPrepareMs += elapsed
   return true
@@ -92,17 +115,33 @@ export function bindBlend(rt: WebgpuPagesRuntime, device: GPUDevice, held = fals
   return contract
 }
 
+/**
+ * What the sky surfaces draw with, bound ahead of the atmosphere, the fog and the clouds of the image: the groups over the lights of
+ * `contract`, and nothing the image makes later. A sky surface is unlit and takes no fog of its own, so the cloud image, the clouds' shade
+ * and the volumes' camera map are their stand-ins (`blendLightResources`'s `sky`), none held for the image: `bindBlend` binds the real
+ * ones before the transparents. The blend view is not written here: the one write of the image (`bindBlend`, or the caller's)
+ * is the one the commands read. `held`: the lights are those the lit pass just resolved (`bindBlend`). Returns the frame's lights' key.
+ */
+export function bindSkySurfaces(rt: WebgpuPagesRuntime, device: GPUDevice, held = false) {
+  const cpuStart = cpuNow()
+  const contract = held ? heldDirectLightResources() : directLightResources(rt)
+  bindBlendGroups(rt, device, contract, true)
+  rt.timing.transparentPrepareMs += msSince(cpuStart)
+  return contract
+}
+
 /** The material records the item records name, and the groups over the lights of `contract`, a real
  *  resource voiding a placeholder's group: what a draw of the transparents binds, the blend view
- *  (`writeBlendView`) apart, which the queue writes before the image's commands run. */
+ *  (`writeBlendView`) apart, which the queue writes before the image's commands run. `sky`: the sky surfaces' (`bindSkySurfaces`). */
 function bindBlendGroups(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
   contract: ReturnType<typeof directLightResources>,
+  sky = false,
 ) {
   // The material records the item records named go up before a group names their texture.
   rt.vis.materialTable.viewFor(device)
-  voidStaleBlendGroups(rt, blendLightResources(rt, contract))
+  voidStaleBlendGroups(rt, blendLightResources(rt, contract, sky))
 }
 
 /**

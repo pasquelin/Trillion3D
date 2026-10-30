@@ -129,7 +129,8 @@ pub(crate) fn stage_world_roots(
         return Ok(Staged::nothing());
     }
     let materials: BTreeSet<Option<u64>> = instances.iter().map(|i| i.material).collect();
-    let classes = crate::hlod::flatten::merge::classes(source.0, &materials);
+    let (sky, _) = o.materials()?.sky_flags(source.0);
+    let classes = crate::hlod::flatten::merge::classes(source.0, &materials, &sky);
     let (cooked, mut actors) = pool.install(|| {
         let library = crate::hlod::flatten::Library::new(source, &materials, (o, reserved))?;
         // Its chains on the device before any job starts, when a layer bakes: the admission then
@@ -144,6 +145,7 @@ pub(crate) fn stage_world_roots(
             progress,
             library: &library,
             classes: &classes,
+            sky: &sky,
             o,
             hlod,
             room: o.ram_budget_bytes(),
@@ -209,6 +211,7 @@ fn published_materials(
             builds::Wears::Flattened {
                 images,
                 double_sided,
+                sky,
             } => {
                 let level = cells.tree[actor.cell].actor_level;
                 let name = format!("HLOD {level} cell {}", actor.cell);
@@ -216,6 +219,7 @@ fn published_materials(
                     name,
                     images,
                     double_sided,
+                    sky,
                 });
                 wears.push(None);
             }

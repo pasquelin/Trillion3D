@@ -108,6 +108,9 @@ export type VisMaterial = {
   /** How far the temporal anti-aliasing trusts the history on its pixels (`RESPONSIVE_SHIFT`);
    *  `'off'`, or none, the normal accumulation. */
   responsive?: ResponsiveLevel
+  /** True for the material of a sky dome mesh (`SurfaceDeclaration.sky`): shown unlit, as its base colour
+   *  alone. */
+  sky?: boolean
   /** Which faces it draws: the pipelines' culling, the row's face flags, the cut's cones. */
   side: Side
   alphaTest: number

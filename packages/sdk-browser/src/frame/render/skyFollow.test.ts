@@ -106,7 +106,11 @@ test('the stand-in air’s frame is written once an image, whoever asks first, a
     createBuffer: () => ({}),
     queue: { writeBuffer: (...args: unknown[]) => writes.push(args), writeTexture() {} },
   } as unknown as GPUDevice
-  const rt = { run: { frame: 5 }, gpu: { targetSize: [64, 32] } } as unknown as WebgpuPagesRuntime
+  const rt = {
+    run: { frame: 5 },
+    gpu: { targetSize: [64, 32] },
+    context: {},
+  } as unknown as WebgpuPagesRuntime
   const cam = { eye: [0, 100, 0], world: new Float64Array(16), perspective: 1 } as never
   const first = writeAirlessFrame(rt, device, cam, 6360)
   assert.equal(writeAirlessFrame(rt, device, cam, 6360), first, 'the same air')

@@ -129,7 +129,8 @@ pub const DEFAULT_TEMPORAL_AA_LEVEL: &str = ${JSON.stringify(compiler.DEFAULT_TE
 /// The job fields naming the responsive objects and setting materials by name, the command
 /// line's flags holding them as JSON, the key of a glTF material's \`extras\` naming its
 /// responsiveness, the levels of a material's responsiveness, \`off\` first, and the one \`true\`
-/// names, and the settings a material may name.
+/// names, the key of a glTF material's \`extras\` marking it as a sky material, and the settings a
+/// material may name.
 pub const RESPONSIVE_FIELD: &str = ${JSON.stringify(compiler.RESPONSIVE_FIELD)};
 pub const RESPONSIVE_OPTION: &str = ${JSON.stringify(compiler.RESPONSIVE_OPTION)};
 pub const MATERIALS_FIELD: &str = ${JSON.stringify(compiler.MATERIALS_FIELD)};
@@ -137,6 +138,7 @@ pub const MATERIALS_OPTION: &str = ${JSON.stringify(compiler.MATERIALS_OPTION)};
 pub const RESPONSIVE_EXTRA: &str = ${JSON.stringify(compiler.RESPONSIVE_EXTRA)};
 pub const RESPONSIVE_LEVELS: ${rustStrings(compiler.RESPONSIVE_LEVELS)};
 pub const DEFAULT_RESPONSIVE_LEVEL: &str = ${JSON.stringify(compiler.DEFAULT_RESPONSIVE_LEVEL)};
+pub const SKY_EXTRA: &str = ${JSON.stringify(compiler.SKY_EXTRA)};
 pub const MATERIAL_SETTINGS: ${rustStrings(compiler.MATERIAL_SETTINGS)};
 /// The job field naming the voxelized objects, the command line's flag holding it as JSON, and the
 /// key of a glTF mesh's \`extras\` asking for voxels.

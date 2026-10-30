@@ -22,6 +22,7 @@ const NAMES = [
   'packLane',
   'judgeItem',
   'cellDraws',
+  'cutOut',
   'boxExcluded',
   'boundedDouble',
   'frameDouble',

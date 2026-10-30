@@ -14,6 +14,7 @@ import { airRequests, airShapeOfRuntime, atmosphereDeclared } from './airState.t
 import { previousMapsOf } from './encodeAtmosphere.ts'
 import { shownHeightFogOf } from './encodeFogVolume.ts'
 import { reflectionCapturesSubmitted } from './encodeReflectionCapture.ts'
+import { skyMeshesOf } from './encodeSkyMeshes.ts'
 import { capturePreExposure } from './skyLightFog.ts'
 import { skyLightStateOf, type SkyLightState } from './skyLightState.ts'
 
@@ -52,11 +53,14 @@ function captureFog(rt: WebgpuPagesRuntime, state: SkyLightState, stand: FogRead
   return state.fog.read
 }
 
+/** The radius of the planet a scene with neither an atmosphere nor clouds is given for the stand-in air of its sky meshes' capture: the clouds' default (km). */
+const AIRLESS_PLANET_RADIUS_KM = 6360
+
 /** The air the capture reads once the image has built it: the resolved atmosphere, the light
  *  buffer, the tables and the volumes, and the fog — or, where the scene has no atmosphere and the
- *  capture draws clouds, the stand-in air and the planet of the clouds (`airlessAirOf`), whose sky
+ *  capture draws clouds or sky meshes, the stand-in air and the planet of the clouds (`airlessAirOf`), whose sky
  *  is not drawn (`atmosphere` false). None where the atmosphere's programs are not compiled yet, or
- *  there is neither an atmosphere nor clouds to draw. */
+ *  there is neither an atmosphere, clouds nor sky meshes to draw. */
 function airOf(rt: WebgpuPagesRuntime, state: SkyLightState) {
   const { gpu, lights } = rt
   if (!lights.buffer || !gpu.deferred || !gpu.device) return undefined
@@ -74,10 +78,11 @@ function airOf(rt: WebgpuPagesRuntime, state: SkyLightState) {
     return { air, fog: fog(), atmosphere: true }
   }
   const clouds = state.source?.clouds
-  if (!clouds) return undefined
+  // The sky meshes' faces are fogged by the capture from the light buffer alone: they need the stand-in air as well.
+  if (!clouds && !skyMeshesOf(rt)) return undefined
   const bare = airlessAirOf(gpu.device)
   const air = {
-    resolved: airlessPlanet(clouds.part.settings.planetRadiusKm),
+    resolved: airlessPlanet(clouds?.part.settings.planetRadiusKm ?? AIRLESS_PLANET_RADIUS_KM),
     buffer: lights.buffer,
     transmittance: bare.transmittance,
     multiScatter: bare.multiScatter,
@@ -112,6 +117,7 @@ function inputsOf(rt: WebgpuPagesRuntime, state: SkyLightState): SkyLightInputs 
     fog: around?.fog,
     fogShown: fogInSkyCapture(lights.store.environment?.fog),
     clouds: source.clouds,
+    skyMeshes: skyMeshesOf(rt),
   }
 }
 

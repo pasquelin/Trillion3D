@@ -138,8 +138,9 @@ test('the sky occlusion map is built for a sky light that asks, under the qualit
 })
 
 test('no setting is declared that nothing reads: the removed ones are no field of the sky any more', () => {
-  for (const field of ['lightShaftAfterDof', 'skyLightDepthBuffer'] as const)
-    assert.ok(!(field in SKY_QUALITY_RULES), field)
+  assert.ok(!('lightShaftAfterDof' in SKY_QUALITY_RULES), 'lightShaftAfterDof')
+  // The capture draws the scene's sky meshes with a depth buffer, which this switch asks for: it is a field again.
+  assert.equal(SKY_QUALITY_RULES.skyLightDepthBuffer.default, true)
   for (const field of [
     'indirectLightingIntensity',
     'samplesPerPixel',

@@ -39,7 +39,9 @@ export const createBlendOrderState = () => ({
   orderStepWords: new Uint32Array(0) as Uint32Array<ArrayBuffer>,
   /** Where the frame data holds the own seeds and slots, and its words; the eye comes first
    *  (`order.ts`). Two views of one buffer, rewritten every frame. */
-  frameLayout: { ownSeeds: 0, ownSlots: 0, words: 0 },
+  frameLayout: { ownSeeds: 0, ownSlots: 0, words: 0, cuts: 0 },
+  /** The cut words of the frame data (`frameWords`, from `frameLayout.cuts`), as one view of it: made with the frame data (`statics.ts`). */
+  cutWords: new Uint32Array(0) as Uint32Array<ArrayBuffer>,
   frameDoubles: new Float64Array(0) as Float64Array<ArrayBuffer>,
   frameWords: new Uint32Array(0) as Uint32Array<ArrayBuffer>,
   /** Key records of the items, two views of one buffer (`../keyRecords.ts`). */

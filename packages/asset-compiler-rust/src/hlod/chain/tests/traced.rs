@@ -25,6 +25,7 @@ fn an_actor_wears_the_flags_of_its_material() {
             image(Role::Normal, Coverage::Opaque),
         ],
         double_sided,
+        sky: false,
     };
     // A flattened material wears the alpha its base image carries and draws the faces its atlas
     // says, as it is published (`publish::flattened_material`).

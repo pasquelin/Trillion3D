@@ -7,6 +7,7 @@ import type { AirlessPlanet } from '../../../lighting/atmosphere/frame.ts'
 import type { FogRead } from '../../../lighting/fog/read.ts'
 import type { CloudTraceImage } from '../clouds/traceLayout.ts'
 import type { SkyLightReadSet } from './read.ts'
+import type { SkyMeshes } from './skyMeshes.ts'
 
 /** What a frame tells the capture. */
 export interface SkyLightInputs {
@@ -23,8 +24,8 @@ export interface SkyLightInputs {
   /** Where the sky light stands, in the scene, metres. */
   readonly position: readonly [number, number, number]
   /** The air: its light buffer and tables, the resolved atmosphere the frame reads — or, where the
-   *  scene has none and the clouds are shown, the stand-in air and the planet the clouds stand on
-   *  (`airlessPlanet`); none where neither an atmosphere nor clouds are shown. */
+   *  scene has none and the clouds or the sky meshes are shown, the stand-in air and the planet the clouds
+   *  stand on (`airlessPlanet`); none where none of the three is shown. */
   readonly air?: {
     readonly resolved: ResolvedAtmosphere | AirlessPlanet
     readonly buffer: GPUBuffer
@@ -54,6 +55,9 @@ export interface SkyLightInputs {
     readonly fraction: number
     readonly scale?: number
   }
+  /** The image of the scene's sky meshes, where it has a sky material and they are drawn (`encodeSkyMeshes.ts`): the faces show it in the place of
+   *  the atmosphere once every face holds one. */
+  readonly skyMeshes?: SkyMeshes
   /** Whether the scene has an atmosphere, drawn into the faces (not so over the stand-in air). */
   readonly atmosphere: boolean
   /** The fog's resources, bound by the programs that read the fog (the distant fog and the clouds'

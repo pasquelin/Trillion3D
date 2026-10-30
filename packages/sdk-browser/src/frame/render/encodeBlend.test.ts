@@ -120,7 +120,7 @@ test('the layers after the motion blur are drawn apart into their own targets, c
 // fake in this suite drives it, so its order of calls is read from its text.
 test("the water's depth and the front layer the sun's marking reads are drawn before the lights", () => {
   const source = readFileSync(new URL('./surfaceLighting.ts', import.meta.url), 'utf8')
-  const prepared = source.indexOf('prepareBlend(rt, encoder)'),
+  const prepared = source.indexOf('prepareBlend(rt, encoder, cam)'),
     marked = source.indexOf('encodeMarkedLayers(rt, device, encoder, blendRuns)'),
     lights = source.indexOf('encodeDirectLights(rt, device'),
     frontPass = source.indexOf('encodeFrontPass(rt, device, encoder)')

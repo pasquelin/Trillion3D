@@ -66,14 +66,20 @@ pub(crate) type Section = (Option<u64>, Geometry);
 pub(crate) type Classes = BTreeMap<Option<u64>, Option<u64>>;
 
 /// Each of `materials` of `g` with the first of them by rank holding the same definition — every
-/// field but its name and its extras —: equivalent materials, one material under two names, share
-/// that first one's class. glTF's default material, and one `g` does not define, is its own.
-pub(crate) fn classes(g: &Value, materials: &BTreeSet<Option<u64>>) -> Classes {
+/// field but its name and its extras, and its sky property (`sky`, by rank): a sky material is
+/// never equivalent to a plain one, so that a merged mesh keeps the property —: equivalent
+/// materials, one material under two names, share that first one's class. glTF's default
+/// material, and one `g` does not define, is its own.
+pub(crate) fn classes(g: &Value, materials: &BTreeSet<Option<u64>>, sky: &[bool]) -> Classes {
     let definition = |id: Option<u64>| {
         let mut material = g.pointer(&format!("/materials/{}", id?))?.clone();
         let fields = material.as_object_mut()?;
         fields.remove("name");
         fields.remove("extras");
+        fields.insert(
+            "sky".into(),
+            Value::Bool(sky.get(id? as usize).copied().unwrap_or(false)),
+        );
         Some(material)
     };
     let mut firsts: Vec<(Option<u64>, Value)> = Vec::new();

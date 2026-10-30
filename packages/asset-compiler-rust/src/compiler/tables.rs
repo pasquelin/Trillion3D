@@ -58,7 +58,9 @@ const NODE_TABLE_VERSION: u32 = 7;
 /// The material table's version. An entry's `responsive`, its temporal responsiveness level
 /// written only above `off`, is optional: a reader that does not know it reads the material as
 /// before. Version 6 names the level; versions 4 and 5 wrote `responsive: true` and a
-/// `temporalAntialiasing` number in its place.
+/// `temporalAntialiasing` number in its place. An entry's `sky: true`, written only on a sky
+/// material, is optional the same way: a reader that does not know it reads the material as a
+/// plain one.
 const MATERIAL_TABLE_VERSION: u32 = 6;
 const GEOMETRY_TABLE_VERSION: u32 = 1;
 const SCENE_TABLES_FILE: &str = "scene-tables.json";
@@ -68,11 +70,13 @@ const SCENE_TABLES_FILE: &str = "scene-tables.json";
 /// entry nothing wears would describe a surface no pixel is drawn with. `responsive` gives, by glTF
 /// material rank, how far the temporal anti-aliasing trusts the history on its pixels
 /// (`MaterialOptions::responsive_levels`): an entry above `off` carries its level as
-/// `"responsive"`, the others no field at all.
+/// `"responsive"`, the others no field at all; `sky` gives, by glTF material rank, the sky property
+/// (`MaterialOptions::sky_flags`): an entry of a sky material carries `"sky": true`, the others no field.
 struct Materials {
     table: Vec<Value>,
     interned: BTreeMap<(Option<usize>, bool), usize>,
     responsive: Vec<&'static str>,
+    sky: Vec<bool>,
     /// The warnings of the tables: the `extras` levels that were no level and were ignored (`responsive_levels`),
     /// and the physical extensions a material declares that the image does not show (`physical::unrendered`).
     ignored: Vec<Value>,
@@ -109,6 +113,9 @@ impl Materials {
             .filter(|level| **level != RESPONSIVE_LEVELS[0])
         {
             entry[RESPONSIVE_EXTRA] = json!(level);
+        }
+        if declared.is_some_and(|id| self.sky.get(id).copied().unwrap_or(false)) {
+            entry[SKY_EXTRA] = json!(true);
         }
         // A displaced material says so in its entry, and no other has the field.
         if let Some(displaced) = displacement::displacement(&source)? {

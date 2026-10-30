@@ -32,6 +32,8 @@ export const IMAGE_EFFECTS_RULES = /* @__PURE__ */ (() =>
  *  contrast of a level that draws less occlusion; `skyLightShadowFromOpaque` (off): opaque meshes
  *  shadow the sky and the clouds from the sun in the capture;
  *  `skyLightAlwaysClear` (off): the capture's colour is cleared to black before the sky is drawn;
+ *  `skyLightDepthBuffer` (on): the capture's sky meshes are drawn with a depth buffer, so that they cover each other correctly and the
+ *  height fog is laid at their distance, not along an endless ray;
  *  `skyLightResolutionOverride` (0): a side, in texels, of at least 16, that replaces the sky
  *  light's own in its real-time capture only, a lower value leaving it; `skyLightCubemapMaxResolution` (-1): above 0, the largest
  *  side the sky light's cube may have; `skyLightCaptureSupersample` (1), from 1 to 8: the factor
@@ -47,6 +49,7 @@ export const INDIRECT_LIGHT_RULES = /* @__PURE__ */ (() =>
     number('skyLightIntensityScale', 1, ANY_NUMBER),
     flag('skyLightShadowFromOpaque', false),
     flag('skyLightAlwaysClear', false),
+    flag('skyLightDepthBuffer', true),
     integer('skyLightResolutionOverride', 0, INT32),
     integer('skyLightCubemapMaxResolution', -1, INT32),
     integer('skyLightCaptureSupersample', 1, [1, 8]),

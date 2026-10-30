@@ -136,6 +136,9 @@ export type TableMaterial = {
    *  resolution of the job's `materials`, its `responsive` match and the material's `extras` —;
    *  written only above `off`, absent for the normal accumulation. */
   responsive?: ResponsiveLevel
+  /** Whether it is a sky material — the compiler's one resolution of the job's `materials` and the
+   *  material's `extras`—; written only when true, absent for a plain material. */
+  sky?: boolean
   /** The displacement the material names and switches on, absent for every other material: the
    *  tessellation draws it displaced (`tessellation`, `TESSELLATION_RULES`). */
   displacement?: TableDisplacement

@@ -11,6 +11,11 @@
 //! 3. its own `extras`' `responsive` (`RESPONSIVE_EXTRA`): a level, `true` or `false` as in 1;
 //! 4. `off`.
 //!
+//! Each material's sky property (`MaterialOptions::sky_flags`), the material of a sky dome mesh, is
+//! resolved the same way, the first that names it: the `sky` the `materials` setting names for it
+//! by its exact name (a boolean), then its own `extras`' `sky` (`SKY_EXTRA`, a boolean; one that is
+//! no boolean is ignored and told as a `SKY_EXTRA_IGNORED` warning), then `false`.
+//!
 //! A job naming none of the options compiles as before, its cache key unchanged. Read and checked
 //! here once; what does not read is the job's refusal (`INVALID_OPTIONS`,
 //! `validate_compile_options`), never the batch's. A material's own `extras` is the scene
@@ -55,6 +60,7 @@ pub struct MaterialOptions {
     pub(crate) level: Option<&'static str>,
     responsive: Option<NameMatch>,
     pub(crate) named: Vec<(String, &'static str)>,
+    sky_named: Vec<(String, bool)>,
     identity: Map<String, Value>,
 }
 
@@ -97,6 +103,10 @@ impl MaterialOptions {
                 if let Some(setting) = present(map.get(RESPONSIVE_EXTRA)) {
                     let level = responsive_level(setting, &format!("{what}.{RESPONSIVE_EXTRA}"))?;
                     out.named.push((name.clone(), level));
+                }
+                if let Some(setting) = present(map.get(SKY_EXTRA)) {
+                    let sky = OPTIONS.boolean(Some(setting), &format!("{what}.{SKY_EXTRA}"))?;
+                    out.sky_named.push((name.clone(), sky));
                 }
             }
             out.identity.insert(MATERIALS_FIELD.into(), value.clone());
@@ -165,5 +175,61 @@ impl MaterialOptions {
             })
             .collect();
         (levels, ignored)
+    }
+    /// The sky property of each material of `g`, by its rank: the one resolution, by the precedence
+    /// the module states, and the warnings of the `extras` it ignored.
+    pub fn sky_flags(&self, g: &Value) -> (Vec<bool>, Vec<Value>) {
+        let materials = g
+            .get("materials")
+            .and_then(Value::as_array)
+            .map_or(&[][..], Vec::as_slice);
+        let mut ignored = Vec::new();
+        let flags = (materials.iter().enumerate())
+            .map(|(rank, material)| {
+                let name = name_of(Some(material));
+                if let Some((_, sky)) = name.and_then(|n| self.sky_named.iter().find(|(m, _)| m == n))
+                {
+                    return *sky;
+                }
+                match present(material.get("extras").and_then(|e| e.get(SKY_EXTRA))) {
+                    Some(Value::Bool(sky)) => *sky,
+                    Some(value) => {
+                        let label =
+                            name.map_or(format!("material {rank}"), |n| format!("material {n}"));
+                        ignored.push(json!({"code": "SKY_EXTRA_IGNORED", "material": rank,
+                            "message": format!("{label}: extras.{SKY_EXTRA} must be a boolean, got {value}")}));
+                        false
+                    }
+                    None => false,
+                }
+            })
+            .collect();
+        (flags, ignored)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The sky property by precedence: the job's name, then the material's own `extras`, then false;
+    /// an `extras.sky` that is no boolean is ignored and told.
+    #[test]
+    fn sky_property_follows_the_precedence() {
+        let scene = json!({"materials": [
+            {"name": "dome", "extras": {"sky": true}},
+            {"name": "forced off", "extras": {"sky": true}},
+            {"name": "named on"},
+            {"name": "plain"},
+            {"name": "bad", "extras": {"sky": "yes"}},
+        ]});
+        let settings = json!({"forced off": {"sky": false}, "named on": {"sky": true}});
+        let options = MaterialOptions::read(None, None, Some(&settings)).expect("settings read");
+        let (flags, ignored) = options.sky_flags(&scene);
+        assert_eq!(flags, vec![true, false, true, false, false]);
+        assert_eq!(ignored.len(), 1);
+        assert_eq!(ignored[0]["code"], "SKY_EXTRA_IGNORED");
+        let refused = MaterialOptions::read(None, None, Some(&json!({"dome": {"sky": "yes"}})));
+        assert!(refused.is_err());
     }
 }

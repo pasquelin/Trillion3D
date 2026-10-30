@@ -1,3 +1,4 @@
+import { bitWords } from '../../../../math/src/scalar/integers.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { wgslConsts } from '../../../../math/src/wgsl/consts.ts'
 import { doubleReadFn } from '../../../../math/src/wgsl/doubleRead.ts'
@@ -10,7 +11,7 @@ import { doubleWords, fieldLayout, u32Words } from '../../gpu/core/fieldLayout.t
  * with), the item count the verdict walks, and where the cut's cold words hold the world's HLOD
  * cell states with the cells per instance, and its cell files' words
  * (`../../geometry/dag/worlds/worldLinks.ts`): zero for a cut that follows no world, whose items no
- * cell hides.
+ * cell hides; and where the cut words of the frame start (`frameCutsAt`).
  */
 const HEAD = fieldLayout('FrameHead', [
   ['eye', doubleWords(4)],
@@ -20,6 +21,7 @@ const HEAD = fieldLayout('FrameHead', [
   ['cellStates', 'u32'],
   ['cellCount', 'u32'],
   ['fileStates', 'u32'],
+  ['cuts', 'u32'],
 ] as const)
 /** Each field's first word, laid out by the one record rule (`fieldLayout`), doubles on even
  *  words; and the head's words. */
@@ -28,9 +30,15 @@ export const FRAME_HEAD = { ...HEAD.at, words: HEAD.words }
  *  axes, this one set when the plane enters the single-precision test (`framePlanes.ts`). */
 export const PLANE_USABLE = 8
 
-/** Words of the frame data a scene of `entries` plan entries can send at most: the head, a seed
- *  and a slot per entry (`../order/order.ts`). */
-export const orderFrameWords = (entries: number) => FRAME_HEAD.words + 2 * entries
+/** Where the cut words start for a scene of `entries` plan entries (`FRAME_HEAD.cuts` holds it): after the own seeds and slots, which are
+ *  at most one each per entry, so that the words a frame sends and the cut words, one bit a rank of the items, never overlap. The cut
+ *  words name the sky surfaces the view being prepared does not show (`cutSkyItems`), which the verdict keeps out; they are sent when they move. */
+export const frameCutsAt = (entries: number) => FRAME_HEAD.words + 2 * entries
+
+/** Words of the frame data a scene of `entries` plan entries and `items` items can hold at most: the head, a seed and a slot per entry
+ *  (`../order/order.ts`), then the cut words. */
+export const orderFrameWords = (entries: number, items: number) =>
+  frameCutsAt(entries) + bitWords(items)
 
 /** The head's layout and its doubles' read, as each kernel that binds `frame` names them. */
 export const FRAME_HEAD_WGSL = wgslBlock(
@@ -44,6 +52,7 @@ export const FRAME_HEAD_WGSL = wgslBlock(
     FRAME_CELL_STATES: FRAME_HEAD.cellStates,
     FRAME_CELL_COUNT: FRAME_HEAD.cellCount,
     FRAME_FILE_STATES: FRAME_HEAD.fileStates,
+    FRAME_CUTS: FRAME_HEAD.cuts,
     PLANE_USABLE,
   })}
 ${doubleReadFn('frameDouble', 'frame')}`,

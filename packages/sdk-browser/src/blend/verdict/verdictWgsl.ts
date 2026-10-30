@@ -7,7 +7,7 @@ import { linkDrawsWgsl } from '../../geometry/dag/shader/worldGateWgsl.ts'
 import { dSub } from '../../../../math/src/wgsl/double.ts'
 import { dExponent } from '../../../../math/src/wgsl/doubleWords.ts'
 import { doubleAsSingle } from '../../../../math/src/wgsl/f32.ts'
-import { bitMask } from '../../../../math/src/wgsl/integer.ts'
+import { bitMask, bitWord } from '../../../../math/src/wgsl/integer.ts'
 import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 import { FLUSH, ROUNDING_GAMMA } from '../../../../math/src/float/guards.ts'
 import { FLAT_INDEX_WGSL } from '../../gpu/dispatch/grid.ts'
@@ -54,7 +54,7 @@ const BOUNDED_EXPONENT = 1023 + SINGLE_BOUND_LOG2
  * THE FRUSTUM VERDICT OF THE TRANSPARENT ITEMS, ON THE GPU, between the compaction that counts each
  * item's clusters and the expansion that reads the verdict (`../expand/expandWgsl.ts`).
  *
- * `keep(item) = drawn && listed`. `drawn` is the key record's bit (`../keyRecords.ts`) — the item's
+ * `keep(item) = drawn && listed && !cut`. `cut`: a sky surface the view being prepared does not show (`frameCutsAt`). `drawn` is the key record's bit (`../keyRecords.ts`) — the item's
  * node shown, its row not parked — and its row's cell file, shown as its main cell, or its HLOD 0
  * cell drawing its placements: their words in the cut's cold words, the very words the descent
  * gates an opaque placement by (`../../geometry/dag/shader/worldGateWgsl.ts`), so a switch
@@ -104,13 +104,13 @@ export const BLEND_VERDICT_SHADER = wgslProgram(
 @group(0) @binding(${VERDICT_BINDING.keep}) var<storage,read_write> keep:array<u32>;
 @group(0) @binding(${VERDICT_BINDING.verdict}) var<storage,read_write> verdict:array<atomic<u32>>;
 var<workgroup> bits:array<u32,${VERDICT_GROUP}>;
-/** Whether the item whose record starts at word \`at\`, its flags \`flags\`, draws as the descent
- *  opens a placement (\`worldCovers\`, by \`linkDraws\`): its cell file's word — from \`FRAME_FILE_STATES\`, its main
- *  cell shown — or its HLOD 0 cell's — \`FRAME_CELL_COUNT\` per instance from \`FRAME_CELL_STATES\` —
- *  draws its placements (\`CELL_DRAW\`). An item in neither, or a cut that follows no world, is
- *  drawn; one whose file has no slot yet (\`KEY_FILED\`), by its HLOD 0 cell alone; a row of a
- *  cell's actor (\`ACTOR_ROW\`) while its cell draws that actor. An instance the cut does not pack
- *  (\`NO_INDEX\`, \`../keyRecords.ts\`) has no state word: its cell word is zero. */
+/** Whether the item whose record starts at word 'at', its flags 'flags', draws as the descent
+ *  opens a placement ('worldCovers', by 'linkDraws'): its cell file's word — from 'FRAME_FILE_STATES', its main
+ *  cell shown — or its HLOD 0 cell's — 'FRAME_CELL_COUNT' per instance from 'FRAME_CELL_STATES' —
+ *  draws its placements ('CELL_DRAW'). An item in neither, or a cut that follows no world, is
+ *  drawn; one whose file has no slot yet ('KEY_FILED'), by its HLOD 0 cell alone; a row of a
+ *  cell's actor ('ACTOR_ROW') while its cell draws that actor. An instance the cut does not pack
+ *  ('NO_INDEX', '../keyRecords.ts') has no state word: its cell word is zero. */
 fn cellDraws(at:u32,flags:u32)->bool{
  let base=frame[FRAME_CELL_STATES];
  let cell=keyed[at+KEY_CELL];
@@ -124,13 +124,13 @@ fn cellDraws(at:u32,flags:u32)->bool{
  if(file!=${NO_INDEX}u){fileWord=cellsWord(frame[FRAME_FILE_STATES]+file,0u).x;}
  return linkDraws(cell,cellWord,fileWord);
 }
-/** Whether double \`v\` enters the single-precision test: finite, below 2^60 in magnitude. */
+/** Whether double 'v' enters the single-precision test: finite, below 2^60 in magnitude. */
 fn boundedDouble(v:vec2u)->bool{return dExponent(v)<${BOUNDED_EXPONENT}u;}
-/** \`frustumExcludesBox\` on the record's box at word \`at\`, proven in single precision
+/** 'frustumExcludesBox' on the record's box at word 'at', proven in single precision
  *  relative to the eye: a plane leaves its most forward corner behind by more than the rounding
  *  can move it. Each of the eye's doubles is loaded once, for its two bounds. The eye is not
- *  tested here: one past the bound, an infinity or a NaN clears \`PLANE_USABLE\` on all six planes
- *  (\`writeFramePlanes\`, from the very eye the frame's doubles hold, \`order.ts\`), so no plane
+ *  tested here: one past the bound, an infinity or a NaN clears 'PLANE_USABLE' on all six planes
+ *  ('writeFramePlanes', from the very eye the frame's doubles hold, 'order.ts'), so no plane
  *  rejects and the bounds brought to it are never read. */
 fn boxExcluded(at:u32)->bool{
  var box:array<f32,6>;
@@ -160,7 +160,9 @@ fn boxExcluded(at:u32)->bool{
  }
  return false;
 }
-/** Item \`item\`'s verdict: bit 0 kept, bit 1 drawn yet drawing nothing, bit 2 a transmissive
+/** Whether the view being prepared cuts item 'item': its bit in the frame's cut words (cutSkyItems). */
+fn cutOut(item:u32)->bool{return (frame[frame[FRAME_CUTS]+bitWord(item)]&bitMask(item))!=0u;}
+/** Item 'item' verdict: bit 0 kept, bit 1 drawn yet drawing nothing, bit 2 a transmissive
  *  item in view. */
 fn judgeItem(item:u32)->u32{
  let at=item*KEY_RECORD_WORDS;
@@ -174,6 +176,8 @@ fn judgeItem(item:u32)->u32{
  var v=select(0u,1u,listed);
  if(!held){v=v|2u;}
  if(transmits&&!excluded){v=v|4u;}
+ // A sky surface the view does not show is kept out and in no view, still counted as drawn.
+ if(cutOut(item)){v=v&~5u;}
  return v;
 }
 /** The first step of a thread's work: its item's verdict into workgroup memory. */
@@ -215,6 +219,7 @@ fn judgeBlendItems(@builtin(local_invocation_id) lid:vec3u,@builtin(workgroup_id
     dExponent,
     doubleAsSingle,
     bitMask,
+    bitWord,
     linkDrawsWgsl,
     FLAT_INDEX_WGSL,
     KEYED_WGSL,
