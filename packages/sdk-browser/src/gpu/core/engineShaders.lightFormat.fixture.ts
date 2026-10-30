@@ -64,8 +64,11 @@ const CURSOR_CARD_MODES = [
   VISUALIZE_MODE.emissive,
   VISUALIZE_MODE.directLighting,
   VISUALIZE_MODE.indirectLighting,
-]
-const LIGHT_READ_MODES = [VISUALIZE_MODE.directLighting, VISUALIZE_MODE.indirectLighting]
+] as readonly number[]
+const LIGHT_READ_MODES = [
+  VISUALIZE_MODE.directLighting,
+  VISUALIZE_MODE.indirectLighting,
+] as readonly number[]
 
 const FORMATS: readonly LightAtlasFormat[] = ['rg11b10ufloat', 'rgba16float', 'rgba32float']
 
@@ -77,12 +80,14 @@ const sceneModesOf = (format: LightAtlasFormat) =>
   format === WORD_LIGHT_FORMAT
     ? SCENE_MODES
     : SCENE_MODES.filter((mode) =>
-        [
-          VISUALIZE_MODE.scene,
-          VISUALIZE_MODE.surfaceCache,
-          VISUALIZE_MODE.directLighting,
-          VISUALIZE_MODE.indirectLighting,
-        ].includes(mode),
+        (
+          [
+            VISUALIZE_MODE.scene,
+            VISUALIZE_MODE.surfaceCache,
+            VISUALIZE_MODE.directLighting,
+            VISUALIZE_MODE.indirectLighting,
+          ] as readonly number[]
+        ).includes(mode),
       )
 
 export const LIGHT_FORMAT_SHADERS: Record<string, string> = Object.fromEntries([
@@ -119,7 +124,10 @@ export const LIGHT_FORMAT_SHADERS: Record<string, string> = Object.fromEntries([
       traceSceneShader(8, [4, 4], false, [], format, true),
     ],
     [`SCREEN_PROBE_TRACE_MESHES_${format}`, traceMeshShader(8, [4, 4], false, format, false)],
-    [`SCREEN_PROBE_TRACE_MESHES_FILTERED_MIP_${format}`, traceMeshShader(8, [4, 4], false, format, true)],
+    [
+      `SCREEN_PROBE_TRACE_MESHES_FILTERED_MIP_${format}`,
+      traceMeshShader(8, [4, 4], false, format, true),
+    ],
     [`TRANSLUCENCY_GI_TRACE_${format}`, traceGiProgram('rgba16float', format, false)],
     [`TRANSLUCENCY_GI_TRACE_FILTERED_MIP_${format}`, traceGiProgram('rgba16float', format, true)],
     [`CACHE_TRACE_${format}`, cacheTraceProgramOf(format, false)],

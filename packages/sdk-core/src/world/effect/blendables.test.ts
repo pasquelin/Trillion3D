@@ -29,8 +29,10 @@ test('a value a property does not take gives its default', () => {
 
 test('the materials of a location run by priority, equal ones in the order they were added', () => {
   const chain = new EffectChain()
-  const at = (priority: number, location = 'sceneColorBeforeBloom' as const) =>
-    material.postProcess({ blendableLocation: location, blendablePriority: priority })
+  const at = (
+    priority: number,
+    location: 'sceneColorBeforeBloom' | 'sceneColorBeforeDof' = 'sceneColorBeforeBloom',
+  ) => material.postProcess({ blendableLocation: location, blendablePriority: priority })
   const [a, b, c, d] = [at(2), at(1), at(1), at(0, 'sceneColorBeforeDof')]
   for (const m of [a, b, c, d]) chain.blendables.add(m)
   assert.deepEqual(

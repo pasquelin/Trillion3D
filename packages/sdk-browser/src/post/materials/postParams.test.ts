@@ -1,7 +1,7 @@
 // The uniforms of a post-process material's pass: the stencil mask, the blend, the exposure scales, the words written.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { material } from '../../../../sdk-core/src/world/material/index.ts'
+import { material, type MaterialParameters } from '../../../../sdk-core/src/world/material/index.ts'
 import {
   blendableOf,
   STENCIL_COMPARES,
@@ -62,7 +62,7 @@ test('with an output alpha a transparent material blends by its blending, an opa
 })
 
 test('the exposure scales apply before the tone mapping unless the material turns them off', () => {
-  const at = (props: object) => blendableOf(material.postProcess(props))
+  const at = (props: MaterialParameters) => blendableOf(material.postProcess(props))
   assert.deepEqual(exposureScales(at({ blendableLocation: 'sceneColorBeforeBloom' }), 4), [4, 0.25])
   assert.deepEqual(exposureScales(at({}), 4), [1, 1], 'after the tone mapping')
   assert.deepEqual(

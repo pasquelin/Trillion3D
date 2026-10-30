@@ -112,6 +112,7 @@ test('a placement of the world DAG is the directory at its instance; a cell’s 
     skipBackFaceDistance: 0,
     skipTwoSidedDistance: 0,
     skipsTranslucentSections: true,
+    excludesSky: false,
     culling: CULLING,
   })
   const P = SCENE_TRACE_PARAMS.at

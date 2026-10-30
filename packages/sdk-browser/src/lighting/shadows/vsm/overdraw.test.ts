@@ -103,9 +103,8 @@ test('the software raster counts every covered pixel of a drawn page before its 
   assert.equal(vsmSoftwareSpecs(true, true, true).at(-1)?.binding, 7)
   assert.doesNotMatch(vsmRenderSoftwareWgsl(OFF), /vsmOverdraw/)
   // The eight storage buffers every device has, one more for the second pool slice, one for the projection data, one for the slice.
-  const limits = (maxStorageBuffersPerShaderStage: number) => ({
-    limits: { maxStorageBuffersPerShaderStage },
-  })
+  const limits = (maxStorageBuffersPerShaderStage: number) =>
+    ({ limits: { maxStorageBuffersPerShaderStage } }) as unknown as Pick<GPUDevice, 'limits'>
   assert.deepEqual(
     [8, 9, 10, 11, 12].map((n) => vsmSoftwareOverdraw(limits(n), true)),
     [false, false, false, true, true],

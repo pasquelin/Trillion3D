@@ -92,7 +92,7 @@ test('the shader holds the same pick, chance, count and sums as the mirrors', ()
 test('the sampling weighs the light by the closures, and the spatial filter puts the picked colours back', () => {
   for (const tileClass of TILE_CLASSES) {
     const code = wgslModule(samplingWgsl(WITH, tileClass, false))
-    assert.ok(code.includes('fn closureLuminance('), tileClass)
+    assert.ok(code.includes('fn closureLuminance('), `class ${tileClass}`)
     assert.ok(code.includes('var luminance=closureLuminance(rank,'))
     assert.ok(code.includes('closurePixel=coord;'))
   }
@@ -116,7 +116,7 @@ test('a view of one closure keeps the texts: nothing of the closures is in them'
 })
 
 test('the pixel statements swap the colour loads and refuse a text that moved', () => {
-  const lit = litPixelStatements(CLASS_CUTS[TILE_CLASS.complex])
+  const lit = litPixelStatements({ ...CLASS_CUTS[TILE_CLASS.complex], channels: true })
   const swapped = closureStatements(lit)
   assert.ok(
     swapped.includes('pickedBaseLayer(coord)') && swapped.includes('pickedNormalLayer(coord)'),
@@ -165,7 +165,9 @@ test('the lights of a closure past the first are lit with its own specular and l
     }
   }
   // The stochastic pick reads the flags and the lobes of the picked closure.
-  const swapped = closureStatements(litPixelStatements(CLASS_CUTS[TILE_CLASS.complex]))
+  const swapped = closureStatements(
+    litPixelStatements({ ...CLASS_CUTS[TILE_CLASS.complex], channels: true }),
+  )
   assert.ok(swapped.includes('let surfaceFlag=closureFlagsAt(coord,pickedClosure(coord));'))
   assert.ok(
     swapped.includes(

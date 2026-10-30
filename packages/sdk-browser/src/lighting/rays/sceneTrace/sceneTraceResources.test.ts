@@ -187,6 +187,7 @@ test('the culling is written to the parameters: the mode, the switches, the view
     skipBackFaceDistance: 0,
     skipTwoSidedDistance: 0,
     skipsTranslucentSections: true,
+    excludesSky: false,
   } as const
   const P = SCENE_TRACE_PARAMS.at
   const read = () => {

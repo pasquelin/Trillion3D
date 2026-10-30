@@ -16,8 +16,16 @@ test('the layout entries are a float 2D array and a filtering sampler, the bind 
   })
   assert.deepEqual(sampler, { binding: 6, visibility: 4, sampler: { type: 'filtering' } })
   const atlas = createLightProfileAtlas(fakeDevice(BACKEND).device)
-  assert.deepEqual(lightProfileBindEntries(b, atlas), [
-    { binding: 5, resource: atlas.view },
-    { binding: 6, resource: atlas.sampler },
-  ])
+  assert.deepEqual(
+    lightProfileBindEntries(b, {
+      view: atlas.view,
+      sampler: atlas.sampler,
+      rectView: atlas.view,
+      rectSampler: atlas.sampler,
+    }),
+    [
+      { binding: 5, resource: atlas.view },
+      { binding: 6, resource: atlas.sampler },
+    ],
+  )
 })

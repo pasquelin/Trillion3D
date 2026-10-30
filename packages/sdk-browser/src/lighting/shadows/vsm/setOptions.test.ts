@@ -45,6 +45,7 @@ test('the engine’s set options carry the kept pages and the cover into its lay
         coverMode,
         prefilteredDistant: false,
         classic: false,
+        overdraw: false,
       }),
     )
   const [kept, uncached, covered] = [
@@ -95,7 +96,13 @@ test('the prefiltered distant shadow is asked of the set and read back from its 
   const asked = (prefilteredDistant: boolean) =>
     engineVsmOptions(63, 17, {
       ...{ poolPages: VSM_POOL_PAGES, occlusion: true, dynamicHzb: false },
-      ...{ cacheEnabled: true, coverMode: 'suns', prefilteredDistant, classic: false },
+      ...{
+        cacheEnabled: true,
+        coverMode: 'suns',
+        prefilteredDistant,
+        classic: false,
+        overdraw: false,
+      },
     })
   assert.equal(vsmLayout(asked(false)).prefilteredDistant, false)
   const on = vsmLayout(asked(true))
@@ -109,7 +116,7 @@ test('the cover masks are made where a receiver mask is on, a 1x1 stand-in else,
   const asked = (coverMode: 'suns' | 'none') =>
     engineVsmOptions(63, 17, {
       ...{ poolPages: VSM_POOL_PAGES, occlusion: true, dynamicHzb: false, cacheEnabled: true },
-      ...{ coverMode, prefilteredDistant: false, classic: false },
+      ...{ coverMode, prefilteredDistant: false, classic: false, overdraw: false },
     })
   const made = vsmLayout(asked('suns'))
   const none = vsmLayout(asked('none'))

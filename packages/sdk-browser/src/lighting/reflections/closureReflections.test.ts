@@ -180,8 +180,9 @@ const descriptors = {
   createBindGroup: (descriptor: object) => descriptor,
 } as unknown as GPUDevice
 const entryOf = (group: GPUBindGroup, binding: number) =>
-  (group as unknown as GPUBindGroupDescriptor).entries.find((entry) => entry.binding === binding)
-    ?.resource
+  Array.from((group as unknown as GPUBindGroupDescriptor).entries).find(
+    (entry) => entry.binding === binding,
+  )?.resource
 
 test('the groups of a closure past the first bind its flags, its normals and roughness, its grids, its resolved pixels and its layers of the target; the kernels are the first closure’s', () => {
   const { device } = fakeDevice()

@@ -144,6 +144,9 @@ test('the block holds the sky occlusion map’s matrix and far depth, an identit
   const clip = Array.from({ length: 16 }, (_, i) => i + 1)
   writeCloudShadowBlock(words, [undefined, undefined], [1, 2, 3], {
     clipFromCamera: clip,
+    cameraFromClip: clip,
+    rayDirection: [0, 0, -1],
+    side: 64,
     farDepthKm: 7,
   })
   assert.deepEqual(Array.from(words.subarray(at.clipSky, at.clipSky + 16)), clip)
