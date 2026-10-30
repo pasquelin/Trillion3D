@@ -83,6 +83,7 @@ export const CACHE_LIT_HOST = litPathHostOf(
     lightFunction: O.lightFunction,
     lightProfile: O.lightProfile,
     lightProfileSampler: O.lightProfileSampler,
+    lightGrid: O.lightGrid,
   },
   'cache.eye.xyz',
   'cache.litExposure',
@@ -119,6 +120,7 @@ export const cacheLitDirectEntries = () => [
   ...dagReadLayoutEntries(),
   lightFunctionLayoutEntry(O.lightFunction, undefined, true),
   ...lightProfileLayoutEntries(CACHE_LIT_HOST.lightProfile),
+  computeStorageTextureEntry(O.lightGrid, 'r32uint', 'read-only'),
 ]
 export const cacheLitFinishEntries = (light: LightAtlasFormat = WORD_LIGHT_FORMAT) => [
   ...rayEntries(),

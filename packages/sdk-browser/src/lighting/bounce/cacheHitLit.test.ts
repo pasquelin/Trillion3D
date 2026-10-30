@@ -49,6 +49,9 @@ const hit = (over = {}) =>
     reflectionMaxBounces: 5,
     reflectionRayTracedTranslucentRefractions: true,
     reflectionMaxRefractionBounces: 3,
+    rayTracingLightGridResolution: 256,
+    rayTracingLightGridMaxCount: 128,
+    rayTracingLightGridAxis: -1,
     ...over,
   })
 
@@ -133,6 +136,8 @@ test('the cache’s parameters carry the word the hits are lit with, the screen 
     settings: hit(),
     lightFunction: {} as GPUBindingResource,
     lightProfile: {} as never,
+    lightGrid: {} as never,
+    lightGridView: {} as GPUTextureView,
     exposure: 1,
   })
   assert.equal(word, singleBounceLightWord(hit()))

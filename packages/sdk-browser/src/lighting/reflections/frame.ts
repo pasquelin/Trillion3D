@@ -38,6 +38,7 @@ import { readHizSetting } from '../../../../sdk-core/src/contracts/hizOptions.ts
 import type { ReflectionSettings } from '../../../../sdk-core/src/contracts/reflectionOptions.ts'
 import { blueNoiseNow, noiseViewOn } from '../../gpu/noise/blueNoiseTextures.ts'
 import { hitLightingFits, hitLightingRun } from './hitLighting/stage.ts'
+import { lightGridOf } from '../rays/lightGrid/lightGridFrame.ts'
 import { lightFunctionResources } from '../lightFunction/frame.ts'
 import { lightProfileResources } from '../lightProfile/frame.ts'
 import { lightProfileStandIn } from '../lightProfile/profileStandIn.ts'
@@ -279,6 +280,9 @@ export function traceReflections(
     lit && hardware?.rays
       ? reflectionHitGroup(reflection, depth, lightView, skyLightReadOf(rt))
       : undefined,
+    lightGridOf(rt.gpu, reflection.device),
+    rt.lights.store,
+    rt.run.frame,
   )
   // The scene stage made with the hit lighting's code while its kernels compile: the view tells it nothing is lit this image, so it meets no translucent surface and marks no hit.
   if (lit && hardware && !hitRun) {

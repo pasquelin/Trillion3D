@@ -18,6 +18,7 @@ import {
 import { deviceRefusal, retryDue, type Refusal } from '../../../gpu/core/refusal.ts'
 import { lightProfileBindEntries } from '../../lightProfile/profileBindings.ts'
 import type { LightProfileResources } from '../../lightProfile/profileBindings.ts'
+import type { LightGridHolder } from '../../rays/lightGrid/lightGridFrame.ts'
 import { isPending, isReady } from '../../rays/sceneTrace/sceneMaskHold.ts'
 import { sceneTraceGroupBinder } from '../../rays/sceneTrace/sceneTraceGroup.ts'
 import { surfaceHitCardsEntries } from '../../surfaceCache/hitWgsl.ts'
@@ -50,6 +51,9 @@ export interface CacheHitLighting {
   settings: HitLightingSettings
   lightFunction: GPUBindingResource
   lightProfile: LightProfileResources
+  /** The view's light grid (`rays/lightGrid/`) and the texture it holds for this image, prepared by the image's resolve: the first pass culls its lights with it, and the grid is built in the first encoding of a list. */
+  lightGrid: LightGridHolder
+  lightGridView: GPUTextureView
   /** The exposure of the view the update is queued for, as the CPU knows it (`PreExposure.exposure`: the view's last adapted exposure), which the lights' inverse exposure blend reads, as the other hosts of the hit lighting read their own view's: never the GPU's uniform, which every view shares. */
   exposure: number
 }
@@ -181,7 +185,7 @@ export function cacheHitLitBinder(device: GPUDevice, wiring: CacheWiring) {
     next.push(kernels, s, atlas, lit.list, lit.sorted, lit.args, lit.radiance, q.lights)
     next.push(q.sky.cube, q.sky.harmonics, q.sky.params, q.reads.hit.tables, q.reads.hit.depth)
     next.push(q.reads.hit.indirect!, q.reads.hit.instances, hit.lightFunction as object)
-    next.push(hit.lightProfile.view, hit.lightProfile.sampler, s.shape.light)
+    next.push(hit.lightProfile.view, hit.lightProfile.sampler, s.shape.light, hit.lightGridView)
     next.push(rays.views.nodes, rays.views.frames, rays.views.worlds, rays.views.tree)
     const scene = sceneGroup(cacheLitSceneLayout(device), rays.sceneTrace, CACHE_TRACED_SCENE.first)
     if (identity.moved() || !groups) {
@@ -221,6 +225,7 @@ export function cacheHitLitBinder(device: GPUDevice, wiring: CacheWiring) {
           ...dagReadGroupEntries(rays.views),
           { binding: CACHE_LIT_HOST.lightFunction.atlas, resource: hit.lightFunction },
           ...lightProfileBindEntries(CACHE_LIT_HOST.lightProfile, hit.lightProfile),
+          { binding: CACHE_LIT_HOST.lightGrid, resource: hit.lightGridView },
         ]),
         finish: group(cacheLitFinishLayout(device, s.shape.light), [
           ...namedEntries(ownBindings, {
@@ -234,6 +239,8 @@ export function cacheHitLitBinder(device: GPUDevice, wiring: CacheWiring) {
         ]),
       }
     } else groups.scene = scene
-    return runOf(kernels, lit, groups, hit.settings.bucket)
+    const run = runOf(kernels, lit, groups, hit.settings.bucket)
+    run.grid = hit.lightGrid
+    return run
   }
 }

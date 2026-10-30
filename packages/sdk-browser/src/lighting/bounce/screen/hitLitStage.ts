@@ -67,6 +67,7 @@ export function hitLitBinder(g: GroupParts) {
     next.push(probe.info, probe.normal, r.ray, r.radiance, r.hit, r.pixels, r.sceneRays)
     next.push(inputs.blue, inputs.lights, inputs.fog.cubemap, inputs.fog.sampler)
     next.push(hit.lightFunction as object, hit.lightProfile.view, hit.lightProfile.sampler)
+    next.push(hit.lightGridView)
     next.push(views.nodes, views.frames, views.worlds, views.tree)
     next.push(inputs.hit.tables, inputs.hit.depth, inputs.hit.indirect, inputs.hit.instances)
     const scene = sceneGroup(probeLitSceneLayout(device), rays.sceneTrace, TRACE_TRACED_SCENE.first)
@@ -103,6 +104,7 @@ export function hitLitBinder(g: GroupParts) {
           ...dagReadGroupEntries(views),
           { binding: PROBE_LIT_HOST.lightFunction.atlas, resource: hit.lightFunction },
           ...lightProfileBindEntries(PROBE_LIT_HOST.lightProfile, hit.lightProfile),
+          { binding: PROBE_LIT_HOST.lightGrid, resource: hit.lightGridView },
         ]),
         finish: group(
           probeLitFinishLayout(
@@ -126,7 +128,9 @@ export function hitLitBinder(g: GroupParts) {
         ),
       }
     } else groups.scene = scene
-    return runOf(kernels, lit, groups, hit.settings.bucket)
+    const run = runOf(kernels, lit, groups, hit.settings.bucket)
+    run.grid = hit.lightGrid
+    return run
   }
 }
 

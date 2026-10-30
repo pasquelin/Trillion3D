@@ -3,6 +3,7 @@ import {
   type HitLightingSettings,
 } from '../../../../sdk-core/src/contracts/hitLightingOptions.ts'
 import { waterFrontOf } from '../../blend/water/waterReflection.ts'
+import { lightGridOf } from '../../lighting/rays/lightGrid/lightGridFrame.ts'
 import type { CacheHitLighting } from '../../lighting/bounce/cache/cacheHitLit.ts'
 import { lightFunctionResources } from '../../lighting/lightFunction/frame.ts'
 import { lightProfileResources } from '../../lighting/lightProfile/frame.ts'
@@ -35,10 +36,22 @@ function resolve(rt: WebgpuPagesRuntime, mine: Held): CacheHitLighting | undefin
     lightFunctionResources(rt, 'lightFunctionBounce') ?? deferred.placeholders.lightFunction
   const lightProfile = lightProfileResources(rt) ?? lightProfileStandIn(device)
   const exposure = reflection?.frame.exposure ?? 1
-  if (!mine.inputs) return (mine.inputs = { settings, lightFunction, lightProfile, exposure })
+  // The view's one light grid, prepared here once an image whoever asks (the reflections' hit lighting prepares the same one).
+  const lightGrid = lightGridOf(rt.gpu, device)
+  const lightGridView = lightGrid.prepare(rt.lights.store, settings.lightGrid, rt.run.frame)
+  if (!mine.inputs)
+    return (mine.inputs = {
+      settings,
+      lightFunction,
+      lightProfile,
+      lightGrid,
+      lightGridView,
+      exposure,
+    })
   mine.inputs.settings = settings
   mine.inputs.lightFunction = lightFunction
   mine.inputs.lightProfile = lightProfile
+  mine.inputs.lightGridView = lightGridView
   mine.inputs.exposure = exposure
   return mine.inputs
 }

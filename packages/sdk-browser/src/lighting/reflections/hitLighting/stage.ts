@@ -24,6 +24,8 @@ import type { TraceInputs, TraceResources } from '../trace/traceGroups.ts'
 import { REFLECTION_GROUP } from '../viewLayout.ts'
 import { hitLightingMaker, litCompactLayout, litListGroups } from './kernels.ts'
 import { LIT_COMPACT_BINDINGS as C, LIT_PATH_HOST } from './litWgsl.ts'
+import type { LightGridHolder } from '../../rays/lightGrid/lightGridFrame.ts'
+import type { LightGridTable } from '../../rays/lightGrid/lightGridLights.ts'
 import { lightProfileBindEntries } from '../../lightProfile/profileBindings.ts'
 import {
   encodeLitList,
@@ -41,6 +43,10 @@ export interface HitLightingRun {
   vertices: number
   /** The reflection group of the first pass (`reflectionHitLayout`), which the second does not bind: the pass sets it, then the image's own (`depthGroup`). */
   group: GPUBindGroup
+  /** The view's light grid (`../../rays/lightGrid/`), built once an image before the hits are lit. */
+  grid: LightGridHolder
+  /** The light grid of this image, the texture the first pass culls its lights with. */
+  lightGrid: GPUTextureView
   /** The head of each surface's list of traces to light, emptied for an image on the commands of `encoder` (`resetHitLighting`). */
   reset(
     encoder: GPUCommandEncoder,
@@ -109,6 +115,9 @@ export function hitLightingRun(
   rays: SceneRays | undefined,
   light: LightAtlasFormat,
   group: GPUBindGroup | undefined,
+  grid: LightGridHolder,
+  lights: LightGridTable,
+  image: number,
 ): HitLightingRun | undefined {
   if (!group || !rays) return undefined
   const kernels = rays.sceneTrace.maskHold.use(
@@ -120,6 +129,8 @@ export function hitLightingRun(
     REFLECTION_HIT_GROUP,
   )?.kernel
   if (!kernels?.ready) return undefined
+  // The grid of the image's lights: built by the first encoding of the image (`encodeHitLighting`).
+  const lightGrid = grid.prepare(lights, settings.lightGrid, image)
   const held = runs.get(reflection)
   if (!held) {
     const made: HitLightingRun = {
@@ -127,6 +138,8 @@ export function hitLightingRun(
       bucket: settings.bucket,
       vertices: settings.vertices,
       group,
+      grid,
+      lightGrid,
       reset: (encoder, reflection, sides, grid) =>
         resetHitLighting(encoder, reflection, sides, grid, made.vertices),
       encode: (pass, reflection, inputs, rays, side, scene, grid, depthGroup) =>
@@ -139,6 +152,8 @@ export function hitLightingRun(
   held.bucket = settings.bucket
   held.vertices = settings.vertices
   held.group = group
+  held.grid = grid
+  held.lightGrid = lightGrid
   return held
 }
 
@@ -168,6 +183,7 @@ function groupsOf(
   vertices: number,
   pixels: { flags: GPUTextureView; normals: GPUTextureView; lobes: GPUTextureView },
   maskedScene: GPUBindGroup,
+  lightGrid: GPUTextureView,
 ): LitListGroups {
   const { device } = reflection
   const lit = own.lit(grid, vertices)
@@ -190,6 +206,7 @@ function groupsOf(
     inputs.lightFunction,
     inputs.lightProfile.view,
     inputs.lightProfile.sampler,
+    lightGrid,
   )
   next.push(
     inputs.fog.cubemap,
@@ -237,6 +254,7 @@ function groupsOf(
       ...dagReadGroupEntries(views),
       ...lists,
       listed(B.litFunction, inputs.lightFunction),
+      listed(B.litGrid, lightGrid),
       ...lightProfileBindEntries(LIT_PATH_HOST.lightProfile, inputs.lightProfile),
     ]),
     scene: maskedScene,
@@ -310,6 +328,7 @@ export function encodeHitLighting(
     run.vertices,
     pixels,
     scene.maskedScene,
+    run.lightGrid,
   )
   // The pitch of the hits' records is this image's grid width: written when it changes.
   const state = held.get(lit)!
@@ -323,5 +342,7 @@ export function encodeHitLighting(
   const view = (bound.view ??= { index: REFLECTION_GROUP, direct: run.group, finish: depthGroup })
   view.direct = run.group
   view.finish = depthGroup
+  // The light grid is built once an image, in the first encoding of a list, before its hits are lit.
+  bound.grid = run.grid
   encodeLitList(pass, bound, own.pending)
 }

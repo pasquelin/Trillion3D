@@ -128,6 +128,7 @@ export const CACHE_LIT_BINDINGS = {
   lightFunction: 64,
   lightProfile: 65,
   lightProfileSampler: 66,
+  lightGrid: 67,
 } as const
 
 /** The layouts of the trace kernel that casts its rays through the scene's triangles: its own group, then the scene trace's; the surface cache's final light read in the format `light`; with `hitLit` the texture the hits are marked in is written too (the kernels carry it: `TracedCacheKernels.hitLit`). */

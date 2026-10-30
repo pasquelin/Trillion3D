@@ -109,6 +109,8 @@ export const REFLECTION_TRACE_BINDINGS = {
   litFunction: 66,
   litProfile: 67,
   litProfileSampler: 68,
+  // The light grid the first pass culls its lights with (`../../rays/lightGrid/`), a read-only storage texture.
+  litGrid: 69,
 } as const
 
 const B = REFLECTION_TRACE_BINDINGS
@@ -405,6 +407,7 @@ export const hardwareLitLayout = oncePerDevice((device: GPUDevice) =>
       computeBufferEntry(B.litRadiance, 'storage'),
       lightFunctionLayoutEntry(B.litFunction, undefined, true),
       ...lightProfileLayoutEntries({ atlas: B.litProfile, sampler: B.litProfileSampler }),
+      computeStorageTextureEntry(B.litGrid, 'r32uint', 'read-only'),
     ],
   }),
 )

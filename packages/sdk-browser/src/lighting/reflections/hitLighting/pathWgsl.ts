@@ -11,6 +11,7 @@ import { SKY_READ_WGSL } from '../../atmosphere/skyReadWgsl.ts'
 import { ENVIRONMENT_BRDF_WGSL } from '../../direct/environmentBrdfWgsl.ts'
 import { STANDARD_LIGHTING_WGSL } from '../../standardLighting.ts'
 import { lightFunctionReadWgsl, type LightFunctionBindings } from '../../lightFunction/readWgsl.ts'
+import { lightGridLookupWgsl } from '../../rays/lightGrid/lightGridWgsl.ts'
 import { lightProfileOfWgsl } from '../../lightProfile/lightProfileWgsl.ts'
 import type { LightProfileBindings } from '../../lightProfile/lightProfileText.ts'
 import { TRACED_PATH_OFFSET } from '../translucency/pathWgsl.ts'
@@ -83,6 +84,8 @@ export interface LitPathHost {
   exposure: string
   /** The WGSL expression of the pre-exposure the host multiplies the light by when it writes it: the first pass holds the light multiplied by it, so that the half floats keep their range, and the second divides it out. */
   scale: string
+  /** The binding in group 0 of the light grid's texture (`../../rays/lightGrid/`): the lights a hit loops over are those of its cell. */
+  lightGrid: number
 }
 
 /** The scale the light of a path's first vertex is held under in the radiance buffer (`litScale`, the host's expression), at least a millionth. The first pass and the second both declare it. */
@@ -122,7 +125,7 @@ fn litPack(rgb:vec3f,w:f32)->vec2u{return vec2u(pack2x16float(rgb.xy),pack2x16fl
  */
 export const litPathWgsl = (host: LitPathHost) =>
   wgslBlock(
-    `LIT_PATH_WGSL(${host.lightFunction.atlas},${host.lightFunction.eye},${host.lightProfile.atlas},${host.lightProfile.sampler},${host.eye},${host.exposure},${host.scale})`,
+    `LIT_PATH_WGSL(${host.lightFunction.atlas},${host.lightFunction.eye},${host.lightProfile.atlas},${host.lightProfile.sampler},${host.eye},${host.exposure},${host.scale},${host.lightGrid})`,
     [
       LIT_VERTEX_WGSL,
       LIT_MATERIAL_WGSL,
@@ -140,6 +143,7 @@ export const litPathWgsl = (host: LitPathHost) =>
       envBrdfF90,
       lightFunctionReadWgsl(host.lightFunction),
       lightProfileOfWgsl(host.lightProfile),
+      lightGridLookupWgsl(host.lightGrid),
     ],
     `/** The ray of a path as the host casts it: its origin (in the scene trace's frame, the eye not yet taken off), its end and the scene trace's flags. */
 struct LitRay{origin:vec3f,far:f32,flags:u32,}
@@ -230,7 +234,9 @@ fn litPath(slot:u32,trace:LitStart,found:f32,seed:PtRand){
      let bias=max(1.0e-3,1.0e-4*length(P-${host.eye}));
      // The lights draw from a copy of the path's sequence, as the vertex's lighting takes it by value: the next vertex starts from the sequence as the reflection ray's draw left it.
      var lightRng=rng;
-     for(var rank=0u;rank<directLights.count;rank++){
+     let cell=litCellOf(P);
+     for(var n=0u;n<cell.count;n++){
+      let rank=litCellRank(n,cell);
       if(!lightReaches(rank,P)){continue;}
       let irradiance=declaredBareIrradiance(rank,P,N,0.0);
       if(!any(irradiance>vec3f(0.0))){continue;}

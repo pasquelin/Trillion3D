@@ -5,7 +5,12 @@ import type { LitPathHost } from './pathWgsl.ts'
 
 /** Where a host reads the light functions' atlas (as a read-only storage texture) and the light profiles, and the expressions of its eye, of the exposure its lights are strengthened under and of the scale its light is held under (`LitPathHost`): the sides of the path it chooses (`LitPathHost`), all in group 0. */
 export const litPathHostOf = (
-  at: { lightFunction: number; lightProfile: number; lightProfileSampler: number },
+  at: {
+    lightFunction: number
+    lightProfile: number
+    lightProfileSampler: number
+    lightGrid: number
+  },
   eye: string,
   exposure: string,
   scale: string,
@@ -24,6 +29,7 @@ export const litPathHostOf = (
   eye,
   exposure,
   scale,
+  lightGrid: at.lightGrid,
 })
 
 /** The bindings of the lists of a host's lit passes (group 0): the list of the hits to light, its sorted copy and the radiance of the first pass. */

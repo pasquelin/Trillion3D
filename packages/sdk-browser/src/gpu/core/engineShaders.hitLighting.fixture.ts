@@ -13,6 +13,7 @@ import {
   cacheLitFinishProgram,
 } from '../../lighting/bounce/cache/cacheHitLitWgsl.ts'
 import { cacheTracedProgramOf } from '../../lighting/bounce/cache/cacheTraceWgsl.ts'
+import { lightGridBuildProgram } from '../../lighting/rays/lightGrid/lightGridWgsl.ts'
 import { traceTracedShader } from '../../lighting/bounce/screen/traceTracedWgsl.ts'
 import { WORD_LIGHT_FORMAT } from './lightAtlasFormat.ts'
 
@@ -39,6 +40,7 @@ export const HIT_LIGHTING_SHADERS: Record<string, string> = {
   ),
   REFLECTION_HIT_LIGHTING_COMPACT: litCompactProgram(),
   REFLECTION_HIT_LIGHTING_SORT: SORT_TRACES_WGSL,
+  HIT_LIGHTING_LIGHT_GRID_BUILD: lightGridBuildProgram(),
   SCREEN_PROBE_TRACED_MARKS: traceTracedShader(8, [4, 4], true, WORD_LIGHT_FORMAT, undefined, true),
   SCREEN_PROBE_HIT_LIGHTING_COMPACT: probeLitCompactProgram(8, [4, 4]),
   SCREEN_PROBE_HIT_LIGHTING_DIRECT: probeLitDirectProgram(8, [4, 4]),

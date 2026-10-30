@@ -33,6 +33,9 @@ const hit = (over = {}) =>
     reflectionMaxBounces: 5,
     reflectionRayTracedTranslucentRefractions: true,
     reflectionMaxRefractionBounces: 3,
+    rayTracingLightGridResolution: 256,
+    rayTracingLightGridMaxCount: 128,
+    rayTracingLightGridAxis: -1,
     ...over,
   })
 

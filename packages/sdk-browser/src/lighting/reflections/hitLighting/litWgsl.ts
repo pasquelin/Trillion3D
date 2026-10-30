@@ -82,6 +82,7 @@ export const LIT_PATH_HOST = litPathHostOf(
     lightFunction: B.litFunction,
     lightProfile: B.litProfile,
     lightProfileSampler: B.litProfileSampler,
+    lightGrid: B.litGrid,
   },
   'view.display.yzw',
   'reflectionView.radiance.z',

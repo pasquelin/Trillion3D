@@ -28,7 +28,10 @@ import {
  * - `hardwareRayTracingHitLightingShadowTranslucencyMode`, `'masked'` — `'opaque'`, `'masked'` or `'fractional'`: whether the shadow rays cut the masked and the translucent surfaces;
  * - `reflectionMaxBounces`, 1 — the reflection rays that continue from a lit hit, a mirror seen in a mirror: 1 is a single ray, more follow the hit's own specular reflection (the surfaces rougher than the reflections trace keep the rough approximation of the light), each hit lit as the first;
  * - `reflectionRayTracedTranslucentRefractions`, on — the project's switch that lets the translucent surfaces be traced through (the reference's per-project setting; the refraction events below need it);
- * - `reflectionMaxRefractionBounces`, 0 — the refraction events of a path: with 1 or more, the hit lighting meets the translucent surfaces (they are no longer passed by) and the path goes on through each, weighed by what the surface lets through, up to that many times.
+ * - `reflectionMaxRefractionBounces`, 0 — the refraction events of a path: with 1 or more, the hit lighting meets the translucent surfaces (they are no longer passed by) and the path goes on through each, weighed by what the surface lets through, up to that many times;
+ * - `rayTracingLightGridResolution`, 256 — the cells a side of the 2D light grid that culls the lights out of the hit lighting's loop (the lights that reach a hit are found in its cell; the suns are always looped over);
+ * - `rayTracingLightGridMaxCount`, 128 — the most lights a cell keeps (the lesser of it and the number of local lights is used);
+ * - `rayTracingLightGridAxis`, -1 — the axis the grid is projected along: 0 to 2 forces one, -1 picks, cell by cell, the axis whose cell keeps the fewest lights.
  */
 
 /** The reflection bounces the hit lighting follows: the most a path is given (the reference's bound). */
@@ -46,6 +49,11 @@ export const HIT_LIGHTING_SHADOW_MODES = ['off', 'hard', 'soft'] as const
 export const HIT_LIGHTING_SKYLIGHT_MODES = ['off', 'on', 'standalone'] as const
 /** How the shadow rays treat the translucent and masked surfaces. */
 export const HIT_LIGHTING_TRANSLUCENCY_MODES = ['opaque', 'masked', 'fractional'] as const
+
+/** The most cells a side of the light grid has. */
+const LIGHT_GRID_MAX_RESOLUTION = 2048
+/** The most lights a cell of the light grid can keep. */
+const LIGHT_GRID_MAX_COUNT = 65536
 
 /** The hit lighting's settings by field, each with the reference's default. */
 export const HIT_LIGHTING_RULES = [
@@ -66,6 +74,9 @@ export const HIT_LIGHTING_RULES = [
   integer('reflectionMaxBounces', 1, [1, HIT_LIGHTING_MAX_BOUNCES]),
   flag('reflectionRayTracedTranslucentRefractions', true),
   integer('reflectionMaxRefractionBounces', 0, [0, HIT_LIGHTING_MAX_BOUNCES - 1]),
+  integer('rayTracingLightGridResolution', 256, [1, LIGHT_GRID_MAX_RESOLUTION]),
+  integer('rayTracingLightGridMaxCount', 128, [1, LIGHT_GRID_MAX_COUNT]),
+  integer('rayTracingLightGridAxis', -1, [-1, 3]),
 ] as const satisfies readonly SettingRule[]
 
 /** The fields of `HIT_LIGHTING_RULES`. */
@@ -86,6 +97,16 @@ export interface HitLightingValues {
   reflectionMaxBounces: number
   reflectionRayTracedTranslucentRefractions: boolean
   reflectionMaxRefractionBounces: number
+  rayTracingLightGridResolution: number
+  rayTracingLightGridMaxCount: number
+  rayTracingLightGridAxis: number
+}
+
+/** The light grid's settings: the cells a side, the most lights a cell keeps, and the axis the grid is built along (0 to 2 forces one, 3 picks the best cell by cell). */
+export interface LightGridSettings {
+  resolution: number
+  maxCount: number
+  axis: number
 }
 
 /** What the reflections' kernels read of the hit lighting. */
@@ -113,6 +134,8 @@ export interface HitLightingSettings {
   refractions: number
   /** The most vertices a path of the hit lighting holds: `bounces` for each of its `1 + refractions` stretches, which sizes its radiance buffer. */
   vertices: number
+  /** The grid that culls the lights the hits are lit by. */
+  lightGrid: LightGridSettings
 }
 
 /** The hit lighting of the reflections' values: the reference's gates (`GetHitLightingMode`, `UseHitLighting`) and the numbers its kernels read. */
@@ -140,6 +163,12 @@ export function hitLightingOf(values: HitLightingValues): HitLightingSettings {
     bounces: values.reflectionMaxBounces,
     refractions,
     vertices: values.reflectionMaxBounces * (1 + refractions),
+    lightGrid: {
+      resolution: values.rayTracingLightGridResolution,
+      maxCount: values.rayTracingLightGridMaxCount,
+      // A negative axis is the automatic one: the builder takes any axis from 3 up as that.
+      axis: values.rayTracingLightGridAxis < 0 ? 3 : values.rayTracingLightGridAxis,
+    },
   }
 }
 

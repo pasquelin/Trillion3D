@@ -1,3 +1,4 @@
+import type { LightGridHolder } from '../../rays/lightGrid/lightGridFrame.ts'
 import { retire } from '../../../gpu/core/frameRetire.ts'
 import { keptOrMade } from '../../../gpu/core/keptOrMade.ts'
 import { gpuAllocator } from '../../../gpu/core/resourceAllocator.ts'
@@ -133,6 +134,8 @@ export interface LitListRun<
   bucket: boolean
   /** The group of the host's own view that the passes read beside the scene trace's, with the bind group each pass sets there (the reflections'). */
   view?: { readonly index: number; direct: GPUBindGroup; finish: GPUBindGroup }
+  /** The light grid the first pass culls its lights with, built (once an image) before the hits are lit. */
+  grid?: Pick<LightGridHolder, 'encode'>
 }
 
 /** The one run a host's binder keeps (`LitListRun`), written over each image: nothing is allocated an image. */
@@ -161,6 +164,7 @@ export function encodeLitList(
   rays: GPUBuffer,
 ) {
   const { kernels, groups, resources } = run
+  run.grid?.encode(pass)
   if (kernels.reset) {
     pass.setPipeline(kernels.reset)
     pass.setBindGroup(0, groups.compact)

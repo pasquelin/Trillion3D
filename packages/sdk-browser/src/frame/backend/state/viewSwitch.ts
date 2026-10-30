@@ -12,6 +12,7 @@ import { releaseFirstPersonSelfShadow } from '../../../lighting/shadows/firstPer
 import { releaseScreenSpaceTracing } from '../../../lighting/screenSpaceTracing/stage.ts'
 import { releaseShadowDenoise } from '../../../lighting/shadows/denoise/shadowDenoiseFrame.ts'
 import { releaseRayTracedLocal } from '../../../lighting/shadows/rayTraced/rayTracedLocal.ts'
+import { releaseLightGrid } from '../../../lighting/rays/lightGrid/lightGridFrame.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import { viewKey } from './viewKey.ts'
 import {
@@ -91,6 +92,7 @@ export function disposeViewPasses(gpu: WebgpuView['gpu']) {
   releaseSampledLightsView(gpu)
   releaseShadowDenoise(gpu)
   releaseRayTracedLocal(gpu)
+  releaseLightGrid(gpu)
   releaseFirstPersonSelfShadow(gpu)
   disposeFogVolume(gpu)
   disposeTranslucencyVolume(gpu)

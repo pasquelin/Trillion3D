@@ -3,7 +3,10 @@ import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
 import { makeFinite3 } from '../../../../../math/src/wgsl/integer.ts'
 import { dagReadLayoutEntries } from '../../../geometry/dag/shader/bindings.ts'
-import { computeBufferEntry } from '../../../gpu/core/computeBindings.ts'
+import {
+  computeBufferEntry,
+  computeStorageTextureEntry,
+} from '../../../gpu/core/computeBindings.ts'
 import { WORD_LIGHT_FORMAT, type LightAtlasFormat } from '../../../gpu/core/lightAtlasFormat.ts'
 import { ditherLight, packLight } from '../../../gpu/core/smallFloatWgsl.ts'
 import { FLAT_INDEX_WGSL } from '../../../gpu/dispatch/grid.ts'
@@ -66,6 +69,7 @@ const OWN = {
   litFunction: 44,
   litProfile: 45,
   litProfileSampler: 46,
+  litGrid: 47,
 } as const
 
 /** The compaction's bindings (group 0): the probes' records, the list of the rays the screen left, the ends and the marks the stage wrote, and the list of the hits to light that it fills. */
@@ -113,6 +117,7 @@ export const PROBE_LIT_HOST = litPathHostOf(
     lightFunction: OWN.litFunction,
     lightProfile: OWN.litProfile,
     lightProfileSampler: OWN.litProfileSampler,
+    lightGrid: OWN.litGrid,
   },
   'view.display.yzw',
   'bitcast<f32>(sp.lit.y)',
@@ -131,6 +136,7 @@ export const probeLitDirectEntries = () => [
   ...dagReadLayoutEntries(),
   lightFunctionLayoutEntry(OWN.litFunction, undefined, true),
   ...lightProfileLayoutEntries(PROBE_LIT_HOST.lightProfile),
+  computeStorageTextureEntry(OWN.litGrid, 'r32uint', 'read-only'),
 ]
 export const probeLitFinishEntries = (
   fog: boolean,

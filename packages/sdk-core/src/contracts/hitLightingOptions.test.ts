@@ -77,3 +77,11 @@ test('the screen probes and the radiance cache light their hits only in the mode
     true,
   )
 })
+
+test('the light grid defaults are the reference ones: 256 cells a side, 128 lights a cell, the automatic axis', () => {
+  const { lightGrid } = hitLightingOf(defaults())
+  assert.deepEqual(lightGrid, { resolution: 256, maxCount: 128, axis: 3 })
+  assert.equal(hitLightingOf({ ...defaults(), rayTracingLightGridAxis: 2 }).lightGrid.axis, 2)
+  const rule = HIT_LIGHTING_RULES.find((r) => r.field === 'rayTracingLightGridResolution')
+  assert.deepEqual(rule && 'range' in rule && rule.range, [1, 2048])
+})
