@@ -28,6 +28,7 @@ function uniforms(intervals: number[], handed: number | null = null) {
     run: { diagnostic: 'beauty', frame: 0, gate: { revisions } },
     capture: { capturing: false },
     lights: {},
+    context: {},
   } as unknown as WebgpuPagesRuntime
   Object.assign(rt.gpu, { targetSize: size(), allocatedSize: size(), displaySize: size() })
   const scale = createScaleControl(undefined)

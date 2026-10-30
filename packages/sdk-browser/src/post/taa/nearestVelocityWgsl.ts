@@ -20,8 +20,7 @@ import {
   HOLE_FILL_WGSL,
   MARKS_FORMAT,
   OCCLUDER_WORD_WGSL,
-  PIXEL_ANIMATED,
-  PIXEL_RESTARTS,
+  PIXEL_FLAGS_WGSL,
   RESTART_MARK,
   TEXEL_TILE,
 } from './velocityWgsl.ts'
@@ -273,14 +272,14 @@ const velocitySurfaceText = ({ inImage }: VelocityText) => ` let surface=nearest
  let prevClosestZ=surface.closestZ-nearest.z;
  // The pixel's flags: its surface's, with the responsiveness of the layers over it.
  let flags=textureLoad(vectors,p,0).g|markedResponsive(textureLoad(responsive,p,0).r);
- let animated=(flags&${PIXEL_ANIMATED}u)!=0u;
+ let animated=pixelAnimated(flags);
  // How far the texel moves is measured only where the flicker measure reads it (\`view.quality.x\`), 0 else.
  var moving=0.0;
  if(view.quality.x!=0.0){moving=isMoving(p,zc,surface.closestZ,nearest,animated);}
  let signedZ=select(prevClosestZ,-prevClosestZ,animated);
  ${inImage('textureStore(closestOut,p,vec4u(bitcast<u32>(signedZ),0u,0u,0u));')}
  let offsetBit=select(0u,0x80u,tookNeighbour);
- let offsetCode=(u32(surface.offset.x+1)+u32(surface.offset.y+1)*4u)|select(0u,${RESTART_MARK}u,(flags&${PIXEL_RESTARTS}u)!=0u);
+ let offsetCode=(u32(surface.offset.x+1)+u32(surface.offset.y+1)*4u)|select(0u,${RESTART_MARK}u,pixelRestarts(flags));
  var depthError=depthBilateralError(surface.depths);`
 
 /** With the reprojection field: the jacobian of the 3×3's velocities and the boundary of the dilation. */
@@ -370,6 +369,7 @@ export const velocityShader = (fused?: BlurVariant) => {
     [
       VELOCITY_HELPERS_WGSL,
       MARKED_RESPONSIVE_WGSL,
+      PIXEL_FLAGS_WGSL,
       ...(fused
         ? [
             flattenParams(FUSED_FLATTEN_SLOTS),
