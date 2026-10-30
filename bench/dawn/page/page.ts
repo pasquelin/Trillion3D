@@ -58,12 +58,16 @@ export function pageAddress(file: string, search: string) {
 const engineModule = (engine: string) => `export * from '${engine}';
 import { createWorld as engineWorld, animation as engineAnimation } from '${engine}';
 export function createWorld(...args) {
-  const world = engineWorld(...args);
-  // Settings a session reads once when it opens (BENCH_WORLD, a JSON of groups), set as the world is made.
-  for (const [group, values] of Object.entries(JSON.parse(process.env.BENCH_WORLD ?? '{}'))) {
+  // Settings a session reads once when it opens (BENCH_WORLD, a JSON of groups): the options the world is
+  // made with, flat as its options are, over the page's own; a setter after creation reaches only the next opening.
+  const groups = JSON.parse(process.env.BENCH_WORLD ?? '{}');
+  const [target, options = {}, ...rest] = args;
+  const world = engineWorld(target, Object.assign({}, options, ...Object.values(groups)), ...rest);
+  for (const group of Object.keys(groups)) {
     // An unknown group would be a plain property that changes nothing.
     if (!(group in world)) throw new Error('BENCH_WORLD: the world has no setting group ' + group);
-    world[group] = values;
+    // And through its setter: an option the creation does not take flat reaches the session this way.
+    world[group] = groups[group];
   }
   (globalThis.benchWorlds ??= []).push(world);
   return world;

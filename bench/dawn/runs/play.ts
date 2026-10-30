@@ -7,11 +7,12 @@ import { installGpu } from '../machine/device.ts'
 import { dissectModules, dissectSpec } from '../passes/dissectHooks.ts'
 import { installBrowser } from '../page/dom.ts'
 import { machineFor } from '../machine/machine.ts'
-import { REFRESH_MS, createClock, runFrames, sessionFailure, settleLoading, warmUp } from '../capture/frames.ts'
+import { FED, REFRESH_MS, createClock, runFrames, sessionFailure, settleLoading, warmUp } from '../capture/frames.ts'
 import { gpuBusy } from '../machine/gpuBusy.ts'
 import type { BenchOptions } from './options.ts'
 import { pageAddress, readPage, runPage } from '../page/page.ts'
 import { createPlayer } from './scenario.ts'
+import { VARIANT_SETTLE, applyVariant, baselineOf, readVariants, type Variant } from './variants.ts'
 import { runTrack } from './trackFrames.ts'
 import { benchPasses } from '../passes/benchPasses.ts'
 import { timerDoubts } from '../report/trust.ts'
@@ -76,6 +77,14 @@ export async function playScenario(options: BenchOptions, stem: string) {
   console.error(
     `[bench] quality: preset ${JSON.stringify(quality?.preset)}, benchmark ${JSON.stringify(found ? { groups: found.groups, gpu: found.gpu } : null)}`,
   )
+  // Option variants played in this one load (`BENCH_VARIANTS`): every family and option checked, written and read back before any frame.
+  const variants = readVariants()
+  const baseline = variants ? baselineOf(world, variants) : {}
+  if (variants) {
+    let previous: Variant | null = null
+    for (const variant of variants) applyVariant(world, baseline, previous, (previous = variant))
+    applyVariant(world, baseline, previous, null)
+  }
   const clock = createClock()
   const rig = { browser, gpu, world }
   // The device is the engine's own, asked when its session opens: frames run until it submits.
@@ -125,7 +134,13 @@ export async function playScenario(options: BenchOptions, stem: string) {
   )
   const readySeconds = (performance.now() - opened) / 1000
   let engine: Record<string, unknown> = {}
-  world.onFrame(({ metrics }) => (engine = metrics as unknown as Record<string, unknown>))
+  // The reflections' census of the segment (`reflectionStatistics`): the last one read back while it plays.
+  let census: unknown = null
+  world.onFrame(({ metrics }) => {
+    engine = metrics as unknown as Record<string, unknown>
+    const read = (engine.reflections as { censusReads?: number } | null | undefined) ?? null
+    if (read?.censusReads) census = read
+  })
   const unit: number[] = []
   for (let i = 0; i < 10; i++) unit.push(await calibration.time())
   if (options.cpuProfile) {
@@ -135,10 +150,27 @@ export async function playScenario(options: BenchOptions, stem: string) {
   const stopProfile = options.cpuProfile ? await startCpuProfile() : null
   const player = createPlayer(browser, world)
   const segments = []
-  for (const segment of scenario.segments) {
+  // Each variant plays every segment, in order; without variants the scenario plays once, as it is.
+  const rounds = (variants ?? [null]).flatMap((variant) =>
+    scenario.segments.map((segment) => ({ variant, segment })),
+  )
+  let current: Variant | null = null
+  for (const { variant, segment } of rounds) {
+    if (variant !== current) {
+      // The previous variant's options go back, this one's are written; its frames settle unmeasured (histories, caches), then a warm-up waits for the pipelines it compiles to give timed images.
+      applyVariant(world, baseline, current, variant)
+      current = variant
+      clock.step = REFRESH_MS
+      player.begin(segment)
+      await runFrames(rig, clock, VARIANT_SETTLE, () => player.step(segment, 0))
+      player.end(segment)
+      await warmUp(rig, clock, options.timeoutS * 500, 8)
+    }
+    const label = variant ? `${variant.name}:${segment.name}` : segment.name
     player.begin(segment)
+    census = null
     const { track } = segment
-    const slug = segment.name.replace(/\W+/g, '-')
+    const slug = label.replace(/\W+/g, '-')
     // The canvas's image now, under `name`; none where the segment is not captured.
     const shoot = async (name: string) => {
       const current = (browser.canvases[0].getContext('webgpu') as { current: GPUTexture | null })
@@ -162,17 +194,18 @@ export async function playScenario(options: BenchOptions, stem: string) {
       played?.frames ??
       (await runFrames(rig, clock, segment.frames, (i) => player.step(segment, i)))
     player.end(segment)
+    if (census) console.error(`[bench] reflection census, ${label}: ${JSON.stringify(census)}`)
     const shots = (played?.shots ?? []).filter((shot) => shot !== null)
     // A capture the path asked for and the canvas could not give is no silent gap in the comparison.
     if (track && captures && segment.capture && shots.length !== track.shots.length)
       throw new Error(
-        `BENCH_PARITY: ${segment.name}: ${shots.length} of ${track.shots.length} captures taken`,
+        `BENCH_PARITY: ${label}: ${shots.length} of ${track.shots.length} captures taken`,
       )
     const image = track ? (shots[0] ?? null) : await shoot(slug)
     const numbers = roundNumbers(frames)
     const bench = benchPasses(frames)
     segments.push({
-      name: segment.name,
+      name: label,
       measured: segment.measure !== false,
       numbers,
       passes: passTimes(frames),
@@ -201,7 +234,12 @@ export async function playScenario(options: BenchOptions, stem: string) {
       page: options.name,
       title: page.title,
       scenario: scenario.name,
-      switches: options.switches,
+      switches: [
+        ...options.switches,
+        ...(FED ? ['BENCH_FED: two frames in flight'] : []),
+        ...(variants ? [`BENCH_VARIANTS: ${variants.map((v) => `${v.name} ${JSON.stringify(v.world)}`).join('; ')}`] : []),
+      ],
+      variants,
       engine: options.engine.root,
       commit: options.engine.commit,
       subject: options.engine.subject,
