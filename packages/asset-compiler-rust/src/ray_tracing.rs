@@ -14,6 +14,7 @@
 //! naming the cell that shows it, and the directory of them; the manifest's `rayTracing` section
 //! names it.
 pub(crate) mod abi;
+mod attributes;
 mod bvh;
 mod cut;
 mod encode;
