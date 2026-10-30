@@ -23,7 +23,9 @@ import {
 } from '../lighting/reflections/frontTiles.ts'
 import { fragmentMembers, fragmentZeros } from '../gpu/core/fragmentOutputs.ts'
 import type { VisMaterial } from '../visibility/materialType.ts'
-import { NO_VERTEX_WORDS } from './cloudVertexText.ts'
+import { NO_VERTEX_WORDS, type CloudVertexText } from './cloudVertexText.ts'
+import { withWaterBody } from './water/waterBodyLane.ts'
+import { WATER_EXCLUSION_WGSL } from './water/waterExclusionTable.ts'
 import { blendVertexWgsl, cutBlendByPixel } from './vertexWgsl.ts'
 import { clipDirective, type Clipping } from '../gpu/core/clipDistances.ts'
 import { BLEND_MAPS_WGSL } from './mapsWgsl.ts'
@@ -84,14 +86,18 @@ export const blendFrontLit = (mat: Pick<VisMaterial, 'lit' | 'translucencyLighti
  * and clear-coat lobes under `PHYSICAL_SURFACE_FLAG` (`blendLobedTexel`). A fragment that does neither discards; of the others, the pass's depth
  * test keeps the nearest. No colour, no feedback.
  */
-const frontStageWgsl = (outputs: FrontOutputs, graphs: readonly SurfaceProgram[]) => {
+const frontStageWgsl = (
+  outputs: FrontOutputs,
+  graphs: readonly SurfaceProgram[],
+  cut: CloudVertexText | undefined,
+) => {
   const lobes = outputs >= 2,
     reflects = outputs > 0,
     // With the base colour (outputs 3) the surface is written wherever the sampled lighting lights the layer, whatever the model.
     lights = outputs === 3,
     written = FRONT_OUTPUTS[outputs]
   return wgslBlock(
-    `frontStageWgsl(${outputs}${graphs.length ? ', graphs' : ''})`,
+    `frontStageWgsl(${outputs}${graphs.length ? ', graphs' : ''}${cut ? ', exclusion volumes' : ''})`,
     [
       stageSurface(lobes, graphs),
       materialTableWgsl(BLEND_BINDINGS.material),
@@ -104,8 +110,9 @@ const frontStageWgsl = (outputs: FrontOutputs, graphs: readonly SurfaceProgram[]
       BLEND_FRAGMENT_KEPT_WGSL,
       REFLECTION_CONSTANTS_WGSL,
       ...(lobes ? [BLEND_PHYSICAL_RECORD_WGSL] : [BLEND_LOBELESS_WGSL]),
+      ...(cut ? [WATER_EXCLUSION_WGSL, ...cut.declared] : []),
     ],
-    `struct FrontOut{${fragmentMembers(written)}}
+    `${cut ? WATER_CUT_TEXT : ''}struct FrontOut{${fragmentMembers(written)}}
 const FRONT_BEHIND:f32=${wgslF32(FRONT_BEHIND)};
 /** Whether a blend of item flags \`flags\` is lit by a lit view, of a model that reflects, and not lit as a medium. */
 fn frontReflects(flags:u32)->bool{return blendLit(flags)&&surfaceReflects(modelFlag(flags)|pixelModelFlag(pixelModelOf(flags)))&&!translucencyMedium(flags);}${
@@ -124,7 +131,7 @@ fn frontLit(flags:u32)->bool{return blendLit(flags)&&!translucencyMedium(flags);
  let thin=materialAt(in.${WORDS.material}&${FACING_MATERIAL_MASK}u).transmission>0.0;
  let covers=thin||blendAlpha(in,base)>=REFLECTION_FRONT_COVERAGE${waterOf(graphs) ? `||(g.graph.flags&${GRAPH_FLAG.water}u)!=0u` : ''};
  let reflects=${reflects ? `${lights ? 'frontLit' : 'frontReflects'}(${graphs.length ? 'blendGraphFlags(in.ids.y,g.graph)' : 'in.ids.y'})` : 'false'};
- if(!blendFragmentKept(in,base,thin,front)||!(covers||reflects)){discard;return FrontOut(${fragmentZeros(written)});}
+ if(!blendFragmentKept(in,base,thin,front)||!(covers||reflects)${cut ? '||waterCut(in)' : ''}){discard;return FrontOut(${fragmentZeros(written)});}
  let depth=vec4f(select(0.0,in.position.z*FRONT_BEHIND,covers),0.0,0.0,0.0);
 ${
   reflects
@@ -151,18 +158,29 @@ ${
   )
 }
 
+/** The cut of the water's surface inside an exclusion volume that excludes its body (`waterStageWgsl.ts`, the same test): the module of the
+ *  variant draws only the water's items. */
+const WATER_CUT_TEXT = `fn waterCut(in:VSOut)->bool{return waterExcluded(in.view,waterBodyRank(in));}
+`
+
 /** The front stage's module (`fsFront`) of `outputs`: the blend's vertex stage, its maps, and the stage;
- *  with `graphs`, the programs of the graphs its items wear, `offsets` those that move their vertices. */
+ *  with `graphs`, the programs of the graphs its items wear, `offsets` those that move their vertices; with `cut`, the variant for the water's items that
+ *  cuts the surface inside a volume that excludes it. */
 export const blendFrontShader = (
   outputs: FrontOutputs,
   clipping?: Clipping,
   graphs: readonly SurfaceProgram[] = [],
   offsets: WpoSet = NO_WPO,
+  cut = false,
 ) => {
+  // The variant that cuts the water's surface takes the body's lane in its vertex stage (`withWaterBody`).
+  const words = cut
+    ? withWaterBody(NO_VERTEX_WORDS, { clouds: false, fog: false }, false)
+    : NO_VERTEX_WORDS
   const code = wgslModule(
-    blendVertexWgsl(outputs >= 2, clipping, NO_VERTEX_WORDS, offsets),
+    blendVertexWgsl(outputs >= 2, clipping, words, offsets),
     BLEND_MAPS_WGSL,
-    frontStageWgsl(outputs, graphs),
+    frontStageWgsl(outputs, graphs, cut ? words : undefined),
     ...clipDirective(clipping),
   )
   return cutBlendByPixel(code, clipping)

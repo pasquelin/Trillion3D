@@ -86,6 +86,12 @@ async function imageOf(device: GPUDevice, events: unknown[], parts: Parts, kind:
   const camera = cameraOf()
   const { backend, release } = await sunlitEngine(scene(parts, kind), device, events, {
     viewport: [WIDTH, HEIGHT],
+    // A transparent surface reads the environment alone unless its front layer is traced (`forward.ts`): `reflectionFrontLayer` (off by default), at a level that allows
+    // it (`ultra`, named so that no quality preset lowers it), and a ray meets a pane only where the trace layers hold the nearest transparent surface (`hizFoldTransparents`, off
+    // by default): the chain this proof asks for needs all three.
+    reflectionQuality: 'ultra',
+    reflectionFrontLayer: true,
+    hizFoldTransparents: true,
   })
   try {
     const { settled: held, rendered } = await untilHeld(backend, camera)

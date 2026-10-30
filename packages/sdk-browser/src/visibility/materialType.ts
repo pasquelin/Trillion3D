@@ -94,6 +94,20 @@ export type VisMaterial = {
    *  it cuts by a dither of the output (`../materials/graph/maskProgram.ts`). */
   opacityMaskClipValue?: number
   ditherOpacityMask?: boolean
+  /** The scale on the opacity of the shadow the surface casts as a translucent object shadow (`Material.translucentShadowDensityScale`). */
+  translucentShadowDensityScale?: number
+  /** See `Material.translucentShadowStartOffset`. */
+  translucentShadowStartOffset?: number
+  /** See `Material.translucentSelfShadowDensityScale`. */
+  translucentSelfShadowDensityScale?: number
+  /** See `Material.translucentSelfShadowSecondDensityScale`. */
+  translucentSelfShadowSecondDensityScale?: number
+  /** See `Material.translucentSelfShadowSecondOpacity`. */
+  translucentSelfShadowSecondOpacity?: number
+  /** See `Material.translucentBackscatteringExponent`. */
+  translucentBackscatteringExponent?: number
+  /** See `Material.translucentMultipleScatteringExtinction`. */
+  translucentMultipleScatteringExtinction?: readonly [number, number, number]
   /** Whether a two-sided surface is drawn as its back then its face (`../blend/statics.ts`, `asksTwoPasses`). */
   twoSidedPasses?: boolean
   /** Whether the roughness is at least the one the screen-space change of its vertex normal gives it

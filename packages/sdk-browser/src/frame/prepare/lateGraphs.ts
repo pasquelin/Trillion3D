@@ -1,4 +1,5 @@
 import { track } from '../../lighting/deferred/compileLedger.ts'
+import { limitOf } from '../../materials/closures/closureLimit.ts'
 import { graphRastersOf, type GraphRasters } from '../../materials/graph/graphRasters.ts'
 import { rigTemporalAgain } from '../../post/taa/prepare.ts'
 import type { ShadeCensus } from '../../visibility/passes/shadeCensus.ts'
@@ -27,7 +28,7 @@ import { prepareRasterPipelines } from './visibilitySteps.ts'
 export function followGraphRasters(rt: WebgpuPagesRuntime, device: GPUDevice, census: ShadeCensus) {
   const { vis } = rt,
     held = vis.rasters,
-    next = graphRastersOf(census.surfaces, held)
+    next = graphRastersOf(census.surfaces, held, limitOf(vis))
   if (next === held) return
   vis.rasters = next
   rt.diag.engineDiagnostic(

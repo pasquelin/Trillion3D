@@ -3,6 +3,7 @@ import { resized } from '../../../../math/src/sequence/resized.ts'
 import { MAX_UV_SETS } from '../../../../sdk-core/src/page/format.ts'
 import type { VisMaterial } from '../../visibility/materialType.ts'
 import { displacementProgramOf } from '../graph/displacementProgram.ts'
+import { limitOf } from '../closures/closureLimit.ts'
 import { fadeOutPixels, displacementRange } from '../../visibility/tessellation/numbers.ts'
 import type { MaterialLayers } from '../../geometry/rows/page/pageRowMaterial.ts'
 import { layerSlot } from '../../geometry/rows/page/pageRowMaterial.ts'
@@ -95,14 +96,15 @@ export function writeDisplacementRecord(
   d: DisplacementRecords,
   rank: number,
   mat: Pick<VisMaterial, 'displacement' | 'displacementMap' | 'graph'>,
-  { dataLayer }: Pick<MaterialLayers, 'dataLayer'>,
+  layers: Pick<MaterialLayers, 'dataLayer' | 'closures'>,
 ) {
   const at = rank * DISPLACEMENT_WORDS
   // A height map's slot in the data atlas, or, with none, the graph that wires a `displacement`
   // the tessellation reads (`../graph/displacementProgram.ts`) — the rank of the surface's record, which
   // names it, and the texture set it reads, in place of the map's.
-  const slot = mat.displacement ? layerSlot(dataLayer, mat.displacementMap) : 0
-  const graph = mat.displacement && !slot ? displacementProgramOf(mat) : undefined
+  const slot = mat.displacement ? layerSlot(layers.dataLayer, mat.displacementMap) : 0
+  const graph =
+    mat.displacement && !slot ? displacementProgramOf(mat, true, limitOf(layers)) : undefined
   const was = held(d, rank)
   if (!slot && !graph && !was) return false
   if (d.ints.length < at + DISPLACEMENT_WORDS) d.ints = resized(d.ints, at + DISPLACEMENT_WORDS)

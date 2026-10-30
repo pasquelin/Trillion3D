@@ -14,6 +14,7 @@ import { depthOffsetOf } from '../../materials/graph/pdoProgram.ts'
 import { displacementOf } from '../../materials/graph/displacementProgram.ts'
 import { wpoOf } from '../../materials/graph/wpoProgram.ts'
 import { isProgram, programOf, type SurfaceProgram } from '../../materials/graph/surfaceProgram.ts'
+import { limitOf } from '../../materials/closures/closureLimit.ts'
 import { MODEL_SHIFT } from '../../materials/surface/surfaceModelWord.ts'
 import { shadingModelCode } from '../../materials/surface/shadingModelCode.ts'
 import {
@@ -137,7 +138,7 @@ function readMaps(mat: VisMaterial, layers: MaterialLayers, into: SurfaceRow) {
   into.readsExtraUv = channelsOf(mat, SURFACE_MAP_FIELDS) !== 0
   into.vertexColors = !!mat.vertexColors
   into.shadingCode = shadingModelCode(mat.shadingModel)
-  const program = programOf(mat)
+  const program = programOf(mat, undefined, limitOf(layers))
   into.graph = isProgram(program) ? program : undefined
   if (into.graph) wearGraph(into)
 }

@@ -11,7 +11,7 @@ import { ATMOSPHERE_SLOT } from '../../../../sdk-core/src/scene/core/atmosphereP
 import { PT_AIR_PHASE_WGSL, PT_GROUND_CLASS } from './airWgsl.ts'
 import { PT_CLOUD_PHASE_WGSL } from './cloudPhaseWgsl.ts'
 import { PT_HIT_KIND, PT_HIT_WGSL } from './hitRecordWgsl.ts'
-import { PT_HIT_MATERIAL_VECS, PT_HIT_SURFACE_WGSL } from './hitMaterialWgsl.ts'
+import { PT_HIT_SURFACE_WGSL, ptHitMaterialStride } from './hitMaterialWgsl.ts'
 import { PT_LIGHT_GRID_WGSL } from './lightGridWgsl.ts'
 import { PT_LIGHT_MAXIMUM } from './lightRecords.ts'
 import { PT_LIGHTS_WGSL } from './lightsWgsl.ts'
@@ -63,6 +63,7 @@ fn ptVisibleRgb(path:ptr<function,PtPath>,origin:vec3f,direction:vec3f,tMax:f32,
  *    weighed in mode 2 against the density sampling that light would have had (the table's share of the light times its density), the shadow tested as above.
  * 7. The first scatter that is not a refraction is kept (a path refracted into a glass counts as the camera's until it scatters off something else); the path goes on if this is not the bounce before the last, or if emissive surfaces light the scene.
  * Where the lamps light the volume by a point drawn on the ray (`pathTracingVolumeMISMode` 1, `ptVolumeLights`), that light is gathered first, whatever the ray meets, and the event of the air lights by the lights at infinity alone.
+ * Where the view's pixels hold several closures (`weighted`), the material of a hit carries the weight of the closure the shade of the hits chose among those of the material, and the surface's light is multiplied by it (`PtSurface.selection`).
  * Where the clouds are traced (`clouds`), the event of the air can be one of the clouds: its phase is the four lobes of `PT_CLOUD_PHASE_WGSL`, a shadow ray toward a light that casts cloud shadows (or from the medium) also crosses the clouds (`ptCloudVisible`), and the octave of the approximation of
  * multiple scattering an event stands for lights its point and ends the path.
  */
@@ -70,9 +71,10 @@ export const PT_FINISH_BOUNCE_WGSL = (
   scene: { group: number; first: number },
   programs: SceneMaskPrograms = NO_SCENE_MASKS,
   clouds = false,
+  weighted = false,
 ) =>
   wgslBlock(
-    `PT_FINISH_BOUNCE_WGSL(${scene.group},${scene.first},${sceneMaskKey(programs)}${clouds ? ',clouds' : ''})`,
+    `PT_FINISH_BOUNCE_WGSL(${scene.group},${scene.first},${sceneMaskKey(programs)}${clouds ? ',clouds' : ''}${weighted ? ',weighted' : ''})`,
     [
       luminance,
       PT_VIEW_WGSL,
@@ -147,7 +149,7 @@ fn ptHitSurface(h:PtHit,index:u32,path:ptr<function,PtPath>)->PtSurface{
    s.f0=vec3f(0.0);
   }
  }else{
-  let m=ptUnpackHitMaterial(ptMaterials[index*${PT_HIT_MATERIAL_VECS}u],ptMaterials[index*${PT_HIT_MATERIAL_VECS}u+1u],ptMaterials[index*${PT_HIT_MATERIAL_VECS}u+2u]);
+  let m=ptUnpackHitMaterial(ptMaterials[index*${ptHitMaterialStride(weighted)}u],ptMaterials[index*${ptHitMaterialStride(weighted)}u+1u],ptMaterials[index*${ptHitMaterialStride(weighted)}u+2u]);
   s=ptSurfaceOfHitMaterial(m,h.position,h.geoNormal,h.normal,h.distance,h.front);
   // A surface whose opacity is under one covers the ray in that proportion of its hits; the ray goes through the rest as it came, untouched, and is traced again from the other side in the next round of the bounce
   // (the last round has every surface cover it).
@@ -170,6 +172,12 @@ fn ptHitSurface(h:PtHit,index:u32,path:ptr<function,PtPath>)->PtSurface{
    s.thin=glass&&thin;
    s.tint=exp2(m.attenuation);
    s.selection=select(1.0/(1.0-m.transmission),1.0/m.transmission,glass);
+  }${
+    weighted
+      ? `
+  // The slab the shade of the hits chose among the closures of the material stands for all of them: the light of the surface is weighed by the sum of their weights over its own.
+  s.selection*=bitcast<f32>(ptMaterials[index*${ptHitMaterialStride(weighted)}u+3u].x);`
+      : ''
   }
  }
  s.roughness=max(s.roughness,ptView.limits.y*(*path).roughness);
@@ -231,7 +239,7 @@ fn ptFinishBounce(path:ptr<function,PtPath>,bounce:u32,index:u32)->bool{
   var surfaceWins=false;
   if(!escaped){
    let w=ptMax3((*path).throughput*ptMaterialAlbedo(s));
-   surfaceWins=ptRisAccept(path,w);
+   surfaceWins=ptPathRisAccept(path,w);
    if(surfaceWins){(*path).throughput*=(*path).risSum/w;}
   }
   if(!surfaceWins){

@@ -318,7 +318,18 @@ test("every kernel of the screen probes fits WebGPU's default limits at the leve
           screenProbeDiffuseIntegralMethod,
         }),
       )
-      for (const [name, source] of Object.entries(screenProbeSources(shape, undefined, undefined, undefined, undefined, false)))
+      for (const [name, source] of [false, true].flatMap((overflow) =>
+        Object.entries(
+          screenProbeSources(
+            { ...shape, overflow },
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            false,
+          ),
+        ),
+      ))
         withinDefaults(
           [
             {

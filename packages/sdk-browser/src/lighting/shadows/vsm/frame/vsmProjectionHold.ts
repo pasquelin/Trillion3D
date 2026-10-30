@@ -11,10 +11,13 @@ import {
 } from '../projection/projectionView.ts'
 import { SHADOW_RAY_COUNT_MAX } from '../../../../../../sdk-core/src/contracts/shadowMapOptions.ts'
 
+/** The words of the distance-field cascade's inputs in a key. */
+const FIELD_WORDS = 7
+
 /** The words of a key, in `write`'s order: the view and the projection, the three revisions, the
  *  two epochs, the phase, the trace key, the two sizes, the light count, the light grid's two sizes
- *  and whether the depth pyramid cut it, the back-face cull and the lights' first ids. */
-const KEY_WORDS = 16 + 16 + 15 + VSM_PROJECTION_MAX_PASS_LIGHTS
+ *  and whether the depth pyramid cut it, the back-face cull, the distance-field cascade's inputs (`field`), the key of the shadows laid into the masks beside the projection (`contributors`), the passes of the masks' denoise (`denoise`) and the lights' first ids. */
+const KEY_WORDS = 16 + 16 + 15 + FIELD_WORDS + 2 + VSM_PROJECTION_MAX_PASS_LIGHTS
 
 /** The radix of a light's first id in its key word, over any map id. */
 const MAP_RADIX = 2 ** 24
@@ -58,6 +61,20 @@ export interface VsmProjectionInputs {
   gridCulled: boolean
   /** Whether the pixels facing away from a light are culled (`shadowCullBackfacingPixels`). */
   cullBackfacing: boolean
+  /** The key of the shadows laid into the masks beside the projection (`MaskContributor.holdKey`, 0 for none): a contributor that comes, goes or changes what it adds changes the masks. */
+  contributors: number
+  /** The passes of the masks' denoise (`shadowDenoise`, `shadowDenoiseIterations`; 0 for none): the mask holds its result, so another count is another mask. */
+  denoise: number
+  /** What the classic suns' distance-field cascade is laid from, which the mask holds: the generation of the meshes' fields, their revision (placements and bricks changing) and the settings of the cascade. */
+  field: {
+    generation: number
+    revision: number
+    shadowing: boolean
+    quality: number
+    fullResolution: boolean
+    distanceScale: number
+    farTransitionScale: number
+  }
 }
 
 /** The projection's last inputs: `held` answers whether the frame's `inputs` (rewritten in place
@@ -80,6 +97,17 @@ export function createVsmProjectionHold() {
       gridWords: 0,
       gridCulled: false,
       cullBackfacing: true,
+      contributors: 0,
+      denoise: 0,
+      field: {
+        generation: 0,
+        revision: 0,
+        shadowing: false,
+        quality: 0,
+        fullResolution: false,
+        distanceScale: 1,
+        farTransitionScale: 1,
+      },
     }
   // What the pass writes and reads its layout from: the last asked (`next`) and the kept ones.
   const asked: (object | undefined)[] = [undefined, undefined, undefined, undefined],
@@ -134,6 +162,16 @@ function write(key: Float64Array, inputs: VsmProjectionInputs) {
   key[at++] = inputs.gridWords
   key[at++] = inputs.gridCulled ? 1 : 0
   key[at++] = inputs.cullBackfacing ? 1 : 0
+  key[at++] = inputs.contributors
+  key[at++] = inputs.denoise
+  const { field } = inputs
+  key[at++] = field.generation
+  key[at++] = field.revision
+  key[at++] = field.shadowing ? 1 : 0
+  key[at++] = field.quality
+  key[at++] = field.fullResolution ? 1 : 0
+  key[at++] = field.distanceScale
+  key[at++] = field.farTransitionScale
   // A sun's first-person clipmap changes its mask as its own maps do: its first id is a digit of the light's.
   for (let k = 0; k < lights.length; k++)
     key[at++] = lights[k].mapId + MAP_RADIX * ((lights[k].firstPersonMapId ?? -1) + 1)

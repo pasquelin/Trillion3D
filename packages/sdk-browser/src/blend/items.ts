@@ -1,4 +1,5 @@
 import type { BlendGpuItem } from './state.ts'
+import { limitOf } from '../materials/closures/closureLimit.ts'
 import type { GeometryBlock, MaterialLayers } from '../geometry/rows/page/pageRowMaterial.ts'
 import { rowFlags } from '../geometry/rows/surfaceRow.ts'
 import { materialWord, type MaterialTable } from '../materials/table/materialTable.ts'
@@ -61,6 +62,8 @@ const ITEM = LAYOUT.at
 export const BLEND_ITEM_WORDS = LAYOUT.words
 /** The flags' word in a record. */
 export const ITEM_FLAGS_WORD = ITEM.flags
+/** The material word's place in a record. */
+export const ITEM_MATERIAL_WORD = ITEM.material
 
 /** Atlas tables the record cites: each texture's slot, per atlas, and the atlases; the session's
  *  GPU deformation, whose record an item of a deformed placement names (#357); the material
@@ -116,13 +119,13 @@ const floatSecondUv = (
 export const ITEM_NEEDS = { lobed: 1, responsive: 2, channelled: 4, passShift: 3 } as const
 
 /** Whether the graph a surface wears reads a texture set past the first. */
-const readsExtraUv = (mat: BlendGpuItem['surface']) => {
-  const program = programOf(mat)
+const readsExtraUv = (mat: BlendGpuItem['surface'], closures?: number) => {
+  const program = programOf(mat, undefined, closures)
   return isProgram(program) && altSetOf(program.compiled.uses.sets) !== 0
 }
 
 /** The node an item's object is: where its draw source names one, else its placement's. */
-const itemNode = (item: BlendGpuItem) =>
+export const itemNode = (item: BlendGpuItem) =>
   item.drawSource?.node ?? item.placement?.rows.sources?.[item.placement.index] ?? undefined
 
 const itemBox = new Float64Array(6)
@@ -146,8 +149,8 @@ function itemOffsetRow(item: BlendGpuItem) {
 }
 
 /** Whether the programs that draw a surface are the lobed ones: it carries a lobe, a map that reads a UV set past the first, or a graph that reads one. */
-export const lobedSurface = (mat: BlendGpuItem['surface']) =>
-  hasPhysicalLobes(mat) || channelsOf(mat, SURFACE_MAP_FIELDS) !== 0 || readsExtraUv(mat)
+export const lobedSurface = (mat: BlendGpuItem['surface'], closures?: number) =>
+  hasPhysicalLobes(mat) || channelsOf(mat, SURFACE_MAP_FIELDS) !== 0 || readsExtraUv(mat, closures)
 
 /** Writes an item's record at its rank. `floats` and `ints` are two views of the same buffer.
  *  Returns what it needs (`ITEM_NEEDS` bits). */
@@ -163,7 +166,7 @@ export function writeBlendItemRecord(
     mat = item.surface,
     // The lobed programs carry a UV set past the first (`vertexWgsl.ts`): a lobe's maps, every
     // map that reads one (glTF's `texCoord`) and a graph that reads one are read there.
-    lobed = lobedSurface(mat)
+    lobed = lobedSurface(mat, limitOf(tables))
   floats.set(item.matrix.elements, base + ITEM.world)
   // Where the instance reads what it draws, it takes it from the expanded list; the record
   // carries only what belongs to the item — its first vertex, flags.

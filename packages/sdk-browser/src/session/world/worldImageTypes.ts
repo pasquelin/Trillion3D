@@ -13,7 +13,9 @@ import type { SurfaceCacheOptions } from '../../../../sdk-core/src/contracts/sur
 import type { HizOptions } from '../../../../sdk-core/src/contracts/hizOptions.ts'
 import type { LightFunctionOptions } from '../../../../sdk-core/src/contracts/lightFunctionOptions.ts'
 import type { LightProfileOptions } from '../../../../sdk-core/src/contracts/lightProfileOptions.ts'
+import type { OrderIndependentTranslucencyOptions } from '../../../../sdk-core/src/contracts/orderIndependentTranslucencyOptions.ts'
 import type { SeparateTranslucencyOptions } from '../../../../sdk-core/src/contracts/separateTranslucencyOptions.ts'
+import type { LightShapeOptions } from '../../../../sdk-core/src/contracts/lightShapeOptions.ts'
 import type { RectLightAtlasOptions } from '../../../../sdk-core/src/contracts/rectLightAtlasOptions.ts'
 import type { SimpleLightOptions } from '../../../../sdk-core/src/contracts/simpleLightOptions.ts'
 import type { MotionBlurSettings } from '../../../../sdk-core/src/contracts/motionBlurOptions.ts'
@@ -27,6 +29,7 @@ import type { TessellationOptions } from '../../../../sdk-core/src/contracts/tes
 import type { TextureFilteringOptions } from '../../../../sdk-core/src/contracts/textureFilteringOptions.ts'
 import type { LightingDataFormatOptions } from '../../../../sdk-core/src/contracts/lightingDataFormatOptions.ts'
 import type { RayTracingOptions } from '../../../../sdk-core/src/contracts/rayTracingOptions.ts'
+import type { ClosureOptions } from '../../../../sdk-core/src/contracts/closureOptions.ts'
 import type { MeshDistanceFieldTraceOptions } from '../../../../sdk-core/src/contracts/meshDistanceFieldTraceOptions.ts'
 import type { ScreenSpaceTracingOptions } from '../../../../sdk-core/src/contracts/screenSpaceTracingOptions.ts'
 import type { SingleLayerWaterOptions } from '../../../../sdk-core/src/contracts/singleLayerWaterOptions.ts'
@@ -106,6 +109,22 @@ export interface WorldImageSettings {
    *  back to it, one left out stays —; one a setting does not take is refused. */
   get lightProfile(): FamilyValues<'lightProfile'>
   set lightProfile(options: LightProfileOptions)
+  /** The light shapes' visualization settings, each by its field (`WorldOptions`), resolved over the page and the quality preset:
+   *  `visualizeLightShape` (false) — each point, spot and rectangle light drawn as a wireframe of its reach over the lit image —,
+   *  `visualizeLightShapeFadeDuration` (0.5 seconds), `visualizeLightShapeMaxDelayDistance` (4000 centimetres), `visualizeLightShapeMaxDelay`
+   *  (2.5 seconds) and `visualizeLightShapeMaxOpacity` (0.1).
+   *  Written, the settings named apply from the next frame over the preset — one `null` gives it back to it, one left out stays —;
+   *  one a setting does not take is refused. */
+  get lightShape(): FamilyValues<'lightShape'>
+  set lightShape(options: LightShapeOptions)
+  /** The per-pixel sorted translucency settings, each by its field (`WorldOptions`), resolved over the page and the quality preset:
+   *  `oitSortedPixels` (false) — the project switch, read when the session opens, that lets the `normal` and `additive` layers be collected per pixel —,
+   *  `oitSortedPixelsEnable` (true), `oitPassType` (3), `oitMaxSampleCount` (4, from 1 to 16), `oitMethod` (1: multi-layer alpha blending; 0: k-buffer, a name the debug text shows: the fragments are kept the same way),
+   *  `oitTransmittanceThreshold` (0.05), `oitDebug` (0) with `oitDebugCursorX` and `oitDebugCursorY` (-1, the pixel whose samples are written).
+   *  Written, the settings named apply from the next frame over the preset — one `null` gives it back to it, one left out stays —;
+   *  one a setting does not take is refused. */
+  get orderIndependentTranslucency(): FamilyValues<'orderIndependentTranslucency'>
+  set orderIndependentTranslucency(options: OrderIndependentTranslucencyOptions)
   /** The resolution of the translucent layers, each setting by its field (`WorldOptions`), resolved over the page and the quality preset:
    *  `translucencyScreenPercentage` (100, from 0 to 100: the share of the resolution they are drawn at), `translucencyScreenPercentageBasis`
    *  (0 the render size, 1 the display size) and `translucencyUpsampleMode` (1 the nearest depth neighbour with a share of 50, 0 bilinear).
@@ -294,6 +313,10 @@ export interface WorldImageSettings {
    *  `world.rayTracing = { rayTracingEnable: false } // every feature traces the distance fields, as a project with ray tracing off` */
   get rayTracing(): FamilyValues<'rayTracing'>
   set rayTracing(options: RayTracingOptions)
+  /** The closures' settings (`closuresPerPixel`, 4; `closureCountFromMaterial`, on; `stochasticClosureLighting`, off), resolved over the page: the most closures a material built from a closure tree keeps a pixel, whether a view counts them from the materials in view, and whether the sampled lighting lights one closure picked at random a pixel in place of all of them (`closureOptions.ts`).
+   *  `world.closures = { closuresPerPixel: 2 } // a tree of more closures is simplified to two` */
+  get closures(): FamilyValues<'closures'>
+  set closures(options: ClosureOptions)
   /** The meshes' fields trace's settings, each by its field (`WorldOptions`), resolved over the page: whether the rays of the indirect light, the reflections and the surface cache's
    *  shadows march the meshes' own distance fields (`meshDistanceFieldTrace`, off by default), which of them do, how far, and the view grid the meshes are culled to (`meshDistanceFieldTraceOptions.ts`). */
   get meshDistanceFieldTrace(): FamilyValues<'meshDistanceFieldTrace'>

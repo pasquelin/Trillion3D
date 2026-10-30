@@ -1,3 +1,6 @@
+import { viewClosureMax } from './closures.ts'
+import { closureBytes } from '../../materials/surface/surfaceBuffer.ts'
+import { closuresHeld } from '../../materials/surface/surfaceOutputs.ts'
 import { wantsSubsurface, SUBSURFACE_TARGET } from '../../materials/surface/subsurface.ts'
 import { PHYSICAL_LOBES_TARGET } from '../../materials/surface/physicalLobes.ts'
 import { wantsPhysicalLobes } from './lobesTarget.ts'
@@ -109,8 +112,16 @@ export function frameTargetAllocation(rt: WebgpuPagesRuntime, size: FrameSize, a
     // The lobes target, or its 1×1 placeholder, which frameTargetBytes counts (`physicalLobes.ts`).
     PHYSICAL_LOBES_TARGET.bytes(width, height, wantsPhysicalLobes(rt)) -
     PHYSICAL_LOBES_TARGET.texelBytes +
+    // The closure slices of the surface record, held while the view's pixels keep several closures (`closures.ts`).
+    closureBytes(width, height, closuresHeld(viewClosureMax(rt))) +
     // The reflection's target and lit image (`../../lighting/reflections/gpu.ts`).
-    reflectionBytes(width, height, sceneBlends(rt), rt.setup.reflectionStatistics) +
+    reflectionBytes(
+      width,
+      height,
+      sceneBlends(rt),
+      rt.setup.reflectionStatistics,
+      closuresHeld(viewClosureMax(rt)),
+    ) +
     // The Hi-Z level 0's front layer, made with every pyramid.
     (hiz ? level0LayerBytes(width, height) : 0) +
     display * DISPLAY_BYTES

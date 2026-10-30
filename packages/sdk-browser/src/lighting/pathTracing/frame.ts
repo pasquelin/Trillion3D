@@ -59,10 +59,12 @@ import {
 import {
   finishStageOf,
   pathTracingMaker,
+  type PathTracingVariant,
   volumeStagesOf,
   type PathTracingPipelines,
 } from './pipelines.ts'
-import { hitShadePipelinesOf } from './shadeHitPipelines.ts'
+import { hitShadePipelinesOf, weightedHitShadePipelinesOf } from './shadeHitPipelines.ts'
+import { supportsMultipleClosures } from '../../frame/prepare/closures.ts'
 import {
   advanced,
   restartReason,
@@ -176,6 +178,7 @@ function resourcesOf(
   lightCount: number,
   skySize: number,
   airHeld: boolean,
+  weighted: boolean,
 ) {
   const tile = tileSideOf(device, settings.pathTracingDispatchSize)
   const tiles = tilesOf(size, tile)
@@ -187,8 +190,20 @@ function resourcesOf(
   // The held air's table and its parameters are made as the settings ask, so the table's side is part of the key and of what the ledger is asked for. The clouds' map is made again in place and admitted on its own (`admitCloudMap`; its bytes follow the tables, `PathTracingGpu.volumeBytes`), so that the clouds' textures arriving, or a refusal of the map, does not make the view again.
   const airSide = airHeld ? settings.pathTracingAtmosphereOpticalDepthLUTResolution : 0
   const tables = airBytesOf(airSide)
-  const key = [size, tile, bounces, capacity, grid, resolution, sky, airSide].join('|')
-  return { tile, tiles, depth: bounces, capacity, grid, resolution, sky, tables, airSide, key }
+  const key = [size, tile, bounces, capacity, grid, resolution, sky, airSide, weighted].join('|')
+  return {
+    tile,
+    tiles,
+    depth: bounces,
+    capacity,
+    grid,
+    resolution,
+    sky,
+    tables,
+    airSide,
+    weighted,
+    key,
+  }
 }
 
 /** The pipelines an image waits for: every one it runs, the table of the air only where the air is traced and the map of the clouds only where the clouds are. */
@@ -255,7 +270,9 @@ export function preparePathTracing(
   const rays = sceneRaysOf(rt.surfaceCache?.lighting, rt.run.frame)
   const { hdrView } = targets
   if (!hdrView || !rays || skyLightPending(rt)) return undefined
-  const shade = hitShadePipelinesOf(device)
+  const shade = (supportsMultipleClosures(rt) ? weightedHitShadePipelinesOf : hitShadePipelinesOf)(
+    device,
+  )
 
   const state = stateOf(rt)
   // Resources made on another device are of no use to this one.
@@ -285,6 +302,7 @@ export function preparePathTracing(
     // The table is built at the cube's size whenever the sky is ready, not only while the sky is traced: a view of the payload suspends the traced air and lights the sky through it, and must neither read a 2x2 table nor remake the resources.
     skyReady ? 2 ** skyLightStateOf(rt).uniform[5]! : 0,
     held,
+    supportsMultipleClosures(rt),
   )
   // The resources are admitted first, then the clouds' map on them: a refusal of either is known before the clouds, the pipelines and the run's inputs are chosen, and the image goes on without what was refused.
   if (room.key !== state.gpuKey) {
@@ -309,6 +327,7 @@ export function preparePathTracing(
       room.grid,
       room.sky,
       room.tables,
+      room.weighted,
     )
     const admitted = ledgerAdmitted(device, {
       held: ledgerHeld,
@@ -326,6 +345,7 @@ export function preparePathTracing(
           room.grid,
           room.sky,
           room.airSide,
+          room.weighted,
         ),
     })
     if (!admitted.value) {
@@ -358,7 +378,9 @@ export function preparePathTracing(
       }
   }
   const clouds = mapped && air ? wanted : undefined
-  const variant = clouds ? 'clouds' : 'plain'
+  // The finish of a view whose pixels hold several closures reads the weight of the closure the shade of the hits chose.
+  const multiple = supportsMultipleClosures(rt)
+  const variant: PathTracingVariant = `${clouds ? 'clouds' : 'plain'}${multiple ? 'Closures' : ''}`
   const tests = stageTestsOf(settings, air, !!clouds)
   const heldKernels = rays.sceneTrace.maskHold.use(
     'path tracing',

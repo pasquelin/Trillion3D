@@ -2,7 +2,9 @@ import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
 import { wgslF32 } from '../../../../../math/src/wgsl/number.ts'
 import { dagReadLayoutEntries } from '../../../geometry/dag/shader/bindings.ts'
+import { computeBufferEntry } from '../../../gpu/core/computeBindings.ts'
 import { blueNoiseWgsl } from '../../../gpu/noise/blueNoiseWgsl.ts'
+import { overflowTilesBlock } from '../../../visibility/closureTiles/closureTilesWgsl.ts'
 import { NO_SCENE_MASKS, type SceneMaskPrograms } from '../../rays/sceneTrace/sceneMaskPrograms.ts'
 import { sceneMaskedLayoutEntries, sceneMaskWgsl } from '../../rays/sceneTrace/sceneMaskWgsl.ts'
 import { sceneTraceWgsl } from '../../rays/sceneTrace/sceneTraceWgsl.ts'
@@ -23,19 +25,24 @@ export const OCCLUSION_TRIANGLES_BINDINGS = bindingTable({
   occlusion: [24, { store: F.occlusion }],
 })
 const B = OCCLUSION_TRIANGLES_BINDINGS.at
+/** The binding of the closure's region of the closure tiles' list (`closureRegionOf`) in the group of the pass over the overflow tiles of a closure past the first. */
+export const OCCLUSION_TRIANGLES_OVERFLOW_BINDING = 25
 /** The scene trace's group and its first binding in it. */
 export const OCCLUSION_TRIANGLES_SCENE = { group: 2, first: 0 } as const
 /** The entry point of the program. */
 export const OCCLUSION_TRIANGLES_ENTRY = 'occlusionTriangles'
 
 /** The layout of the group 0 of the pass: its bindings, with the bent normal's word where the occlusion keeps it, and the cut's tables. */
-export const occlusionTrianglesEntries = (bentNormal: boolean) => [
+export const occlusionTrianglesEntries = (bentNormal: boolean, overflow = false) => [
   ...OCCLUSION_TRIANGLES_BINDINGS.entries.map((entry) =>
     entry.binding === B.occlusion && bentNormal
       ? { ...entry, storageTexture: { ...entry.storageTexture!, format: F.bentOcclusion } }
       : entry,
   ),
   ...dagReadLayoutEntries(),
+  ...(overflow
+    ? [computeBufferEntry(OCCLUSION_TRIANGLES_OVERFLOW_BINDING, 'read-only-storage')]
+    : []),
 ]
 /** The layout of its scene trace group. */
 export const occlusionTrianglesSceneEntries = () =>
@@ -53,10 +60,19 @@ const occlusionTrianglesKernel = (
   shape: OcclusionShape,
   rays: number,
   bias: number,
+  overflow: boolean,
 ) => `const SP_RAYS:u32=${rays}u;
 const SP_NORMAL_BIAS:f32=${wgslF32(bias)};
 @compute @workgroup_size(8,8)
-fn ${OCCLUSION_TRIANGLES_ENTRY}(@builtin(global_invocation_id) id:vec3u){
+${
+  overflow
+    ? `fn ${OCCLUSION_TRIANGLES_ENTRY}(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_id) local:vec3u){
+ // A closure tile of the side of a workgroup in pixels: the texels of its pixels are the first threads of the workgroup, the side over the reduction along each way.
+ let entry=overflowTileAt(group);
+ if(entry.z==0u||any(local.xy>=vec2u(8u/SP_OCCLUSION_DOWNSAMPLE))){return;}
+ let id=vec3u(entry.xy*(8u/SP_OCCLUSION_DOWNSAMPLE)+local.xy,0u);`
+    : `fn ${OCCLUSION_TRIANGLES_ENTRY}(@builtin(global_invocation_id) id:vec3u){`
+}
  if(any(id.xy*SP_OCCLUSION_DOWNSAMPLE>=sp.size.xy)){return;}
  let pixel=spOcclusionPixel(id.xy);
  let s=spSurfaceAt(pixel);
@@ -83,19 +99,22 @@ fn ${OCCLUSION_TRIANGLES_ENTRY}(@builtin(global_invocation_id) id:vec3u){
  ${shape.bentNormal ? 'textureStore(occlusion,vec2i(id.xy),vec4u(spBentPack(stored),0u,0u,0u));' : 'textureStore(occlusion,vec2i(id.xy),vec4f(round(saturate(amount)*255.0)/255.0,0.0,0.0,0.0));'}
 }`
 
-/** The program of the pass over the occlusion's `shape`, `samples` of a probe's tile, casting `rays` rays a pixel that cut the surfaces by the graph masks `programs`. */
+/** The program of the pass over the occlusion's `shape`, `samples` of a probe's tile, casting `rays` rays a pixel that cut the surfaces by the graph masks `programs`; with `overflow`, over the overflow tiles of a closure past
+ *  the first (`LumenShortRangeAOHardwareRayTracing.cpp:175-290`, the dispatch over the closure tiles), the closure's region of the closure tiles' list bound at `OCCLUSION_TRIANGLES_OVERFLOW_BINDING`. */
 export const occlusionTrianglesProgram = (
   shape: OcclusionShape,
   samples: readonly [number, number],
   rays: number,
   bias: number,
   programs: SceneMaskPrograms = NO_SCENE_MASKS,
+  overflow = false,
 ) =>
   wgslProgram(
     `${spParams(B.params)}
 ${wgslConsts({ SP_OCCLUSION_DOWNSAMPLE: shape.downsample })}
-${occlusionTrianglesKernel(shape, rays, bias)}`,
+${occlusionTrianglesKernel(shape, rays, bias, overflow)}`,
     [
+      ...(overflow ? [overflowTilesBlock(OCCLUSION_TRIANGLES_OVERFLOW_BINDING)] : []),
       spCommon(samples),
       spSurface(B.normals, B.flags),
       blueNoiseWgsl(0, B.blue),

@@ -1,6 +1,7 @@
-import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
+import { oncePerDevice, oncePerDeviceKey } from '../gpu/core/oncePerDevice.ts'
 import { blendLayoutEntries } from '../gpu/bind/blendBindEntries.ts'
 import { grantsRectPictures } from '../gpu/core/rectPictures.ts'
+import { objectShadowAtlasRead } from '../gpu/core/objectShadowRead.ts'
 import { grantsVertexTextures } from '../gpu/core/vertexTextures.ts'
 import { BLEND_VIEW_SIZE } from './viewLayout.ts'
 
@@ -20,3 +21,26 @@ export const blendGroupLayouts = oncePerDevice((device: GPUDevice) => {
   const pictures = grantsRectPictures(device)
   return { full, filtered: pictures ? full : layoutOf(false), pictures }
 })
+
+/**
+ * THE SAME TWO LAYOUTS FOR A SESSION THAT READS ITS OBJECT'S SHADOW (the project switch `translucentObjectShadows`, `objectShadowAtlasRead`; `sorts`: the programs bind the sorted translucency's collect group besides): each holds besides the bindings of the read (the atlas where it is sampled and the packed table, `BLEND_OBJECT_SHADOW_BINDINGS`), in the group-0 layouts of those programs alone; the default layouts above stay as they were. None on a device that
+ * grants the read neither sampled nor from the packed table.
+ */
+const objectShadowLayoutsOf = oncePerDeviceKey((device: GPUDevice, sorts: boolean) => {
+  const read = objectShadowAtlasRead(device, sorts)
+  if (!read) return undefined
+  const layoutOf = (pictures: boolean) =>
+    device.createBindGroupLayout({
+      entries: blendLayoutEntries(BLEND_VIEW_SIZE, grantsVertexTextures(device), pictures, read),
+    })
+  const full = layoutOf(true)
+  const pictures = grantsRectPictures(device)
+  return { full, filtered: pictures ? full : layoutOf(false), pictures, read }
+})
+
+/** The group-0 layouts a session's blends are made on: the extended ones where it reads its object's shadow and the device grants it, else the default. */
+export const blendLayoutsFor = (device: GPUDevice, objectShadow: boolean, sorts = false) =>
+  (objectShadow ? objectShadowLayoutsOf(device, sorts) : undefined) ?? {
+    ...blendGroupLayouts(device),
+    read: undefined,
+  }

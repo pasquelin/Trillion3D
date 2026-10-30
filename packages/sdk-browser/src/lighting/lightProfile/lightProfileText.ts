@@ -1,4 +1,4 @@
-import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { wgslBlock, type WgslDecl } from '../../../../math/src/wgsl/decl.ts'
 import { LIGHT_PROFILE_COORDINATES_WGSL } from './lightProfileCoordinates.ts'
 
 /** Where a program binds the profile atlas (a `texture_2d_array<f32>`) and its sampler, and, where it reads the pictures of the rectangle lights
@@ -9,11 +9,14 @@ export interface LightProfileBindings {
   readonly sampler: number
   readonly rectAtlas?: number
   readonly rectSampler?: number
+  /** A program that holds no profile atlas of its own reads the profiles through this declaration instead (`lightProfileFolded(at, slice)`, the filtered
+   *  value at the coordinates of a slice): `atlas` and `sampler` are then declared by no one. */
+  readonly folded?: WgslDecl
 }
 
 /** The bindings as a block name reads them. */
 export const lightProfileBindingsLabel = (b: LightProfileBindings) =>
-  `${b.group}, ${b.atlas}, ${b.sampler}${b.rectAtlas === undefined ? '' : `, rect ${b.rectAtlas}, ${b.rectSampler}`}`
+  `${b.group}, ${b.atlas}, ${b.sampler}${b.rectAtlas === undefined ? '' : `, rect ${b.rectAtlas}, ${b.rectSampler}`}${b.folded ? ', folded' : ''}`
 
 /**
  * The share of a light that leaves toward the point `P`: the profile of atlas slice `slice` read at
@@ -23,8 +26,13 @@ export const lightProfileBindingsLabel = (b: LightProfileBindings) =>
 export const lightProfileMultiplierWgsl = (b: LightProfileBindings) =>
   wgslBlock(
     `lightProfileMultiplierWgsl(${lightProfileBindingsLabel(b)})`,
-    [LIGHT_PROFILE_COORDINATES_WGSL],
-    `@group(${b.group}) @binding(${b.atlas}) var lightProfileAtlas:texture_2d_array<f32>;
+    b.folded ? [LIGHT_PROFILE_COORDINATES_WGSL, b.folded] : [LIGHT_PROFILE_COORDINATES_WGSL],
+    b.folded
+      ? `fn lightProfileMultiplier(P:vec3f,lightPosition:vec3f,direction:vec3f,axis:vec3f,slice:i32)->f32{
+ if(slice<0){return 1.0;}
+ return lightProfileFolded(lightProfileCoordinates(P,lightPosition,direction,axis),slice);
+}`
+      : `@group(${b.group}) @binding(${b.atlas}) var lightProfileAtlas:texture_2d_array<f32>;
 @group(${b.group}) @binding(${b.sampler}) var lightProfileSampler:sampler;
 fn lightProfileMultiplier(P:vec3f,lightPosition:vec3f,direction:vec3f,axis:vec3f,slice:i32)->f32{
  if(slice<0){return 1.0;}

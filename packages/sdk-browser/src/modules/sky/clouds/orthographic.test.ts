@@ -27,6 +27,7 @@ const KEY: CloudTraceKey = {
   skyLight: false,
   volumeShadowMap: false,
   closestDepth: false,
+  debugView: 0,
 }
 
 /** An orthographic view looking straight down over the planet: its pixels' rays leave the plane of

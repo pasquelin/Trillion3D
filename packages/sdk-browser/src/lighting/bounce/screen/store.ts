@@ -82,8 +82,8 @@ interface ShapeOf {
   tracedKey: string
   /** The sources of its kernels, written once and kept until the set is made. */
   sources?: [string, KernelSource<string>][]
-  /** The same shape for a radiance cache stored in another format, by the format (`ScreenProbeStore.kernelsFor`). */
-  byLight?: Map<LightAtlasFormat, ShapeOf>
+  /** The same shape for a radiance cache stored in another format, and for a view of several closures, by the format and whether it has them (`ScreenProbeStore.kernelsFor`). */
+  byLight?: Map<string, ShapeOf>
 }
 
 /** The state the screen probes keep for a device: the settings' watch, the kernels (each compiled once for what its code depends
@@ -96,11 +96,13 @@ export interface ScreenProbeStore {
   metrics: ScreenProbeFrameMetrics | undefined
   /** The settings `options` hold, read again at each image and resolved only where a value moved. */
   read(options: ScreenProbeOptions & LightingDataFormatOptions): ScreenProbeSettings
-  /** The kernels `settings` need on `device`, asked of it off the frame, for a radiance cache whose final maps are stored in the format `light`: none while any is compiling or refused. */
+  /** The kernels `settings` need on `device`, asked of it off the frame, for a radiance cache whose final maps are stored in the format `light`, with those of the overflow tiles where the view holds several
+   *  closures a pixel (`overflow`): none while any is compiling or refused. */
   kernelsFor(
     device: GPUDevice,
     settings: ScreenProbeSettings,
     light: LightAtlasFormat,
+    overflow?: boolean,
   ): ScreenProbeKernels | undefined
   /** The kernel that casts the scene stage of `settings` through the scene's triangles on `device`, compiled off the frame on the first ask and read once `ready`, as the mask hold takes it
    *  (`maskHold.use`): the one function for the device, the settings' shape and the light, not one an image. */
@@ -182,13 +184,14 @@ function createShapes() {
       return asked
     },
     /** The shape of `asked` for a cache stored in the format `light`, worked out once. */
-    lightShapeOf(asked: ShapeOf, light: LightAtlasFormat) {
-      if (asked.shape.light === light) return asked
+    lightShapeOf(asked: ShapeOf, light: LightAtlasFormat, overflow = false) {
+      if (asked.shape.light === light && !overflow) return asked
       const held = (asked.byLight ??= new Map())
-      let made = held.get(light)
+      const key = `${light}|${overflow}`
+      let made = held.get(key)
       if (!made) {
-        const shape = { ...asked.shape, light }
-        held.set(light, (made = { shape, key: shapeKey(shape), tracedKey: asked.tracedKey }))
+        const shape = { ...asked.shape, light, overflow }
+        held.set(key, (made = { shape, key: shapeKey(shape), tracedKey: asked.tracedKey }))
       }
       return made
     },
@@ -281,9 +284,9 @@ export function createScreenProbeStore(): ScreenProbeStore {
     metrics: undefined,
     inputs: undefined,
     read: createSettingsReader(),
-    kernelsFor(device, wanted, light) {
+    kernelsFor(device, wanted, light, overflow) {
       own(device)
-      const asked = lightShapeOf(shapeOf(wanted), light)
+      const asked = lightShapeOf(shapeOf(wanted), light, overflow)
       const set = sets.get(asked.key)
       if (set) return set
       return assemble(store, device, kernels, sets, asked, () => owner === device)

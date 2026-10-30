@@ -14,6 +14,7 @@ import { ROOT_WORDS_WGSL } from '../../casters/rootWordsWgsl.ts'
 import {
   MOBILITY_DEFORMS,
   MOBILITY_MOVING,
+  MOBILITY_NO_CONTACT_SHADOW,
   MOBILITY_OFFSET_INVALIDATES,
   MOBILITY_OFTEN_MOVING,
   MOBILITY_SHADOWLESS,
@@ -36,7 +37,7 @@ const CODE = wgslProgram(
 @group(0) @binding(5) var<uniform> view:View;
 ${SCREEN_PASS_VERTEX}
 fn shadowCasterColor(word:u32)->vec3f{
- if((word&${MOBILITY_SHADOWLESS}u)!=0u){return vec3f(0.5);}
+ if((word&${MOBILITY_SHADOWLESS}u)!=0u){return select(vec3f(1.0,1.0,0.0),vec3f(0.5),(word&${MOBILITY_NO_CONTACT_SHADOW}u)!=0u);}
  let deforms=(word&${MOBILITY_DEFORMS}u)!=0u;
  if((word&${MOBILITY_OFTEN_MOVING | MOBILITY_MOVING}u)==0u){return select(vec3f(0.0,1.0,0.0),vec3f(1.0,0.0,0.0),deforms);}
  if((word&${MOBILITY_MOVING}u)!=0u||deforms){return vec3f(0.5,0.0,0.5);}

@@ -76,6 +76,8 @@ export function settledRt() {
     },
     vis: {
       displacedClasses: createPresentClasses(),
+      // No class the path tracer shades.
+      pathTracedClasses: [] as number[],
       textureJobs: [] as unknown[],
       gpuHiz: undefined,
       // No displaced surface: the frame tessellates nothing (`tessellationWanted`).
@@ -132,7 +134,7 @@ export function settledRt() {
     // No effect chain and no guides unless a test gives them (`world.effects`, `world.guides`).
     context: {} as { effects?: EffectChain; guides?: GuideSet },
     // No transparent: the frame entry asks no share seed (`askFramePipelines`).
-    blendState: { blendGpu: [] as unknown[], blendIndex: { revision: 0 }, channelled: false },
+    blendState: { blendGpu: [] as unknown[], waterItems: [] as unknown[], blendIndex: { revision: 0 }, channelled: false },
     // A session without traces: a drawn frame says nothing (`traceDrawnFrame`).
     diag: { traceEnabled: false },
   }

@@ -39,6 +39,7 @@ import {
 import { RESAMPLE_ENTRIES } from './resampleWgsl.ts'
 import { createReservoirResources, type LightSet, type ReservoirResources } from './resources.ts'
 import { RESERVOIR_TRACE_ENTRY } from './traceWgsl.ts'
+import { viewState } from '../../../frame/backend/state/viewState.ts'
 
 const B = RESERVOIR_BINDINGS
 /** The images the gather's resources are kept for after the final gather method moved off the reservoirs. */
@@ -66,7 +67,8 @@ interface Held {
   readonly groups: Record<string, ReturnType<typeof createCachedGroup>>
   sceneBinder?: ReturnType<typeof sceneTraceGroupBinder>
 }
-const held = new WeakMap<WebgpuPagesRuntime['gpu'], Held>()
+/** The reservoir gather's resources of a view let go with it (retired by `dispose`). */
+const held = viewState<Held>((state) => state.resources?.dispose())
 
 const heldOf = (rt: WebgpuPagesRuntime): Held => {
   let state = held.get(rt.gpu)

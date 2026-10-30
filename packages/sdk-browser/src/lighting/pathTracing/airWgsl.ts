@@ -9,6 +9,7 @@ import { PT_T_MAX_WGSL } from './lightsWgsl.ts'
 import { PT_STATE_WGSL } from './pathWgsl.ts'
 import { PT_SURFACE_WGSL } from './surfaceWgsl.ts'
 import { PT_VIEW_WGSL } from './viewWgsl.ts'
+import { PT_RIS_WGSL } from './risWgsl.ts'
 
 const S = ATMOSPHERE_SLOT
 
@@ -23,12 +24,12 @@ export const PT_GROUND_CLASS = 0xfffffe
  *
  * `ptAirTrack` walks a ray through the air up to the surface (or the planet) it meets, taking distances in proportion to the transmittance by the colour channel the path's throughput weighs
  * (spectral tracking); at each real collision the camera's alpha grows and, if the bounce is not the last, the collision stands for the scattering event of the bounce with the
- * probability its contribution gives among the others and the surface (`ptRisAccept`, a reservoir the path keeps from the start of the bounce); the throughput leaves the walk as the transmittance
+ * probability its contribution gives among the others and the surface (`ptPathRisAccept`, a reservoir the path keeps from the start of the bounce); the throughput leaves the walk as the transmittance
  * (the table's where the analytic transmittance is on) or the product of the walk.
  */
 export const PT_AIR_WGSL = wgslBlock(
   'PT_AIR_WGSL',
-  [PT_AIR_MEDIUM_WGSL, PT_T_MAX_WGSL, PT_VIEW_WGSL, PT_STATE_WGSL, luminance],
+  [PT_AIR_MEDIUM_WGSL, PT_T_MAX_WGSL, PT_VIEW_WGSL, PT_STATE_WGSL, PT_RIS_WGSL, luminance],
   `fn ptAirOn()->bool{return (ptAtmo.options.x&${PT_AIR_FLAG.enabled}u)!=0u;}
 fn ptAirAnalytic()->bool{return (ptAtmo.options.x&${PT_AIR_FLAG.analytic}u)!=0u;}
 fn ptAirVolumeLights()->bool{return (ptAtmo.options.x&${PT_AIR_FLAG.volumeLights}u)!=0u;}
@@ -160,14 +161,11 @@ fn ptAirVisible(path:ptr<function,PtPath>,origin:vec3f,direction:vec3f,tMax:f32,
  if(ptAirAnalytic()){return ptAirTransmittance(r,span.near,far);}
  return ptAirNullTrack(path,r,direction,span.near,far);
 }
-fn ptRisAccept(path:ptr<function,PtPath>,w:f32)->bool{
- (*path).risSum+=w;
- let sum=select(1.0,(*path).risSum,(*path).risSum>0.0);
- var r=(*path).ris*sum;
- let keep=r<w;
- r-=select(w,0.0,keep);
- r/=select(sum-w,w,keep);
- (*path).ris=min(r,0.99999994);
+fn ptPathRisAccept(path:ptr<function,PtPath>,w:f32)->bool{
+ var ris=PtRis((*path).risSum,(*path).ris);
+ let keep=ptRisAccept(&ris,w);
+ (*path).risSum=ris.sum;
+ (*path).ris=ris.rand;
  return keep;
 }
 fn ptAirTrack(path:ptr<function,PtPath>,r:PtAirRay,origin:vec3f,direction:vec3f,near:f32,far:f32,camera:bool,last:bool){
@@ -196,7 +194,7 @@ fn ptAirTrack(path:ptr<function,PtPath>,r:PtAirRay,origin:vec3f,direction:vec3f,
     (*path).albedo+=sigmaS*thr*weight;
     let contribution=thr*sigmaS;
     let w=max(contribution.x,max(contribution.y,contribution.z));
-    if(ptRisAccept(path,w)){
+    if(ptPathRisAccept(path,w)){
      (*path).eventPosition=origin+direction*t;
      (*path).eventThroughput=contribution/w;
     }

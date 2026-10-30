@@ -114,8 +114,9 @@ function occluded(
     surfaceModel: 2,
     view: { reflection: [1, 1, 0, 0] },
     reflectionTarget: {
-      load: (_: number[], layer: number) => (layer === 0 ? texel : [...rough, coatLeft ?? 0]),
+      load: (_: number[], layer: number) => (layer === 0 ? texel : [0, 0, 0, coatLeft ?? 0]),
     },
+    reflectionEnvironment: () => rough,
     reflectionWeight: () => [0.5, 0.5, 0.5],
     indirectF0: (rgb: number[]) => rgb,
     coatLayerKeep: () => 1,

@@ -104,6 +104,20 @@ export type SurfaceDeclaration = {
    *  (`VisMaterial.opacityMaskClipValue`, `ditherOpacityMask`). */
   readonly opacityMaskClipValue?: number
   readonly ditherOpacityMask?: boolean
+  /** The scale on the opacity of its translucent object shadow (`VisMaterial.translucentShadowDensityScale`). */
+  readonly translucentShadowDensityScale?: number
+  /** See `VisMaterial.translucentShadowStartOffset`. */
+  readonly translucentShadowStartOffset?: number
+  /** See `VisMaterial.translucentSelfShadowDensityScale`. */
+  readonly translucentSelfShadowDensityScale?: number
+  /** See `VisMaterial.translucentSelfShadowSecondDensityScale`. */
+  readonly translucentSelfShadowSecondDensityScale?: number
+  /** See `VisMaterial.translucentSelfShadowSecondOpacity`. */
+  readonly translucentSelfShadowSecondOpacity?: number
+  /** See `VisMaterial.translucentBackscatteringExponent`. */
+  readonly translucentBackscatteringExponent?: number
+  /** See `VisMaterial.translucentMultipleScatteringExtinction`. */
+  readonly translucentMultipleScatteringExtinction?: readonly [number, number, number]
   /** True takes a roughness from the change of its vertex normal (`VisMaterial.normalCurvatureToRoughness`). */
   readonly normalCurvatureToRoughness?: boolean
   /** What its graph's `worldPositionOffset` output asks of the offset (`VisMaterial.maxWorldPositionOffset`

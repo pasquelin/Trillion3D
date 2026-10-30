@@ -1,8 +1,11 @@
 import { tradeCamera, tradeView } from '../../view/viewTrade.ts'
 import { releaseTargets } from '../../prepare/targets.ts'
+import { disposeFogSeparate } from '../../render/encodeFogSeparate.ts'
 import { disposeFogVolume } from '../../render/encodeFogVolume.ts'
 import { disposeTranslucencyVolume } from '../../../lighting/translucency/frame.ts'
 import { disposeTranslucencyGi } from '../../../lighting/translucencyGi/frame.ts'
+import { releaseObjectShadows } from '../../../lighting/shadows/perObject/objectShadowFrame.ts'
+import { releaseFieldShadow } from '../../../lighting/shadows/classic/fieldShadow/fieldShadowKit.ts'
 import { disposeLocalFog } from '../../render/localFogGpu.ts'
 import { disposeLightShafts } from '../../../modules/sky/lightShafts/frame.ts'
 import { disposeCloudView } from '../../../modules/sky/clouds/viewTargets.ts'
@@ -74,8 +77,9 @@ export function onView<T, A = undefined>(
 
 /** The passes every view makes its image with, released: the temporal pass, the velocity stage,
  *  the exposure, the finishing, the effects, the screen probes, the ambient occlusion, the
- *  subsurface scattering, the screen-space traces, the shadow denoiser, the traced lights, the first-person self shadow, the sampled lighting's state of the view, and the view's fog,
- *  translucency, light shafts, clouds and hair. */
+ *  subsurface scattering, the screen-space traces, the shadow denoiser, the traced lights, the
+ *  indirect words, the light grid, the reservoir gather, the volumes' holdout, the first-person self shadow and the
+ *  traced translucency, and the view's fog, heterogeneous volumes, translucency, light shafts, clouds and hair. */
 export function disposeViewPasses(gpu: WebgpuView['gpu']) {
   gpu.temporal?.dispose()
   gpu.velocity?.dispose()
@@ -97,6 +101,9 @@ export function disposeViewPasses(gpu: WebgpuView['gpu']) {
   releaseRayTracedLocal(gpu)
   releaseFirstPersonSelfShadow(gpu)
   disposeFogVolume(gpu)
+  disposeFogSeparate(gpu)
+  releaseFieldShadow(gpu)
+  releaseObjectShadows(gpu)
   disposeTranslucencyVolume(gpu)
   disposeTranslucencyGi(gpu)
   disposeLocalFog(gpu)

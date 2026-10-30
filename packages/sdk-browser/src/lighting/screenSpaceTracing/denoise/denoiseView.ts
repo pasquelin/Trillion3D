@@ -21,7 +21,8 @@ export const DENOISE_BINDINGS = {
  *  - `grid`: the signal's extent in texels `xy`, the full-resolution pixels a texel stands for `z` (1 or 2: texel `t` stands for pixel `t · z`), whether
  *    the history is dropped (a camera cut, a first image, a gap in the images) `w`;
  *  - `spread`: the most samples the pass reads `x`, the samples the passes before it widened the kernel with `y` (1 for the reconstruction, the
- *    most samples to the power of the pass's rank plus one for the pre-convolutions), the spread of the kernel `z`;
+ *    most samples to the power of the pass's rank plus one for the pre-convolutions), the spread of the kernel `z`, and, for the diffuse denoiser
+ *    (`../../shadows/denoise/`), the image's turn in the cells of the rays' grid `w` (which pixel of its cell the rays were cast from);
  *  - `time`: the frame index modulo 8 `x`, the exposure the signal's brightness is weighted with `y` (its pre-exposure), and, for the shadow denoiser
  *    (`../../shadows/denoise/`), the rank of the light in the light buffer `z` and the layer of the suns' mask it is taken into `w`;
  *  - `previous`: the extent in texels of the image before `xy` (the grid's where the size did not change), the history is read over;
@@ -53,6 +54,7 @@ export interface DenoiseParamsFields {
   exposure: number
   light?: number
   slot?: number
+  turn?: number
   previousWidth?: number
   previousHeight?: number
   rect?: readonly [number, number, number, number]
@@ -63,7 +65,10 @@ export interface DenoiseParamsFields {
 export function writeDenoiseParams(words: Float32Array, fields: DenoiseParamsFields) {
   const at = LAYOUT.at
   words.set([fields.width, fields.height, fields.ratio, fields.cut ? 1 : 0], at.grid)
-  words.set([fields.maxSamples, fields.previousCumulative, fields.spread, 0], at.spread)
+  words.set(
+    [fields.maxSamples, fields.previousCumulative, fields.spread, fields.turn ?? 0],
+    at.spread,
+  )
   words.set([fields.frame, fields.exposure, fields.light ?? 0, fields.slot ?? 0], at.time)
   words.set(
     [fields.previousWidth ?? fields.width, fields.previousHeight ?? fields.height, 0, 0],

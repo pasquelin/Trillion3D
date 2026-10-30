@@ -8,6 +8,7 @@ import { askComposedPlacements } from '../../placement/compose/gpuComposeFrame.t
 import { askVisibleStages } from '../render/visibleTables.ts'
 import { askRootPasses } from '../../placement/roots/rootPasses.ts'
 import { askBlendReach } from '../../blend/askReach.ts'
+import { askOit } from '../../blend/oit/oitPass.ts'
 import { askEntryCorners } from '../../blend/transparent/entryCorners.ts'
 import { wantsEmissiveAo } from '../prepare/emissiveAoLayer.ts'
 import { askLobedPrograms, planLitTables } from '../prepare/contractLight.ts'
@@ -218,6 +219,7 @@ function askAll(rt: WebgpuPagesRuntime) {
   askLobedPrograms(rt, device)
   askBounce(rt, device)
   askBlendReach(rt)
+  askOit(rt, device)
   askAtmosphere(rt, device)
   askFogVolume(rt, device)
   askTranslucencyVolume(rt, device)

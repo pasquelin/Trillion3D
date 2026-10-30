@@ -12,6 +12,15 @@ export const PT_HIT_MATERIAL_WORDS = PT_HIT_MATERIAL_VECS * 4
 /** The bytes of a hit's material record. */
 export const PT_HIT_MATERIAL_BYTES = PT_HIT_MATERIAL_WORDS * 4
 
+/**
+ * The `vec4u` a path's material takes in the buffer: the record's `PT_HIT_MATERIAL_VECS`, and where the view's pixels hold several closures (`weighted`) a fourth whose first word is the weight of the slab the shade of the hits
+ * chose among the closures, the sum of the closures' weights over the chosen one's (a float, one for a material of one closure). The record itself is the same.
+ */
+export const ptHitMaterialStride = (weighted: boolean) => PT_HIT_MATERIAL_VECS + (weighted ? 1 : 0)
+
+/** The bytes a path's material takes in the buffer, for the layout in use (the fourth `vec4u` only where `weighted`). */
+export const ptHitMaterialSlotBytes = (weighted: boolean) => ptHitMaterialStride(weighted) * 16
+
 /** The bits of a hit's material `flags`: the surface scatters light; its subsurface colour is the transmission of a two-sided leaf; its subsurface colour is added to the diffuse colour. */
 export const PT_MATERIAL_FLAG = { scatters: 1, foliage: 2, subsurface: 4 } as const
 

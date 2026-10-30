@@ -2,6 +2,7 @@ import { SHADOW_MAP_PRESET_LEVELS, SHADOW_MAP_RULES } from './shadowMapOptions.t
 import { SUN_SHADOW_RULES } from './sunShadowOptions.ts'
 import { CONTACT_SHADOW_RULES } from './contactShadowOptions.ts'
 import { CAPSULE_SHADOW_RULES } from './capsuleShadowOptions.ts'
+import { TRANSLUCENT_OBJECT_SHADOW_RULES } from './translucentObjectShadowOptions.ts'
 import { RAY_TRACED_SHADOW_RULES } from './rayTracedShadowOptions.ts'
 import { RAY_TRACED_SKY_LIGHT_RULES } from './rayTracedSkyLightOptions.ts'
 import {
@@ -80,6 +81,7 @@ export const SHADOW_RULES = /* @__PURE__ */ (() =>
     ...SUN_SHADOW_RULES,
     ...CONTACT_SHADOW_RULES,
     ...CAPSULE_SHADOW_RULES,
+    ...TRANSLUCENT_OBJECT_SHADOW_RULES,
     ...RAY_TRACED_SHADOW_RULES,
     ...RAY_TRACED_SKY_LIGHT_RULES,
     ...SHADOW_MAP_RULES,

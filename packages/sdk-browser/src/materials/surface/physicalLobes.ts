@@ -3,6 +3,7 @@ import type { VisMaterial } from '../../visibility/materialType.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { octDecode, octEncode } from '../../../../math/src/wgsl/octahedral.ts'
 import { loadOnlyTarget } from '../../gpu/core/loadOnlyTarget.ts'
+import { wiresOutput } from '../../../../sdk-core/src/world/material/graph/closures.ts'
 
 /**
  * The physical material's extra lobes, as the Khronos material extensions name them: an
@@ -64,11 +65,11 @@ const hasCloth = (mat: LobeFacts) =>
  *  that wears a graph, which computes them in place of its factors, a graph that wires one. */
 const skewedOrCloth = (mat: LobeFacts) =>
   mat.graph
-    ? !!(mat.graph.outputs.anisotropy || mat.graph.outputs.cloth)
+    ? wiresOutput(mat.graph, 'anisotropy') || wiresOutput(mat.graph, 'cloth')
     : (mat.anisotropy ?? 0) > 0 || hasCloth(mat)
 /** Whether a surface has a clear coat: a coat above zero, or a graph that wires one. */
 const coated = (mat: LobeFacts) =>
-  mat.graph ? !!mat.graph.outputs.clearCoat : (mat.clearcoat ?? 0) > 0
+  mat.graph ? wiresOutput(mat.graph, 'clearCoat') : (mat.clearcoat ?? 0) > 0
 
 /** Whether a surface has a lobe to set: an anisotropic one, a coat or a cloth's. */
 const hasLobe = (mat: LobeFacts) => mat.lit && (skewedOrCloth(mat) || coated(mat))

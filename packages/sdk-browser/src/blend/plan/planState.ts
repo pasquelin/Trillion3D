@@ -2,6 +2,7 @@ import { planRegion } from './planLayout.ts'
 import { viewState } from '../expand/expansionViews.ts'
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts'
 import type { BlendExpand } from '../expand/expand.ts'
+import type { BlendGpuItem } from '../state.ts'
 import type { BlendKernels } from '../expand/expandKernels.ts'
 
 /** The plan's expansion, its sizes and regions, and what moves the GPU's frustum verdict. */
@@ -48,8 +49,10 @@ export function planTotals() {
     /** A transmissive item of the plan may transmit some channels more than others (`chromaRank`): the
      *  dual blend and the modulation pass draw, built with the plan. */
     chromatic: false,
-    /** An item of the plan is single-layer water (`WATER_BASE`): the water pass is drawn
-     *  (`water/waterPass.ts`), built with the plan. */
-    water: false,
+    /** The single-layer water items of the plan (`WATER_BASE`): the water pass is drawn when it holds one (`water/waterPass.ts`), and
+     *  they are the bodies the camera is tested against (`../water/waterView.ts`), built with the plan. */
+    waterItems: [] as BlendGpuItem[],
+    /** The rank of each of `waterItems` in the blend's items (the rank the vertex stage carries, `water/waterBodyLane.ts`), built with the plan. */
+    waterRanks: [] as number[],
   }
 }

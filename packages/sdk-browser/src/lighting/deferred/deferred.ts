@@ -257,13 +257,13 @@ function variantAsks(variants: ContractVariants) {
       !!direct.bounceGrid && !!bounceProgram(direct, false, variants.peek)?.bounce,
     /** Asks the per-light path's pipelines (`PerLightProgram.ready`) of the one program a frame lit with these resources binds (the one it is lent, else the toon program about to be lent, else the exact one), once the exact program is compiled. Their compile holds the
      *  frames, so that no image is drawn without the lights they draw (and advances no history) while they compile. Returns the compile of the program of the key itself while it is pending: the frames wait for it too. */
-    askPerLight: (direct: DirectLightResources) => {
+    askPerLight: (direct: DirectLightResources, packed: boolean) => {
       // The frame waits for the program the image will bind once compiled, never only for the one lent while it compiles: what it waits for follows the lights' configuration, not which compile happened to land first.
       const { program, asking, exact } = variants.resolve(...litKeyOf(direct))
       if (!exact.program) return exact.pending
       // Its pipelines are asked for the one program the frame binds, once: the one it is lent (from another table where the toon or sky table is not ready), else a toon program about to be lent (`asking`), else this one. The other is
       // not asked (it waits for its turn, when it is the one lent), so that no stand-in's pipelines are compiled and awaited for nothing.
-      ;(program ?? asking ?? exact.program).perLightReady()
+      ;(program ?? asking ?? exact.program).perLightReady(packed)
     },
   }
 }
@@ -331,6 +331,8 @@ function lightingOf({ view, placeholders, tone, variants, statics, litReady }: L
     askFog: () => statics.askFog(),
     /** Draws the lit image's light (`lightPass`). */
     light: lightPass(state, statics, placeholders, view.buffer),
+    /** Replaces the lit image by the shading furnace test (`furnaceWgsl.ts`), `samples` samples of each set at a pixel; nothing where the frame is not lit. Returns the draws made. */
+    furnace: furnacePass(state, statics),
     ...fogCalls(state, statics, placeholders),
     /** True once the frame's program composes the finishing in (#963); the first call compiles
      *  what it needs, and `sink` hears why it cannot. */
@@ -461,6 +463,18 @@ function lightPass(
   }
 }
 
+/** The lighting's `furnace`: a pass over the lit image as it stands, the frame's lit program drawing the shading furnace test over the tiles the lit pass drew. */
+function furnacePass(state: LightingState, statics: Statics) {
+  return (encoder: GPUCommandEncoder, hdr: GPUTextureView, samples: number) => {
+    const { active, drawn } = state
+    if (!active) return 0
+    const pass = statics.colour.resume(encoder, hdr, drawn[0], drawn[1])
+    const made = active.drawFurnace(pass, statics.classification.draws, samples)
+    pass.end()
+    return made
+  }
+}
+
 /** The size of the lit image's target: given by the caller, else the size drawn. */
 const sizeOf = (target: readonly number[] | undefined, drawn: readonly number[]) =>
   [target?.[0] ?? drawn[0], target?.[1] ?? drawn[1]] as const
@@ -475,7 +489,8 @@ const perLightOf = (lightView: number, direct: DirectLightResources) =>
  * began. On the batched path they are the indirect light's, the sun's and the local lights', one pass. With per-light lights
  * (`shadowOnePassProjection` false) the pass is ended before each light's draw and begun again over the image as it stands
  * (`resume`), the light's mask encoded between them (`PerLightLights.encodeMask`): the lights are drawn in the order of their
- * records, after the indirect light's draw, which the first pass holds with the sun's and the local lights' and followed, where the toon diffuse is unified, by its step. While the path's pipelines compile
+ * records, after the indirect light's draw, which the first pass holds with the sun's and the local lights' and followed, where the toon diffuse is unified, by its step (lights that read the packed mask of the one-pass
+ * projection, `clusteredDeferredShading` false, have none to encode: their draws stay in the pass). While the path's pipelines compile
  * (`ready`) the local lights' step still leaves the shadowed lights out and no per-light step is drawn: no light reads a mask that
  * was not projected, and the frame is drawn again once they are compiled (`chainReady`). Returns the draws made.
  */
@@ -491,11 +506,12 @@ function drawLights(
   [width, height]: readonly number[],
   toon: ToonDataViews | undefined,
 ) {
-  const ready = !!lights && lights.ready() && active.perLightReady()
+  const ready = !!lights && lights.ready() && active.perLightReady(!lights.mask)
   let pass = first,
     made = 0
   for (const step of litSteps(lightView, ready ? lights.count : 0)) {
-    if (typeof step === 'number') {
+    // The lights that read the packed mask have no mask to encode between their draws: the pass goes on.
+    if (typeof step === 'number' && lights!.mask) {
       pass.end()
       lights!.encodeMask(encoder, step)
       pass = colour.resume(encoder, hdr, width, height, toon)

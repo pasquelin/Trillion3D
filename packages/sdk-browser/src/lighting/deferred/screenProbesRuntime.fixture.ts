@@ -29,7 +29,7 @@ export async function probesRuntime(options: Record<string, unknown> = {}) {
       device: h.device,
       reflection,
       deferred: await createDeferredLighting(h.device),
-      surfaces: { views: () => views },
+      surfaces: { views: () => views, closures: 1, closureNormals: [] },
       targetSize: [64, 64],
       allocatedSize: [64, 64],
       screenProbes: undefined,
@@ -37,7 +37,12 @@ export async function probesRuntime(options: Record<string, unknown> = {}) {
     vis: { gpuHiz: await createGpuHiz(h.device, 64, 64), reflectionPipelines: {} },
     lights: { buffer: {} as GPUBuffer, store: { unlit: false } },
     blendState: createWebgpuBlendState(),
-    run: { depthDrawn: true, diagnostic: 'beauty', frame: 0, gate: { temporalRevision: 0 } },
+    run: {
+      depthDrawn: true,
+      diagnostic: 'beauty',
+      frame: 0,
+      gate: { temporalRevision: 0, cam: { eye: [0, 0, 0] } },
+    },
     bounce: { wanted: true, probes: undefined },
     setup: { viewport: [64, 64] },
     // A cut with no root: the surface cache finds neither compiled nor run-time cards.

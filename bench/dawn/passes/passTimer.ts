@@ -18,6 +18,18 @@ function attachments(kind: TimedPass['kind'], descriptor: unknown) {
   return { attachBytes, unsized }
 }
 
+/** The windows a timer keeps in turn: one, or two when frames are in flight together (`BENCH_FED`). */
+const RING = 2
+
+/** One window's timestamps and the passes they time. */
+type Window = {
+  set: GPUQuerySet
+  resolved: GPUBuffer
+  slot: number
+  engineTimed: boolean
+  passes: ({ label: string; kind: TimedPass['kind']; at: number } & PassWork)[]
+}
+
 /** The pass timer of one device; `quiet` runs the bench's own commands uncounted. */
 export function createPassTimer(quiet: <T>(work: () => T) => T) {
   let device: GPUDevice | null = null,
@@ -35,14 +47,15 @@ export function createPassTimer(quiet: <T>(work: () => T) => T) {
       descriptor: D,
       encoderLabel: string,
     ): D {
-      if (!open || !set) return descriptor
+      if (!current) return descriptor
+      const { set, passes } = current
       if (descriptor?.timestampWrites) {
-        engineTimed = true
+        current.engineTimed = true
         return descriptor
       }
-      if (slot + 2 > CAPACITY) return descriptor
-      const at = slot
-      slot += 2
+      if (current.slot + 2 > CAPACITY) return descriptor
+      const at = current.slot
+      current.slot += 2
       passes.push({
         label: descriptor?.label || encoderLabel || `(${kind} pass)`,
         kind,
@@ -59,39 +72,48 @@ export function createPassTimer(quiet: <T>(work: () => T) => T) {
       return { ...descriptor, timestampWrites } as D
     },
     /** How many passes this window holds. */
-    size: () => passes.length,
+    size: () => current?.passes.length ?? 0,
     /** The pass encoder just made for the descriptor `wrap` answered: its calls are tallied. */
     watch(pass: object, wrapped: boolean) {
       if (!wrapped) return
-      records.set(pass, passes[passes.length - 1])
-      labels.set(pass, passes[passes.length - 1].label)
+      if (!current) return
+      records.set(pass, current.passes[current.passes.length - 1])
+      labels.set(pass, current.passes[current.passes.length - 1].label)
     },
     /** The work record of a pass this timer follows. */
     recordOf: (pass: object) => records.get(pass),
     /** The label a followed pass was begun with. */
     labelOf: (pass: object) => labels.get(pass),
-    /** Opens a frame's window on `on`, the device the engine draws with. */
+    /** Opens a frame's window on `on`, the device the engine draws with: the next of the ring's windows, which
+     *  the handle names for its `close`. A window is reused once the frame before last has been closed. */
     open(on: GPUDevice) {
       if (device !== on)
         quiet(() => {
           device = on
-          set = on.createQuerySet({ type: 'timestamp', count: CAPACITY })
-          resolved = on.createBuffer({
-            size: CAPACITY * 8,
-            usage: GPUBufferUsage.QUERY_RESOLVE | GPUBufferUsage.COPY_SRC,
-          })
+          ring = Array.from({ length: RING }, () => ({
+            set: on.createQuerySet({ type: 'timestamp', count: CAPACITY }),
+            resolved: on.createBuffer({
+              size: CAPACITY * 8,
+              usage: GPUBufferUsage.QUERY_RESOLVE | GPUBufferUsage.COPY_SRC,
+            }),
+            slot: 0,
+            engineTimed: false,
+            passes: [],
+          }))
         })
-      open = true
-      slot = 0
-      engineTimed = false
-      passes.length = 0
+      current = ring[next++ % RING]
+      current.slot = 0
+      current.engineTimed = false
+      current.passes.length = 0
+      return current
     },
-    /** Closes the window once everything it encoded was submitted: reads its timestamps back. */
-    async close(): Promise<FrameGpu | null> {
-      open = false
-      if (!device || !set || !resolved) return null
-      if (!slot) return { passes: [], unionMs: 0, gapMs: 0, windowMs: 0, complete: !engineTimed }
-      const [s, from, count, on] = [set, resolved, slot, device]
+    /** Closes a window (the one open when none is named) once everything it encoded was submitted: reads its timestamps back. */
+    async close(handle: Window | null = current): Promise<FrameGpu | null> {
+      if (handle === current) current = null
+      if (!device || !handle) return null
+      const { set: s, resolved: from, slot: count, engineTimed, passes } = handle
+      if (!count) return { passes: [], unionMs: 0, gapMs: 0, windowMs: 0, complete: !engineTimed }
+      const on = device
       const stamps = new BigInt64Array(
         (await quiet(() => {
           const encoder = on.createCommandEncoder({ label: 'bench timestamps' })

@@ -111,3 +111,16 @@ test("the pages of a sprite's quad are bounded by the cube of its radius", async
     assert.equal(page.depthLayer, undefined)
   }
 })
+
+// Its tree for the rays is made with its cut, in the same task, for the faces of a mesh that does not deform.
+test('the primitive of a mesh of faces carries the tree its rays walk, a line or a dynamic geometry none', async () => {
+  const drawn = drawnTriangles(geometry.sphere(1, 16, 8), 'triangles')!
+  const { primitive, urls } = await cutRuntimePrimitive(packDrawn(drawn, false), drawn)
+  urls.forEach((url) => URL.revokeObjectURL(url))
+  assert.equal(primitive.runtime, true)
+  assert.equal(primitive.rayTracing!.triangles.length / 12, drawn.indices.length / 3)
+  const edges = drawnTriangles(geometry.edges(geometry.box(1, 1, 1)), 'lineSegments')!
+  const lines = await cutRuntimePrimitive(packDrawn(edges, false), edges)
+  lines.urls.forEach((url) => URL.revokeObjectURL(url))
+  assert.equal(lines.primitive.rayTracing, undefined)
+})

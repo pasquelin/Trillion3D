@@ -1,3 +1,4 @@
+import { disposePlanarReflections } from '../render/encodePlanarReflection.ts'
 import { disposeSkyMeshes } from '../render/encodeSkyMeshes.ts'
 import { disposeCustomDepth } from '../render/encodeCustomDepth.ts'
 import { disposeSampledLights } from '../../lighting/manyLightsSampled/frame.ts'
@@ -9,6 +10,7 @@ import { releaseRectLightAtlas } from '../../lighting/rectLightAtlas/frame.ts'
 import { disposeRectLightAtlasDebug } from '../../lighting/rectLightAtlas/debug.ts'
 import { disposeLightProfileDebug } from '../../lighting/lightProfile/debug.ts'
 import { disposeShadowCasterBounds } from '../../lighting/shadows/vsm/debug/casterBounds.ts'
+import { disposeOitDebug } from '../../blend/oit/oitDebug.ts'
 import { disposeClipmapStats } from '../../lighting/shadows/vsm/debug/clipmapStats.ts'
 import { disposeLightGridDebug } from '../../lighting/tiles/debug/gridDebug.ts'
 import { disposeTranslucencyVolumeDebug } from '../../lighting/translucency/debug.ts'
@@ -17,6 +19,7 @@ import { disposeClusterStats } from '../../lighting/shadows/vsm/debug/clusterSta
 import { disposeClipmapVirtualSpace } from '../../lighting/shadows/vsm/debug/clipmapVirtual.ts'
 import { disposeVsmVisualizeView } from '../../lighting/shadows/vsm/debug/visualizeView.ts'
 import { releaseAmbientCubemap } from '../../lighting/deferred/ambientCubemapFrame.ts'
+import { releaseLightShapes } from '../../lighting/lightShape/frame.ts'
 import { releaseToonTables } from '../../lighting/toon/buffer.ts'
 import { disposeRootWorlds } from '../../placement/roots/rootWorlds.ts'
 import { disposeRootBoxes } from '../../placement/roots/rootBoxes.ts'
@@ -24,6 +27,7 @@ import { disposeTreeLeaves } from '../../placement/tree/treeLeaves.ts'
 import { disposeVis, dropGpuSelection } from './drops.ts'
 import { releaseTargets } from '../prepare/targets.ts'
 import { disposeBlendResources } from '../../blend/resources.ts'
+import { releaseObjectShadowDraw } from '../../blend/objectShadow/objectShadowDraw.ts'
 import { directLightTimings, passOwnMs } from '../../diagnostic/stage/mapping.ts'
 import { gpuDeviceLedgerOf } from '../../gpu/core/deviceLedger.ts'
 import { markWebgpuLost } from './lost.ts'
@@ -222,6 +226,7 @@ function disposeBlend(rt: WebgpuPagesRuntime) {
   pagedBlendCopies.clear()
   blendState.visibleBlend.length = 0
   disposeBlendResources(blendState)
+  releaseObjectShadowDraw(rt)
   blendState.kernels = undefined
 }
 
@@ -256,11 +261,13 @@ function disposeLighting(rt: WebgpuPagesRuntime) {
   disposeClipmapVirtualSpace(rt)
   disposeVsmVisualizeView(rt)
   disposeClipmapStats(rt)
+  disposeOitDebug(rt)
   disposeClusterStats(rt)
   disposeCloudShadowDebug(rt)
   disposeLightGridDebug(rt)
   disposeTranslucencyVolumeDebug(rt)
   releaseAmbientCubemap(rt)
+  releaseLightShapes(rt)
   releaseToonTables(rt.run)
   rt.lights.buffer?.destroy()
 }
@@ -280,6 +287,7 @@ export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
   // Disposed, it presents nothing any more: the same withdrawal as a loss, surface included.
   markWebgpuLost(rt)
   // The main view's resources are released below; a capture under way releases its own view.
+  disposePlanarReflections(rt)
   disposeSkyMeshes(rt)
   disposeCustomDepth(rt)
   for (const view of rt.views.persistent.splice(0)) releaseViewNow(rt, view)

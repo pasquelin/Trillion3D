@@ -1,5 +1,8 @@
 import { cloudHazeInSecondPass } from './traceOptions.ts'
-import type { SkyQualityValues } from '../../../../../sdk-core/src/modules/sky/quality.ts'
+import {
+  CLOUD_DEBUG_VIEWS,
+  type SkyQualityValues,
+} from '../../../../../sdk-core/src/modules/sky/quality.ts'
 import type { CloudMaterial } from '../../../../../sdk-core/src/modules/sky/cloudMaterial.ts'
 import {
   COMPUTE,
@@ -86,6 +89,11 @@ export interface CloudTraceKey extends Pick<CloudSetup, 'depth' | 'minMaxDepth'>
   /** The haze is laid in a second pass over two surfaces (`cloudHazeInSecondPass`): the trace
    *  writes the closest surface's depth beside its colour, which the second surface is hazed at. */
   readonly closestDepth: boolean
+  /** The view of the tracing that replaces the clouds (`CLOUD_DEBUG_VIEWS`, by index): 0 none. */
+  readonly debugView: number
+  /** The trace writes the alpha holdout's coverage of each texel in an image of its own, beside the
+   *  colours (the clouds, the haze or the fog hold out of the image's alpha). */
+  readonly holdout?: boolean
 }
 
 /** What the frame says of the image it traces: a reflection or a capture (no table), the sky
@@ -112,21 +120,27 @@ export const cloudTraceKey = (
     | 'cloudDistantSkyLight'
     | 'cloudHighQualityAerial'
     | 'cloudAerialPerspective'
+    | 'cloudDebugView'
   >,
   frame: CloudTraceFrame,
   setup: CloudSetup,
   material: Pick<CloudMaterial, 'rayMarchVolumeShadow'>,
-): CloudTraceKey => ({
-  depth: setup.depth,
-  minMaxDepth: setup.minMaxDepth,
-  emptySpace: quality.cloudEmptySpaceSkipping && !frame.reflection,
-  opaqueShadow: quality.cloudSampleLightShadowMap && frame.sunShadowsOnClouds,
-  localLights: quality.cloudLocalLights && !frame.skyCapture,
-  skyLight: quality.cloudDistantSkyLight && frame.airless,
-  volumeShadowMap: !material.rayMarchVolumeShadow,
-  closestDepth:
-    setup.minMaxDepth && !frame.skyCapture && cloudHazeInSecondPass(quality, !frame.airless),
-})
+): CloudTraceKey => {
+  // A debug view is of the main view's tracing, and neither the lamps nor the sun's opaque shadow light it.
+  const debugView = frame.reflection ? 0 : CLOUD_DEBUG_VIEWS.indexOf(quality.cloudDebugView)
+  return {
+    depth: setup.depth,
+    minMaxDepth: setup.minMaxDepth,
+    emptySpace: quality.cloudEmptySpaceSkipping && !frame.reflection,
+    opaqueShadow: quality.cloudSampleLightShadowMap && frame.sunShadowsOnClouds && debugView === 0,
+    localLights: quality.cloudLocalLights && !frame.skyCapture && debugView === 0,
+    skyLight: quality.cloudDistantSkyLight && frame.airless,
+    volumeShadowMap: !material.rayMarchVolumeShadow,
+    closestDepth:
+      setup.minMaxDepth && !frame.skyCapture && cloudHazeInSecondPass(quality, !frame.airless),
+    debugView,
+  }
+}
 
 /** The key the sky light's capture traces with: the capture setup's depth source, no empty-space
  *  table and no lamps (a reflection), the sun's shadow where the capture reads the opaque scene's
@@ -150,6 +164,8 @@ export const cloudTraceKeyText = (k: CloudTraceKey) =>
     ...[k.depth, k.minMaxDepth, k.emptySpace, k.opaqueShadow, k.localLights, k.skyLight],
     k.volumeShadowMap,
     k.closestDepth,
+    k.debugView,
+    k.holdout ?? false,
   ].join('|')
 
 /** Whether the program binds group 2. */

@@ -104,6 +104,8 @@ export type MaterialLayers = {
   mapLayer: ReadonlyMap<Texture, number>
   dataLayer: ReadonlyMap<Texture, number>
   textures?: SampledAtlases
+  /** The runtime's closures per pixel, as its frame last applied them (`limitOf`): what a tree of closures is simplified to. */
+  closures?: { readonly applied?: number }
 }
 
 /** A texture's slot in an atlas table; 0, the fill texel, for none or one the atlas lacks. */

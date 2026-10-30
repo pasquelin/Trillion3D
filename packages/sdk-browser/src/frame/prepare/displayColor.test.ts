@@ -21,6 +21,7 @@ function made(renderWidth: number, water: boolean) {
     // Water refracts: the distortion's targets are made full-size beside the frame's.
     blendState: {
       blendGpu: [],
+      waterItems: [],
       transmissive: water ? 1 : 0,
       refracts: water,
       refractGranted: false,

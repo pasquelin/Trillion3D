@@ -67,7 +67,7 @@ export const gridSide = (pixels: number, block: number) => ceilDiv(pixels, block
 const gridExtent = (width: number, height: number): [number, number] => [width, height]
 
 /** The tiles of `width × height` texels or pixels, a word each. */
-const tilesOf = (width: number, height: number) =>
+export const tilesOf = (width: number, height: number) =>
   ceilDiv(width, REFLECTION_SIDE) * ceilDiv(height, REFLECTION_SIDE)
 
 /** Bytes of one texel of the grids (`REFLECTION_GRID_FORMAT`). */

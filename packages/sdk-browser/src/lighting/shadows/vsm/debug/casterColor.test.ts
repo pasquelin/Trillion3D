@@ -5,6 +5,7 @@ import { shaderRun } from '../../../../materials/texture/shaderRun.fixture.ts'
 import {
   MOBILITY_DEFORMS,
   MOBILITY_MOVING,
+  MOBILITY_NO_CONTACT_SHADOW,
   MOBILITY_OFFSET_INVALIDATES,
   MOBILITY_OFTEN_MOVING,
   MOBILITY_SHADOWLESS,
@@ -31,5 +32,9 @@ test('a placement’s colour is its class’s: the legend’s colours by mobilit
     shadowCasterColor(MOBILITY_OFTEN_MOVING | MOBILITY_OFFSET_INVALIDATES),
     [0, 0, 1],
   )
-  assert.deepEqual(shadowCasterColor(MOBILITY_SHADOWLESS), [0.5, 0.5, 0.5])
+  assert.deepEqual(shadowCasterColor(MOBILITY_SHADOWLESS), [1, 1, 0], 'it casts a contact shadow')
+  assert.deepEqual(
+    shadowCasterColor(MOBILITY_SHADOWLESS | MOBILITY_NO_CONTACT_SHADOW),
+    [0.5, 0.5, 0.5],
+  )
 })

@@ -56,7 +56,16 @@ import {
  * 8 by 8 tiles that hold water, `singleLayerWaterWaveOps` lists those tiles with subgroup operations where the
  * device grants them, and `singleLayerWaterOptimizedClear` copies the scene's depth over the view alone.
  * `singleLayerWaterUnderwaterFogWhenCameraIsAboveWater` lays the height fog on the scene copy behind the water, at the depths of the copy,
- * even when the camera is above the water; the engine has no camera under the water, so it is the only way that fog is laid there.
+ * even when the camera is above the water.
+ *
+ * THE CAMERA AND THE WATER. Each image the camera is tested against the water bodies (the surfaces whose material is single-layer water, a
+ * body being the volume under the footprint of the surface, down to its depth (`mesh.waterBody.depth`), up to the surface at rest and its crest, the highest of its waves, `mesh.waves`; only a body with an underwater material, `mesh.waterBody.underwaterPostProcess`, is weighed, ranked by `mesh.waterBody.overlapPriority`, and a body is skipped where the camera stands inside a `WaterExclusionVolume` (`object.waterExclusion()`) that excludes it):
+ * a sphere of `singleLayerWaterUnderwaterTraceDistance` metres swept from the camera up by that distance finds the bodies near it, a sphere of
+ * `singleLayerWaterUnderwaterPreciseTraceDistance` metres at the camera refines them when the camera is under a body's surface, and the camera
+ * is under water when it is no higher than the surface, possibly in the water when it is within a wave's crest and the distance of the near
+ * plane's corner of it. A camera possibly in the water has the clouds composed into the scene copy behind the water as well; a camera under water
+ * has the sky, the fog and the clouds composed before the water, not after it. `singleLayerWaterUnderwaterTest` turns the test off: no camera is
+ * ever in the water.
  *
  * Not ported: `r.Water.SingleLayer.ForceVelocity` (deprecated and ignored by the reference itself),
  * `r.Water.SingleLayer.MobileFallback` and `r.ParallelSingleLayerWaterPass` (a mobile renderer and a
@@ -85,6 +94,9 @@ export const SINGLE_LAYER_WATER_RULES = /* @__PURE__ */ (() =>
     flag('singleLayerWaterDepthPrepass', true),
     flag('singleLayerWaterOptimizedClear', true),
     flag('singleLayerWaterUnderwaterFogWhenCameraIsAboveWater', false),
+    flag('singleLayerWaterUnderwaterTest', true),
+    nonNegative('singleLayerWaterUnderwaterTraceDistance', 1),
+    nonNegative('singleLayerWaterUnderwaterPreciseTraceDistance', 0.1),
     choice('singleLayerWaterVelocityOutputPass', 'depthPrepass', WATER_VELOCITY_PASSES),
     flag('singleLayerWaterShadersSupportDistanceFieldShadow', true),
     flag('singleLayerWaterDistanceFieldShadow', true),

@@ -15,13 +15,8 @@ import {
   viewOf,
 } from '../../materials/surface/surfaceOutputs.ts'
 import { chainReady } from '../deferred/fullscreen.ts'
-import {
-  askSpheresPipeline,
-  beginSpheresPass,
-  createStagedBlock,
-  writeStagedBlock,
-  type StagedBlock,
-} from '../debugSpheres.ts'
+import { askSpheresPipeline, beginSpheresPass } from '../debugSpheres.ts'
+import { uniformBlock, type UniformBlock } from '../../gpu/core/uniformBlock.ts'
 import { LIGHTING_ONLY_BRIGHTNESS } from '../deferred/litSurfaceWgsl.ts'
 import { lightViewCode } from '../../visibility/shader/shadeMode.ts'
 import { volumetricLightmapLayoutEntries } from './textures.ts'
@@ -73,7 +68,7 @@ const spheres = oncePerDevice((device: GPUDevice) => {
 
 /** What the spheres hold of a runtime: the viewer block, the two cached bind groups and what they are made from. */
 interface VisualizeState {
-  readonly block: StagedBlock
+  readonly block: UniformBlock
   readonly viewerGroup: ReturnType<typeof createCachedGroup>
   readonly lightmapGroup: ReturnType<typeof createCachedGroup>
   readonly viewerResources: readonly unknown[]
@@ -93,10 +88,10 @@ export function disposeVolumetricLightmapVisualize(rt: WebgpuPagesRuntime) {
 }
 
 function newState(device: GPUDevice): VisualizeState {
-  const block = createStagedBlock(
+  const block = uniformBlock(
     device,
     `${VOLUMETRIC_LIGHTMAP_VISUALIZE_PASS} viewer`,
-    VISUALIZE_VIEWER_WORDS,
+    VISUALIZE_VIEWER_WORDS * 4,
   )
   const lightmapResources: [Lightmap | undefined] = [undefined]
   return {
@@ -146,7 +141,7 @@ export function encodeVolumetricLightmapVisualize(
   if (!chainReady(pipeline)) return
   let state = states.get(rt)
   if (!state) states.set(rt, (state = newState(device)))
-  const { staged } = state.block
+  const staged = state.block.words.f
   // The matrix the opaque surfaces were drawn with (jittered while the image accumulates), at the eye: the depth written here lands on theirs.
   matrixAtRenderOrigin(RENDER_MATRIX, taaRenderMatrix(rt, cam), cam.eye)
   staged.set(RENDER_MATRIX)
@@ -158,7 +153,7 @@ export function encodeVolumetricLightmapVisualize(
   staged[28] = read(rt, 'volumetricLightmapVisualizeMinScreenFraction')
   staged[29] =
     lightViewCode(rt.run.diagnostic) === LIGHTING_VIEW ? LIGHTING_ONLY_ALBEDO : SPHERE_ALBEDO
-  writeStagedBlock(device, state.block)
+  state.block.send()
   const { data } = lightmap
   const cells = cellsOf(data.indirectionSize, data.brickSize)
   if (cells <= 0) return

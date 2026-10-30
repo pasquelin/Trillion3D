@@ -44,6 +44,12 @@ export const CLOUD_UPSAMPLINGS = [
   'bilateral',
 ] as const
 
+/** The views of the clouds' tracing that replace the clouds in the image, in the order the shader is
+ *  told them: none; the share of each ray's samples where the material's conservative density is
+ *  above zero (the red channel); the same for the material's empty-space output, with where the
+ *  empty-space table starts the rays (the green channel). */
+export const CLOUD_DEBUG_VIEWS = ['none', 'conservativeDensity', 'emptySpaceSkipping'] as const
+
 /** The centimetres in a kilometre. */
 export const CM_PER_KM = 100000
 
@@ -133,6 +139,7 @@ const CLOUD_TARGET_RULES = /* @__PURE__ */ (() =>
     number('cloudEmptySpaceSkippingDepthKm', 40, ANY_NUMBER),
     number('cloudEmptySpaceSkippingSliceBias', 0, ANY_NUMBER),
     flag('cloudEmptySpaceSkippingCorners', true),
+    choice('cloudDebugView', 'none', CLOUD_DEBUG_VIEWS),
     choice('cloudTraceSize', 'quarterToHalf', CLOUD_TRACE_SIZES),
     flag('cloudRenderTarget', true),
     choice('cloudUpsampling', 'bilateral', CLOUD_UPSAMPLINGS),
@@ -238,7 +245,9 @@ const CLOUD_TARGET_RULES = /* @__PURE__ */ (() =>
  *   `cloudEmptySpaceSkippingDepthKm` (40), read from 1: the distance, in kilometres, it covers;
  *   `cloudEmptySpaceSkippingSliceBias` (0): the slices its start is moved by, -1 one slice toward
  *   the eye; `cloudEmptySpaceSkippingCorners` (on): the corners of a cell are read as well as its
- *   centre;
+ *   centre; `cloudDebugView` (`'none'`, `CLOUD_DEBUG_VIEWS`): the clouds are replaced, after the
+ *   translucent surfaces, by the view of the tracing that shows where the samples of each ray find
+ *   no conservative density or no matter to skip;
  * - `cloudTraceSize` (`'quarterToHalf'`, `CLOUD_TRACE_SIZES`): the size the clouds are traced at;
  *   `cloudRenderTarget` (on): the clouds are traced into their own target at that size, not into
  *   the scene; `cloudUpsampling` (`'bilateral'`, `CLOUD_UPSAMPLINGS`): the way they are laid over

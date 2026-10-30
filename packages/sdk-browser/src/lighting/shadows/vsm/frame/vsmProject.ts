@@ -40,6 +40,18 @@ import {
   capsuleLocalLayers,
   encodeCapsuleSunMasks,
 } from '../../../capsuleShadows/host.ts'
+import {
+  encodeObjectShadowDepths,
+  releaseObjectShadowDraw,
+} from '../../../../blend/objectShadow/objectShadowDraw.ts'
+import {
+  objectShadowFrameOf,
+  releaseObjectShadows,
+  type ProjectedLight,
+} from '../../perObject/objectShadowFrame.ts'
+import { objectShadowsOn } from '../../perObject/objectShadowFeed.ts'
+import { objectShadowContributor } from './vsmObjectShadow.ts'
+import { contributorsHoldKey, contributorsLocal, type MaskContributor } from './maskContributors.ts'
 import { encodeHairSurfaceShadow } from '../../../../hair/surfaceShadowPass.ts'
 import { beginPerLightFrame } from '../projection/perLightPass.ts'
 import { noteVsmRequestSet } from '../traversal/requests.ts'
@@ -54,7 +66,7 @@ import { shadowsUnsettled } from '../../../../frame/backend/state/lights.ts'
 import { lightGridCulled } from '../../../tiles/cullView.ts'
 import { ensureMask, type VsmPerLightMask } from './vsmMask.ts'
 import { vsmProjectionReserve } from '../projection/projectionStore.ts'
-import { shadowsOnePass } from './vsmGates.ts'
+import { shadowsBatched, shadowsOnePass } from './vsmGates.ts'
 import { readShadowSetting } from '../../../../../../sdk-core/src/contracts/shadowOptions.ts'
 import { LIGHT_SETTINGS } from '../../../../../../sdk-core/src/scene/light/contracts.ts'
 import type { VsmBoundLight } from '../mapViews.ts'
@@ -70,6 +82,8 @@ import {
 } from '../../classic/atlas/atlasPlan.ts'
 import type { ClassicSettings, ClassicSun } from '../../classic/classicView.ts'
 import { nearInCentimetres } from '../../classic/denseEntries.ts'
+import { encodeFieldShadowSuns } from '../../classic/fieldShadow/fieldShadow.ts'
+import { idleFieldShadow, releaseFieldShadow } from '../../classic/fieldShadow/fieldShadowKit.ts'
 import { vsmRasterScene } from './vsmRasterScene.ts'
 import { vsmMapSettings } from './vsmFarShadow.ts'
 import { vsmTraceKey } from './vsmProjectionHold.ts'
@@ -273,16 +287,23 @@ function projectionContext(
 /** The names of the context's lights, in its order (`encodeHairSurfaceShadow`). */
 const hairLightIds: string[] = []
 
+/** The lights of the context as the translucent object shadows read them, refilled by each image that has any. */
+const translucentLights: { light: ProjectedLight['light']; mapId: number }[] = []
+
+/** The shadows laid into the masks beside the projection (`MaskContributor`), refilled by each image. */
+const contributors: MaskContributor[] = []
+
 /** The ranks, in the light buffer, of the context's lights, indexed as they are (`takePerLightPath`). */
 const perLightRanks: number[] = []
 
-/** The per-light path of the frame (`shadowOnePassProjection` false): the shadowed local lights of the
- *  context, past its suns, each to be lit alone by the lighting (`perLightPass.ts`), into `mask`. */
+/** The per-light path of the frame (`shadowOnePassProjection` or `clusteredDeferredShading` false): the shadowed local lights of the
+ *  context, past its suns, each to be lit alone by the lighting (`perLightPass.ts`). With a `mask` each is projected alone into
+ *  a layer of it; without (`shadowOnePassProjection`), each reads its lane of the one-pass projection's packed mask. */
 function takePerLightPath(
   frame: VsmFrame,
   context: NonNullable<ReturnType<typeof projectionContext>>,
   source: VsmProjectionSource,
-  mask: VsmPerLightMask,
+  mask: VsmPerLightMask | undefined,
   hairShadow: GPUTextureView | undefined,
   selfShadow: GPUTextureView[] | undefined,
   traced: RayTracedPlan | undefined,
@@ -303,13 +324,18 @@ function takePerLightPath(
     forceClear:
       readShadowSetting(rt, 'shadowForcePerLightMaskClear') ||
       !readShadowSetting(rt, 'shadowVirtualEnable'),
-    afterMask: afterBoth(
+    afterMask:
+      mask &&
       afterBoth(
-        capsuleLightMask(rt, cam),
-        selfShadow && perLightSelfShadow(frame, context.lights, selfShadow),
+        afterBoth(
+          afterBoth(
+            capsuleLightMask(rt, cam),
+            selfShadow && perLightSelfShadow(frame, context.lights, selfShadow),
+          ),
+          traced?.locals ? perLightRayTraced(frame, context.lights, traced, views) : undefined,
+        ),
+        contributors.length ? contributorsLocal(contributors) : undefined,
       ),
-      traced?.locals ? perLightRayTraced(frame, context.lights, traced, views) : undefined,
-    ),
     hairShadow,
   })
 }
@@ -380,7 +406,7 @@ function fillTarget(
           steps.apart(),
           context.lights,
           sunCount(context.lights),
-          !!selfShadow || !!traced?.locals,
+          !!selfShadow || !!traced?.locals || contributors.some((c) => c.onePassLayer),
         )
       : undefined
   target.capsule = layers?.array
@@ -388,6 +414,9 @@ function fillTarget(
     encodeOnePassLocalSelfShadow(frame, steps.apart(), context.lights, layers.each, selfShadow)
   if (layers && traced?.locals)
     encodeOnePassLocalRayTraced(frame, steps.apart(), traced, context.lights, layers.each, views)
+  if (layers)
+    for (const c of contributors)
+      c.onePassLayer?.(frame, steps.apart(), context.lights, layers.each)
   return target
 }
 
@@ -417,6 +446,23 @@ function writeProjectionHold(
   hold.gridWords = gridWords
   hold.gridCulled = lightGridCulled()
   hold.cullBackfacing = readShadowSetting(rt, 'shadowCullBackfacingPixels')
+  hold.contributors = contributorsHoldKey(contributors)
+  const { field } = hold
+  // The cascade of the distance fields is the classic suns' alone: the virtual maps' projection reads none of its settings, which then stay at their idle values.
+  if (!context.classic) {
+    field.generation = field.revision = 0
+    field.shadowing = field.fullResolution = false
+    field.quality = 0
+    field.distanceScale = field.farTransitionScale = 1
+    return
+  }
+  field.generation = rt.distanceFields?.scene?.meshes.generation ?? 0
+  field.revision = rt.distanceFields?.scene?.meshes.revision ?? 0
+  field.shadowing = readShadowSetting(rt, 'distanceFieldShadowing')
+  field.quality = readShadowSetting(rt, 'distanceFieldShadowQuality')
+  field.fullResolution = readShadowSetting(rt, 'distanceFieldShadowFullResolution')
+  field.distanceScale = readShadowSetting(rt, 'distanceFieldDistanceScale')
+  field.farTransitionScale = readShadowSetting(rt, 'distanceFieldFarTransitionScale')
 }
 
 /** Projection of the opaque surfaces: one pass, every light of the frame's context, four a layer
@@ -431,7 +477,12 @@ function encodeVsmProjection(
 ) {
   const { rt, device, cam, vsm } = frame
   const context = projectionContext(frame, scratch)
-  if (!context) return 0
+  if (!context) {
+    // The shadows stopped: the translucent object shadows' atlases, buffers and depth pass go with them (the table of the light profiles the blends read stays).
+    releaseObjectShadows(rt.gpu)
+    releaseObjectShadowDraw(rt, true)
+    return 0
+  }
   const { lights, gpu } = rt
   // At the targets' size, as the scene textures are at theirs: the view rect is its
   // top-left, and a dynamic-resolution step does not remake it.
@@ -455,21 +506,40 @@ function encodeVsmProjection(
   // The lights that give the first-person pixels a self shadow: their masks are projected again, not held.
   const selfShadow = selfShadowLights(rt, vsm.state.maps.shadows, context.lights)
   const selfLocals = selfShadow.locals ? views : undefined
+  // The translucent objects' shadows of the lights, read back into their masks; none unless the project switch is on and an object casts one.
+  const objectShadows = objectShadowsOn(rt)
+  if (objectShadows) {
+    translucentLights.length = context.lights.length
+    for (let k = 0; k < context.lights.length; k++) {
+      const projected = frame.plan.projected[k]
+      const light = lights.store.light(projected.id)!
+      const held = translucentLights[k]
+      if (held) {
+        held.light = light
+        held.mapId = projected.firstId
+      } else translucentLights[k] = { light, mapId: projected.firstId }
+    }
+  }
+  const translucent = objectShadowFrameOf(
+    rt,
+    device,
+    cam,
+    translucentLights,
+    rt.vis.gpuHiz?.depth(),
+    objectShadows,
+  )
+  // The subjects' translucent surfaces drawn from their lights into the atlases the masks read back.
+  if (translucent) encodeObjectShadowDepths(rt, device, steps.apart(), translucent)
+  contributors.length = 0
+  if (translucent) contributors.push(objectShadowContributor(translucent))
   // The lights that cast their shadow by rays: their masks are traced again each image, not held.
   const traced = rayTracedPlan(frame, vsm.state.maps.shadows, context.lights)
-  const perLight =
-    !onePass && mask.perLight
-      ? takePerLightPath(
-          frame,
-          context,
-          source,
-          mask.perLight,
-          hairShadow,
-          selfLocals,
-          traced,
-          views,
-        )
-      : undefined
+  // Each shadowed local light lit alone: from a layer of its own mask, or, with the one-pass projection and the grid's pass left out
+  // of the lighting, from its lane of the packed mask.
+  const perLightMask = onePass ? undefined : mask.perLight
+  const perLight = (onePass ? !shadowsBatched(rt) : perLightMask)
+    ? takePerLightPath(frame, context, source, perLightMask, hairShadow, selfLocals, traced, views)
+    : undefined
   writeProjectionHold(frame, context, source, onePass, maxLights, gridWords)
   // What the pass writes and the light grid of a new buffer run it again.
   const held = vsm.projectionHold.held(
@@ -492,6 +562,9 @@ function encodeVsmProjection(
   // The per-light path is held with the projection: its lights are traced again where it is not.
   if (!standing) perLight?.markStale()
   const hair = gpu.hair?.visible?.shadow
+  // The mask the cascade was laid into is held, but the water's kernels trace its lists again for this image.
+  if (standing && suns && context.classic)
+    encodeFieldShadowSuns(frame, steps.apart(), vsm.state.maps.shadows, suns, mask.sunsView, true)
   if (standing && !hair) releaseVsmHairProjection(vsm.res)
   if (standing && (!hair || vsmHairMasks(vsm.res))) return 0
   const target = fillTarget(
@@ -514,6 +587,8 @@ function encodeVsmProjection(
   if (context.visualize)
     encodeVsmVisualize(steps, vsm.res, context, source, target, context.visualize)
   if (suns) encodeCapsuleSunMasks(rt, cam, steps.apart(), context.lights, suns, mask.sunsView)
+  if (suns)
+    for (const c of contributors) c.sun?.(steps.apart(), context.lights, suns, mask.sunsView)
   if (selfShadow.suns)
     encodeFirstPersonSelfShadow(
       rt,
@@ -534,6 +609,10 @@ function encodeVsmProjection(
       mask.sunsView,
       views,
     )
+  // The classic suns' distance-field cascade, past the last shadow-mapped one, laid into the same layers by the minimum.
+  if (suns && context.classic)
+    encodeFieldShadowSuns(frame, steps.apart(), vsm.state.maps.shadows, suns, mask.sunsView)
+  else releaseFieldShadow(rt.gpu)
   vsm.projectionHold.keep()
   return 1
 }
@@ -542,6 +621,8 @@ function encodeVsmProjection(
  *  its transparents' front (`encodeDepthPyramid`), which its screen rays march; none where none was held. */
 export function encodeHeldVsmProjection(rt: WebgpuPagesRuntime, steps: ComputeRun) {
   holdVsmProjection(rt, steps)
+  // A view that stopped running the classic suns' distance-field cascade (the projection ended early, or has no classic suns) lets its lists go.
+  idleFieldShadow(rt.gpu, rt.run.frame)
   // Every image of the view, whether or not a light casts by rays (the projection may not run at all): what the ray traced shadow keeps idle is let go.
   idleRayTraced(rt)
   keepFirstPersonSelfShadow(rt.gpu, rt.run.frame)

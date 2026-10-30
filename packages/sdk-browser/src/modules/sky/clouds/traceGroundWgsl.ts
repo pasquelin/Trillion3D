@@ -51,5 +51,5 @@ fn cloudGroundLight(rel:vec3f,air:array<vec3f,2>,lights:CloudLights)->vec3f{
 }`
 
 /** The ground's bounce over the light of the same kind of trace (`cloudLightWgsl`). */
-export const cloudGroundWgsl = (fromMap: boolean) =>
-  wgslBlock('CLOUD_GROUND_WGSL', [cloudLightWgsl(fromMap)], GROUND)
+export const cloudGroundWgsl = (fromMap: boolean, debug = false) =>
+  wgslBlock('CLOUD_GROUND_WGSL', [cloudLightWgsl(fromMap, debug)], GROUND)

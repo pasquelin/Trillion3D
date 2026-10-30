@@ -27,6 +27,7 @@ import {
   WATER_TILE_PIXELS,
 } from './waterLayout.ts'
 import { waterGroupLayout } from './waterPipelines.ts'
+import { WATER_EXCLUSION_BINDING } from './waterExclusionTable.ts'
 import { waterScenePipelines } from './waterSceneStages.ts'
 import { waterTextures, waterTileBuffers, waterViews } from './waterTargetResources.ts'
 
@@ -90,8 +91,15 @@ export interface WaterTargets {
   /** The group of the shading, and of the composite. */
   shadeGroup: GPUBindGroup
   composite?: GPUBindGroup
-  /** The group of the sun's shadow draw, on the mask it was made for. */
-  sunShadow?: { mask: GPUTextureView; group: GPUBindGroup }
+  /** The exclusion volumes' table of the variant for a world that holds some, and the two groups that name it (`waterExclusionsOf`); freed with the targets. */
+  exclusion?: {
+    buffer: GPUBuffer
+    shade: GPUBindGroup
+    composite?: GPUBindGroup
+    table?: GPUBindGroup
+  }
+  /** The groups of the sun's shadow draw, one for each mask it was made for (the projection's and the distance-field one both draw). */
+  sunShadow?: WeakMap<GPUTextureView, GPUBindGroup>
   /** The groups of the copy, the mask, the tiles' kernels and the identifiers' kernel, made on the views of the scene's
    *  colour and depth they read (and again when those move). */
   scene?: {
@@ -163,12 +171,17 @@ function createTargets(
 
 /** The water group (`WATER_GROUP`) of `targets`: of the shading, whose targets it names by stand-ins, or of the
  *  composite, which reads the water's surface and the separated sun. */
-function waterGroup(device: GPUDevice, targets: WaterTargets, surface: boolean) {
+export function waterGroup(
+  device: GPUDevice,
+  targets: WaterTargets,
+  surface: boolean,
+  exclusions?: GPUBuffer,
+) {
   const stand = standIns(device),
     { views } = targets
   return device.createBindGroup({
     label: 'Trillion3D water',
-    layout: waterGroupLayout(device),
+    layout: waterGroupLayout(device, !!exclusions),
     entries: [
       { binding: WATER_BINDINGS.params, resource: { buffer: targets.params } },
       { binding: WATER_BINDINGS.color, resource: views.sceneColor },
@@ -180,6 +193,9 @@ function waterGroup(device: GPUDevice, targets: WaterTargets, surface: boolean) 
       { binding: WATER_BINDINGS.waterDepth, resource: surface ? views.waterDepth : stand.depth },
       { binding: WATER_BINDINGS.tiles, resource: { buffer: targets.tileList } },
       { binding: WATER_BINDINGS.sun, resource: (surface && views.sun) || stand.colour },
+      ...(exclusions
+        ? [{ binding: WATER_EXCLUSION_BINDING, resource: { buffer: exclusions } }]
+        : []),
     ],
   })
 }
@@ -203,6 +219,7 @@ const freeTargets = (targets: WaterTargets, free: (resource: { destroy(): void }
     targets.params,
   ])
     free(resource)
+  if (targets.exclusion) free(targets.exclusion.buffer)
 }
 
 /** Gives the water's targets back, at dispose. */
@@ -215,7 +232,7 @@ export function disposeWaterTargets(blendState: { waterTargets: WaterTargets | u
 /** Whether the image draws single-layer water as far as the scene and the settings go: the plan holds a
  *  water item and `singleLayerWater` is on. */
 export const waterWanted = (rt: WebgpuPagesRuntime) =>
-  rt.blendState.water && readSingleLayerWaterSetting(rt, 'singleLayerWater')
+  rt.blendState.waterItems.length > 0 && readSingleLayerWaterSetting(rt, 'singleLayerWater')
 
 /** Whether the water's depth is drawn ahead of the lights: the water is drawn (`waterWanted`) with its
  *  depth pass (`singleLayerWaterDepthPrepass`). */
@@ -320,15 +337,16 @@ export function waterSceneGroups(
   })
 }
 
-/** The group of the sun's shadow draw: the water's uniform, the suns' mask `mask` the projection wrote this image and
- *  the list of tiles (made again when the mask moves). */
+/** The group of the sun's shadow draw: the water's uniform, the suns' mask `mask` a projection wrote this image and
+ *  the list of tiles (one group for each mask, made again when it moves). */
 export function waterSunShadowGroup(
   device: GPUDevice,
   targets: WaterTargets,
   mask: GPUTextureView,
 ) {
-  const held = targets.sunShadow
-  if (held?.mask === mask) return held.group
+  const held = (targets.sunShadow ??= new WeakMap())
+  const kept = held.get(mask)
+  if (kept) return kept
   const group = device.createBindGroup({
     layout: waterScenePipelines(device).sunShadow.layout,
     entries: [
@@ -337,7 +355,7 @@ export function waterSunShadowGroup(
       { binding: H.tiles, resource: { buffer: targets.tileList } },
     ],
   })
-  targets.sunShadow = { mask, group }
+  held.set(mask, group)
   return group
 }
 
@@ -417,24 +435,29 @@ function putSettings(targets: WaterTargets, v: WaterSettings, separate: boolean)
 export const waterFiltersSun = (v: WaterSettings) =>
   v.singleLayerWaterShadersSupportVsmFiltering && v.singleLayerWaterVsmFiltering
 
+/** Whether the sun's shadow on the water is the classic distance-field cascade's (`singleLayerWaterDistanceFieldShadow`, with the programs that
+ *  support it and a scene whose meshes have fields). */
+export const waterFiltersField = (v: WaterSettings, distanceFields: boolean) =>
+  v.singleLayerWaterShadersSupportDistanceFieldShadow &&
+  v.singleLayerWaterDistanceFieldShadow &&
+  distanceFields
+
 /** Whether the water keeps its sun apart this image (the separated sun): the programs hold the term and the
  *  distance-field shadow (support, switch, and a scene whose meshes have fields) or the filtering is on. */
 export const waterSeparated = (v: WaterSettings, distanceFields: boolean) =>
-  (v.singleLayerWaterShadersSupportDistanceFieldShadow &&
-    v.singleLayerWaterDistanceFieldShadow &&
-    distanceFields) ||
-  waterFiltersSun(v)
+  waterFiltersField(v, distanceFields) || waterFiltersSun(v)
 
 /** Writes the water's view uniform for this image (`WaterParams`): the inverse of the render matrix and
  *  its last row, the eye, the copy's size and safe range and the tiles' counts, each image, and the words the
- *  settings give it when they moved, and the forward sun's layer of the projection's mask (`sunLayer`). Returns whether the refraction mask is made this image. */
+ *  settings give it when they moved, and the forward sun's layer of the masks (`sun.layer`) with whether the water's own shadow of that sun is
+ *  left to the projection (`sun.projected`). Returns whether the refraction mask is made this image. */
 export function writeWaterParams(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
   targets: WaterTargets,
   v: WaterSettings,
   separate: boolean,
-  sunLayer: number,
+  sun: { readonly layer: number; readonly projected: boolean },
 ) {
   const { paramWords: words, paramInts: ints } = targets
   words.set(invertMatrix4(invertTo, viewProj), WATER_AT.inverseViewProjection)
@@ -457,9 +480,10 @@ export function writeWaterParams(
   ints[WATER_AT.tiles + 1] = targets.tilesDown
   ints[WATER_AT.tiles + 2] = targets.width
   ints[WATER_AT.tiles + 3] = targets.height
-  // The sun's shadow is the projection's where the image projects the forward sun (`sunLayer`, its layer of the mask; −1 none).
-  ints[WATER_AT.filters] = sunLayer >= 0 ? 1 : 0
-  ints[WATER_AT.filters + 2] = Math.max(sunLayer, 0)
+  // The water leaves its own shadow of the forward sun to the projection of the shadow maps where the image projects it; the distance-field
+  // mask only multiplies on top of the water's own cascades. `sun.layer` is the forward sun's layer in either mask (−1 none).
+  ints[WATER_AT.filters] = sun.projected ? 1 : 0
+  ints[WATER_AT.filters + 2] = Math.max(sun.layer, 0)
   // The settings' words are written once, then when a setting or the separation moved.
   if (targets.watch.moved || !targets.written || targets.separate !== separate) {
     targets.masked = putSettings(targets, v, separate)

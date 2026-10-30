@@ -4,7 +4,8 @@ import { nextPow2 } from '../../../../math/src/scalar/integers.ts'
  * THE WORDS OF THE FEEDBACK BUFFER the read library writes (`sampleWgsl.ts`, `scWriteFeedback`): a header
  * that says where its parts are and the numbers of the image, then the elements — two words each, the
  * card and the level asked for, the page —, then the last read of each page of the page table by a
- * read that could have used a finer one. The header's words are
+ * read that could have used a finer one, then the same for the reads of the coarse pages (`lastUsed`, which the scene view's mode 18 shows
+ * beside the finest pages' `lastUsedHiRes`, mode 19). The header's words are
  * `FEEDBACK_AT`, which `sampleWgsl.ts` indexes the buffer by and `feedbackBuffer.ts` writes.
  */
 
@@ -19,6 +20,7 @@ export const FEEDBACK_AT = {
   jitterY: 6,
   frame: 7,
   resLevelBias: 8,
+  lastUsed: 9,
 } as const
 
 /** The words the header takes, its place in the buffer to the first element. */
@@ -32,10 +34,12 @@ const LEAST_PAGES = 256
 export function feedbackWords(elements: number, pages: number) {
   const capacity = Math.max(LEAST_PAGES, nextPow2(Math.max(1, pages)))
   const lastUsedHiRes = FEEDBACK_HEADER_WORDS + 2 * elements
+  const lastUsed = lastUsedHiRes + capacity
   return {
     elements: FEEDBACK_HEADER_WORDS,
     lastUsedHiRes,
+    lastUsed,
     pages: capacity,
-    words: lastUsedHiRes + capacity,
+    words: lastUsed + capacity,
   }
 }

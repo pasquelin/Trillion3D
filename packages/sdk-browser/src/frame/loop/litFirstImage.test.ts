@@ -49,10 +49,10 @@ test('the per-light path waits for the program the image will bind, never for th
   const lights = {} as GPUBuffer
   const later = { lights, narrow: true, rectless: true, localless: true, lobeless: true }
   assert.equal(lighting.awaited(later), undefined, 'a ready program would light the image')
-  const compiling = lighting.askPerLight(later)
+  const compiling = lighting.askPerLight(later, false)
   assert.ok(compiling, 'the per-light path still waits for the exact program to compile')
   await compiling
-  assert.equal(lighting.askPerLight(later), undefined, 'compiled: its pipelines are asked')
+  assert.equal(lighting.askPerLight(later, false), undefined, 'compiled: its pipelines are asked')
 })
 
 test('the per-light path asks the pipelines of the one program the frame binds, once, and none of the stand-in lent while the exact program compiles', async () => {
@@ -72,7 +72,7 @@ test('the per-light path asks the pipelines of the one program the frame binds, 
     localless: true,
     lobeless: true,
   }
-  const compiling = lighting.askPerLight(later)
+  const compiling = lighting.askPerLight(later, false)
   assert.ok(compiling, 'the exact program compiles, the frame waits for it')
   await Promise.resolve()
   assert.equal(
@@ -81,11 +81,11 @@ test('the per-light path asks the pipelines of the one program the frame binds, 
     'the lent stand-in’s per-light pipelines are not compiled meanwhile',
   )
   await compiling
-  assert.equal(lighting.askPerLight(later), undefined)
+  assert.equal(lighting.askPerLight(later, false), undefined)
   await Promise.resolve()
   const once = perLight().length
   assert.ok(once > 0, 'the exact program’s per-light pipelines are asked')
-  assert.equal(lighting.askPerLight(later), undefined)
+  assert.equal(lighting.askPerLight(later, false), undefined)
   assert.equal(perLight().length, once, 'asked once, however often the frames ask')
 })
 

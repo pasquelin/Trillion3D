@@ -68,7 +68,7 @@ const fogLightTermsWgsl = (sampled: boolean) =>
 fn fogSun(P:vec3f,toEye:vec3f${sampled ? ',shadowed:bool' : ''})->vec3f{
  if(frame.lighting.x<0.0){return vec3f(0.0);}
  let light=directLights.items[u32(frame.lighting.x)];
- var colour=light.colorIntensity.rgb*(lightStrength(light)*light.params.z)*lightFunctionOf(light,P);
+ var colour=light.colorIntensity.rgb*(lightStrength(light)*light.params.z)*fogSunFunctionOf(light,P);
  let fogLobe=directLights.fog[${FOG_SLOT.lobe}].rgb*directLights.fog[${FOG_SLOT.sun}].w;
  if((u32(frame.medium.w)&${FOG_VOLUME_FLAG.fogColors}u)!=0u&&directLights.fog[${FOG_SLOT.cubemap}].w<0.5&&dot(directLights.fog[${FOG_SLOT.sun}].xyz,directLights.fog[${FOG_SLOT.sun}].xyz)>0.0){
   colour=fogLobe*luminance(colour);
@@ -134,6 +134,7 @@ export const fogLightsWgsl = (sampled: boolean) =>
  *  (\`fogLocal\`), the cell's radius scaled, where the list holds one. */
 fn fogLightAt(cell:vec3u,offset:vec3f)->vec3f{
  let P=fogCellPoint(cell,offset).xyz;
+ fogLitCell=cell;
  let toEyeFull=frame.eye.xyz-P;
  var span=max(sqrt(dot(toEyeFull,toEyeFull)),1e-6);
  var toEye=toEyeFull/span;

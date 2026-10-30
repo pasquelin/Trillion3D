@@ -73,8 +73,11 @@ export const MATERIAL_RECORD_WORDS = MATERIAL_RECORD.words,
  *  word is the program's id): the graph wires an `opacityMask` the rasters evaluate, its program is
  *  the transparent pass's, whose ids count from one as the opaque resolve's do, and the graph wires a
  *  `pixelDepthOffset` the visibility rasters evaluate, and the graph wires a `displacement` the
- *  tessellation reads. The one table of them. */
+ *  tessellation reads. The one table of them. Its third word is the closure count minus one (`GRAPH_CLOSURES_WORD`). */
 export const GRAPH_HEADER = { mask: 1, blend: 2, depthOffset: 4, displacement: 8 } as const
+
+/** The word of a graph's header texel that holds its closure count minus one (zero for a surface of one closure: its header is unchanged). */
+export const GRAPH_CLOSURES_WORD = 2
 
 /**
  * The table's texture as the engine lays every record table (`../../gpu/core/recordLayout.ts`): a

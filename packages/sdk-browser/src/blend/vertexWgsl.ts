@@ -159,7 +159,7 @@ export const blendVertexWgsl = (
       VERTEX_READS_WGSL,
       ...layout.read,
       VERTEX_LISTS_WGSL,
-      vsOutWgsl(layout.uv, layout.ids, clipping, clouds.extras),
+      vsOutWgsl(layout.uv, layout.ids, clipping, clouds.extras, clouds.ordered),
       DIAGNOSTIC_PALETTE_WGSL,
       BLEND_DIAGNOSTIC_CODE_WGSL,
       BLEND_RESPONSIVE_WGSL,

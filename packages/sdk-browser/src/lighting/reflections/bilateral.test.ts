@@ -216,17 +216,22 @@ test('the ray of a coated pixel answers its coat whole and its base lobe not at 
   )
 })
 
-test('the opaque pass writes the environment through the base lobe for every pixel, the share of the coat’s lobe the rays leave in its alpha only for a pixel that carries a coat', () => {
+test('the opaque pass writes the share of the coat’s lobe the rays leave in layer 1’s alpha only for a pixel that carries a coat, and no environment', () => {
   const text = wgslSource(REFLECTION_BILATERAL_WGSL)
   const writes = [
     ...text.matchAll(
-      /textureStore\(reflectionOut,coord,1,vec4f\(seen\.field,select\(0\.0,1\.0-seen\.share\.y,hasCoat\(\)\)\)\)/g,
+      /if\(hasCoat\(\)\)\{textureStore\(reflectionOut,coord,1,vec4f\(0\.0,0\.0,0\.0,1\.0-seen\.share\.y\)\);\}/g,
     ),
   ].length
-  assert.equal(writes, 2, 'the opaque resolve and clear entries write it')
+  assert.equal(writes, 1, 'only the opaque resolve entry writes it: a clear tile holds no coat')
   assert.equal(
     [...text.matchAll(/textureStore\(reflectionOut,coord,\d,/g)].length,
     4,
-    'two layers in each of the two entries, nothing weighed in either',
+    'two layers in the resolve entry, the clear’s two (its layer 1 written, no stale share read), nothing weighed in any',
+  )
+  assert.match(
+    text,
+    /textureStore\(reflectionOut,coord,0,vec4f\(0\.0,0\.0,0\.0,REFLECTION_PROBES_LEFT\)\);\s*textureStore\(reflectionOut,coord,1,vec4f\(0\.0,0\.0,0\.0,1\.0\)\);/,
+    'a clear opaque tile leaves the coat whole to the rough light',
   )
 })

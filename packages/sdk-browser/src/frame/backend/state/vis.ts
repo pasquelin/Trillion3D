@@ -26,6 +26,7 @@ import type { PresentClasses } from '../../../gpu/core/presentClasses.ts'
 import type { ShadeBins } from '../../../materials/classes/shadeBins.ts'
 import type { VoxelSteps } from '../../../visibility/passes/voxelSteps.ts'
 import type { ShadeClasses } from '../../../visibility/passes/shadePipelines.ts'
+import type { ClosureState } from '../../prepare/closures.ts'
 import type { ShadeCensus } from '../../../visibility/passes/shadeCensus.ts'
 import { NO_RASTERS, type GraphRasters } from '../../../materials/graph/graphRasters.ts'
 import { createGraphFrame, type GraphFrame } from '../../render/graphFrame.ts'
@@ -54,6 +55,9 @@ export interface WebgpuVisState {
   /** The classes of the scene's surfaces, taken again once what they read moved
    *  (`../../../visibility/passes/shadeCensus.ts`). */
   shadeCensus: ShadeCensus | undefined
+  /** What the closures per pixel were last worked out from: the census read, the settings, and the result
+   *  (`../../prepare/closures.ts`). */
+  closures?: ClosureState
   /** Classes the resident clusters wear (`../../../materials/classes/materialPasses.ts`), and those of
    *  them the tessellation takes (`../../../visibility/tessellation/prismFrame.ts`). */
   presentClasses: PresentClasses

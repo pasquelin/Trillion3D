@@ -32,6 +32,8 @@ export const RECT_ATLAS_BLIT_PASS = 'Trillion3D rect light atlas blit'
 /** The light profiles' atlas debug view (`../../lighting/lightProfile/debug.ts`): the atlas drawn, and laid over the image. */
 export const LIGHT_PROFILE_DEBUG_PASS = 'Trillion3D light profile atlas debug'
 export const LIGHT_PROFILE_BLIT_PASS = 'Trillion3D light profile atlas blit'
+/** The light shapes' wireframes over the lit image (`../../lighting/lightShape/frame.ts`). */
+export const LIGHT_SHAPE_PASS = 'Trillion3D light shapes'
 /** The DAG selection's compute pass (`../../geometry/dag/`), and the pass that measures the longest
  *  edge of the clusters whose records were written since the last cut
  *  (`../../geometry/dag/info/measure.ts`). */
@@ -88,6 +90,9 @@ export const BLEND_HOLDOUT_PASS = 'Trillion3D blend alpha holdout'
 /** The translucent surfaces' mark of the radiance cache (`../../blend/radianceMark.ts`). */
 export const RADIANCE_MARK_PASS = 'Trillion3D translucent radiance mark'
 export const HOLDOUT_APPLY_PASS = 'Trillion3D alpha holdout apply'
+/** The per-pixel sorted translucency (`../../blend/oit/`): the layers collected per pixel, then composed front to back onto the translucency target. */
+export const OIT_COLLECT_PASS = 'Trillion3D sorted translucency collect'
+export const OIT_COMBINE_PASS = 'Trillion3D sorted translucency combine'
 /** The layers that multiply the scene, drawn on the modulation target, and the composition of the
  *  translucency onto the image (`../../blend/translucency.ts`). */
 export const TRANSLUCENCY_MODULATION_PASS = 'Trillion3D translucency modulation'
@@ -148,6 +153,13 @@ export const REFLECTION_HIT_LIGHTING_PASS = 'Trillion3D reflection hit lighting'
 export const TILE_CLASSIFICATION_PASS = 'Trillion3D tile classification'
 export const SURFACE_COLOUR_PASS = 'Trillion3D surface colour'
 export const HEIGHT_FOG_PASS = 'Trillion3D height fog'
+/** The fog drawn into textures of its own, their blur chain and the pass that lays them over the lit
+ *  image (`../../lighting/fog/separate.ts`). */
+export const FOG_SEPARATE_PASS = 'Trillion3D fog separate composition'
+export const FOG_BLUR_PASS = 'Trillion3D fog blur'
+export const FOG_UPSAMPLE_PASS = 'Trillion3D fog upsample'
+/** The temporal filter of the fog texture's second level (`../../lighting/fog/separateTemporal.ts`). */
+export const FOG_TEMPORAL_PASS = 'Trillion3D fog temporal'
 /** The volumetric lightmap's light on the pixels, gathered before the indirect pass reads it
  *  (`../../lighting/deferred/volumetricLightPass.ts`). */
 export const VOLUMETRIC_LIGHT_PASS = 'Trillion3D volumetric lightmap light'
@@ -353,6 +365,8 @@ export const ENGINE_PASSES = [
   definePass({ label: BLEND_HOLDOUT_PASS, stage: 'transparents', block: 'other' }),
   definePass({ label: RADIANCE_MARK_PASS, stage: 'transparents', block: 'other' }),
   definePass({ label: HOLDOUT_APPLY_PASS, stage: 'transparents', block: 'other' }),
+  definePass({ label: OIT_COLLECT_PASS, stage: 'transparents', block: 'other' }),
+  definePass({ label: OIT_COMBINE_PASS, stage: 'transparents', block: 'other' }),
   definePass({ label: TRANSLUCENCY_MODULATION_PASS, stage: 'transparents', block: 'other' }),
   definePass({ label: TRANSLUCENCY_COMPOSE_PASS, stage: 'transparents', block: 'other' }),
   definePass({ label: DISTORTION_PASS, stage: 'transparents', block: 'other' }),
@@ -390,7 +404,10 @@ export const ENGINE_PASSES = [
   definePass({ label: TILE_CLASSIFICATION_PASS, stage: 'lighting', block: 'other' }),
   definePass({ label: SURFACE_COLOUR_PASS, stage: 'lighting', block: 'other' }),
   definePass({ label: HEIGHT_FOG_PASS, stage: 'lighting', block: 'other' }),
-  definePass({ label: SKY_SURFACES_PASS, stage: 'lighting', block: 'other' }),
+  definePass({ label: FOG_SEPARATE_PASS, stage: 'lighting', block: 'other' }),
+  definePass({ label: FOG_BLUR_PASS, stage: 'lighting', block: 'other' }),
+  definePass({ label: FOG_UPSAMPLE_PASS, stage: 'lighting', block: 'other' }),
+  definePass({ label: FOG_TEMPORAL_PASS, stage: 'lighting', block: 'other' }),
   definePass({ label: LIGHT_FUNCTION_ATLAS_PASS, stage: 'lighting', block: 'other' }),
   definePass({ label: FOG_SUN_LIGHT_FUNCTION_PASS, stage: 'lighting', block: 'other' }),
   definePass({ label: TOON_PROFILE_BAKE_PASS, stage: 'lighting', block: 'other' }),
@@ -402,6 +419,7 @@ export const ENGINE_PASSES = [
   definePass({ label: RECT_ATLAS_BLIT_PASS, stage: 'lighting', block: 'other' }),
   definePass({ label: LIGHT_PROFILE_DEBUG_PASS, stage: 'lighting', block: 'other' }),
   definePass({ label: LIGHT_PROFILE_BLIT_PASS, stage: 'lighting', block: 'other' }),
+  definePass({ label: LIGHT_SHAPE_PASS, stage: 'lighting', block: 'other' }),
   definePass({ label: VOLUMETRIC_LIGHT_PASS, stage: 'lighting', block: 'other' }),
   definePass({ label: VOLUMETRIC_LIGHTMAP_VISUALIZE_PASS, stage: 'lighting', block: 'other' }),
   definePass({ label: FOG_VOLUME_PASS, stage: 'lighting', block: 'other' }),

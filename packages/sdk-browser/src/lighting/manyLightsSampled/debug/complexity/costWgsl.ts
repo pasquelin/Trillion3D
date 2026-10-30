@@ -6,6 +6,7 @@
  * hue from blue (low) to red (`sampledLightsVisualizeLightComplexityMaxCost` or more) times the grey of the image, white where no light is weighed.
  */
 import { wgslProgram } from '../../../../../../math/src/wgsl/assemble.ts'
+import { hueToRgb } from '../../../../../../math/src/wgsl/color.ts'
 import { wgslBlock } from '../../../../../../math/src/wgsl/decl.ts'
 import { SURFACE_WORDS } from '../../../../materials/surface/surfaceOutputs.ts'
 import { channelsOfFlags } from '../../../../materials/surface/surfaceChannels.ts'
@@ -107,7 +108,7 @@ fn ${COST_ENTRY}(@builtin(global_invocation_id) id:vec3u){
 /** The screen pass that paints the heat map over a copy of the image (`scene`) from the cost texture: the grey of the image times the cost's colour, written in place of the image. */
 export const HEATMAP_WGSL = wgslBlock(
   'COMPLEXITY_HEATMAP_WGSL',
-  [],
+  [hueToRgb],
   `struct Heatmap{scale:vec2f,maxCost:f32,pad:f32}
 @group(0) @binding(0) var<uniform> heat:Heatmap;
 @group(0) @binding(1) var scene:texture_2d<f32>;
@@ -116,7 +117,7 @@ ${SCREEN_PASS_VERTEX}
 /** The colour of 'x' from 0 (blue) to 1 (red) round the hue wheel; nothing below 0. */
 fn hsvDebugColor(x:f32)->vec3f{
  let hue=(1.0-saturate(x))*0.6;
- return saturate(vec3f(abs(hue*6.0-3.0)-1.0,2.0-abs(hue*6.0-2.0),2.0-abs(hue*6.0-4.0)));
+ return hueToRgb(hue);
 }
 @fragment fn ${HEATMAP_ENTRY}(@builtin(position) pos:vec4f)->@location(0) vec4f{
  let colour=textureLoad(scene,vec2i(pos.xy),0).rgb;

@@ -1,5 +1,6 @@
 import { EMISSIVE_AO_SURFACE_FLAG } from './surfaceModel.ts'
 import type { VisMaterial } from '../../visibility/materialType.ts'
+import { wiresOutput } from '../../../../sdk-core/src/world/material/graph/closures.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 
 /**
@@ -52,8 +53,8 @@ export function surfaceEmitsOrOccludes(
 ) {
   const [r, g, b] = mat.emissive
   return (
-    !!mat.graph?.outputs.emissive ||
-    !!mat.graph?.outputs.ambientOcclusion ||
+    (!!mat.graph &&
+      (wiresOutput(mat.graph, 'emissive') || wiresOutput(mat.graph, 'ambientOcclusion'))) ||
     !!mat.emissiveMap ||
     !!mat.aoMap ||
     bitsSet(r) ||

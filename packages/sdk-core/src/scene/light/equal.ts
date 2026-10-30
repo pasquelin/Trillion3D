@@ -112,6 +112,7 @@ function sameShadowing(a: SceneLight, b: SceneLight) {
     sameLightShadow(a, b) &&
     (a.softAngle ?? 0) === (b.softAngle ?? 0) &&
     (a.castHairDeepShadow ?? false) === (b.castHairDeepShadow ?? false) &&
+    (a.castTranslucentShadows ?? true) === (b.castTranslucentShadows ?? true) &&
     (a.hairDeepShadowLayerDistribution ?? 0.5) === (b.hairDeepShadowLayerDistribution ?? 0.5) &&
     (a.shadowBias ?? 0.5) === (b.shadowBias ?? 0.5) &&
     (a.shadowSlopeBias ?? 0.5) === (b.shadowSlopeBias ?? 0.5)

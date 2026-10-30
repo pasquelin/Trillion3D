@@ -1,5 +1,7 @@
 import { shadeColorAttachments } from '../../frame/prepare/attachments.ts'
 import { followEmissiveAo } from '../../frame/prepare/emissiveAoLayer.ts'
+import { closureClears } from '../surface/closureClear.ts'
+import { encodeClosureTiles } from '../../visibility/closureTiles/closureTiles.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { presentClassKeys } from '../../gpu/core/presentClasses.ts'
 import { readsTime } from '../graph/surfaceClasses.ts'
@@ -102,6 +104,8 @@ export function encodeMaterialPasses(rt: WebgpuPagesRuntime, encoder: GPUCommand
   const surfaces = gpu.surfaces!
   SURFACES.colorAttachments = shadeColorAttachments(rt, surfaces)
   encoder.beginRenderPass(SURFACES).end()
+  // A record of several closures clears its closure slices beside (`closureClears`).
+  for (const clear of closureClears(surfaces)) encoder.beginRenderPass(clear).end()
   const pass = materialPass.begin(encoder)
   if (keys.length) {
     const apart = isTimedApart(encoder)
@@ -123,4 +127,6 @@ export function encodeMaterialPasses(rt: WebgpuPagesRuntime, encoder: GPUCommand
     run.gpuComputeDispatches += keys.length
   }
   pass.end()
+  // A record of several closures lists the tiles that hold them (`closureTiles.ts`).
+  encodeClosureTiles(rt, encoder)
 }

@@ -22,8 +22,12 @@ export const FORWARD_PARAMS_WGSL = wgslBlock(
 )
 
 /** The declarations of the parameters and the view of the passes over tiles, in group 0. */
-export const FORWARD_BINDINGS_WGSL = `@group(0) @binding(0) var<uniform> params:ForwardParams;
-@group(0) @binding(1) var<uniform> view:HairView;`
+export const FORWARD_BINDINGS_WGSL = wgslBlock(
+  'FORWARD_BINDINGS_WGSL',
+  [FORWARD_PARAMS_WGSL],
+  `@group(0) @binding(0) var<uniform> params:ForwardParams;
+@group(0) @binding(1) var<uniform> view:HairView;`,
+)
 
 /** The control point kinds the points are packed with: the kind on bits 24 and 25 of the fourth word, the radius on the low half. */
 export const FORWARD_KIND_SHIFT = 24

@@ -111,7 +111,7 @@ const SHADOW_MAP_DEFAULTS = {
   shadowFirstPersonRequestMinLevelClamp: 8,
   shadowSubsurfaceMinSourceAngle: 5,
   shadowOnePassProjection: true,
-  clusteredDeferredShading: false,
+  clusteredDeferredShading: true,
   shadowForcePerLightMaskClear: false,
   shadowOnePassProjectionMaxLightsPerPixel: 16,
   shadowAllowScreenOverflowMessages: true,
@@ -164,6 +164,7 @@ const CAPSULE_SHADOW_DEFAULTS = {
   ...{ capsuleMaxIndirectOcclusionDistance: 2, capsuleShadowFadeAngleFromVertical: Math.PI / 3 },
   ...{ capsuleIndirectConeAngle: Math.PI / 8, capsuleSkyAngleScale: 0.6, capsuleMinSkyAngle: 15 },
   capsuleIndirectSelfShadowingIntensity: 0.8,
+  translucentObjectShadows: false,
 }
 
 /** The view's ray-traced shadow settings at their defaults. */

@@ -7,6 +7,7 @@ import {
 } from '../../../../math/src/wgsl/projection.ts'
 import { VOLUME_FADE_START } from '../../../../sdk-core/src/contracts/volumeMaterial.ts'
 import { WORKGROUP_THREADS_WGSL } from '../../gpu/dispatch/grid.ts'
+import { LIGHTING_ONLY_BRIGHTNESS } from '../deferred/litSurfaceWgsl.ts'
 import { FOG_VOLUME_FLAG } from './frame.ts'
 import { FOG_CELLS_WGSL } from './gridWgsl.ts'
 import { FOG_VOXEL_FRAME, FOG_VOXEL_OBJECT, FOG_VOXEL_SPAN } from './voxelLayout.ts'
@@ -76,7 +77,7 @@ const NEIGHBOUR_CELLS = ` let right=depth*voxelRay(uvToNdc((centre+vec2f(1.0,0.0
 const GRAPH_BRANCH = `  if(object.graph.x!=0u){
    if(scale==0.0){continue;}
    let made=fogGraphAt(object,position,right,below);
-   scattering+=vec4f(made.albedo*made.extinction,made.extinction)*scale;
+   scattering+=vec4f(voxelAlbedo(made.albedo)*made.extinction,made.extinction)*scale;
    emitted+=made.emissive*scale;
    continue;
   }
@@ -110,6 +111,10 @@ fn voxelQuad(object:FogVoxelObject,span:FogVoxelSpan,depth:f32,reach:f32)->vec4f
  let c=voxelCellsOf(vec2f(low.x,high.y),depth);
  let d=voxelCellsOf(high,depth);
  return vec4f(min(min(a,b),min(c,d)),max(max(a,b),max(c,d)));
+}
+/** The albedo an object scatters with: its own, or the lighting view's diffuse colour where that view is shown. */
+fn voxelAlbedo(albedo:vec3f)->vec3f{
+ return select(albedo,vec3f(${LIGHTING_ONLY_BRIGHTNESS}),(u32(frame.medium.w)&${FOG_VOLUME_FLAG.lightingOnly}u)!=0u);
 }
 /** 1 where \`position\` (relative to the eye) lies in the object's sphere or box, else 0. */
 fn voxelMask(object:FogVoxelObject,position:vec3f)->f32{
@@ -146,7 +151,7 @@ ${graphs ? NEIGHBOUR_CELLS : ''} for(var i=0u;i<voxelFrame.count.x;i++){
   let quad=voxelQuad(object,span,depth,sqrt(max(radius*radius-apart*apart,0.0)));
   if(any(centre<quad.xy)||any(centre>=quad.zw)){continue;}
   let scale=weight*voxelMask(object,position);
-${graphs ? GRAPH_BRANCH : ''}  scattering+=vec4f(object.albedo.rgb*object.albedo.w,object.albedo.w)*scale;
+${graphs ? GRAPH_BRANCH : ''}  scattering+=vec4f(voxelAlbedo(object.albedo.rgb)*object.albedo.w,object.albedo.w)*scale;
   emitted+=object.emissive.rgb*scale;
  }
  if((u32(frame.medium.w)&${FOG_VOLUME_FLAG.glow}u)==0u){emitted=vec3f(0.0);}

@@ -27,6 +27,7 @@ export function census(keys: number[], emits = false) {
     keys,
     emits,
     surfaces: [] as GraphSurface[],
+    revision: 0,
     moved: () => void (stale = true),
     retake: () => (stale ? !(stale = false) : false),
   } satisfies ShadeCensus

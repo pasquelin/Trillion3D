@@ -25,7 +25,7 @@ import { PIXEL_MODEL, pixelModelOf } from './pixelModel.ts'
 import { MODEL_FLAG, SURFACE_MODEL, SURFACE_MODEL_MASK } from './surfaceModelWord.ts'
 
 /**
- * A shadow catcher's alpha (three.js's `ShadowMaterial`): its `opacity` times the share of its
+ * A shadow catcher's alpha: its `opacity` times the share of its
  * shadowed lights' light the shadows take away at the point — `lights`, the catcher's sum of the
  * light loop, holds what reaches it in `x` and what would reach it unshadowed in `y`
  * (`declaredLight`). Zero where no shadowed light reaches it: the catcher is unseen.

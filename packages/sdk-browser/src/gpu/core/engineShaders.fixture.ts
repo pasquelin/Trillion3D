@@ -15,7 +15,9 @@ import { HIZ_IMAGE_LEVEL0, HIZ_SHADER, hizBuildShader } from '../../visibility/h
 import { hizWorkSource } from '../../visibility/hiz/gpu/workDepthSource.ts'
 import { reflectionTraceShader } from '../../lighting/reflections/trace/trace.ts'
 import { blendFrontShader } from '../../blend/frontStageWgsl.ts'
+import { OIT_COMBINE_DUAL_WGSL, OIT_COMBINE_WGSL } from '../../blend/oit/oitWgsl.ts'
 import { blendRadianceMarkShader } from '../../blend/radianceMarkWgsl.ts'
+import { blendObjectShadowShader } from '../../blend/objectShadow/objectShadowWgsl.ts'
 import {
   SHADE_BINS_SHADER,
   SHADE_BINS_SUBGROUP_SHADERS,
@@ -41,6 +43,10 @@ import { wpoShaders } from './engineShaders.wpo.fixture.ts'
 import { SKY_SHADERS } from './engineShaders.sky.fixture.ts'
 import { LIGHTING_SHADERS, LIT_PASS_SHADERS } from './engineShaders.lighting.fixture.ts'
 import { TAA_SHADERS } from './engineShaders.taa.fixture.ts'
+import { closureTilesWgsl } from '../../visibility/closureTiles/closureTilesWgsl.ts'
+import { closureFlagsWgsl } from '../../lighting/reflections/closureFlags.ts'
+import { closureClassifyWgsl } from '../../lighting/reflections/trace/closureClassify.ts'
+import { integrateShader, tileShader } from '../../lighting/bounce/screen/integratePassWgsl.ts'
 import { vsmVariants } from './engineShaders.vsm.fixture.ts'
 import { BLEND_SHADERS } from './engineShaders.blend.fixture.ts'
 import { HAIR_SHADERS } from './engineShaders.hair.fixture.ts'
@@ -53,6 +59,7 @@ import { HIT_LIGHTING_SHADERS } from './engineShaders.hitLighting.fixture.ts'
 import { SKY_LIGHT_TRACED_SHADERS } from './engineShaders.skyLightTraced.fixture.ts'
 import { SAMPLED_LIGHTS_SHADERS } from './engineShaders.manyLights.fixture.ts'
 import { SCREEN_SPACE_TRACING_SHADERS } from './engineShaders.screenSpaceTracing.fixture.ts'
+import { PLANAR_REFLECTION_SHADERS } from './engineShaders.planarReflection.fixture.ts'
 import { CUSTOM_DEPTH_SHADERS } from './engineShaders.customDepth.fixture.ts'
 import { POST_MATERIAL_SHADERS } from './engineShaders.postMaterial.fixture.ts'
 import { BLEND_SHADER } from './shaderTexts.fixture.ts'
@@ -164,6 +171,10 @@ export const ENGINE_SHADERS: Record<string, string> = {
   FRONT_STAGE_LIT: blendFrontShader(3),
   // The translucent surfaces' radiance mark (`blend/radianceMarkStage.ts`).
   BLEND_RADIANCE_MARK: blendRadianceMarkShader(),
+  // The translucent object shadows' depth stage (`blend/objectShadow/objectShadowStage.ts`).
+  BLEND_OBJECT_SHADOW: blendObjectShadowShader(),
+  OIT_COMBINE: OIT_COMBINE_WGSL,
+  OIT_COMBINE_DUAL: OIT_COMBINE_DUAL_WGSL,
   SHADE_BINS_SHADER,
   SHADE_BINS_SUBGROUP_SHADER: SHADE_BINS_SUBGROUP_SHADERS[64],
   SHADE_BINS_SUBGROUP_32_SHADER: SHADE_BINS_SUBGROUP_SHADERS[32],
@@ -228,6 +239,15 @@ export const ENGINE_SHADERS: Record<string, string> = {
   ...compositions('COMPOSE_FINISH', CONTRACT_COMPOSITIONS.finish),
   LIGHT_TILES_SHADER: lightTilesShader(),
   ...TAA_SHADERS,
+  // The tiles that hold several closures a pixel (`visibility/closureTiles`).
+  CLOSURE_TILES: closureTilesWgsl(),
+  // The flags of a closure past the first, read by its traced reflections (`lighting/reflections/closureFlags.ts`).
+  CLOSURE_FLAGS: closureFlagsWgsl(),
+  // The classification of the tiles of a closure past the first over its overflow tiles (`lighting/reflections/trace/closureClassify.ts`).
+  CLOSURE_CLASSIFY: closureClassifyWgsl(),
+  // The screen probes' integration of the overflow tiles of the closures past the first (`lighting/bounce/screen`).
+  SCREEN_PROBE_TILE_OVERFLOW: tileShader(1, 0, [4, 4], true),
+  SCREEN_PROBE_INTEGRATE_OVERFLOW: integrateShader(1, 1, 0, [4, 4], false, false, 1, true, true),
   MATERIAL_MIP_WGSL,
   VIS_SHADER,
   VIS_DIAGNOSTIC: visShader({ diagnostic: diagnosticVisWgsl(false) }),
@@ -261,6 +281,7 @@ export const ENGINE_SHADERS: Record<string, string> = {
   ...SKY_LIGHT_TRACED_SHADERS,
   ...SAMPLED_LIGHTS_SHADERS,
   ...SCREEN_SPACE_TRACING_SHADERS,
+  ...PLANAR_REFLECTION_SHADERS,
   ...CUSTOM_DEPTH_SHADERS,
   ...POST_MATERIAL_SHADERS,
   BLEND_EXPAND_SHADER,

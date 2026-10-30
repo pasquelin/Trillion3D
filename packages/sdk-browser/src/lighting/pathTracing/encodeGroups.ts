@@ -146,12 +146,20 @@ export function createPathTracingGroups() {
     const shade1 = caches.shade1(
       device,
       shade.layouts[1],
-      [gpu.blocks, gpu.queue, gpu.hits, gpu.materials],
+      shade.weighted
+        ? [gpu.blocks, gpu.queue, gpu.hits, gpu.materials, gpu.states, gpu.lights]
+        : [gpu.blocks, gpu.queue, gpu.hits, gpu.materials],
       () => [
         { binding: PT_SHADE_PATHS.view, resource: view(gpu) },
         { binding: PT_SHADE_PATHS.queue, resource: { buffer: gpu.queue } },
         { binding: PT_SHADE_PATHS.hits, resource: { buffer: gpu.hits } },
         { binding: PT_SHADE_PATHS.materials, resource: { buffer: gpu.materials } },
+        ...(shade.weighted
+          ? [
+              { binding: PT_SHADE_PATHS.states, resource: { buffer: gpu.states } },
+              { binding: PT_SHADE_PATHS.lights, resource: { buffer: gpu.lights } },
+            ]
+          : []),
       ],
     )
     const argsView = caches.argsView(

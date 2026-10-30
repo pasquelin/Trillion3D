@@ -40,6 +40,12 @@ import {
 import { RESOLVED_INVALID } from './clearResolvedWgsl.ts'
 import { SAMPLED_PARAMS_WGSL } from './paramsWgsl.ts'
 import {
+  CLOSURE_TONE_WGSL,
+  SAMPLED_CLOSURE_WGSL,
+  closureStateWgsl,
+  closureStatements,
+} from './closurePickWgsl.ts'
+import {
   JITTER_WGSL,
   samplingBindingsOf,
   TILES_BINDING_WGSL,
@@ -95,13 +101,16 @@ fn stochasticDown(screen:vec2u,P:vec3f,N:vec3f)->vec3i{
   if(any(corner<vec2i(0))||any(corner>=vec2i(params.downView))){continue;}
   let jitter=vec2i(downsampleJitter(vec2u(corner)));
 `
-const SHADING_PART_2 = `  let at=corner*factor+jitter;
+const neighbourNormal = (closures: boolean) =>
+  `  let Nc=normalize(textureLoad(colours,at,${closures ? 'pickedNormalLayer(at)' : SURFACE_COLOUR_LAYERS.normal},0).xyz);
+`
+
+const shadingPart2 = (closures: boolean) => `  let at=corner*factor+jitter;
   if(any(at>=vec2i(view.viewport.xy))){continue;}
   if(pixelTileClass(textureLoad(words,at,${SURFACE_WORDS.flags},0).r)==0u){continue;}
   let Pc=worldAt(vec2f(at)+vec2f(0.5),textureLoad(depth,at,0));
   let gap=abs(dot(Pc,N)-plane)/depth0;
-  let Nc=normalize(textureLoad(colours,at,${SURFACE_COLOUR_LAYERS.normal},0).xyz);
-  let angle=1.0-saturate(acos(saturate(dot(Nc,N))));
+${neighbourNormal(closures)}  let angle=1.0-saturate(acos(saturate(dot(Nc,N))));
   let apart=abs(vec2f(jitter+offsets[i]*factor-local));
   var triangle=(2.0-apart.x)*(2.0-apart.y);
   if(wide){triangle=select(0.25,select(0.0,1.0,i==0),centred.x==0);}
@@ -117,11 +126,52 @@ const SHADING_PART_2 = `  let at=corner*factor+jitter;
  return vec3i(down,select(0,1,sum>=0.01));
 }`
 
-const STOCHASTIC_DOWN_WGSL = wgslBlock(
-  'SAMPLED_STOCHASTIC_DOWN_WGSL',
-  [SAMPLED_PARAMS_WGSL, JITTER_WGSL, blueNoiseWgsl(0, B.blue)],
-  `${SHADING_PART_1}${SHADING_PART_2}`,
-)
+const stochasticDownWgsl = (closures: boolean) =>
+  wgslBlock(
+    closures ? 'SAMPLED_STOCHASTIC_DOWN_CLOSURES_WGSL' : 'SAMPLED_STOCHASTIC_DOWN_WGSL',
+    [
+      SAMPLED_PARAMS_WGSL,
+      JITTER_WGSL,
+      blueNoiseWgsl(0, B.blue),
+      ...(closures ? [SAMPLED_CLOSURE_WGSL] : []),
+    ],
+    `${SHADING_PART_1}${shadingPart2(closures)}`,
+  )
+const STOCHASTIC_DOWN_WGSL = stochasticDownWgsl(false),
+  STOCHASTIC_DOWN_CLOSURES_WGSL = stochasticDownWgsl(true)
+
+/** The light of a light on a pixel of several closures: the one lit as the pixel (the first, or the picked) multiplied by its weight and divided by the chance of the pick where the lighting is
+ *  stochastic, else the closures' lights summed by their weights, each past the first lit from its own slice. */
+const closureSplitWgsl = (lobes: boolean) =>
+  wgslBlock(
+    `SHADING_CLOSURE_SPLIT_WGSL(${lobes})`,
+    [SAMPLED_CLOSURE_WGSL, closureStateWgsl(lobes)],
+    `fn closureSplit(rank:u32,albedo:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,shading:LobeSurface)->LightSplit{
+ let first=declaredLightSplit(rank,albedo,metal,rough,N,V,P,shading);
+ let count=pixelClosures(closurePixel);
+ if(count<2u){return first;}
+ if(stochasticClosures()){
+  let scale=pickedScale(closurePixel)/pickedPdf(closurePixel);
+  return LightSplit(first.diffuse*scale,first.specular*scale);
+ }
+ let w0=pixelWeight(closurePixel,0u);
+ var diffuse=first.diffuse*w0;
+ var specular=first.specular*w0;
+ for(var k=1u;k<count;k++){
+  let w=pixelWeight(closurePixel,k);
+  let s=closureSlice(closurePixel,k);
+  enterClosure(closurePixel,k,s.N,V);
+  let lobes=clothSurface(lobeSurface(s.albedo,s.base.a,s.normal.a,s.N,V));
+  lobeView(lobes);
+  let part=declaredLightSplit(rank,s.albedo,s.base.a,s.normal.a,s.N,V,P,lobes);
+  diffuse+=part.diffuse*w;
+  specular+=part.specular*w;
+ }
+ enterClosure(closurePixel,0u,N,V);
+ lobeView(shading);
+ return LightSplit(diffuse,specular);
+}`,
+  )
 
 const SHADING_PART_3 = `}`
 
@@ -132,6 +182,7 @@ function shadingParts(
   cut: ReturnType<typeof litCutOf>,
   textured: boolean,
 ) {
+  const closures = !!cut.closures
   return [
     lightingBase(samplingBindingsOf(textured), lights, {
       narrow: key.narrow,
@@ -145,8 +196,9 @@ function shadingParts(
     LIGHTS_BINDING_WGSL,
     TILES_BINDING_WGSL,
     SHADING_RESOURCES_WGSL,
-    STOCHASTIC_DOWN_WGSL,
+    closures ? STOCHASTIC_DOWN_CLOSURES_WGSL : STOCHASTIC_DOWN_WGSL,
     ENVIRONMENT_BRDF_WGSL,
+    ...(closures ? [closureSplitWgsl(!!cut.lobes), CLOSURE_TONE_WGSL] : []),
     smoothFalloffMask,
     unpackTile,
     lightSampleGuided,
@@ -201,7 +253,19 @@ const SHADING_PART_4 = ` let reading=stochasticDown(screen,P,N);
   weight/=f32(params.count1d);
 `
 
-const SHADING_PART_5 = `   let lum=dot(split.diffuse+split.specular,LUMA)*view.preExposure.x;
+const toneStatements = (closures: boolean) =>
+  closures
+    ? ` let tone=closureTone(coord,albedo,base.a,normal.a,N,V,true);
+`
+    : ` let NoV=saturate(dot(N,V));
+ let diffuseColour=albedo*(1.0-base.a);
+ let f0=mix(vec3f(0.08*surfaceSpecular),albedo,base.a);
+ let environment=environmentBrdf(f0,saturate(50.0*f0.g),normal.a,NoV);
+`
+
+const shadingPart5 = (
+  closures: boolean,
+) => `   let lum=dot(split.diffuse+split.specular,LUMA)*view.preExposure.x;
    weight*=smoothFalloffMask(lum,params.minWeight);
    diffuse+=split.diffuse*weight;
    specular+=split.specular*weight;
@@ -212,12 +276,8 @@ const SHADING_PART_5 = `   let lum=dot(split.diffuse+split.specular,LUMA)*view.p
  diffuse*=view.preExposure.x;
  specular*=view.preExposure.x;
  // The pixel's detail is taken out before the filters and put back after them: the diffuse colour, and the specular share of the environment.
- let NoV=saturate(dot(N,V));
- let diffuseColour=albedo*(1.0-base.a);
- let f0=mix(vec3f(0.08*surfaceSpecular),albedo,base.a);
- let environment=environmentBrdf(f0,saturate(50.0*f0.g),normal.a,NoV);
- diffuse/=mix(vec3f(0.04),vec3f(1.0),diffuseColour);
- specular/=mix(vec3f(0.02),vec3f(1.0),environment);
+${toneStatements(closures)} diffuse/=mix(vec3f(0.04),vec3f(1.0),${closures ? 'tone.diffuse' : 'diffuseColour'});
+ specular/=mix(vec3f(0.02),vec3f(1.0),${closures ? 'tone.environment' : 'environment'});
  let confidence=select(0.0,ratioSum/f32(params.count1d),params.screenTrace.w!=0u);
  textureStore(resolvedDiffuse,vec2i(screen),vec4f(diffuse,confidence));
  textureStore(resolvedSpecular,vec2i(screen),vec4f(specular,0.0));
@@ -242,8 +302,8 @@ ${
    if(params.transmission>0.0&&!transmitsLight(directLights.items[rank])){thinSubsurface=vec3f(0.0);}
 `
     : ''
-}   let split=declaredLightSplit(rank,albedo,base.a,normal.a,N,V,P,shading);
-${cut.thin ? '   thinSubsurface=subsurfaceBefore;\n' : ''}${SHADING_PART_5}${SHADING_PART_3}`
+}   let split=${cut.closures ? 'closureSplit' : 'declaredLightSplit'}(rank,albedo,base.a,normal.a,N,V,P,shading);
+${cut.thin ? '   thinSubsurface=subsurfaceBefore;\n' : ''}${shadingPart5(!!cut.closures)}${SHADING_PART_3}`
 }
 
 export function shadingWgsl(
@@ -253,12 +313,13 @@ export function shadingWgsl(
   textured = true,
 ) {
   const { lights, cut } = sampledClassOf(key, tileClass, rect)
-  const statements = litPixelStatements(
+  const lit = litPixelStatements(
     cut,
     `textureStore(resolvedDiffuse,vec2i(screen),vec4f(${RESOLVED_INVALID}.0));textureStore(resolvedSpecular,vec2i(screen),vec4f(${RESOLVED_INVALID}.0));return;`,
   )
+  const statements = cut.closures ? closureStatements(lit) : lit
   return wgslBlock(
-    `shadingWgsl(${tileClass}, ${rect}, ${key.lobeless}, ${key.profileless}, ${key.channelless}, ${key.narrow}${textured ? '' : ', plain rectangles'})`,
+    `shadingWgsl(${tileClass}, ${rect}, ${key.lobeless}, ${key.profileless}, ${key.channelless}, ${key.narrow}${cut.closures ? ', closures' : ''}${textured ? '' : ', plain rectangles'})`,
     shadingParts(key, lights, cut, textured),
     shadingText(cut, statements),
   )

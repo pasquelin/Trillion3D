@@ -97,7 +97,8 @@ function validateSwitch(
     | 'shadowsAir'
     | 'transmittancePerPixel'
     | 'transmission'
-    | 'castHairDeepShadow',
+    | 'castHairDeepShadow'
+    | 'castTranslucentShadows',
 ) {
   const value = light[field]
   if (value === undefined) return
@@ -259,6 +260,7 @@ export function validateSceneLight(light: SceneLight): SceneLight {
   validateTemperature(light, validated)
   validateSwitch(light, validated, 'transmission')
   validateSwitch(light, validated, 'castHairDeepShadow')
+  validateSwitch(light, validated, 'castTranslucentShadows')
   validateHairDeepShadowLayerDistribution(light, validated)
   validateCascadeFields(light, validated)
   validateLightingChannels(light, validated)

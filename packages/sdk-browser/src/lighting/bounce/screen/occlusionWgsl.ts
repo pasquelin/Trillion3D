@@ -12,7 +12,11 @@ import {
   sampleCosineHemisphere,
 } from '../../../../../math/src/wgsl/sampling.ts'
 import { screenTraceDepthThresholdScale } from '../../distanceField/representationWgsl.ts'
-import { computeStorageTextureEntry } from '../../../gpu/core/computeBindings.ts'
+import {
+  computeBufferEntry,
+  computeStorageTextureEntry,
+} from '../../../gpu/core/computeBindings.ts'
+import { overflowTilesBlock } from '../../../visibility/closureTiles/closureTilesWgsl.ts'
 import { blueNoiseWgsl } from '../../../gpu/noise/blueNoiseWgsl.ts'
 import { spCommon, spParams } from './commonWgsl.ts'
 import { SP_FIXED_CAST, SP_HIT_HISTORY } from './traceWgsl.ts'
@@ -36,16 +40,21 @@ export const OCCLUSION_BINDINGS = bindingTable({
 
 const B = OCCLUSION_BINDINGS.at
 
+/** The binding of the closure's region of the closure tiles' list (`closureRegionOf`) in the group of the occlusion over the overflow tiles of a closure past the first. */
+export const OCCLUSION_OVERFLOW_BINDING = 8
+
 /** The layout of the occlusion's group: its amount alone, or, with the bent normal, the word that holds the direction of the open sky too; with the short-range global illumination, the surfaces'
  *  vectors, the depth the last image kept and the colour written. */
-export const occlusionEntries = (bentNormal: boolean, shortRangeGi: boolean) =>
-  OCCLUSION_BINDINGS.entries
+export const occlusionEntries = (bentNormal: boolean, shortRangeGi: boolean, overflow = false) => [
+  ...OCCLUSION_BINDINGS.entries
     .filter((entry) => shortRangeGi || entry.binding < B.vectors)
     .map((entry) =>
       entry.binding === B.occlusion && bentNormal
         ? computeStorageTextureEntry(B.occlusion, F.bentOcclusion)
         : entry,
-    )
+    ),
+  ...(overflow ? [computeBufferEntry(OCCLUSION_OVERFLOW_BINDING, 'read-only-storage')] : []),
+]
 
 /** What a level sets of the occlusion, beside the constants it shares. */
 export interface OcclusionShape {
@@ -323,8 +332,19 @@ fn spOcclusionPixel(cell:vec2u)->vec2u{
 )
 
 /** The kernel of the short-range occlusion: the slices of the pixel a texel stands for (`spOcclusionPixel`) summed to its visibility. */
-const spOcclusionKernel = (shape: OcclusionShape) => `@compute @workgroup_size(8,8)
-fn occlusion(@builtin(global_invocation_id) id:vec3u){
+const spOcclusionKernel = (
+  shape: OcclusionShape,
+  overflow: boolean,
+) => `@compute @workgroup_size(8,8)
+${
+  overflow
+    ? `fn occlusion(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_id) local:vec3u){
+ // A closure tile of the side of a workgroup in pixels: the texels of its pixels are the first threads of the workgroup, the side over the reduction along each way.
+ let entry=overflowTileAt(group);
+ if(entry.z==0u||any(local.xy>=vec2u(8u/SP_OCCLUSION_DOWNSAMPLE))){return;}
+ let id=vec3u(entry.xy*(8u/SP_OCCLUSION_DOWNSAMPLE)+local.xy,0u);`
+    : 'fn occlusion(@builtin(global_invocation_id) id:vec3u){'
+}
  if(any(id.xy*SP_OCCLUSION_DOWNSAMPLE>=sp.size.xy)){return;}
  let pixel=spOcclusionPixel(id.xy);
  let s=spSurfaceAt(pixel);
@@ -373,10 +393,11 @@ ${
  * times the visibility, in one word (`spBentPack`): a pixel with no open sky keeps its normal as the direction. A pixel that is no lit surface
  * has no visibility (zero) and, in the word, the direction `(0, 0, 1)` at full length.
  */
-const SP_OCCLUSION = (shape: OcclusionShape) =>
+const SP_OCCLUSION = (shape: OcclusionShape, overflow: boolean) =>
   wgslBlock(
-    `SP_OCCLUSION(${shape.bentNormal}, ${shape.bitmask}, ${shape.rays}, ${shape.slope})`,
+    `SP_OCCLUSION(${shape.bentNormal}, ${shape.bitmask}, ${shape.rays}, ${shape.slope}${overflow ? ', overflow' : ''})`,
     [
+      ...(overflow ? [overflowTilesBlock(OCCLUSION_OVERFLOW_BINDING)] : []),
       PI,
       fastAcos,
       SP_OCCLUSION_CELLS,
@@ -385,11 +406,16 @@ const SP_OCCLUSION = (shape: OcclusionShape) =>
       ...(shape.gi ? [SP_HORIZON_LIGHT] : []),
       ...(shape.rays > 0 ? [SP_STOCHASTIC_AO(shape)] : []),
     ],
-    [spSliceWgsl(shape), spOcclusionKernel(shape)].join('\n'),
+    [spSliceWgsl(shape), spOcclusionKernel(shape, overflow)].join('\n'),
   )
 
-/** The occlusion's program over the level's `shape` and `samples` of a tile. */
-export const occlusionShader = (shape: OcclusionShape, samples: readonly [number, number]) =>
+/** The occlusion's program over the level's `shape` and `samples` of a tile; with `overflow`, over the overflow tiles of a closure past the first
+ *  (`LumenScreenSpaceBentNormal.cpp:455-545`, `FScreenSpaceShortRangeAOCS::FOverflow`), the closure's region of the closure tiles' list bound at `OCCLUSION_OVERFLOW_BINDING`. */
+export const occlusionShader = (
+  shape: OcclusionShape,
+  samples: readonly [number, number],
+  overflow = false,
+) =>
   wgslProgram(
     `${spParams(B.params)}
 ${wgslConsts({ SP_OCCLUSION_DOWNSAMPLE: shape.downsample })}`,
@@ -399,6 +425,6 @@ ${wgslConsts({ SP_OCCLUSION_DOWNSAMPLE: shape.downsample })}`,
       blueNoiseWgsl(0, B.blue),
       SP_HORIZON(shape),
       ...(shape.gi ? [spVectors(B.vectors), spHistoryDepth(B.keptDepth)] : []),
-      SP_OCCLUSION(shape),
+      SP_OCCLUSION(shape, overflow),
     ],
   )

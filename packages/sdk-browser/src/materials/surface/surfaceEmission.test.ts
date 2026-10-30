@@ -5,6 +5,7 @@
 // texel stored as the target converts it (`f16`), every component compared bit for bit.
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { material } from '../../../../sdk-core/src/world/material/index.ts'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { f16 } from '../../post/effects/bloom/bloom.fixture.ts'
 import { SHADE_SHADER } from '../../visibility/shader/shadeWgsl.ts'
@@ -130,4 +131,14 @@ test('a surface the prudent census calls dark marks no texel; without the layer 
     },
   )
   assert.deepEqual(surfaceEmissiveAo([30, 20], 2 | FOG_FREE_SURFACE_FLAG), [0, 0, 0, 1])
+})
+
+test('a surface whose emission or occlusion lives on a slab of a closure tree emits or occludes', () => {
+  const tree = (attributes: Parameters<ReturnType<typeof material.graph>['slab']>[0]) => {
+    const g = material.graph('surface')
+    g.closures(g.verticalLayer(g.slab({ baseColor: g.constant(1, 0, 0) }), g.slab(attributes)))
+    return { emissive: [0, 0, 0] as [number, number, number], aoIntensity: 1, graph: g }
+  }
+  assert.ok(surfaceEmitsOrOccludes(tree({ emissive: material.graph('surface').constant(1, 1, 1) })))
+  assert.ok(!surfaceEmitsOrOccludes(tree({ roughness: material.graph('surface').constant(0.5) })))
 })

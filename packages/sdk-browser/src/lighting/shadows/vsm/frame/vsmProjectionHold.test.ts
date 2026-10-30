@@ -60,6 +60,15 @@ test('any input that changed runs the projection again', () => {
     'target size': (i) => (i.size = [64, 33]),
     'a light’s channel': (i) => (i.lights = [{ mapId: 7 }, { mapId: 72 }]),
     'a light fewer': (i) => (i.lights = [{ mapId: 7 }]),
+    'the fields’ generation': (i) => (i.field.generation = 1),
+    'the fields’ revision': (i) => (i.field.revision = 1),
+    'the field shadow switch': (i) => (i.field.shadowing = !i.field.shadowing),
+    'the field shadow quality': (i) => (i.field.quality = 2),
+    'the field shadow resolution': (i) => (i.field.fullResolution = !i.field.fullResolution),
+    'the field distance scale': (i) => (i.field.distanceScale = 2),
+    'the field far transition': (i) => (i.field.farTransitionScale = 0.5),
+    'the key of the shadows laid into the masks': (i) => (i.contributors = 2),
+    'the passes of the masks’ denoise': (i) => (i.denoise = 2),
   }
   for (const [name, change] of Object.entries(changes)) assert.equal(frame(change), false, name)
 })

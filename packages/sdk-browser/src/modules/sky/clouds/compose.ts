@@ -8,6 +8,7 @@ import {
 import { HDR_FORMAT } from '../../../scene/targetFormats.ts'
 import {
   ALPHA_ONLY,
+  COLOUR_ONLY,
   KEEP_ALPHA,
   LIGHT_THROUGH,
   SCALED_BY_ALPHA,
@@ -18,7 +19,6 @@ import {
   COMPOSE_AIR_BINDINGS,
   COMPOSE_VIEW,
   composeProgram,
-  type HeldClouds,
 } from './composeWgsl.ts'
 import {
   RECONSTRUCT_SAMPLER,
@@ -48,6 +48,8 @@ export interface ComposeInput {
   readonly setup: CloudSetup
   /** The index of the frame: the jitter of the ways that jitter changes with it, modulo 8. */
   readonly frameIndex: number
+  /** Times fewer pixels a side the scene copy behind the water is drawn at (`'behindWater'`); 0 for the image itself. */
+  readonly waterFactor?: number
   /** The pre-exposure the image's light is written multiplied by (`PreExposure.now`): the fog laid
    *  on the cloud here is, like the cloud's own luminance. 1 when absent. */
   readonly preExposure?: number
@@ -72,17 +74,18 @@ export function writeComposeView(out: Float32Array, input: ComposeInput, part: C
     input.setup.lateFog ? 1 : 0,
     input.frameIndex % 8,
   )
-  putVec4(out, at.scale, toImage, toView, input.preExposure ?? 1, 0)
+  putVec4(out, at.scale, toImage, toView, input.preExposure ?? 1, input.waterFactor ?? 0)
   return out
 }
 
-const imageEntries = new Map<boolean, GPUBindGroupLayoutEntry[]>()
+const imageEntries = new Map<string, GPUBindGroupLayoutEntry[]>()
 
 /** The cloud images' group (group 1): the uniform, the colour, secondary (two surfaces) and depth
  *  images, the scene's depth, the sampler (`RECONSTRUCT_SAMPLER`) and the water's surface, made once for each kind and
  *  shared: not to be changed. */
-function composeEntries(setup: CloudSetup) {
-  let entries = imageEntries.get(setup.minMaxDepth)
+function composeEntries(setup: CloudSetup, under: boolean) {
+  const kind = `${setup.minMaxDepth}${under}`
+  let entries = imageEntries.get(kind)
   if (!entries) {
     const stage = GPUShaderStage.FRAGMENT,
       b = COMPOSE_BINDING
@@ -91,11 +94,12 @@ function composeEntries(setup: CloudSetup) {
       computeTextureEntry(b.colour, 'float', '2d', stage),
       ...(setup.minMaxDepth ? [computeTextureEntry(b.secondary, 'float', '2d', stage)] : []),
       computeTextureEntry(b.depth, 'float', '2d', stage),
-      computeTextureEntry(b.sceneDepth, 'depth', '2d', stage),
+      // Behind the water the depth is the water pass's linear copy (a float texture read by load alone), else the scene's own.
+      computeTextureEntry(b.sceneDepth, under ? 'unfilterable-float' : 'depth', '2d', stage),
       computeSamplerEntry(b.sampler, 'filtering', stage),
       computeTextureEntry(b.water, 'float', '2d', stage),
     ]
-    imageEntries.set(setup.minMaxDepth, entries)
+    imageEntries.set(kind, entries)
   }
   return entries
 }
@@ -111,8 +115,8 @@ const COMPOSE_TARGET: GPUColorTargetState = {
   },
 }
 
-/** The alpha holdout's second draw (`HeldClouds`): the coverage the clouds, the haze and the fog in front
- *  of them hold out, the output's alpha, added to the image's alpha — the alpha alone is written
+/** The alpha holdout's second draw: the coverage the clouds, the haze and the fog in front
+ *  of them hold out, as the trace wrote it, the output's alpha, added to the image's alpha — the alpha alone is written
  *  (`GPUColorWrite.ALPHA`), after the first draw multiplied it by the clouds' transmittance. */
 const COMPOSE_HELD_TARGET: GPUColorTargetState = {
   format: HDR_FORMAT,
@@ -124,30 +128,60 @@ const COMPOSE_HELD_TARGET: GPUColorTargetState = {
   },
 }
 
-const groupsByKind = new Map<boolean, GPUBindGroupLayoutEntry[][]>()
+/** A debug view of a direct trace (`cloudDebugView`) replaces the lit image's colour with the view's: no blend, the image's alpha kept. */
+const COMPOSE_REPLACE_TARGET: GPUColorTargetState = {
+  format: HDR_FORMAT,
+  writeMask: COLOUR_ONLY,
+}
+
+/** What a composition draws: the clouds over the lit image, the coverage the alpha holdout adds to its alpha, a debug view
+ *  of a direct trace in place of it, or the clouds over the scene copy behind the water. */
+export type ComposeKind = 'over' | 'holdout' | 'replace' | 'behindWater'
+
+/** The clouds laid into the scene copy behind the water: as `over`, the copy's colour alone (its alpha is not the cloud's). */
+const COMPOSE_BEHIND_TARGET: GPUColorTargetState = {
+  format: HDR_FORMAT,
+  writeMask: COLOUR_ONLY,
+  blend: { color: LIGHT_THROUGH, alpha: KEEP_ALPHA },
+}
+
+export const COMPOSE_TARGETS: Record<ComposeKind, GPUColorTargetState> = {
+  behindWater: COMPOSE_BEHIND_TARGET,
+  over: COMPOSE_TARGET,
+  holdout: COMPOSE_HELD_TARGET,
+  replace: COMPOSE_REPLACE_TARGET,
+}
+
+const groupsByKind = new Map<string, GPUBindGroupLayoutEntry[][]>()
 
 /** The composition's layouts: group 0 the air's, group 1 the cloud images'. */
-const composeGroups = (setup: CloudSetup) => {
-  let groups = groupsByKind.get(setup.minMaxDepth)
+const composeGroups = (setup: CloudSetup, under: boolean) => {
+  const kind = `${setup.minMaxDepth}${under}`
+  let groups = groupsByKind.get(kind)
   if (!groups) {
     groups = [
       airLayoutEntries(COMPOSE_AIR_BINDINGS, GPUShaderStage.FRAGMENT),
-      composeEntries(setup),
+      composeEntries(setup, under),
     ]
-    groupsByKind.set(setup.minMaxDepth, groups)
+    groupsByKind.set(kind, groups)
   }
   return groups
 }
 
 /** What the pass draws for `setup`: a full-screen triangle over the `view` pixels of the HDR image,
  *  its layouts (group 0 the air's, group 1 the cloud images'), its two entries and its blend. */
-export function describeCompose(view: Size, setup: CloudSetup, localFog = true, held?: HeldClouds) {
+export function describeCompose(
+  view: Size,
+  setup: CloudSetup,
+  localFog = true,
+  kind: ComposeKind = 'over',
+) {
   return {
-    code: composeProgram(setup, localFog, held),
+    code: composeProgram(setup, localFog, kind === 'holdout', kind === 'behindWater'),
     vertexEntry: 'fullscreen',
     fragmentEntry: 'composeMain',
-    groups: composeGroups(setup),
-    target: held ? COMPOSE_HELD_TARGET : COMPOSE_TARGET,
+    groups: composeGroups(setup, kind === 'behindWater'),
+    target: COMPOSE_TARGETS[kind],
     viewport: view,
     uniformFloats: COMPOSE_VIEW.words,
     sampler: RECONSTRUCT_SAMPLER,

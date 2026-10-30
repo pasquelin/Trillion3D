@@ -21,6 +21,7 @@ import {
 } from './bindings.ts'
 import type { ContractKey } from './contractCuts.ts'
 import { indirectPassWgsl } from './indirectPassWgsl.ts'
+import { INDIRECT_DIFFUSE_LIGHT_VIEW } from '../../visibility/shader/shadeMode.ts'
 import {
   hairLayoutEntries,
   indirectLayoutEntries,
@@ -29,7 +30,14 @@ import {
   toonDataLayoutEntries,
 } from './layoutEntries.ts'
 import { localPassWgsl, sunPassWgsl } from './lightPassWgsl.ts'
-import { buildRenderPipeline, preparedPipeline, type PreparedPipeline } from './fullscreen.ts'
+import {
+  buildRenderPipeline,
+  pipelineLayoutOf,
+  preparedPipeline,
+  type PreparedPipeline,
+} from './fullscreen.ts'
+import { FURNACE_ENTRY, FURNACE_SAMPLES, FURNACE_SKY_ENTRY } from './furnaceWgsl.ts'
+import { HDR_FORMAT } from '../../scene/targetFormats.ts'
 import { createPassGroup } from './passGroup.ts'
 import type { ToonDataViews } from './toonData.ts'
 import { PER_LIGHT_RECORD_BINDING_BYTES } from '../shadows/vsm/projection/perLightRecord.ts'
@@ -112,7 +120,8 @@ export async function createLitProgram(
     captured = !key.captureless,
     contact = !key.contactless,
     sampled = !!key.sampled,
-    volume = !!key.volumeShadow
+    volume = !!key.volumeShadow,
+    closures = bounce && !!key.closures
   const layouts = litLayouts(device, {
     bounce,
     skyShadowing,
@@ -124,6 +133,7 @@ export async function createLitProgram(
     contact,
     sampled,
     volume,
+    closures,
   })
   const passes = await litPasses(device, sources, layouts)
   const perLight = createPerLightProgram(device, {
@@ -153,6 +163,7 @@ export async function createLitProgram(
     contact,
     sampled,
     volume,
+    closures,
     label,
     toon: !!key.toonData,
     toonDataLayout,
@@ -161,10 +172,10 @@ export async function createLitProgram(
     layouts,
     ...passes,
     perLight,
-    groups: litGroups(device, layouts, perLight.layout),
+    groups: litGroups(device, layouts, perLight),
     // What the groups name, in a fixed order, so that a frame whose resources did not move allocates
     // nothing (`createPassGroup`).
-    named: { sun: [], local: [], indirect: [], perLight: [], hair: [] },
+    named: { sun: [], local: [], indirect: [], perLight: [], oneLight: [], hair: [] },
   }
   // A program that writes the toon data is lent only once the pipelines of the toon diffuse pass are compiled (`toonReady`): they start now, no frame waiting (a twin or the bounce pair
   // may never be lent); the frames wait for them (`askToon`) only when the variant table is about to lend this program (`litResolver`, `contractVariants.ts`). A refused compile
@@ -211,6 +222,8 @@ function litLayouts(
     contact: boolean
     sampled: boolean
     volume: boolean
+    /** The bounce program reads the screen probes' history of every closure a pixel holds. */
+    closures: boolean
   },
 ) {
   const {
@@ -224,6 +237,7 @@ function litLayouts(
     contact,
     sampled,
     volume,
+    closures,
   } = f
   return {
     sun: device.createBindGroupLayout({ entries: sunLayoutEntries(lobes, contact, volume) }),
@@ -231,7 +245,15 @@ function litLayouts(
       entries: localLayoutEntries(lobes, profiled, contact, sampled, volume),
     }),
     indirect: device.createBindGroupLayout({
-      entries: indirectLayoutEntries({ bounce, skyShadowing, lobes, cubed, capsule, captured }),
+      entries: indirectLayoutEntries({
+        bounce,
+        skyShadowing,
+        lobes,
+        cubed,
+        capsule,
+        captured,
+        closures,
+      }),
     }),
     hair: device.createBindGroupLayout({
       entries: hairLayoutEntries(lobes, profiled, contact, sampled, volume),
@@ -243,14 +265,15 @@ function litLayouts(
 function litGroups(
   device: GPUDevice,
   layouts: ReturnType<typeof litLayouts>,
-  perLightLayout: GPUBindGroupLayout,
+  perLight: Pick<PerLightProgram, 'layout' | 'oneLayout'>,
 ) {
   return {
     sun: createPassGroup(device, layouts.sun),
     local: createPassGroup(device, layouts.local),
     hair: createPassGroup(device, layouts.hair),
     indirect: createPassGroup(device, layouts.indirect),
-    perLight: createPassGroup(device, perLightLayout),
+    perLight: createPassGroup(device, () => perLight.layout),
+    oneLight: createPassGroup(device, () => perLight.oneLayout),
   }
 }
 
@@ -276,7 +299,7 @@ function litCalls(p: LitState) {
      * with its viewport set and the surfaces' colour already drawn (`createSurfaceColourPass`), over the tiles `draws` lists
      * (`createTileClassification`'s `draws`). One pass holds as many steps as the order allows: a tiled GPU loads the image into
      * its tile memory and stores it once, and the additive blends are the same sums in the same order. With `perLight`, the
-     * path of `shadowOnePassProjection` false is taken: the local lights' step leaves out the shadowed lights, and the steps
+     * path of `shadowOnePassProjection` or `clusteredDeferredShading` false is taken: the local lights' step leaves out the shadowed lights, and the steps
      * `litSteps` lists for them, a light each, draw them (`PerLightProgram.drawLight`). Returns the draws made.
      */
     drawStep(
@@ -300,8 +323,17 @@ function litCalls(p: LitState) {
     },
     hairGroup: (masks: HairMasks) => p.held?.hair(masks),
     hairSkyGroup: () => p.held?.indirect,
-    /** Whether the pipelines of the per-light path are compiled (`createPerLightProgram`); the frames wait for them otherwise. */
-    perLightReady: () => p.perLight.ready(),
+    /** Whether the pipelines of the per-light path are compiled (`createPerLightProgram`), those of the draws that read the packed mask where `packed`;
+     *  the frames wait for them otherwise. */
+    perLightReady: (packed: boolean) => p.perLight.ready(packed),
+    /**
+     * Records the shading furnace test (`furnaceWgsl.ts`) into `pass`, a pass over the lit image as it stands: the surfaces' pixels
+     * replaced over the tiles `draws` lists, the others over one triangle, `samples` samples of each set. Its pipelines are made at the
+     * first image that asks; none is drawn while they compile. Returns the draws made.
+     */
+    drawFurnace(pass: GPURenderPassEncoder, draws: GPUBuffer, samples: number) {
+      return drawFurnace(p, pass, draws, samples)
+    },
     release() {
       for (const group of Object.values(p.groups)) group.release()
       p.toonGroup.release()
@@ -347,6 +379,7 @@ async function litPasses(device: GPUDevice, sources: LitSources, layouts: LitLay
           cubed: !key.cubeless,
           captured: !key.captureless,
           capsule,
+          closures: !!key.closures,
           tileClass: c,
         }),
       'indirectMain',
@@ -366,7 +399,8 @@ interface HeldGroups {
   sun: GPUBindGroup
   local: GPUBindGroup
   indirect: GPUBindGroup
-  /** The per-light draw's group, where the frame lights the shadowed local lights one by one (`DirectLightResources.perLight`). */
+  /** The per-light draw's group, where the frame lights the shadowed local lights one by one (`DirectLightResources.perLight`): the draw's own, or
+   *  the one-light local pass's where the lights read the packed mask. */
   perLight?: GPUBindGroup
   /** The local lights' group with the strands' masks in place of the surfaces' (`hairGroup`). */
   hair(masks: HairMasks): GPUBindGroup
@@ -396,6 +430,8 @@ interface LitState {
   readonly sampled: boolean
   /** Whether the passes of lights read the volumes' shadows (`ContractKey.volumeShadow`): they bind the packed buffer. */
   readonly volume: boolean
+  /** Whether the bounce program reads the screen probes' history of every closure a pixel holds (`ContractKey.closures`): it binds the two arrays. */
+  readonly closures: boolean
   readonly label: string
   /** Whether the program writes the toon data (`ContractKey.toonData`): its passes name the toon targets, and the step after the lights applies the toon diffuse. */
   readonly toon: boolean
@@ -406,10 +442,10 @@ interface LitState {
   readonly local: Awaited<ReturnType<typeof passPipelines>>
   readonly indirect: Awaited<ReturnType<typeof passPipelines>>
   readonly groups: Record<
-    'sun' | 'local' | 'indirect' | 'perLight' | 'hair',
+    'sun' | 'local' | 'indirect' | 'perLight' | 'oneLight' | 'hair',
     ReturnType<typeof createPassGroup>
   >
-  readonly named: Record<'sun' | 'local' | 'indirect' | 'perLight' | 'hair', unknown[]>
+  readonly named: Record<'sun' | 'local' | 'indirect' | 'perLight' | 'oneLight' | 'hair', unknown[]>
   /** The per-light passes, whose pipelines are made at the first frame that takes the path. */
   readonly perLight: PerLightProgram
   held?: HeldGroups
@@ -421,6 +457,8 @@ interface LitState {
   /** The layout of the toon data's group, where the program writes it. */
   readonly toonDataLayout?: GPUBindGroupLayout
   readonly toonGroup: ReturnType<typeof createPassGroup>
+  /** The pipelines of the indirect pass's view of the indirect diffuse light alone, made at the first image that shows it. */
+  diffuseView?: PreparedPipeline<GPURenderPipeline>[]
   /** The pipelines of the shading furnace test, made at the first image that runs it, for the samples it asks. */
   furnace?: {
     readonly samples: number
@@ -449,6 +487,68 @@ function toonPipelines(p: LitState) {
   ))
 }
 
+/**
+ * A variant of the lit program run apart (`name`, the tail of its labels): its modules, one for each class the program holds (`code` the text of a class; those in `held` when the variant
+ * made them already), and its pipelines, one for each tile class, over `layout` at `entry` (`finish` shapes the descriptor of a class where the variant differs from the program's).
+ */
+function variantPipelines(
+  p: LitState,
+  v: {
+    name: string
+    code: (tileClass: TileClass) => WgslDecl
+    layout: GPUBindGroupLayout | readonly GPUBindGroupLayout[]
+    entry: string
+    held?: GPUShaderModule[]
+    toon?: { writes: boolean }
+    finish?: (descriptor: GPURenderPipelineDescriptor) => GPURenderPipelineDescriptor
+  },
+) {
+  const { device, label, key } = p
+  const modules =
+    v.held ??
+    classesOf(key).map((tileClass) =>
+      device.createShaderModule({
+        label: `${label}_${v.name}_${TILE_CLASS_NAMES[tileClass]}`,
+        code: wgslModule(v.code(tileClass)),
+      }),
+    )
+  const tiles = TILE_CLASSES.map((tileClass) => {
+    const descriptor = lightPipelineDescriptor(
+      device,
+      modules,
+      v.layout,
+      v.entry,
+      `${label}_${v.name}`,
+      tileClass,
+      v.toon,
+    )
+    return preparedPipeline(device, v.finish ? v.finish(descriptor) : descriptor)
+  })
+  return { modules, tiles }
+}
+
+/** The pipelines of the indirect pass's variant of the indirect diffuse light alone (`indirectPassWgsl`'s `diffuseView`), over the indirect pass's bindings: its text
+ *  exists in no other program. */
+function diffuseViewPipelines(p: LitState) {
+  return (p.diffuseView ??= variantPipelines(p, {
+    name: 'INDIRECT_DIFFUSE',
+    code: (tileClass) =>
+      indirectPassWgsl({
+        bounce: p.bounce,
+        skyShadowing: p.skyShadowing,
+        cubed: !p.key.cubeless,
+        captured: !p.key.captureless,
+        capsule: p.capsule,
+        closures: !!p.key.closures,
+        diffuseView: true,
+        tileClass,
+      }),
+    layout: p.layouts.indirect,
+    entry: 'indirectMain',
+    toon: p.key.toonData ? { writes: false } : undefined,
+  }).tiles)
+}
+
 function visibilityPipelines(p: LitState) {
   return (p.visibility ??= TILE_CLASSES.map((tileClass) =>
     preparedPipeline(
@@ -464,6 +564,57 @@ function visibilityPipelines(p: LitState) {
       ),
     ),
   ))
+}
+
+/** The pipelines of the shading furnace test for `samples`, from the sun's bindings: its program over the classes the program holds, the surfaces'
+ *  pixels written over the tiles (no blend: the lit image is replaced), the others over one triangle. */
+function furnacePipelines(p: LitState, samples: number) {
+  if (p.furnace?.samples === samples) return p.furnace
+  const { device, label, layouts } = p
+  const targets: GPUColorTargetState[] = [{ format: HDR_FORMAT }]
+  // The modules and the sky pipeline do not hold the samples (`FURNACE_SAMPLES` is an override of the tiles' pipelines): made once.
+  const { modules, tiles } = variantPipelines(p, {
+    name: 'FURNACE',
+    code: (tileClass) => sunPassWgsl(p.key, tileClass, true),
+    layout: layouts.sun,
+    entry: FURNACE_ENTRY,
+    held: p.furnace?.modules,
+    finish: (descriptor) => ({
+      ...descriptor,
+      fragment: { ...descriptor.fragment!, targets, constants: { [FURNACE_SAMPLES]: samples } },
+    }),
+  })
+  let sky = p.furnace?.sky
+  if (!sky) {
+    const module = moduleOfClass(modules, TILE_CLASS.complex)
+    sky = preparedPipeline(device, {
+      label: `${label}_FURNACE_SKY`,
+      layout: pipelineLayoutOf(device, [layouts.sun]),
+      vertex: { module, entryPoint: 'furnaceCorner' },
+      fragment: { module, entryPoint: FURNACE_SKY_ENTRY, targets },
+      primitive: { topology: 'triangle-list' },
+    })
+  }
+  return (p.furnace = { samples, modules, tiles, sky })
+}
+
+function drawFurnace(p: LitState, pass: GPURenderPassEncoder, draws: GPUBuffer, samples: number) {
+  const { held } = p
+  if (!held) throw new Error('SURFACE_NOT_BOUND')
+  const { tiles, sky } = furnacePipelines(p, samples)
+  pass.setBindGroup(0, held.sun)
+  let made = drawTileClasses(
+    pass,
+    tiles.map((pipeline) => pipeline.get()),
+    draws,
+  )
+  const background = sky.get()
+  if (background) {
+    pass.setPipeline(background)
+    pass.draw(3)
+    made++
+  }
+  return made
 }
 
 /** The frame's resources, an absent one replaced by its stand-in. */
@@ -513,6 +664,8 @@ function resolveIndirectInputs(
     lightmapLight: direct.volumetricLight ?? placeholders.volumetricLight,
     screen: direct.screenIndirect ?? placeholders.screenIndirect,
     screenGi: direct.screenShortRangeGi ?? placeholders.screenShortRangeGi,
+    screenClosures: direct.screenIndirectClosures ?? placeholders.screenIndirectClosures,
+    screenGiClosures: direct.screenShortRangeGiClosures ?? placeholders.screenShortRangeGiClosures,
     shadowing: direct.skyShadowing ?? placeholders.skyShadowing,
     capsuleIndirect: direct.capsuleIndirect ?? placeholders.capsuleIndirect,
   }
@@ -579,6 +732,7 @@ function nameResources(
   indirectNamed.push(r.lightmapLight)
   indirectNamed.push(sky.sampler, sky.harmonics, sky.params)
   if (p.bounce) indirectNamed.push(r.screen)
+  if (p.closures) indirectNamed.push(r.screenClosures, r.screenGiClosures)
   if (p.skyShadowing) indirectNamed.push(shadowing.bent, shadowing.params)
   if (p.capsule) indirectNamed.push(r.capsuleIndirect)
   if (p.cubed) indirectNamed.push(r.cube.view, r.cube.colour)
@@ -623,7 +777,11 @@ function bindLitGroups(
     local: groups.local.get(named.local, () => localEntries(p, shared, r, fallback)),
     indirect: groups.indirect.get(named.indirect, () => indirectEntries(p, shared, r)),
     hair: (masks) => hairGroup(p, shared, r, fallback, masks),
-    perLight: direct.perLight && perLightGroup(p, shared, r, lights, tileList, direct.perLight),
+    perLight:
+      direct.perLight &&
+      (direct.perLight.mask
+        ? perLightGroup(p, shared, r, lights, tileList, direct.perLight, direct.perLight.mask)
+        : oneLightGroup(p, shared, r, fallback, direct.perLight)),
     // The suns the sampled lighting lights are left out of the sun's pass; the local lights' pass adds the sampled light even where the scene has no local light.
     suns: direct.suns !== 0 && !direct.sampledSun,
     locals: direct.locals !== 0 || !!direct.sampled,
@@ -666,11 +824,12 @@ function perLightGroup(
   lights: GPUBuffer,
   tileList: GPUBuffer,
   perLight: PerLightLights,
+  mask: GPUTextureView,
 ) {
   const named = p.named.perLight
   named.length = 0
   named.push(pixel.colours, pixel.emissiveAo, pixel.words, pixel.depth, pixel.subsurface)
-  named.push(pixel.lobes, lights, tileList, r.lightFunction, perLight.mask, perLight.records)
+  named.push(pixel.lobes, lights, tileList, r.lightFunction, mask, perLight.records)
   named.push(r.occlusion, r.toonTables)
   if (p.profiled) named.push(r.lightProfile.view, r.lightProfile.rectView)
   if (p.contact) named.push(r.contactBend.view, r.contactBend.ranks)
@@ -680,13 +839,34 @@ function perLightGroup(
       ...pixel,
       lightFunctionAtlas: r.lightFunction,
       ambientOcclusion: r.occlusion,
-      perLightMask: perLight.mask,
+      perLightMask: mask,
       toonTables: { buffer: r.toonTables },
       perLightRecord: { buffer: perLight.records, size: PER_LIGHT_RECORD_BINDING_BYTES },
     }),
     ...profileEntries(p, r),
     ...contactBendEntries(p, r),
     ...volumeShadowEntries(p, r),
+  ])
+}
+
+/** The group of the local lights' pass for one light, where the shadowed local lights read the packed mask: the local lights' group and the light's
+ *  record. */
+function oneLightGroup(
+  p: LitState,
+  shared: SharedBindings,
+  r: Resolved,
+  fallback: Fallback,
+  perLight: PerLightLights,
+) {
+  const named = p.named.oneLight
+  named.length = 0
+  named.push(...p.named.local, perLight.records)
+  return p.groups.oneLight.get(named, () => [
+    ...localEntries(p, shared, r, fallback),
+    {
+      binding: DEFERRED_BINDINGS.perLightRecord,
+      resource: { buffer: perLight.records, size: PER_LIGHT_RECORD_BINDING_BYTES },
+    },
   ])
 }
 
@@ -759,6 +939,10 @@ function indirectEntries(p: LitState, { pixel }: SharedBindings, r: Resolved) {
       volumetricLight: r.lightmapLight,
       reflection: r.reflection,
       ...(bounce && { screenIndirect: r.screen, screenShortRangeGi: r.screenGi }),
+      ...(p.closures && {
+        screenIndirectClosures: r.screenClosures,
+        screenShortRangeGiClosures: r.screenGiClosures,
+      }),
       ...(skyShadowing && {
         dfaoBent: { buffer: shadowing.bent },
         dfaoRead: { buffer: shadowing.params },
@@ -779,16 +963,25 @@ function indirectEntries(p: LitState, { pixel }: SharedBindings, r: Resolved) {
 
 /** One step of the lit image's light, drawn over the tiles of the surfaces: the sun's pass, the local lights', the shadows' view
  *  (the share of the light they let through), the indirect light's, the toon diffuse's, applied once to the sum of the lights (`toonUnifiedDiffuse`), or, a number, the draw of that shadowed local light alone
- *  (`PerLightLights`, `shadowOnePassProjection` false). */
-export type LightStep = 'suns' | 'locals' | 'visibility' | 'toon' | 'indirect' | number
+ *  (`PerLightLights`, `shadowOnePassProjection` or `clusteredDeferredShading` false), or the indirect pass's variant of the indirect diffuse light alone
+ *  (`indirectDiffuse`, view 5: its pipelines made at the first image that asks). */
+export type LightStep =
+  'suns' | 'locals' | 'visibility' | 'toon' | 'indirect' | 'indirectDiffuse' | number
 
 /** The steps of a lit image in the order they are drawn, by what the view shows (`lightView`, `LIT_VIEWS`, and 4 for the
- *  irradiance the probes bounced, alone): the whole lighting (0, 3) is the indirect light's pass, laid on the image before every
+ *  irradiance the probes bounced, alone, 5 the indirect light on a diffuse grey): the whole lighting (0, 3) is the indirect light's pass, laid on the image before every
  *  light, then the sun's pass, the local lights', each of the `perLight` lights' own draws; 2 the share of the light the shadows
  *  let through; any other the indirect light alone. The one order the batched path (no per-light light: three steps) and the
  *  per-light path both follow. */
 export function litSteps(lightView: number, perLight = 0): readonly LightStep[] {
-  const key = lightView === 2 ? -1 : lightView === 0 || lightView === 3 ? perLight : -2
+  const key =
+    lightView === 2
+      ? -1
+      : lightView === INDIRECT_DIFFUSE_LIGHT_VIEW
+        ? -3
+        : lightView === 0 || lightView === 3
+          ? perLight
+          : -2
   let steps = STEPS.get(key)
   if (!steps)
     STEPS.set(
@@ -798,7 +991,9 @@ export function litSteps(lightView: number, perLight = 0): readonly LightStep[] 
           ? ['visibility']
           : key === -2
             ? ['indirect']
-            : ['indirect', 'suns', 'locals', ...Array.from({ length: key }, (_, i) => i)]),
+            : key === -3
+              ? ['indirectDiffuse']
+              : ['indirect', 'suns', 'locals', ...Array.from({ length: key }, (_, i) => i)]),
     )
   return steps
 }
@@ -855,5 +1050,10 @@ function drawLit(
     }
     case 'indirect':
       return draw(held.indirect, p.indirect.pipelines)
+    case 'indirectDiffuse':
+      return draw(
+        held.indirect,
+        diffuseViewPipelines(p).map((pipeline) => pipeline.get()),
+      )
   }
 }

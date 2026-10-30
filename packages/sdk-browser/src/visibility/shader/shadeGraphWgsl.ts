@@ -25,6 +25,7 @@ import { SUBSURFACE_OPACITY_THRESHOLD } from '../../../../sdk-core/src/lighting/
 import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 import { requestLoopFn } from '../../materials/virtual/requestWgsl.ts'
 import { NEIGHBOUR_WEIGHTS } from './shadeVariantsWgsl.ts'
+import { closureWriter, type ClosureWriter } from './shadeClosuresWgsl.ts'
 
 /**
  * WHAT THE SURFACE RESOLVE ADDS FOR A GRAPH (`shadeShader`'s `graph`): the module of a class of a
@@ -62,6 +63,8 @@ export interface ShadeGraph {
   /** The lobes it wires, set in the pixel's lobe record before the record's own call stores them
    *  (`PHYSICAL_LOBES_CALL`); none where it wires neither. */
   readonly lobes?: string
+  /** The writer of the closures of a material with several (`shadeClosuresWgsl.ts`), none for one closure. */
+  readonly closures?: ClosureWriter
 }
 
 type Held = ReturnType<typeof heldOutputs>
@@ -120,8 +123,17 @@ ${g.uses.colour ? VERTEX_COLOR : ''}${NEIGHBOUR_WEIGHTS(' ')}${
 
 /** The normal the graph wires, in tangent space, bends the vertex normal as a normal map does; the
  *  other outputs are then read at the pixel's normal. */
-function late(g: CompiledGraph, held: Held, call: OutputCall) {
-  const normal = g.functions.normal
+function late(g: CompiledGraph, held: Held, call: OutputCall, writer?: ClosureWriter) {
+  // The first closure blended from several slabs is computed first, from the vertex normal; the closures past it bend that normal (`mgN0`).
+  const opening = writer ? `  let mgN0=N;\n${writer.first?.before ?? ''}` : ''
+  const map = writer?.first
+    ? writer.first.normal
+      ? call('normal')
+      : undefined
+    : g.functions.normal
+      ? `${g.functions.normal}(mgPixel,mgGiven)`
+      : undefined
+  const normal = map
     ? `  mgPixel.vertexNormal=N;mgPixel.pixelNormal=N;
   var mgT=tangents.T;var mgB=tangents.B;
   if(!HAS_TANGENT){
@@ -129,11 +141,11 @@ function late(g: CompiledGraph, held: Held, call: OutputCall) {
    mgT=frame.T*screenFace;mgB=frame.B*screenFace;
   }
   let mgFlip=select(1.0,face,DOUBLE_SIDED&&HAS_VERTEX_NORMAL);
-  let mgMap=${g.functions.normal}(mgPixel,mgGiven);
+  let mgMap=${map};
   N=bendNormal(N,mgT,mgB,mgFlip,mgMap);
 `
     : ''
-  return `${normal}  // The graph's outputs at the pixel, held as a shader holds them.
+  return `${opening}${normal}  // The graph's outputs at the pixel, held as a shader holds them.
   mgPixel.pixelNormal=N;
   rgb=${held.rgb};
   metal=ormMetalness(1.0,${held.metallic});
@@ -293,16 +305,24 @@ ${BOTTOM_FRAME}
 
 /** The pieces the surface resolve splices for the program `g`. */
 export function shadeGraph(g: CompiledGraph): ShadeGraph {
-  const call = outputCall(g, 'mgPixel,mgGiven')
-  const held = heldOutputs(g, call)
+  const own = outputCall(g, 'mgPixel,mgGiven')
+  const writer = closureWriter(g)
+  // The first closure's outputs: the primary slab's, or the blend of the slabs the first closure is made of.
+  const call = writer?.first?.call ?? own
+  const ownHeld = heldOutputs(g, own)
+  const held = call === own ? ownHeld : heldOutputs(g, call)
   return {
     decl: pixelWgsl(g),
     request: shadeRequestWgsl(g),
     sets: `|${g.uses.sets}u`,
     prologue: prologue(g),
-    diagnostic: `  base=${held.rgb}+${held.emissive};\n`,
-    normal: !!g.functions.normal || !!g.functions.clearCoatBottomNormal,
-    late: late(g, held, call),
+    diagnostic: `  base=${ownHeld.rgb}+${ownHeld.emissive};\n`,
+    normal:
+      !!g.functions.normal ||
+      !!g.functions.clearCoatBottomNormal ||
+      !!writer?.normal ||
+      !!writer?.first?.normal,
+    late: late(g, held, call, writer),
     model: g.functions.shadingModel
       ? `  if(mgModel==${GRAPH_SHADING_MODELS.unlit}){flag=(flag&~${SURFACE_MODEL_MASK}u)|${UNLIT_FLAG}u;}\n${pixelModels(g, held, call)}`
       : '',
@@ -311,5 +331,6 @@ export function shadeGraph(g: CompiledGraph): ShadeGraph {
       ? `  if((page.flags&${FLAG_LIT}u)!=0u${g.functions.shadingModel ? `&&!(mgModel==${PIXEL_MODEL.eye}&&uni.irisNormal!=0u)` : ''}){flag|=specularFlag(${held.specular});}\n`
       : '',
     thin: thinTransmission(g, call),
+    closures: writer,
   }
 }

@@ -38,6 +38,8 @@ async function openScene(canvas: HTMLCanvasElement) {
     renderScale: 1,
     exposureMethod: 'manual',
     exposureApplyPhysicalCamera: false,
+    // The three worlds draw different numbers of images before the read: they are compared on one phase of the noise.
+    freezeTemporalSequences: true,
   } as Parameters<typeof createWorld>[1])
   await world.ready
   world.exposure = 1

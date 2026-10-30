@@ -3,7 +3,8 @@ import { FEEDBACK_BYTES } from '../../materials/surface/surfaceBuffer.ts'
 import { createWebgpuBlendPipelines } from '../../blend/pipelines.ts'
 import { createWebgpuShadePipelines } from '../../visibility/passes/shadePipelines.ts'
 import { wantsResponsive } from './responsiveTarget.ts'
-import { blendContext } from './contractLight.ts'
+import { blendContext, worldVariant } from './contractLight.ts'
+import { variantKey, type BlendVariant } from '../../blend/variant.ts'
 import { makeFeedbackTarget } from './targets.ts'
 import { keepsEveryOutput } from './emissiveAoLayer.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
@@ -18,11 +19,19 @@ export type FeedbackAside = {
   feedback: boolean
   emissiveAo: boolean
   transmits: boolean
+  /** The variant of the blend programs it holds (`variantNow`): the water's cut for the world's exclusion volumes and the verdict of the programs in place when it was asked for the object shadow (`followBlendWorld`). */
+  world: BlendVariant
   set?: FeedbackPipelines
 }
 
 /** Whether the blend pipelines in place hold the transmissive stages (`TransmitPipelines`). */
 const transmitsNow = (rt: WebgpuPagesRuntime) => !!rt.vis.blendPipelines?.transmission
+
+/** The variant the blend pipelines in place stand for: the water's cut as the world asks it, the object shadow read as they were made (none where there are none). */
+const variantNow = (rt: WebgpuPagesRuntime): BlendVariant => ({
+  exclusion: worldVariant(rt).exclusion,
+  objectShadow: !!rt.vis.blendPipelines?.world.objectShadow,
+})
 
 /**
  * Whether the scene's pipelines should write the texture feedback: a pixel asks a tile only of a
@@ -67,7 +76,8 @@ export function followFeedback(rt: WebgpuPagesRuntime, device: GPUDevice) {
     if (
       aside?.feedback !== want ||
       aside.emissiveAo !== vis.writesEmissiveAo ||
-      aside.transmits !== transmitsNow(rt)
+      aside.transmits !== transmitsNow(rt) ||
+      variantKey(aside.world) !== variantKey(variantNow(rt))
     ) {
       vis.feedbackAside = want === vis.writesFeedback ? undefined : buildAside(rt, device, want)
     } else if (aside.set) {
@@ -95,6 +105,7 @@ function buildAside(rt: WebgpuPagesRuntime, device: GPUDevice, feedback: boolean
     feedback,
     emissiveAo: rt.vis.writesEmissiveAo,
     transmits: transmitsNow(rt),
+    world: variantNow(rt),
   }
   feedbackPipelines(rt, device, feedback).then(
     (set) => {

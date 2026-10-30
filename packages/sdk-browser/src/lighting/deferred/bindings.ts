@@ -111,6 +111,11 @@ export const DEFERRED_BINDINGS = {
   /** The short-range global illumination the screen probes left of the pixels (`../bounce/screen/indirectWgsl.ts`): the bounce program's, a read-only storage texture of half floats read by load (the lit pass
    *  has no sampled texture to spare), a black stand-in where the probes gathered none. */
   screenShortRangeGi: 76,
+  /** The screen probes' history of every closure a pixel holds, an array of words with a layer for each (`../bounce/screen/indirectWgsl.ts`, `SCREEN_INDIRECT_CLOSURES_WGSL`): the bounce program's of a view of several
+   *  closures (`ContractKey.closures`), read by load; a one-layer stand-in where the probes gathered none. */
+  screenIndirectClosures: 89,
+  /** The short-range global illumination of every closure, the same: a sampled array of half floats, no fifth storage texture being bound. */
+  screenShortRangeGiClosures: 90,
   /** The indirect capsule shadows' factors (`../capsuleShadows/host.ts`): a read-only storage buffer of bytes, one a pixel, 255 for light let through, read by load
    *  (`capsuleIndirectAt`); the indirect pass's of an image that casts them, a stand-in where it drew none. */
   capsuleIndirect: 79,

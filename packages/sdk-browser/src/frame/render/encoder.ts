@@ -3,6 +3,8 @@ import { sampledDebugSubmitted } from '../../lighting/manyLightsSampled/debug/fr
 import { translucencyVolumeDebugSubmitted } from '../../lighting/translucency/debug.ts'
 import { sceneDebugSubmitted } from '../../lighting/surfaceCache/sceneDebug/frame.ts'
 import { subsurfaceDebugSubmitted } from '../../lighting/subsurface/frame.ts'
+import { oitDebugSubmitted } from '../../blend/oit/oitDebug.ts'
+import { oitSubmitted } from '../../blend/oit/oitResources.ts'
 import { vsmSubmitted } from '../../lighting/shadows/vsm/frame/vsmFrameEnd.ts'
 import { gpuDeviceLedgerOf } from '../../gpu/core/deviceLedger.ts'
 import {
@@ -168,6 +170,8 @@ function submittedReadbacks(rt: WebgpuPagesCore, published: boolean) {
   sceneDebugSubmitted(rt)
   hzbOcclusionSubmitted(rt)
   vsmSubmitted(rt)
+  oitDebugSubmitted(rt)
+  oitSubmitted(rt.gpu)
   distanceFieldsSubmitted(rt)
 }
 

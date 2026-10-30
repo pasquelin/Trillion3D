@@ -46,7 +46,7 @@ export const radianceCacheEntries = (light: LightAtlasFormat) => [
  * the weights of the interpolation, in the order of their sums, the others left out and the point set on the one chosen, so that the read that follows
  * gives its map alone.
  */
-const COVERAGE_WGSL = wgslBlock(
+export const COVERAGE_WGSL = wgslBlock(
   'RADIANCE_CACHE_COVERAGE_WGSL',
   [],
   `fn reflectionCacheCovered(P:vec3f,random:f32)->CacheCoverage{
@@ -91,7 +91,10 @@ fn reflectionStochasticProbe(random:f32){
  *   octahedron), from one probe drawn at one half (`cacheTrace.z`) or from the eight, with the sky light's leaking added, the height fog over the distance it went, the ceiling
  *   of a ray, and is written as the fresh texel with that distance as its hit.
  */
-const KERNELS_WGSL = `fn cacheLimitsTexel(g:vec2u){
+const radianceCacheKernels = wgslBlock(
+  'radianceCacheKernels',
+  [],
+  `fn cacheLimitsTexel(g:vec2u){
  let texel=vec2i(g);
  if(!reflectionRayTraces(bitcast<f32>(textureLoad(surfaceRays,texel,REFLECTION_RAY_DEPTH).r))){return;}
  let coord=vec2i(reflectionPickedPixel(g));
@@ -107,6 +110,7 @@ const KERNELS_WGSL = `fn cacheLimitsTexel(g:vec2u){
  textureStore(surfaceRays,texel,REFLECTION_RAY_DISTANCE,vec4u(bitcast<u32>(select(reach,-reach,reach<far*0.99)),0u,0u,0u));
 }
 fn cacheReadsTexel(g:vec2u){
+ sp=spBase;
  let texel=vec2i(g);
  if(!reflectionRayTraces(bitcast<f32>(textureLoad(surfaceRays,texel,REFLECTION_RAY_DEPTH).r))){return;}
  let kept=textureLoad(surfaceRays,texel,REFLECTION_RAY_DISTANCE).r;
@@ -136,7 +140,8 @@ fn cacheReads(@builtin(workgroup_id) tile:vec3u,@builtin(num_workgroups) groups:
  if(t==REFLECTION_NO_TILE){return;}
  let id=reflectionTileOrigin(t)+local.xy;
  if(all(id<reflectionGridSize())){cacheReadsTexel(id);}
-}`
+}`,
+)
 
 /** The program of the two kernels, the cache's final maps read in the format `light` stores them in. */
 export const radianceCacheProgram = (light: LightAtlasFormat) =>
@@ -144,9 +149,9 @@ export const radianceCacheProgram = (light: LightAtlasFormat) =>
     `@group(0) @binding(${B.lights}) var<storage,read> directLights:DirectLights;
 @group(0) @binding(${B.traceOut}) var traceOut:texture_storage_2d<rg32uint,write>;
 @group(0) @binding(${C.params}) var<uniform> spBase:ScreenProbeParams;
-var<private> sp:ScreenProbeParams;
-${KERNELS_WGSL}`,
+var<private> sp:ScreenProbeParams;`,
     [
+      radianceCacheKernels,
       directLightWgsl(),
       LOBES_LIGHTING_WGSL,
       // Toon pixels are not lit here: the tables the toon code reads answer zero.

@@ -4,8 +4,15 @@ import type { ContractKey } from '../../lighting/deferred/contractCuts.ts'
 import type { PreparedPipeline } from '../../lighting/deferred/fullscreen.ts'
 import type { WaterPipelines } from './waterPipelines.ts'
 import { waterScenePipelines } from './waterSceneStages.ts'
+import {
+  forwardFieldSun,
+  type ForwardFieldSun,
+} from '../../lighting/shadows/classic/fieldShadow/fieldShadowWater.ts'
+import { releaseFieldWaterMask } from '../../lighting/shadows/classic/fieldShadow/fieldShadowKit.ts'
+import { waterExclusionsOf } from './waterExclusions.ts'
 import { waterSunLayer } from '../../lighting/shadows/vsm/frame/vsmWaterSun.ts'
 import {
+  waterFiltersField,
   waterFiltersSun,
   waterSceneGroups,
   waterSeparated,
@@ -31,6 +38,8 @@ export interface WaterFrame {
   depthView: GPUTextureView
   depthTexture: GPUTexture
   pipelines: WaterPipelines
+  /** The groups that name the exclusion volumes' table, in the variant of the programs for a world that holds some (`waterExclusionsOf`). */
+  exclusions: ReturnType<typeof waterExclusionsOf> | undefined
   targets: WaterTargets
   stages: ReturnType<typeof waterScenePipelines>
   scene: ReturnType<typeof waterSceneGroups>
@@ -46,6 +55,11 @@ export interface WaterFrame {
   /** The layer of the projection's mask that holds the forward sun, where the sun's shadow on the water is the projection's
    *  (`singleLayerWaterVsmFiltering`) and the image projects it; −1 else. */
   sunLayer: number
+  /** The layer of the field mask that holds the forward sun, where the sun's shadow on the water is the classic distance-field cascade's
+   *  (`singleLayerWaterDistanceFieldShadow`) and the image traced it; −1 else. */
+  fieldSunLayer: number
+  /** The forward sun's field shadow, resolved once for the image (`fieldSunLayer` is its layer), none where `fieldSunLayer` is −1. */
+  fieldSun: ForwardFieldSun | undefined
   /** The refraction is masked. */
   masked: boolean
   /** The tiles that hold water are listed, for the colour copy, the composite or the sun's shadow. */
@@ -81,11 +95,16 @@ export function openWaterFrame(
   encoder: GPUCommandEncoder,
   key?: Partial<ContractKey>,
 ): WaterFrame | undefined {
-  if (!drawsWater(rt)) return undefined
+  if (!drawsWater(rt)) {
+    releaseFieldWaterMask(rt.gpu)
+    return undefined
+  }
   const { gpu, blendState } = rt
   const pipelines = litBlendPipelines(rt, device, key)?.water
-  if (!pipelines || !gpu.hdrView || !gpu.depthView || !gpu.depthTexture || !blendState.argsBuffer)
+  if (!pipelines || !gpu.hdrView || !gpu.depthView || !gpu.depthTexture || !blendState.argsBuffer) {
+    releaseFieldWaterMask(gpu)
     return undefined
+  }
   const targets = waterTargetsOf(rt, device)
   // The settings of the image, one reading; the sun kept apart where the programs hold it and a setting asks.
   const settings = targets.watch.read(rt.context)
@@ -93,7 +112,21 @@ export function openWaterFrame(
   const prepass = settings.singleLayerWaterDepthPrepass
   // The sun's shadow is projected over the listed tiles (from the water's depth, before or after the shading).
   const sunLayer = separated && waterFiltersSun(settings) ? waterSunLayer(rt, device) : -1
-  const masked = writeWaterParams(rt, device, targets, settings, separated, sunLayer)
+  const fieldSun =
+    separated && waterFiltersField(settings, !!rt.distanceFields)
+      ? forwardFieldSun(rt, device)
+      : undefined
+  // Both masks are read at the one layer of the water's uniform (`filters.z`): the field cascade is traced into the layer the projection's mask holds the forward sun at,
+  // else the sun's own rank in the frame's projected suns, so a cascade whose rank differs from the projection's is still laid.
+  const fieldSunLayer = fieldSun ? (sunLayer >= 0 ? sunLayer : fieldSun.entry.layer) : -1
+  // The water's sun mask lives only while the water uses the field shadow.
+  if (!fieldSun) releaseFieldWaterMask(rt.gpu)
+  // Both masks have a layer a sun of the frame, so the one layer names the forward sun in either. Only the projection of the shadow maps
+  // replaces the water's own shadow of the sun: the distance-field mask is multiplied on top of the water's own cascades.
+  const masked = writeWaterParams(rt, device, targets, settings, separated, {
+    layer: fieldSunLayer >= 0 ? fieldSunLayer : sunLayer,
+    projected: sunLayer >= 0,
+  })
   const [width, height] = gpu.targetSize
   const reflects = settings.singleLayerWaterReflection !== 'disabled'
   const tiling = tilingOf(
@@ -101,7 +134,7 @@ export function openWaterFrame(
     prepass,
     masked && targets.factor === 1,
     reflects || separated,
-    sunLayer >= 0,
+    sunLayer >= 0 || fieldSunLayer >= 0,
   )
   return {
     rt,
@@ -111,6 +144,7 @@ export function openWaterFrame(
     depthView: gpu.depthView,
     depthTexture: gpu.depthTexture,
     pipelines,
+    exclusions: pipelines.exclusion ? waterExclusionsOf(rt, device, targets) : undefined,
     targets,
     stages: waterScenePipelines(device),
     scene: waterSceneGroups(device, targets, gpu.hdrView, gpu.depthView),
@@ -121,6 +155,8 @@ export function openWaterFrame(
     reflects,
     separated,
     sunLayer,
+    fieldSunLayer,
+    fieldSun,
     masked,
     ...tiling,
     // The depth is copied over the view alone (`singleLayerWaterOptimizedClear`), else over the whole texture.
@@ -138,7 +174,7 @@ export function waterChain(f: WaterFrame): PreparedPipeline<unknown>[] {
     stages.depthCopy.pipeline,
     f.tiledCopy ? stages.colorTiled.pipeline : stages.color.pipeline,
     ...(f.listed ? [stages.marks, stages.lists, stages.dispatch] : []),
-    ...(f.sunLayer >= 0 ? [stages.sunShadow.pipeline] : []),
+    ...(f.sunLayer >= 0 || f.fieldSunLayer >= 0 ? [stages.sunShadow.pipeline] : []),
     ...(f.masked && f.prepass ? [stages.mask.pipeline] : []),
     ...(f.rt.gpu.velocity?.measured && f.rt.vis.visView ? [stages.ids] : []),
     ...f.pipelines.chain({

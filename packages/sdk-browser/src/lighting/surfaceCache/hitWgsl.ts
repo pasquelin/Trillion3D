@@ -54,7 +54,10 @@ export interface SurfaceHitBindings {
   readonly cards: number
   readonly instances: number
   readonly feedback?: boolean
-  /** Whether the emission layer is a float texture (a compressed atlas) or a layer of words of light; read only by the scene view's emission mode. */
+  /** Whether the hit gathers the surface (albedo, emission, normal: `scEvaluateMaterialCards`) in place of its final light, so that the albedo, normal and emissive layers are bound
+   *  beside the tables and the depth, at `SURFACE_CACHE_LAYER_AT`, and the final layer is not (`SurfaceCacheRead.material`). */
+  readonly material?: boolean
+  /** Whether the emission layer is a float texture (a compressed atlas) or a layer of words of light; read only by a material hit. */
   readonly compressed?: boolean
   /** The mode of the scene view the hit is made for (`SurfaceCacheRead.visualize`): a layer mode binds the layers it reads (`visualizeLayersOf`) in place of the final light. */
   readonly visualize?: number
@@ -80,20 +83,23 @@ const SURFACE_HIT_LAYER_AT = {
   factors: L.factors,
 } as const
 
-/** The offsets of `cards` a hit at `b` binds past its tables and depth: the final light, or a layer mode's layers. */
-const hitReadOf = (b: Pick<SurfaceHitBindings, 'visualize'>) =>
+/** The offsets of `cards` a hit at `b` binds past its tables and depth: the final light, a material hit's surface, or a layer mode's layers. */
+const hitReadOf = (b: Pick<SurfaceHitBindings, 'material' | 'visualize'>) =>
   isLayerMode(b.visualize)
     ? visualizeLayersOf(b.visualize).map((layer) => SURFACE_HIT_LAYER_AT[layer])
-    : [L.final]
+    : b.material
+      ? [L.albedo, L.normal, L.emissive]
+      : [L.final]
 
 /** What the library is asked to read at `b`, the final light stored in `light`: the emission, which a compressed atlas keeps as blocks, is no layer a hit reads. */
 const readOf = (
-  b: Pick<SurfaceHitBindings, 'feedback' | 'compressed' | 'visualize'>,
+  b: Pick<SurfaceHitBindings, 'feedback' | 'material' | 'compressed' | 'visualize'>,
   light: LightAtlasFormat,
 ) => ({
   feedback: !!b.feedback,
-  compressed: b.visualize === VISUALIZE_MODE.emissive && !!b.compressed,
+  compressed: (!!b.material || b.visualize === VISUALIZE_MODE.emissive) && !!b.compressed,
   light,
+  material: !!b.material,
   visualize: b.visualize,
 })
 
@@ -103,11 +109,11 @@ export interface SurfaceHitResources {
   readonly tables: GPUBuffer
   readonly depth: GPUTextureView
   readonly final: GPUTextureView
-  /** The layers a scene view's hit reads (`SurfaceHitBindings.visualize`): the surface's albedo, normal and emission. */
+  /** The layers a material hit reads (`SurfaceHitBindings.material`). */
   readonly albedo?: GPUTextureView
   readonly normal?: GPUTextureView
   readonly emissive?: GPUTextureView
-  /** And the direct and indirect light, the radiosity's frames, the direct light's shadow factors. */
+  /** The layers a scene view's hit reads (`SurfaceHitBindings.visualize`): the direct and indirect light, the radiosity's frames, the direct light's shadow factors. */
   readonly direct?: GPUTextureView
   readonly indirect?: GPUTextureView
   readonly frames?: GPUTextureView
@@ -127,7 +133,10 @@ export interface SurfaceHitReads {
 /** The layout entries of what a hit reads of the cache at `b`, its final light stored in `light`: its tables, depth and final layers and its feedback buffer where `b` says
  *  (the library's other layers are left out of the stage's layout: it holds nothing of a binding it does not reach), the instances'. */
 export function surfaceHitCardsLayoutEntries(
-  b: Pick<SurfaceHitBindings, 'cards' | 'instances' | 'feedback' | 'compressed' | 'visualize'>,
+  b: Pick<
+    SurfaceHitBindings,
+    'cards' | 'instances' | 'feedback' | 'material' | 'compressed' | 'visualize'
+  >,
   light: LightAtlasFormat,
 ): GPUBindGroupLayoutEntry[] {
   const read = [0, L.depth, ...hitReadOf(b)].map((at) => b.cards + at)
@@ -178,7 +187,7 @@ function hitLayerOf(hit: SurfaceHitResources, at: number): GPUBindingResource {
 
 /** The bind group entries of what a hit reads of the cache at `b`, over the cache's `hit` resources. */
 export function surfaceHitCardsEntries(
-  b: Pick<SurfaceHitBindings, 'cards' | 'instances' | 'feedback' | 'visualize'>,
+  b: Pick<SurfaceHitBindings, 'cards' | 'instances' | 'feedback' | 'material' | 'visualize'>,
   hit: SurfaceHitResources,
 ): GPUBindGroupEntry[] {
   return [
@@ -209,12 +218,12 @@ export function surfaceHitEntries(
 export function surfaceHitCardsWgsl(
   b: Pick<
     SurfaceHitBindings,
-    'group' | 'cards' | 'instances' | 'feedback' | 'compressed' | 'visualize'
+    'group' | 'cards' | 'instances' | 'feedback' | 'material' | 'compressed' | 'visualize'
   >,
   light: LightAtlasFormat,
 ) {
   return wgslBlock(
-    `SURFACE_HIT_CARDS_WGSL(${b.group},${b.cards},${b.instances},${!!b.feedback},${light}${b.visualize ? ',visualize' : ''})`,
+    `SURFACE_HIT_CARDS_WGSL(${b.group},${b.cards},${b.instances},${!!b.feedback},${light}${b.material ? `,material,${!!b.compressed}` : ''}${b.visualize ? ',visualize' : ''})`,
     [surfaceCacheSampleWgsl(b.group, b.cards, readOf(b, light)), sinFromCosUnclamped],
     `@group(${b.group}) @binding(${b.instances}) var<storage,read> hitInstances:array<u32>;
 /** The placement of the cache that the object of the grid named \`instance\` is, none for an instance past the table. */
@@ -233,7 +242,7 @@ struct ScMeshSurface{radiance:vec3f,valid:bool,}
 fn scMeshHit(world:vec3f,face:vec3f,instance:u32,footprint:f32,range:f32,hiRes:bool,coord:vec2u)->ScMeshSurface{
  var taken=scAccumulator();
  scSampleMeshCards(scPlacementMeshCards(scHitPlacement(instance)),world,face,footprint,range,hiRes,&taken);
- let light=scEvaluate(taken,coord);
+ let light=scEvaluate(taken,coord,hiRes);
  return ScMeshSurface(light.radiance,light.valid);
 }`,
   )
@@ -254,33 +263,40 @@ export function surfaceHitWgsl(
       globalObjectGridReadWgsl(b.group, b.field, b.grid, filterableMip),
     ],
     `struct ScHitSurface{radiance:vec3f,face:vec3f,valid:bool,instance:u32,}
-/** The surface the march \`hit\` of the ray from the world point \`origin\` along \`dir\` met: its light, its face, whether the cache gave
- *  any, and the object of the grid whose cards gave the most weight to it (all ones where none gave any), which is the rank of the cut's placement a hit of the scene's triangles names (\`StHit.object\`): the placement that carries the hit's speed. \`spread\` is the tangent of the angle of the ray's cone, \`hiRes\` whether the finest pages are read, \`coord\` the pixel the
- *  feedback is written for. */
-fn scGlobalHit(origin:vec3f,dir:vec3f,hit:GdfTraceResult,spread:f32,fade:bool,startedInside:f32,hiRes:bool,coord:vec2u)->ScHitSurface{
+/** What the cards of the objects round a hit gave before they are divided (\`scEvaluate\`): the accumulator, the hit's face, the object of the grid whose cards gave the most weight, and the factor the light fades by. */
+struct ScHitTaken{taken:ScAccum,face:vec3f,instance:u32,factor:f32,}
+/** The cards of the objects of the grid cell round the march \`hit\` of the ray from \`origin\` along \`dir\` sampled into one accumulator, until they gave the weight 0.9 (\`scGlobalHit\` divides it). */
+fn scGlobalTaken(origin:vec3f,dir:vec3f,hit:GdfTraceResult,spread:f32,fade:bool,startedInside:f32,hiRes:bool)->ScHitTaken{
  let world=origin+dir*hit.hitTime;
  let translated=gdfTranslated(world);
  let face=gdfNormal(translated,hit.clipmap,-dir);
  let voxel=gdfView.centerExtent[hit.clipmap].w*gdfView.texel;
  var factor=select(1.0,smoothstep(1.5*voxel,2.0*voxel,hit.hitTime),fade);
  if(hit.hitTime<=startedInside){factor=0.0;}
- if(!(factor>0.0)){return ScHitSurface(vec3f(0.0),face,false,0xffffffffu);}
+ var out=ScHitTaken(scAccumulator(),face,0xffffffffu,factor);
+ if(!(factor>0.0)){return out;}
  let cell=gdfObjectGridCellOf(translated+face*voxel,hit.clipmap);
  // The march's hit sits \`expand\` past the surface: the cards are read half of it nearer.
  let cardAt=world+dir*0.5*hit.expand;
- var taken=scAccumulator();
- var instance=0xffffffffu;
  var best=0.0;
  for(var k=0u;k<${GRID_CELL_SIZE}u;k++){
   if(!gdfGridValid(cell[k])){break;}
   let own=gdfGridInstance(cell[k]);
-  let before=taken.weightSum;
-  scSampleMeshCards(scPlacementMeshCards(scHitPlacement(own)),cardAt,face,spread*hit.hitTime,${CARD_RANGE_IN_VOXELS}.0*voxel,hiRes,&taken);
-  if(taken.weightSum-before>best){best=taken.weightSum-before;instance=own;}
-  if(taken.weightSum>=0.9){break;}
+  let before=out.taken.weightSum;
+  scSampleMeshCards(scPlacementMeshCards(scHitPlacement(own)),cardAt,face,spread*hit.hitTime,${CARD_RANGE_IN_VOXELS}.0*voxel,hiRes,&out.taken);
+  if(out.taken.weightSum-before>best){best=out.taken.weightSum-before;out.instance=own;}
+  if(out.taken.weightSum>=0.9){break;}
  }
- let light=scEvaluate(taken,coord);
- return ScHitSurface(factor*light.radiance,face,light.valid,instance);
+ return out;
+}
+/** The surface the march \`hit\` of the ray from the world point \`origin\` along \`dir\` met: its light, its face, whether the cache gave
+ *  any, and the object of the grid whose cards gave the most weight to it (all ones where none gave any), which is the rank of the cut's placement a hit of the scene's triangles names (\`StHit.object\`): the placement that carries the hit's speed. \`spread\` is the tangent of the angle of the ray's cone, \`hiRes\` whether the finest pages are read, \`coord\` the pixel the
+ *  feedback is written for. */
+fn scGlobalHit(origin:vec3f,dir:vec3f,hit:GdfTraceResult,spread:f32,fade:bool,startedInside:f32,hiRes:bool,coord:vec2u)->ScHitSurface{
+ let found=scGlobalTaken(origin,dir,hit,spread,fade,startedInside,hiRes);
+ if(!(found.factor>0.0)){return ScHitSurface(vec3f(0.0),found.face,false,0xffffffffu);}
+ let light=scEvaluate(found.taken,coord,hiRes);
+ return ScHitSurface(found.factor*light.radiance,found.face,light.valid,found.instance);
 }`,
   )
 }

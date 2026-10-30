@@ -10,6 +10,9 @@ import type { BlendedSurface } from './pipelines.ts'
 import type { Clipping } from '../gpu/core/clipDistances.ts'
 import type { SurfaceProgram } from '../materials/graph/surfaceProgram.ts'
 import { NO_WPO, type WpoSet } from '../materials/graph/wpoProgram.ts'
+import { emptyLayout } from './transmission/distortionGroups.ts'
+import { waterTableLayout } from './water/waterExclusionTable.ts'
+import { PLAIN_VARIANT, type BlendVariant } from './variant.ts'
 
 /** What a front pass of the transparents `items` writes (`FrontOutputs`): nothing past the covering
  *  depth and flags unless one reflects, the lobes too where one carries a lobe. The one decision of
@@ -58,13 +61,15 @@ export function createFrontStages(
   clipping?: Clipping,
   graphs: readonly SurfaceProgram[] = [],
   offsets: WpoSet = NO_WPO,
+  world: BlendVariant = PLAIN_VARIANT,
 ) {
-  const sets: FrontStagePipelines[] = []
-  const setOf = (outputs: FrontOutputs): FrontStagePipelines =>
+  const sets: FrontStagePipelines[] = [],
+    cutSets: FrontStagePipelines[] = []
+  const setOf = (outputs: FrontOutputs, cut: boolean): FrontStagePipelines =>
     stageOfCulls(device, () => {
       const module = device.createShaderModule({
         label: 'Trillion3D front stage',
-        code: blendFrontShader(outputs, clipping, graphs, offsets),
+        code: blendFrontShader(outputs, clipping, graphs, offsets, cut),
       })
       const fragment = {
         module,
@@ -72,16 +77,16 @@ export function createFrontStages(
         targets: fragmentTargets(FRONT_OUTPUTS[outputs]),
       }
       // The pass that lights the layer marks the tiles it writes (`FrontTiles`), through a group of its own.
-      return stageDescriptors(
-        device,
-        module,
-        layout,
-        fragment,
-        true,
-        outputs === 3 ? [frontTileLayout(device)] : [],
-      )
+      return stageDescriptors(device, module, layout, fragment, true, [
+        ...(outputs === 3 ? [frontTileLayout(device)] : cut ? [emptyLayout(device)] : []),
+        ...(cut ? [waterTableLayout(device)] : []),
+      ])
     })
-  return (outputs: FrontOutputs) => (sets[outputs] ??= setOf(outputs))
+  // The set of the variant that cuts the water's surface exists where the programs are the variant for a world with exclusion volumes.
+  return (outputs: FrontOutputs, cut = false) =>
+    cut && world.exclusion
+      ? (cutSets[outputs] ??= setOf(outputs, true))
+      : (sets[outputs] ??= setOf(outputs, false))
 }
 
 /** Prepare's compile of the front stage the scene's transparents `items` reach (`frontStageOf`) where the settings trace the

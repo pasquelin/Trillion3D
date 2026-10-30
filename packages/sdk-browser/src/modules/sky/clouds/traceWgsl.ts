@@ -17,7 +17,12 @@ import { AIR_FOG_BINDINGS } from '../../../lighting/atmosphere/programs.ts'
 import { fogBlockOf } from '../../../lighting/fog/readWgsl.ts'
 import { cloudLightWgsl } from './traceLightWgsl.ts'
 import { cloudGroundWgsl } from './traceGroundWgsl.ts'
-import { CLOUD_MARCH_WGSL, CLOUD_RAY_WGSL, CLOUD_SHELL_WGSL } from './traceMarchWgsl.ts'
+import {
+  CLOUD_HOLDOUT_WGSL,
+  cloudMarchWgsl,
+  CLOUD_RAY_WGSL,
+  CLOUD_SHELL_WGSL,
+} from './traceMarchWgsl.ts'
 import { cloudTraceExtraWgsl } from './traceExtraWgsl.ts'
 import { preExposedWgsl } from '../../../post/exposure/preWgsl.ts'
 import { cloudTraceKeyText, type CloudTraceKey } from './traceExtraLayout.ts'
@@ -58,14 +63,27 @@ ${cloudDepthBinding(G, B.depthRange, key.depth)}
     ? `
 @group(${G}) @binding(${B.closest}) var closestOut:texture_storage_2d<${CLOUD_FORMAT},write>;`
     : ''
+}${
+  key.holdout
+    ? `
+@group(${G}) @binding(${B.holdout}) var holdoutOut:texture_storage_2d<${CLOUD_FORMAT},write>;`
+    : ''
 }
 struct CloudRay{origin:vec3f,dir:vec3f,tMin:f32,tMax:f32,tTop:vec2f,tBottom:vec2f,}
-struct CloudTraced{colour:vec4f,secondary:vec4f,depth:vec4f,closest:f32,}
+struct CloudTraced{colour:vec4f,secondary:vec4f,depth:vec4f,closest:f32,${key.holdout ? 'holdout:f32,' : ''}}
 struct CloudDepth{closestCm:f32,furthestCm:f32,km:vec4f,}`
 
 /** The luminance of a finished colour, written multiplied by the image's pre-exposure
- *  (\`cloudTrace.sky.w\`); its transmittance as it is. */
-const CLOUD_LIGHT = `fn cloudLight(c:vec4f)->vec4f{return vec4f(preExposed(c.rgb),c.a);}`
+ *  (\`cloudTrace.sky.w\`); its transmittance as it is. A debug view (\`cloudDebugValue\`) takes its
+ *  channels in place of the luminance's first one (view 1) or first two (view 2). */
+const cloudLight = (debugView: number) =>
+  `fn cloudLight(c:vec4f)->vec4f{${
+    debugView === 1
+      ? '\n return vec4f(preExposed(vec3f(cloudDebugValue.x,c.g,c.b)),c.a);\n'
+      : debugView === 2
+        ? '\n return vec4f(preExposed(vec3f(cloudDebugValue,c.b)),c.a);\n'
+        : 'return vec4f(preExposed(c.rgb),c.a);'
+  }}`
 
 /** The ray of a traced texel (`cloudViewRay`): cut to the shell, the scene's depth and the longest
  *  march, marched, and its colours finished. An orthographic view draws to its far plane: a pixel
@@ -84,7 +102,7 @@ fn cloudRayTrace(p:vec2u)->CloudTraced{
  out.secondary=vec4f(0.0,0.0,0.0,1.0);
  out.depth=vec4f(HALF_MAX);
  out.closest=HALF_MAX;
- let ndc=cloudNdc(p);
+${key.holdout ? ' out.holdout=0.0;\n' : ''} let ndc=cloudNdc(p);
  let ortho=frame.eye.w==0.0;
  let seen=cloudViewRay(ndc);
  if(ortho){cloudMoveOrigin(seen.origin);}
@@ -107,10 +125,12 @@ fn cloudRayTrace(p:vec2u)->CloudTraced{
  let seenDepth=cloudMeanDepth(m.seen,r.tMax);
  // The view pixel the texel traces, which the local fog volumes' tile is found by.
  let pixel=ndcToPixel(ndc,frame.size.xy);
- out.colour=cloudLight(cloudFinish(m.seen,seenDepth,r.dir,pixel));
+ out.colour=cloudLight(cloudFinish(m.seen,seenDepth,r.dir,pixel));${
+   key.holdout ? '\n out.holdout=cloudHoldout(m.seen,seenDepth,r.dir,pixel);' : ''
+ }
 ${
   key.minMaxDepth
-    ? ' let nearestDepth=cloudMeanDepth(m.nearest,r.tMax);\n out.secondary=cloudLight(cloudFinish(m.nearest,nearestDepth,r.dir,pixel));\n out.closest=select(nearestDepth,r.tMax,out.secondary.a>0.99)*CLOUD_CM_TO_KM;\n'
+    ? ` let nearestDepth=cloudMeanDepth(m.nearest,r.tMax);\n out.secondary=${key.debugView ? 'out.colour' : 'cloudLight(cloudFinish(m.nearest,nearestDepth,r.dir,pixel))'};\n out.closest=select(nearestDepth,r.tMax,out.secondary.a>0.99)*CLOUD_CM_TO_KM;\n`
     : ''
 } out.depth.x=select(seenDepth,r.tMax,out.colour.a>0.99)*CLOUD_CM_TO_KM;
  return out;
@@ -127,7 +147,9 @@ fn cloudTraceMain(@builtin(global_invocation_id) id:vec3u){
  let traced=cloudRayTrace(id.xy);
  textureStore(colourOut,id.xy,traced.colour);${
    key.minMaxDepth ? '\n textureStore(secondaryOut,id.xy,traced.secondary);' : ''
- }${key.closestDepth ? '\n textureStore(closestOut,id.xy,vec4f(traced.closest));' : ''}
+ }${key.closestDepth ? '\n textureStore(closestOut,id.xy,vec4f(traced.closest));' : ''}${
+   key.holdout ? '\n textureStore(holdoutOut,id.xy,vec4f(traced.holdout,0.0,0.0,0.0));' : ''
+ }
  textureStore(depthOut,id.xy,traced.depth);}`
 
 /**
@@ -160,8 +182,9 @@ const traceOwn = (key: CloudTraceKey) =>
     traceBindings(key),
     CLOUD_SHELL_WGSL,
     cloudSceneDepthFn(key.depth),
-    CLOUD_MARCH_WGSL,
-    CLOUD_LIGHT,
+    cloudMarchWgsl(key.debugView !== 0),
+    ...(key.holdout ? [CLOUD_HOLDOUT_WGSL] : []),
+    cloudLight(key.debugView),
     traceRay(key),
     traceMain(key),
   ].join('\n')
@@ -179,8 +202,8 @@ export function cloudTraceProgram(key: CloudTraceKey, shape: AirShape = DEFAULT_
       { ...CLOUD_TRACE_AIR, lights: key.localLights },
       traceOwn(key),
       [
-        cloudLightWgsl(key.volumeShadowMap),
-        cloudGroundWgsl(key.volumeShadowMap),
+        cloudLightWgsl(key.volumeShadowMap, key.debugView !== 0),
+        cloudGroundWgsl(key.volumeShadowMap, key.debugView !== 0),
         cloudTraceExtraWgsl(key),
         fogBlockOf({ ...AIR_FOG_BINDINGS, localFog: shape.localFog }),
         HALF_MAX,

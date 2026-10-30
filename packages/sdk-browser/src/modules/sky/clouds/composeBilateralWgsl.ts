@@ -106,3 +106,35 @@ export const PLAIN_BILATERAL = `${BILATERAL_TEXELS}
   return fogOnCloud(position.xy*frame.size.zw,frontSum/count,sum/count);
  }
  return fogFromUv(softUv,sampleBounded(cloudColour,view.bounds,softUv));`
+
+/** The depth of a cloud front must be this much in front of the pixel's distance to count, kilometres. */
+const FRONT_TINY_KM = 0.001
+/** The places are looked at again, further out, when none of the four held a cloud in front of the pixel. */
+const FURTHER_PLACES = 3
+
+/**
+ * The bilateral way for the scene copy behind the water (`composeProgram`'s `under`): the pixel's distance is the copy's, and the
+ * cloud is the mean of the four jittered places (`jitters`) whose front lies in front of that distance and in front of the traced
+ * depth. When none does, the places are shifted out to three times their distance, their two axes swapped, and looked at again;
+ * when none does then, nothing is laid. The fog is laid once on the mean, at the mean front depth.
+ */
+export const UNDER_BILATERAL = `
+ let places=jitters(position.xy);
+ let origin=volumeUv(position.xy);
+ var sum=vec4f(0.0);var frontSum=0.0;var valid=0.0;
+ for(var round=0;round<2;round++){
+  for(var k=0;k<4;k++){
+   var uv=places[k];
+   if(round==1){uv=origin+(places[k]-origin).yx*${FURTHER_PLACES}.0;}
+   let at=vec2i(uv*view.textureSize.xy);
+   let depth=loadBounded(cloudDepth,view.bounds,at);
+   if(pixelKm>depth.x-${FRONT_TINY_KM}&&depth.x<depth.y){
+    sum+=loadBounded(cloudColour,view.bounds,at);
+    frontSum+=depth.x;
+    valid+=1.0;
+   }
+  }
+  if(valid>0.0){break;}
+ }
+ if(valid==0.0){discard;}
+ return fogAtPixel(position.xy,frontSum/valid,sum/valid);`

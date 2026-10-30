@@ -34,6 +34,8 @@ import { holdoutStageText } from './holdoutWgsl.ts'
 import { COVERED, coverageStageText, marked, responsiveStageText } from './layerStagesWgsl.ts'
 import { modeIs } from '../materials/surface/materialBlending.ts'
 import { BLEND_PUSHED_DEPTH_WGSL } from './pushedDepthWgsl.ts'
+import { oitCollectWgsl } from './oit/oitWgsl.ts'
+import { OIT_DEPTH_FOLDED_WGSL } from './objectShadow/objectShadowSelfWgsl.ts'
 
 /** A blend layer's prologue and the lights it reads (`blendLayer`, `blendLightsSet`, `blendLights`). */
 const blendLayerText = (o: StageOptions) => `${BLEND_DIAGNOSTIC}
@@ -95,6 +97,13 @@ fn frontSunLighting(s:BlendSurface,V:vec3f,P:vec3f,pixel:vec2f,z:f32)->vec3f{
 }
 `
 
+/** The call that reads the translucency lighting volume for the fragment `in`: the plain read, or, in a program that reads its object's shadow, the read less the sun's part its own object
+ *  shadows (`translucencyVolumeLightSelf`, `selfShadowRecordOf`). */
+const volumeLightCall = (selfShadow: boolean) =>
+  selfShadow
+    ? `translucencyVolumeLightSelf(s.rgb,s.metal,s.N,in.view,translucencyLightingOf(flags),in.position.xy,V,s.subsurface,pixelModelOf(flags)==${PIXEL_MODEL.subsurface}u,selfShadowRecordOf(in))`
+    : 'translucencyVolumeLight(s.rgb,s.metal,s.N,in.view,translucencyLightingOf(flags),in.position.xy)'
+
 /** The light of a layer by how its material is lit (`blendLightsOf`): the mode alone says it, whatever the layer's blend mode, and the
  *  plan puts each layer in the pipeline of its lighting (`BLEND_LIGHTINGS`, `blendLightingOf`), so the pipeline's constant `BLEND_LIGHTING`
  *  folds the other lightings' code away. Forward, each declared light read for the pixel, and a shadow catcher always; in a volume mode no
@@ -104,6 +113,7 @@ fn frontSunLighting(s:BlendSurface,V:vec3f,P:vec3f,pixel:vec2f,z:f32)->vec3f{
 const blendLightsOfText = (
   volume: boolean,
   sampledFront: boolean,
+  selfShadow = false,
 ) => `// The lighting program this pipeline draws (\`BLEND_LIGHTINGS\`), one constant of the pipeline: the code of the other lightings is folded away.
 override ${BLEND_LIGHTING}:u32=0u;
 // The layer's light, by its material's lighting mode (\`translucencyLightingOf\`): forward lights it with the declared lights, a shadow
@@ -119,7 +129,7 @@ fn blendLightsOf(in:VSOut,front:bool,g:BlendGrads,s:BlendSurface,V:vec3f,flags:u
      volume
        ? `
    // The layer that keeps the specular light alone takes the diffuse light of the translucency volume (and not its specular).
-   if((mark&${FRONT_MARK.specularOnly}u)!=0u){lit+=translucencyVolumeLight(s.rgb,s.metal,s.N,in.view,translucencyLightingOf(flags),in.position.xy);}`
+   if((mark&${FRONT_MARK.specularOnly}u)!=0u){lit+=${volumeLightCall(selfShadow)};}`
        : ''
    }
    if((mark&${FRONT_MARK.sunsApart}u)!=0u){lit+=frontSunLighting(s,V,in.view,in.position.xy,in.position.z);}
@@ -132,7 +142,7 @@ fn blendLightsOf(in:VSOut,front:bool,g:BlendGrads,s:BlendSurface,V:vec3f,flags:u
 ${
   volume
     ? ` if(${BLEND_LIGHTING}==L_VOLUME&&(${modeIs('normal', 'additive')})&&!lightlessLane(flags)){
-  return translucencyVolumeLight(s.rgb,s.metal,s.N,in.view,translucencyLightingOf(flags),in.position.xy);
+  return ${volumeLightCall(selfShadow)};
  }
 `
     : ''
@@ -224,14 +234,25 @@ ${layerBody('fsFiltered', 'BlendOut')}{return blendFragment(in,front,maskAt(in.p
  *  (`StageOptions`) and its entry points; with `graphs`, the lobes and the specular of the items' graphs are set before it
  *  lights a fragment; `shade`, the words of the clouds per vertex (`cloudVertexText.ts`); with `volume`, the light of a
  *  surface whose material is lit from the translucency lighting volume is the volume's
- *  (`blendLightsOf`), and a medium has no reflection. */
-export const blendFragmentWgsl = (o: StageOptions & { readonly volume: boolean }) => {
-  const { graphs, shade, depth, volume } = o,
+ *  (`blendLightsOf`), and a medium has no reflection; with `oit`, it holds the stage that collects the layers a pixel sorts
+ *  (`oit/oitWgsl.ts`). */
+export const blendFragmentWgsl = (
+  o: StageOptions & {
+    readonly volume: boolean
+    readonly oit?: boolean
+    /** The program reads its object's shadow in its volume read (`selfShadowText`). */
+    readonly selfShadow?: boolean
+    /** The sorted translucency reads the depth it tests against from the packed table (`OIT_DEPTH_FOLDED_WGSL`), its collect group binding none. */
+    readonly foldedDepth?: boolean
+  },
+) => {
+  const { graphs, shade, depth, volume, oit, selfShadow, foldedDepth } = o,
     lobes = stageLobes(o)
   return wgslBlock(
-    `blendFragmentWgsl(${stageLabel(o)}${volume ? ', translucency volume' : ''})`,
+    `blendFragmentWgsl(${stageLabel(o)}${volume ? ', translucency volume' : ''}${volume && selfShadow ? ', self shadow' : ''}${oit ? `, sorted pixels${foldedDepth ? ', folded depth' : ''}` : ''})`,
     [
       ...stageImports(o),
+      ...(oit ? [oitCollectWgsl(shade, foldedDepth ? OIT_DEPTH_FOLDED_WGSL : undefined)] : []),
       COVERED,
       marked(depth),
       ...(depth ? [BLEND_PUSHED_DEPTH_WGSL] : []),
@@ -253,7 +274,7 @@ export const blendFragmentWgsl = (o: StageOptions & { readonly volume: boolean }
       wireframeEdge,
       DIAGNOSTIC_PALETTE_WGSL,
     ],
-    `${blendLayerText(o)}${o.sampledFront ? frontLitText() : ''}${blendLightsOfText(volume, o.sampledFront)}${blendFragmentBodyText(volume, graphs, shade)}${blendEntriesText(shade)}${coverageStageText('Blend', 'blendLayer', shade)}${responsiveStageText('Blend', 'blendLayer', 'layer.s.alpha', false, shade, depth)}`,
+    `${blendLayerText(o)}${o.sampledFront ? frontLitText() : ''}${blendLightsOfText(volume, o.sampledFront, volume && !!selfShadow)}${blendFragmentBodyText(volume, graphs, shade)}${blendEntriesText(shade)}${coverageStageText('Blend', 'blendLayer', shade)}${responsiveStageText('Blend', 'blendLayer', 'layer.s.alpha', false, shade, depth)}`,
   )
 }
 

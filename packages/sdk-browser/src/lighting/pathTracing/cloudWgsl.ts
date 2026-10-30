@@ -106,7 +106,7 @@ fn ptCloudVisible(path:ptr<function,PtPath>,origin:vec3f,direction:vec3f,tMax:f3
  * found (empty above and below, so at most three stretches a cell). On each stretch the majorant is the column's densest extinction plus the air's bound over what is left of the ray, a distance is drawn in proportion to
  * the transmittance by the channel the throughput weighs, and a real collision is a place where the cloud and the air are read together: the camera's alpha grows by the light the collision takes out, the cloud's emission is
  * added by the throughput, and, when the bounce is not the last, the collision stands for the scattering event of the bounce, among the others and the surface, with the probability its contribution gives
- * (`ptRisAccept`) — the same collision again for each octave of the material's approximation of multiple scattering (its cloud scattering scaled by the octave's share, squared at each octave; the octave is kept
+ * (`ptPathRisAccept`) — the same collision again for each octave of the material's approximation of multiple scattering (its cloud scattering scaled by the octave's share, squared at each octave; the octave is kept
  * in `PtPath.octave`, 0 for the event as the medium holds it).
  *
  * `ptVolumeTrack` is what the trace calls where the air is: the ray's stretch cut at the cloud stretch, the air before and after it walked as the air alone (`ptAirTrack`), the clouds between (`ptCloudMarch`); with no
@@ -174,7 +174,7 @@ fn ptCloudMarch(path:ptr<function,PtPath>,r:PtAirRay,origin:vec3f,direction:vec3
     (*path).albedo+=sigmaS*thr*weight;
     var contribution=thr*sigmaS;
     var chosen=ptCloudMax3(contribution);
-    if(ptRisAccept(path,chosen)){
+    if(ptPathRisAccept(path,chosen)){
      (*path).eventPosition=there;
      (*path).eventThroughput=contribution/chosen;
      (*path).octave=0u;
@@ -186,7 +186,7 @@ fn ptCloudMarch(path:ptr<function,PtPath>,r:PtAirRay,origin:vec3f,direction:vec3
       scatter*=share;
       contribution=thr*scatter;
       chosen=ptCloudMax3(contribution);
-      if(ptRisAccept(path,chosen)){
+      if(ptPathRisAccept(path,chosen)){
        (*path).eventPosition=there;
        (*path).eventThroughput=contribution/chosen;
        (*path).octave=k;

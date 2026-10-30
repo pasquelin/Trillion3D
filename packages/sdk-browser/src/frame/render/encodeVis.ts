@@ -3,7 +3,8 @@ import { encodeMaterialPasses } from '../../materials/classes/materialPasses.ts'
 import { beginTransparentOcclusion } from '../../blend/transparent/occlusionHost.ts'
 import { encodeWebgpuVisibilityPasses } from '../../visibility/passes/passes.ts'
 import { skyLightSubmitted } from './encodeSkyLight.ts'
-import { submitColorCopy, withRenderEncoder } from './encoder.ts'
+import { abandonFrameEncoder, submitColorCopy, withRenderEncoder } from './encoder.ts'
+import { objectShadowTableAwaited } from '../../blend/objectShadow/objectShadowSelf.ts'
 import { encodeSurfaceLighting } from './surfaceLighting.ts'
 import { encodeSkyMeshFace } from './encodeSkyMeshFace.ts'
 import { followTargets } from '../prepare/followTargets.ts'
@@ -67,6 +68,9 @@ export function encodeVis(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engine
     // submitted: no image waits for that readback.
     vis.voxelSteps?.encodeCopy(encoder, run.frame)
     const presented = encodeSurfaceLighting(rt, device, encoder, cam)
+    // The translucent object shadows' packed table the records need is asked at the publication, once the shadow maps know their rows: the image that found it too small drew its
+    // layers with stand-ins, so it is dropped unsubmitted (the previous image stays shown) and the next frames are held on the device's answer (`deviceAnswer`).
+    if (objectShadowTableAwaited(rt)) return abandonFrameEncoder(rt)
     submitColorCopy(rt, device, encoder, height, width, presented)
   })
   // A captured scene that is due is drawn between this image and the next.

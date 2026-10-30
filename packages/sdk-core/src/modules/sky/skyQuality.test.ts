@@ -143,15 +143,19 @@ test('no setting is declared that nothing reads: the removed ones are no field o
   assert.equal(SKY_QUALITY_RULES.skyLightDepthBuffer.default, true)
   for (const field of [
     'indirectLightingIntensity',
-    'samplesPerPixel',
     'affectReflection',
     'affectGlobalIllumination',
   ])
     assert.ok(!(field in SKY_LIGHT_RULES), field)
   assert.throws(
-    () => resolveSkyLight({ samplesPerPixel: 4 }, DEFAULT_SKY_QUALITY),
-    /samplesPerPixel/,
+    () => resolveSkyLight({ indirectLightingIntensity: 4 }, DEFAULT_SKY_QUALITY),
+    /indirectLightingIntensity/,
   )
+  // The ray-traced sky light reads these three: they are fields of the sky light.
+  const asked = resolveSkyLight({}, DEFAULT_SKY_QUALITY).light
+  assert.equal(asked.samplesPerPixel, 4)
+  assert.equal(asked.castRayTracedShadow, 'useProjectSetting')
+  assert.equal(asked.transmission, false)
 })
 
 test('a setting the reference clamps takes any number and is read at the clamp, not refused', () => {

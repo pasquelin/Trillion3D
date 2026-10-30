@@ -15,7 +15,7 @@ export const SAMPLED_PARAMS_WORDS = 84
  * power ratios start, then the weights: the least a light's estimate must be to be weighed, the least a sample's weight, the share of its
  * weight a hidden light keeps (and on a history miss), the transmission assumed, the directional lights' ratio and their clamping weight, then the
  * view-projection of the image before, which a surface's place in it is found by (`previous`, all zero where there is no image before), the
- * screen trace's distance, thickness and normal bias (`trace`) its switch, iterations and whether hair pixels march (`screenTrace`), then the longest ray toward an unshadowed light for hair (`x`) the first-person stand-ins' least handed-on distance (`y`), the most a sample weighs (`z`) and where its light was hidden (`w`) (`hair`); `screenTrace.w` says the shading confidence is kept; then the temporal filter's history distance, least and longest history and clamp scale (`denoise`), and whether it has a history to filter with (`denoiseU.x`); then the spatial filter's depth weight, radius, disocclusion frames (held to the history's length less one) and the history's deviation threshold (`spatial`), the disocclusion variance scales (`spatialMore`), and whether it runs, its samples and whether the history's variance drives it, and whether the shading keeps the specular light alone (`spatialU`).
+ * screen trace's distance, thickness and normal bias (`trace`) its switch, iterations and whether hair pixels march (`screenTrace`), then the longest ray toward an unshadowed light for hair (`x`) the first-person stand-ins' least handed-on distance (`y`), the most a sample weighs (`z`) and where its light was hidden (`w`) (`hair`); `screenTrace.w` says the shading confidence is kept; then the temporal filter's history distance, least and longest history and clamp scale (`denoise`), whether it has a history to filter with (`denoiseU.x`) and whether a pixel of several closures is lit as one picked at random (`denoiseU.y`); then the spatial filter's depth weight, radius, disocclusion frames (held to the history's length less one) and the history's deviation threshold (`spatial`), the disocclusion variance scales (`spatialMore`), and whether it runs, its samples and whether the history's variance drives it, and whether the shading keeps the specular light alone (`spatialU`).
  */
 /** The uniform's declaration in bind group `group` (0 for the sampled lighting's own kernels, another for a pass that shares a group 0 with the shadow maps). */
 export const sampledParamsWgsl = (group: number) =>
@@ -57,6 +57,8 @@ export interface SampledImage {
   soft: boolean
   /** Whether the shading keeps only the specular light (the nearest translucent layer's `sampledLightsFrontLayerSpecularOnly`). */
   specularOnly: boolean
+  /** Whether a pixel of several closures is lit as one closure picked at random (`stochasticClosureLighting`), not as all of them summed (`closurePickWgsl.ts`). Left out, false. */
+  stochasticClosures?: boolean
   /** The lights the guide keeps a ratio and a rank of (`guideWords`): the ranks start that far after the ratios. */
   lightCount: number
 }
@@ -112,7 +114,15 @@ function writeDenoiserWords(
     ],
     60,
   )
-  words.set([settings.sampledLightsTemporal && image.history ? 1 : 0, 0, 0, 0], 64)
+  words.set(
+    [
+      settings.sampledLightsTemporal && image.history ? 1 : 0,
+      image.stochasticClosures ? 1 : 0,
+      0,
+      0,
+    ],
+    64,
+  )
   floats.set(
     [
       settings.sampledLightsSpatialDepthWeight,

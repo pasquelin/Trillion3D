@@ -185,6 +185,8 @@ export interface SampledLightsInputs {
   }
   /** The frame's key, which the sampling's programs are cut by. */
   key: ContractKey
+  /** Whether a pixel of several closures is lit as one closure picked at random (`stochasticClosureLighting`), not as all of them summed. */
+  stochasticClosures: boolean
   settings: SampledLightsSettings
   /** What the pass lights: the surfaces, or the nearest translucent layer (the hair strands: `SampledInput`). */
   input: SampledInput
@@ -492,6 +494,8 @@ function traceLayouts(
       computeTextureEntry(D.colours, 'unfilterable-float', '2d-array'),
       computeTextureEntry(D.words, 'uint', '2d-array'),
       computeBufferEntry(B.params, 'uniform'),
+      // The blue noise the pick of a pixel's closure reads, where the view's pixels hold several.
+      computeTextureEntry(B.blue, 'unfilterable-float'),
       ...traceTailLayoutEntries(),
     ]),
     compact: layout([
@@ -520,6 +524,8 @@ function traceLayouts(
     ]),
     vsm: layout([
       computeTextureEntry(D.colours, 'unfilterable-float', '2d-array'),
+      // The closures' coverages, read by the pick of a pixel's closure where the view's pixels hold several.
+      computeTextureEntry(D.words, 'uint', '2d-array'),
       computeBufferEntry(D.lights, 'read-only-storage'),
       computeBufferEntry(VSM_TRACE_BINDING.uniforms, 'uniform'),
       computeBufferEntry(VSM_TRACE_BINDING.pageTable, 'read-only-storage'),
@@ -544,6 +550,7 @@ function denoiseLayouts(layout: (entries: GPUBindGroupLayoutEntry[]) => GPUBindG
     computeTextureEntry(B.filteredSpecular, 'unfilterable-float'),
     computeTextureEntry(B.filteredMoments, 'unfilterable-float'),
     computeTextureEntry(B.filteredFrames, 'uint'),
+    computeTextureEntry(B.blue, 'unfilterable-float'),
     computeStorageTextureEntry(B.composite, 'rgba16float', 'write-only'),
     { ...SUBSURFACE_TARGET.layoutEntry(), visibility: COMPUTE },
     { ...PHYSICAL_LOBES_TARGET.layoutEntry(), visibility: COMPUTE },
@@ -672,6 +679,12 @@ const SAMPLING_MODES: readonly { mode: number; tileClass: TileClass; rect: boole
 ]
 
 type Stage = PreparedPipeline<GPUComputePipeline>
+
+/** A value made at its first use. */
+const lazily = <T>(make: () => T) => {
+  let made: T | undefined
+  return () => (made ??= make())
+}
 
 /** The pipelines of the tiles' classification, of the compaction of the rays and of the clearing of the samples. */
 function createTileStages(device: GPUDevice, layouts: Layouts, stage: StageMaker, front: boolean) {
@@ -820,6 +833,29 @@ function createTraceStages(
       failed,
     ),
   )
+  // The traces of a view whose pixels hold several closures, compiled at the first image that has one: their rays leave the normal of the closure the pixel is lit as.
+  const traceClosures = lazily(() =>
+    askedComputeStage(
+      device,
+      [layouts.trace, reflectionLayout(device)],
+      screenTraceWgsl(true),
+      SCREEN_TRACE_ENTRY,
+      'Trillion3D sampled screen trace, several closures',
+      failed,
+    ),
+  )
+  const vsmClosures = [false, true].map((classic) =>
+    lazily(() =>
+      askedComputeStage(
+        device,
+        [layouts.vsm, reflectionLayout(device)],
+        vsmTraceSamplesWgsl(classic, true),
+        VSM_TRACE_ENTRY,
+        'Trillion3D sampled map trace, several closures',
+        failed,
+      ),
+    ),
+  )
   const softwareStage = askedComputeStage(
     device,
     [layouts.software, reflectionLayout(device)],
@@ -845,7 +881,15 @@ function createTraceStages(
     size: 16,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   })
-  return { traceStage, vsmStages, softwareStage, hairTrace, hairTraceSettings }
+  return {
+    traceStage,
+    traceClosures,
+    vsmStages,
+    vsmClosures,
+    softwareStage,
+    hairTrace,
+    hairTraceSettings,
+  }
 }
 
 /** The pipelines of the temporal and spatial filters, and the sampler the temporal one reads the history by. */
@@ -1059,8 +1103,10 @@ interface Kit {
   /** The layout of the front light's group, a view's own group naming it. */
   frontLightLayout: GPUBindGroupLayout
   cache: ReturnType<typeof createSamplingCache>
-  /** The spatial filter with the debug output, compiled at the first image a view asks for it. */
-  spatialDebug: () => Stage
+  /** The spatial filter with the debug output (over several closures where the view's pixels hold them), compiled at the first image a view asks for it. */
+  spatialDebug: (closures?: boolean) => Stage
+  /** The spatial filter of a view whose pixels hold several closures, compiled at the first image that has one. */
+  spatialClosures: () => Stage
   /** The light complexity view's replay and cost, made at the first image that asks. */
   complexity: () => ReturnType<typeof createLightComplexity>
   /** The stand-in for the motion vectors of an input that has none, made at the first image that needs it and retired with the kit. */
@@ -1137,6 +1183,8 @@ interface EncodeContext {
   mapTrace: boolean
   /** The spatial filter that writes the debug views' values, none while no view asks. */
   spatialDebug: Stage
+  /** The spatial filter the image runs: the plain one, or the one of a view of several closures (`spatialWgsl`). */
+  spatialPlain: Stage
   stages: Kit['stages']
   groups: SampledKitState['groups']
 }
@@ -1417,8 +1465,8 @@ function encodeDraws(c: EncodeContext) {
 
 /** The lights the maps shadow, traced through them before the screen's trace takes the rays that remain. */
 function traceMaps(c: EncodeContext, t: Compaction) {
-  const { pass, run, inputs, g, r, colours } = c
-  const { vsmStages, compacts } = c.stages
+  const { pass, run, inputs, g, r, colours, words } = c
+  const { vsmStages, vsmClosures, compacts } = c.stages
   const { groups } = c
   const { lists, compactGroup, argsOver } = t
   // The lights the maps shadow are traced through them, before the screen's trace takes the rays that remain.
@@ -1428,6 +1476,7 @@ function traceMaps(c: EncodeContext, t: Compaction) {
   const mapGroup = groups.vsm.get(
     [
       colours,
+      words,
       inputs.lights,
       m.uniforms,
       m.pageTable,
@@ -1439,6 +1488,7 @@ function traceMaps(c: EncodeContext, t: Compaction) {
     ],
     () => [
       { binding: D.colours, resource: colours },
+      { binding: D.words, resource: words },
       { binding: D.lights, resource: { buffer: inputs.lights } },
       { binding: VSM_TRACE_BINDING.uniforms, resource: { buffer: m.uniforms } },
       { binding: VSM_TRACE_BINDING.pageTable, resource: { buffer: m.pageTable } },
@@ -1449,7 +1499,8 @@ function traceMaps(c: EncodeContext, t: Compaction) {
       ...rayEntries(r),
     ],
   )
-  pass.setPipeline(vsmStages[inputs.classicShadows ? 1 : 0]!.get()!)
+  const classic = inputs.classicShadows ? 1 : 0
+  pass.setPipeline((inputs.key.closures ? vsmClosures[classic]!() : vsmStages[classic]!).get()!)
   pass.setBindGroup(0, mapGroup)
   pass.setBindGroup(1, inputs.reflection)
   pass.dispatchWorkgroupsIndirect(r.compactArgs, compactArgsAt(2))
@@ -1458,17 +1509,18 @@ function traceMaps(c: EncodeContext, t: Compaction) {
 /** The rays of the surfaces traced through the screen. */
 function traceScreen(c: EncodeContext, t: Compaction) {
   const { pass, run, inputs, g, r, colours, words } = c
-  const { traceStage, compacts } = c.stages
+  const { traceStage, traceClosures, compacts } = c.stages
   const { groups } = c
   const { lists, compactGroup, argsOver } = t
   run(compacts[0]!.list, compactGroup, lists, ceilDiv(g.sampleView[1], SAMPLED_GROUP))
   run(compacts[0]!.args, argsOver[0]!, 1)
-  const traceGroup = groups.trace.get([colours, words, ...rayKeys(r)], () => [
+  const traceGroup = groups.trace.get([colours, words, inputs.noise, ...rayKeys(r)], () => [
     { binding: D.colours, resource: colours },
     { binding: D.words, resource: words },
+    { binding: B.blue, resource: inputs.noise },
     ...rayEntries(r),
   ])
-  pass.setPipeline(traceStage.get()!)
+  pass.setPipeline((inputs.key.closures ? traceClosures() : traceStage).get()!)
   pass.setBindGroup(0, traceGroup)
   pass.setBindGroup(1, inputs.reflection)
   pass.dispatchWorkgroupsIndirect(r.compactArgs, compactArgsAt(0))
@@ -1614,7 +1666,7 @@ function encodeShading(c: EncodeContext) {
 /** The resolved light blended with the history of the image before, then filtered over the neighbours. */
 function encodeDenoise(c: EncodeContext) {
   const { pass, inputs, g, r, current, colours, words, vectors } = c
-  const { temporalStage, spatialStage, historySampler } = c.stages
+  const { temporalStage, historySampler } = c.stages
   const { groups } = c
   // The resolved light blended with the history of the image before (the sets take turns with the guides).
   const turnOf = r.guides.indexOf(current)
@@ -1672,6 +1724,7 @@ function encodeDenoise(c: EncodeContext) {
       written.views.moments,
       written.views.frames,
       r.compositeView,
+      inputs.noise,
       inputs.surface.subsurfaceView,
       inputs.surface.lobesView,
       debugPixels,
@@ -1683,12 +1736,13 @@ function encodeDenoise(c: EncodeContext) {
       { binding: B.resolvedDiffuse, resource: r.resolvedDiffuseView },
       ...filteredEntries(written.views),
       { binding: B.composite, resource: r.compositeView },
+      { binding: B.blue, resource: inputs.noise },
       { binding: D.subsurface, resource: inputs.surface.subsurfaceView },
       { binding: D.lobes, resource: inputs.surface.lobesView },
       ...(debugPixels ? [{ binding: B.debugPixels, resource: debugPixels }] : []),
     ],
   )
-  pass.setPipeline((debugPixels ? c.spatialDebug : spatialStage).get()!)
+  pass.setPipeline((debugPixels ? c.spatialDebug : c.spatialPlain).get()!)
   pass.setBindGroup(0, spatialGroup)
   pass.dispatchWorkgroups(ceilDiv(g.view[0], SAMPLED_GROUP), ceilDiv(g.view[1], SAMPLED_GROUP))
 }
@@ -1787,6 +1841,7 @@ function prepareImage(
       specularOnly:
         input === 'frontTranslucency' && inputs.settings.sampledLightsFrontLayerSpecularOnly,
       lightCount: inputs.lightCount,
+      stochasticClosures: inputs.stochasticClosures,
     }),
   )
   encoder.clearBuffer(held.r.allocator)
@@ -1807,10 +1862,12 @@ function imageReady(
     fixed,
     clears,
     traceStage,
+    traceClosures,
     compacts,
     softwareStage,
     hairTrace,
     vsmStages,
+    vsmClosures,
     temporalStage,
     spatialStage,
   } = k.stages
@@ -1825,15 +1882,22 @@ function imageReady(
     ...modeStages,
     ...(tracing
       ? [
-          traceStage,
+          inputs.key.closures ? traceClosures() : traceStage,
           ...compacts
             .filter((_, slot) => slot === 0 || (slot === 1 ? !!inputs.field : mapTrace))
             .flatMap((c) => [c.list, c.args]),
           ...(inputs.field ? [softwareStage, ...(inputs.hairVoxels ? [hairTrace()] : [])] : []),
-          ...(mapTrace ? [vsmStages[inputs.classicShadows ? 1 : 0]!] : []),
+          ...(mapTrace
+            ? [
+                inputs.key.closures
+                  ? vsmClosures[inputs.classicShadows ? 1 : 0]!()
+                  : vsmStages[inputs.classicShadows ? 1 : 0]!,
+              ]
+            : []),
           temporalStage,
           spatialStage,
-          ...(inputs.debugPixels ? [k.spatialDebug()] : []),
+          ...(inputs.key.closures ? [k.spatialClosures()] : []),
+          ...(inputs.debugPixels ? [k.spatialDebug(inputs.key.closures)] : []),
         ]
       : []),
   )
@@ -1953,7 +2017,8 @@ function encodeImage(
     family,
     sampling: samplingGroupsOf(k, state, family),
     mapTrace,
-    spatialDebug: inputs.debugPixels ? k.spatialDebug() : k.stages.spatialStage,
+    spatialDebug: inputs.debugPixels ? k.spatialDebug(key.closures) : k.stages.spatialStage,
+    spatialPlain: key.closures ? k.spatialClosures() : k.stages.spatialStage,
     stages: k.stages,
     groups: state.groups,
   }
@@ -1999,18 +2064,31 @@ export function createSampledLights(
     return made
   }
   const frontLight = createFrontLight(device, stage)
-  let spatialDebug: Stage | undefined
+  const spatialDebug = [false, true].map((closures) =>
+    lazily(() =>
+      askedComputeStage(
+        device,
+        [layouts.spatialDebug],
+        spatialWgsl(true, closures),
+        SPATIAL_ENTRY,
+        `Trillion3D sampled spatial filter debug${closures ? ', several closures' : ''}`,
+        failed,
+      ),
+    ),
+  )
+  let spatialClosures: Stage | undefined
   let complexity: ReturnType<typeof createLightComplexity> | undefined
   const kit: Kit = {
     device,
     complexity: () => (complexity ??= createLightComplexity(device, failed)),
-    spatialDebug: () =>
-      (spatialDebug ??= askedComputeStage(
+    spatialDebug: (closures) => spatialDebug[closures ? 1 : 0]!(),
+    spatialClosures: () =>
+      (spatialClosures ??= askedComputeStage(
         device,
-        [layouts.spatialDebug],
-        spatialWgsl(true),
+        [layouts.spatial],
+        spatialWgsl(false, true),
         SPATIAL_ENTRY,
-        'Trillion3D sampled spatial filter debug',
+        'Trillion3D sampled spatial filter, several closures',
         failed,
       )),
     stages: {

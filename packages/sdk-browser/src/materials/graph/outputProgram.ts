@@ -144,9 +144,10 @@ export function rasterRegistry(output: GraphOutput, rules: RasterRules) {
     /** The output's program of `program`; `textures` says whether a vertex stage may read the colour
      *  atlas (`grantsVertexTextures`). */
     ofProgram,
-    /** The output's program a surface's graph draws, none for a surface without one. */
-    ofSurface(surface: GraphSurface, textures = true) {
-      const program = surface.graph && programOf(surface)
+    /** The output's program a surface's graph draws, none for a surface without one; `closures` is the runtime's
+     *  closures per pixel its graph is compiled for (`limitOf`). */
+    ofSurface(surface: GraphSurface, textures = true, closures?: number) {
+      const program = surface.graph && programOf(surface, undefined, closures)
       return isProgram(program) ? ofProgram(program, textures) : undefined
     },
   }

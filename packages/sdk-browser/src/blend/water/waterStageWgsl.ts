@@ -25,6 +25,7 @@ import { ENVIRONMENT_BRDF_WGSL } from '../../lighting/direct/environmentBrdfWgsl
 import { envBrdfF90 } from '../../../../math/src/wgsl/lighting.ts'
 import { WATER_VOLUME_WGSL } from './waterVolumeWgsl.ts'
 import { WATER_REFLECTION_CODE } from './waterLayout.ts'
+import { WATER_EXCLUSION_WGSL } from './waterExclusionTable.ts'
 
 /** The sun and reflection helpers of the water's shading: the forward sun's light, the
  *  reflection by mode and the split sun. */
@@ -59,8 +60,15 @@ fn waterSunSplit(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f)->LightSp
 }
 `
 
+/** The cut of the variant for a world with an exclusion volume: the fragment lies in a volume that excludes its body, so neither its colour
+ *  nor its depth is drawn (`fsWater`, `fsWaterDepth` ask the same). The body's rank is read from the vertex stage's lane (`waterBodyRank`, `waterBodyLane.ts`). */
+const WATER_CUT_TEXT = `fn waterCut(in:VSOut)->bool{return waterExcluded(in.view,waterBodyRank(in));}
+`
+
 /** The head of the water's fragment, up to its lit section. */
-const WATER_FRAGMENT_HEAD_TEXT = `fn waterFragment(in:VSOut,front:bool)->WaterOut{
+const waterFragmentHeadText = (
+  exclusion: boolean,
+) => `fn waterFragment(in:VSOut,front:bool)->WaterOut{
  let flags=in.ids.y;
  // Every derivative wants uniform control flow: taken before the coverage test returns.
  let deltas=fwidth(in.bary);
@@ -68,7 +76,7 @@ const WATER_FRAGMENT_HEAD_TEXT = `fn waterFragment(in:VSOut,front:bool)->WaterOu
  let slope=max(abs(dpdxFine(surfaceDepth)),abs(dpdyFine(surfaceDepth)));
  let g=blendGrads(in);
  let layer=blendLayer(in,front,g);
- if(!layer.kept){discard;return WATER_NONE;}
+ if(!layer.kept${exclusion ? '||waterCut(in)' : ''}){discard;return WATER_NONE;}
  let s=layer.s;
  if((flags&${FLAG_DIAGNOSTIC_VIEW}u)!=0u){return WaterOut(blendDiagnosticOut(in,s,deltas).color,s.request,vec4f(0.0),vec4f(0.0),vec4f(0.0));}
  let V=blendToEye(in);
@@ -89,7 +97,7 @@ const WATER_GRAPH_VOLUME_WGSL = ` if((g.graph.flags&${GRAPH_FLAG.water}u)!=0u){s
 /** The lit section of the water's fragment: the lights, the ambient light and the volume. */
 const waterLitWgsl = (o: StageOptions) => `  surfaceModel=modelFlag(flags);
   ${stagePrologue(o, '  ', 'water')}${o.marks ? `\n  ${translucentMarksFrom('flags')}` : ''}
-  // The sun's shadow is laid on the separated sun afterwards, where the image projects it (water.filters.x).
+  // The projection of the shadow maps lays the sun's shadow on the separated sun afterwards, where the image projects it (water.filters.x).
   shadowSkipSun=water.filters.x!=0u;
   ${o.graphs ? 'surfaceSpecular=s.specular;' : ''}
   let f0=surfaceF0(s.rgb,s.metal);
@@ -158,11 +166,12 @@ const waterCompositeWgsl =
 /** The depth-only entry `fsWaterDepth`. */
 const waterDepthWgsl = (
   shade: CloudVertexText,
+  exclusion: boolean,
 ) => `// The water's depth alone (\`singleLayerWaterDepthPrepass\`): the fragments the shading keeps.
 @fragment fn fsWaterDepth(in:VSOut,@builtin(front_facing) front:bool){${shade.entry}
  let g=blendGrads(in);
  let base=blendBase(in,g);
- if(!blendKeeps(in,base,front)){discard;}
+ if(!blendKeeps(in,base,front)${exclusion ? '||waterCut(in)' : ''}){discard;}
 }
 `
 
@@ -180,7 +189,7 @@ const waterDepthWgsl = (
  * forward directional light (`directLights.forwardRank`), its colour times its light function and
  * the air's transmittance toward it, its shadow the shadow maps' (laid on the separated sun, `waterSunShadow.ts`).
  */
-const waterStage = (o: StageOptions) =>
+const waterStage = (o: StageOptions, exclusion: boolean) =>
   wgslBlock(
     `WATER_STAGE_WGSL(${stageLabel(o)})`,
     [
@@ -193,13 +202,15 @@ const waterStage = (o: StageOptions) =>
       BLEND_TO_EYE_WGSL,
       BLEND_PRE_EXPOSED_WGSL,
       modelFlag,
+      ...(exclusion ? [WATER_EXCLUSION_WGSL] : []),
     ],
-    WATER_LIGHT_HELPERS_TEXT +
-      WATER_FRAGMENT_HEAD_TEXT +
+    (exclusion ? WATER_CUT_TEXT : '') +
+      WATER_LIGHT_HELPERS_TEXT +
+      waterFragmentHeadText(exclusion) +
       waterLitWgsl(o) +
       waterFragmentTailWgsl(o.shade) +
       waterCompositeWgsl() +
-      waterDepthWgsl(o.shade),
+      waterDepthWgsl(o.shade, exclusion),
   )
 
 /**
@@ -217,12 +228,13 @@ export const waterWgsl = (
   reads: VertexReads = NO_VERTEX_READS,
   marks = false,
   scene: TranslucentScene = DEFAULT_TRANSLUCENT_SCENE,
+  exclusion = false,
 ) => {
   const lit = translucentLitKey(key, scene)
   const o = stageOptions(lit, graphs, reads, marks)
   return wgslBlock(
-    `waterWgsl(${stageLabel(o)})`,
-    [stageSurface(stageLobes(o), graphs), declaredLightingSplitWgsl(lit), waterStage(o)],
+    `waterWgsl(${stageLabel(o)}${exclusion ? ', exclusion volumes' : ''})`,
+    [stageSurface(stageLobes(o), graphs), declaredLightingSplitWgsl(lit), waterStage(o, exclusion)],
     '',
   )
 }

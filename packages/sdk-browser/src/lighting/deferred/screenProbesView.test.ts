@@ -8,6 +8,7 @@ import { installGpuDeviceLedger } from '../../gpu/core/deviceLedger.ts'
 import { blueNoiseTextures } from '../../gpu/noise/blueNoiseTextures.ts'
 import { pipelinesCompiling, pipelinesSettled } from './compileLedger.ts'
 import { encodeProbeImage, probesRuntime, screenProbeWords } from './screenProbesRuntime.fixture.ts'
+import { closureTilesOf, encodeClosureTiles } from '../../visibility/closureTiles/closureTiles.ts'
 import { placeScreenProbes, traceScreenProbes } from '../bounce/screen/frame.ts'
 
 /** The words the lighting is told are 32-bit floats: the setting's default foliage strength, as one holds it. */
@@ -53,6 +54,55 @@ test('one image of screen probes encodes its passes in order, hands the lighting
     ['ultra', 16, true, false, false],
   )
   assert.equal(metrics.unavailable, null)
+})
+
+test('a view whose pixels hold several closures runs the pixel passes again for each closure past the first over the overflow tiles of the closure, over its own history, and tells the lighting they were gathered', async () => {
+  const { h, rt, encode } = await probesRuntime()
+  const views = rt.gpu.surfaces!.views()
+  rt.gpu.surfaces = {
+    views: () => views,
+    closures: 3,
+    closureNormals: [h.view(), h.view()],
+    width: 64,
+    height: 64,
+    words: h.device.createTexture({ size: [64, 64, 4], format: 'r32uint', usage: 4 }),
+  } as unknown as typeof rt.gpu.surfaces
+  // The closure tiles of the view are listed after the resolve, ahead of the probes (`encodeClosureTiles`): the record holds several closures.
+  Object.assign((rt.vis.closures ??= {} as NonNullable<typeof rt.vis.closures>), {
+    census: -1,
+    shapes: 0,
+    summed: { frame: -1, revision: -1, shapes: 0 },
+    applied: undefined,
+    limit: 4,
+    countFromMaterial: true,
+    most: 3,
+    max: 3,
+  })
+  for (let waited = 0; waited < 100 && !closureTilesOf(rt); waited++) {
+    encodeClosureTiles(rt, h.encoder)
+    await new Promise((done) => setImmediate(done))
+  }
+  assert.ok(closureTilesOf(rt), 'the overflow tiles are listed')
+  await encode()
+  const entries = dispatchedEntries(h.dispatches)
+  const pixels = [
+    'occlusion',
+    'tileInit',
+    'tileClassify',
+    'tileFinish',
+    'integrateSimple',
+    'integrateSampled',
+    'integrateComplete',
+    'temporal',
+  ]
+  const from = entries.indexOf('occlusion')
+  // The first closure's pixel passes over the view, then the same kernels for the second and the third over the overflow tiles, each its own.
+  assert.deepEqual(entries.slice(from), [...pixels, ...pixels, ...pixels])
+  const view = rt.gpu.screenProbes!
+  assert.equal(view.closures, 3)
+  assert.ok(view.indirectClosures, 'the lighting reads the history of every closure')
+  assert.notEqual(view.indirectClosures, view.indirect)
+  assert.equal(screenProbeWords(h)[3]! & 8, 8, 'and is told the probes gathered them (bit 3)')
 })
 
 test('the placement is a pass of its own that asks the probes of their pixels and hands the pool the probes it placed, and the trace follows in another', async () => {

@@ -1,6 +1,7 @@
 /**
- * THE PER-LIGHT DRAW (`shadowOnePassProjection` false): the shadowed local lights, which the batched local
- * pass leaves out (`localPassWgsl` with `skipHeld`), each lit alone over the tiles of the surfaces — the lit image's
+ * THE PER-LIGHT DRAW (`shadowOnePassProjection` false, its shadow its layer of the mask; with the one-pass projection, the draw is the local
+ * lights' pass for one light, `localPassWgsl`): the shadowed local lights, which the batched local
+ * pass leaves out (`localPassWgsl` with the loop `unbatched`), each lit alone over the tiles of the surfaces — the lit image's
  * pass for the tiles of `tileClass` (`tilePass.ts`) with one light, the light of the record the draw
  * binds at a dynamic offset (`perLightRecord.ts`), and its shadow its layer of the screen mask the light's
  * projection filled (`directShadowWgsl`, `pass: 'perLight'`). The light term is `declaredLight`, the batched pass's: only
@@ -10,7 +11,6 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { DECLARED_TERM_TEXT, SHADING_TEXT } from '../direct/lightLoopWgsl.ts'
 import { lightingBase, type LightingBindings } from '../direct/lightingWgsl.ts'
-import { PER_LIGHT_RECORD_WGSL } from '../shadows/vsm/projection/perLightRecord.ts'
 import {
   DEFERRED_BINDINGS,
   DEFERRED_LIGHT_FUNCTION_BINDINGS,
@@ -23,24 +23,18 @@ import {
   TOON_DATA_OUT_WGSL,
   resultFrom,
   resultOf,
+  PER_LIGHT_RECORD_BINDING_WGSL,
   keyOfClass,
   litPassImports,
   withContactBend,
   withVolumeShadow,
 } from './lightPassWgsl.ts'
-import { litPixelStatements } from './litSurfaceWgsl.ts'
+import { closureTail, litPixelStatements } from './litSurfaceWgsl.ts'
 import { TILE_VERTEX_WGSL } from './tilePass.ts'
 import type { TileClass } from './tileClass.ts'
 
 /** The entry of the per-light draw. */
 export const PER_LIGHT_ENTRY = 'perLightMain'
-
-/** The light's record, a uniform read at a dynamic offset. */
-const RECORD_BINDING_WGSL = wgslBlock(
-  'PER_LIGHT_RECORD_BINDING_WGSL',
-  [PER_LIGHT_RECORD_WGSL],
-  `@group(0) @binding(${DEFERRED_BINDINGS.perLightRecord}) var<uniform> perLight:PerLightRecord;`,
-)
 
 /** What the draw binds for its light term: the light functions and profiles; its shadow is its layer of the mask. */
 const PER_LIGHT_BINDINGS: LightingBindings = {
@@ -83,7 +77,7 @@ export function perLightPassWgsl(key: ContractKey, tileClass: TileClass) {
       }),
       ...head,
       LIGHTS_BINDING_WGSL,
-      RECORD_BINDING_WGSL,
+      PER_LIGHT_RECORD_BINDING_WGSL,
       TILE_VERTEX_WGSL,
       PER_LIGHT_LOOP_WGSL,
       ...tail,
@@ -91,8 +85,11 @@ export function perLightPassWgsl(key: ContractKey, tileClass: TileClass) {
     ],
     `
 @fragment fn ${PER_LIGHT_ENTRY}(@builtin(position) pixel:vec4f)->${resultOf(data)}{${litPixelStatements(cut)}
- vsmMaskAt(coord);
- return ${resultFrom(data, 'lightOut(perLightLighting(albedo,base.a,normal.a,N,V,P,screenOcclusionAt(coord),perLight.rank))')};
+ vsmMaskAt(coord);${closureTail(
+   cut,
+   'lightOut(perLightLighting(albedo,base.a,normal.a,N,V,P,screenOcclusionAt(coord),perLight.rank))',
+   (light) => `\n return ${resultFrom(data, light)};`,
+ )}
 }`,
   )
 }

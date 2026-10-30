@@ -16,6 +16,8 @@ import {
   integrateArgsAt,
 } from './screenProbeLayout.ts'
 import type { MeshStageRun } from './meshStage.ts'
+import type { ClosureTiles } from '../../../visibility/closureTiles/closureTiles.ts'
+import { closureArgsAt } from '../../../visibility/closureTiles/closureTilesWgsl.ts'
 import { TRACE_MESH_GROUP, TRACE_MESH_LIST } from './traceMeshWgsl.ts'
 import type { TracedSceneGroups } from './traceGroups.ts'
 import { resetProbeHitLighting } from './hitLitStage.ts'
@@ -36,6 +38,8 @@ export interface ScreenProbeRun {
   /** The part of it the scene stages read: the view, the lighting's view and the sky light (`reflectionSceneLayout`). */
   sceneReflection: GPUBindGroup
   settings: ScreenProbeSettings
+  /** The closures the image shades: those the record holds, held to the most any surface of the scene has (`mostClosures`); below two, the passes of the closures past the first (the occlusion, the integration, the temporal blend) are not run. */
+  closures: number
   /** The radiance cache, whose update the probes' importance is added to before: none where the cache is none. */
   cache?: Pick<RadianceCache, 'encode' | 'clearLobes'>
   /** The scene stage that casts the rays through the scene's triangles, where this image has it (`tracedSceneOf`): none, the rays are marched. */
@@ -44,6 +48,8 @@ export interface ScreenProbeRun {
   hitLit?: LitListRun<ProbeLitKernels>
   /** The short-range occlusion cast through the scene's triangles, where this image has it (`occlusionTrianglesStageOf`): it takes the place of the occlusion's pass of the horizon search. */
   occlusionTriangles?: OcclusionTrianglesStage
+  /** The tiles that hold the closures past the first (`closureTilesOf`), where the view holds several: the classified integration of those closures runs over them. */
+  closureTiles?: ClosureTiles
   /** The meshes' fields stage (`meshStageOf`), where this image traces them for the probes the scene stage marches through the global field: dispatched before it. */
   meshes?: MeshStageRun
   /** A stage a pass of the frame adds once the rays are traced and filtered (`ScreenProbeStage`), where its kernel is compiled: dispatched over the scene stage's group 0. */
@@ -208,20 +214,38 @@ function traceAndFilter(pass: GPUComputePassEncoder, run: CastRun) {
 
 /** The integration of the probes the pixels read: where the tiles are classified, the tiles of cells (pixels, or one in each two by two block where the integration is downsampled) classified
  *  by the most complete mode their pixels need (a tile with no lit pixel cleared), then the integration of the tiles of each mode, dispatched over the workgroups the classification counted;
- *  else one integration over every cell. */
-function integratePixels(pass: GPUComputePassEncoder, run: ScreenProbeRun, cast: CastRun) {
+ *  else one integration over every cell. For the closure `closure` past the first the tiles classified are its overflow tiles, the dispatch of the classification the closure tiles' own
+ *  (`ScreenProbeIntegrateTileClassificationBuildLists`, `PERMUTATION_OVERFLOW_TILE`, `LumenScreenProbeGather.cpp:1533-1570`); where its region is not there, none. */
+function integratePixels(
+  pass: GPUComputePassEncoder,
+  run: ScreenProbeRun,
+  cast: CastRun,
+  { tile, integrate }: PixelGroups,
+  closure = 0,
+) {
   const { geometry: g, tileArgs } = run.resources
-  const { tile, integrate } = run.groups
   if (!integrate) return
-  const { tile: classify, integrate: modes, integrateEvery } = cast.kernels
+  const { integrateEvery } = cast.kernels
+  const classify = closure ? cast.kernels.tileOverflow : cast.kernels.tile
+  const modes = closure ? cast.kernels.integrateOverflow : cast.kernels.integrate
   const reduction = run.settings.integrateDownsample
   const cells = [
     ceilDiv(ceilDiv(g.width, reduction), INTEGRATE_TILE_SIDE),
     ceilDiv(ceilDiv(g.height, reduction), INTEGRATE_TILE_SIDE),
   ] as const
-  if (classify && modes && tile) {
+  if (classify && modes) {
+    // A closure past the first whose overflow region is not bound yet (`regionBinding`) integrates none this image.
+    if (!tile || (closure && !run.closureTiles)) return
     dispatch(pass, classify.pipelines.tileInit, tile, 1, 1)
-    dispatch(pass, classify.pipelines.tileClassify, tile, ...cells)
+    if (closure) {
+      dispatchOver(
+        pass,
+        classify.pipelines.tileClassify,
+        tile,
+        run.closureTiles!.args,
+        closureArgsAt(closure),
+      )
+    } else dispatch(pass, classify.pipelines.tileClassify, tile, ...cells)
     dispatch(pass, classify.pipelines.tileFinish, tile, 1, 1)
     CLASSIFIED_POINTS.forEach((point, mode) =>
       dispatchOver(pass, modes.pipelines[point], integrate, tileArgs, integrateArgsAt(mode)),
@@ -263,38 +287,73 @@ export function encodeOcclusionOnly(
   pass.end()
 }
 
-/** The pixels: the short-range occlusion is searched, the probes they read integrated, the texel each reads of that integration picked where it is downsampled, and the temporal pass blends
- *  the light with its history, writing what the lighting reads. */
-function shadePixels(pass: GPUComputePassEncoder, run: ScreenProbeRun, cast: CastRun) {
+/** The groups of a closure's pixels: the first closure's are the run's own, those of each closure past it are `ScreenProbeGroups.closures`' (the same kernels over the closure's textures). */
+type PixelGroups = Pick<ScreenProbeGroups, 'occlusion' | 'temporal'> &
+  Pick<ScreenProbeGroups, 'tile' | 'stochastic' | 'integrate'>
+
+/** The short-range occlusion of the pixels of the closure `closure`: the first closure's over the view, the pass through the scene's triangles where this image has it, else the horizon search; the closures
+ *  past the first over their overflow tiles (`closureTilesOf`, `LumenScreenSpaceBentNormal.cpp:455-545`, `LumenShortRangeAOHardwareRayTracing.cpp:175-290`), the pass through the triangles where its overflow pass is compiled, else the horizon search's;
+ *  where the closure's region of the closure tiles is not there yet, none. */
+function searchOcclusion(
+  pass: GPUComputePassEncoder,
+  run: ScreenProbeRun,
+  cast: CastRun,
+  groups: PixelGroups,
+  closure: number,
+) {
   const { geometry: g } = run.resources
-  const { groups, kernels, settings } = run
-  const image = [ceilDiv(g.width, 8), ceilDiv(g.height, 8)] as const
-  const triangles = run.occlusionTriangles
-  if (triangles) {
-    pass.setBindGroup(OCCLUSION_TRIANGLES_SCENE.group, triangles.groups[1])
-    dispatchOcclusion(
+  const { kernels, settings } = run
+  const stage = run.occlusionTriangles
+  if (!closure) {
+    if (stage) {
+      pass.setBindGroup(OCCLUSION_TRIANGLES_SCENE.group, stage.groups[1])
+      dispatchOcclusion(pass, stage.pipeline, stage.groups[0], g, settings.occlusionDownsample)
+    } else if (settings.occlusion)
+      dispatchOcclusion(
+        pass,
+        kernels.occlusion.pipelines.occlusion,
+        groups.occlusion!,
+        g,
+        settings.occlusionDownsample,
+      )
+    return
+  }
+  const { closureTiles } = run
+  if (!closureTiles) return
+  const triangles = stage?.overflow?.closures[closure - 1]
+  if (stage?.overflow && triangles) {
+    pass.setBindGroup(OCCLUSION_TRIANGLES_SCENE.group, triangles[1])
+    dispatchOver(
       pass,
-      triangles.pipeline,
-      triangles.groups[0],
-      g,
-      settings.occlusionDownsample,
+      stage.overflow.pipeline,
+      triangles[0],
+      closureTiles.args,
+      closureArgsAt(closure),
     )
-  } else if (settings.occlusion)
-    dispatchOcclusion(
+  } else if (settings.occlusion && groups.occlusion && cast.kernels.occlusionOverflow)
+    dispatchOver(
       pass,
-      kernels.occlusion.pipelines.occlusion,
+      cast.kernels.occlusionOverflow.pipelines.occlusion,
       groups.occlusion,
-      g,
-      settings.occlusionDownsample,
+      closureTiles.args,
+      closureArgsAt(closure),
     )
-  integratePixels(pass, run, cast)
-  if (cast.kernels.stochastic && run.groups.stochastic)
-    dispatch(
-      pass,
-      cast.kernels.stochastic.pipelines.stochasticOffsets,
-      run.groups.stochastic,
-      ...image,
-    )
+}
+
+/** The pixels of the closure `closure` (0 the first): the short-range occlusion is searched, the probes they read integrated, the texel each reads of that integration picked where it is downsampled, and the temporal pass blends
+ *  the light with its history, writing what the lighting reads. A closure past the first is the reference's overflow pixels: its occlusion (`searchOcclusion`) and its classified integration (`integratePixels`) run over
+ *  the overflow tiles of the closure tiles (`LumenScreenProbeGather.cpp:1533-1570, 1620-1680`), and only the pixels that hold the closure are lit (`SurfaceBuffer.closureNormals` is cleared where they hold none). The
+ *  texel picks and the temporal pass are over the view for every closure, as the reference dispatches its temporal reprojection (`:1933-1950`: the tile dispatch of the overflow is compiled out, the dispatch is the view's
+ *  with a layer for each closure) and as its integration where the tiles are not classified (`:1688-1740`); a pixel that holds no closure is not lit and its layer is cleared. */
+function shadePixels(pass: GPUComputePassEncoder, run: ScreenProbeRun, cast: CastRun, closure = 0) {
+  const { geometry: g } = run.resources
+  const { kernels } = run
+  const groups: PixelGroups = closure ? run.groups.closures[closure - 1]! : run.groups
+  const image = [ceilDiv(g.width, 8), ceilDiv(g.height, 8)] as const
+  searchOcclusion(pass, run, cast, groups, closure)
+  integratePixels(pass, run, cast, groups, closure)
+  if (cast.kernels.stochastic && groups.stochastic)
+    dispatch(pass, cast.kernels.stochastic.pipelines.stochasticOffsets, groups.stochastic, ...image)
   dispatch(pass, kernels.temporal.pipelines.temporal, groups.temporal, ...image)
 }
 
@@ -348,5 +407,6 @@ export function encodeProbeTrace(encoder: GPUCommandEncoder, run: ScreenProbeRun
   traceAndFilter(pass, cast)
   addedStage(pass, run, cast)
   shadePixels(pass, run, cast)
+  for (let closure = 1; closure < run.closures; closure++) shadePixels(pass, run, cast, closure)
   pass.end()
 }

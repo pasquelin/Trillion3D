@@ -38,6 +38,13 @@ export interface ResourceAllocator {
     format: GPUTextureFormat,
     levels: number,
   ): { all: GPUTextureView; levels: GPUTextureView[] }
+  /** A texture of `layers` layers: a view of all of them (an array view) to read together, and a 2D view of each layer alone, to be written or read as a texture of its own. */
+  layered(
+    label: string,
+    size: readonly [number, number],
+    format: GPUTextureFormat,
+    layers: number,
+  ): { all: GPUTextureView; layers: GPUTextureView[] }
   /** A buffer of `words` 32-bit words for `kind`, with the usage `also` adds to the kind's (a proof reads it back with
    *  `COPY_SRC`). */
   buffer(label: string, words: number, kind: BufferKind, also?: GPUBufferUsageFlags): GPUBuffer
@@ -81,6 +88,14 @@ const mipViews = (texture: GPUTexture, levels: number) => ({
   ),
 })
 
+/** A view of all the layers of `texture`, and a 2D view of each alone. */
+const layerViews = (texture: GPUTexture, layers: number) => ({
+  all: texture.createView({ dimension: '2d-array' }),
+  layers: Array.from({ length: layers }, (_, layer) =>
+    texture.createView({ dimension: '2d', baseArrayLayer: layer, arrayLayerCount: 1 }),
+  ),
+})
+
 /** The allocator over `device`: textures (sampled and storage unless told otherwise) and buffers as asked, named with `label`
  *  first, all counted and kept to be destroyed together. */
 export function gpuAllocator(device: GPUDevice, label: string) {
@@ -115,6 +130,14 @@ export function gpuAllocator(device: GPUDevice, label: string) {
     },
     mipped(name: string, size: readonly number[], format: GPUTextureFormat, levels: number) {
       return mipViews(make(name, size, format, {}, levels), levels)
+    },
+    layered(
+      name: string,
+      size: readonly [number, number],
+      format: GPUTextureFormat,
+      layers: number,
+    ) {
+      return layerViews(make(name, [...size, layers], format, {}), layers)
     },
     image(
       name: string,
@@ -168,6 +191,16 @@ export function countingAllocator() {
       count(size, format, {}, levels)
       const none = undefined as unknown as GPUTextureView
       return { all: none, levels: Array.from({ length: levels }, () => none) }
+    },
+    layered(
+      _name: string,
+      size: readonly [number, number],
+      format: GPUTextureFormat,
+      layers: number,
+    ) {
+      count([...size, layers], format, {})
+      const none = undefined as unknown as GPUTextureView
+      return { all: none, layers: Array.from({ length: layers }, () => none) }
     },
     image(
       _name: string,

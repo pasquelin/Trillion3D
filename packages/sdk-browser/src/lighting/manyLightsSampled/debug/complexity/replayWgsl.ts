@@ -124,7 +124,11 @@ export function replayWgsl(key: ContractKey, front: boolean, textured: boolean):
   const statements = litPixelStatements(cut, 'return;')
   return wgslBlock(
     `complexityReplayWgsl(${key.lobeless}, ${key.profileless}, ${key.channelless}, ${key.narrow}${front ? ', front layer' : ''}${textured ? '' : ', plain rectangles'})`,
-    [...samplingParts(key, lights, cut, textured, REPLAY_RESOURCES_WGSL), LIST_WGSL, SORT_WGSL],
+    [
+      ...samplingParts(key, lights, cut, textured, REPLAY_RESOURCES_WGSL, false),
+      LIST_WGSL,
+      SORT_WGSL,
+    ],
     `/** Lists the lights of the pixel asked. */
 fn replay(){
  let screen=request.xy;

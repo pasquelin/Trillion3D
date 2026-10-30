@@ -19,6 +19,8 @@ export interface GraphRasters {
   readonly pixelPrograms: readonly PixelProgram[]
   readonly offsets: readonly RasterProgram[]
   readonly textures: boolean
+  /** The closures per pixel the programs were compiled for (`limitOf`); the setting's default unsaid. */
+  readonly closures?: number
 }
 
 /** No graph output, on a device that lets a vertex stage read the atlas. */
@@ -38,10 +40,11 @@ const joined = <P extends RasterProgram>(held: readonly P[], added: Iterable<P |
 export function graphRastersOf(
   surfaces: Iterable<GraphSurface>,
   held: GraphRasters = NO_RASTERS,
+  closures = held.closures,
 ): GraphRasters {
   const programs = []
   for (const surface of surfaces) {
-    const program = surface.graph && programOf(surface)
+    const program = surface.graph && programOf(surface, undefined, closures)
     if (isProgram(program)) programs.push(program)
   }
   const pixelPrograms = joined(
@@ -54,5 +57,5 @@ export function graphRastersOf(
   )
   return pixelPrograms === held.pixelPrograms && offsets === held.offsets
     ? held
-    : { pixelPrograms, offsets, textures: held.textures }
+    : { pixelPrograms, offsets, textures: held.textures, closures }
 }

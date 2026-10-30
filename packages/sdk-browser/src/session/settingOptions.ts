@@ -13,7 +13,9 @@ import type { TemporalOptions } from '../../../sdk-core/src/contracts/temporalOp
 import type { HizOptions } from '../../../sdk-core/src/contracts/hizOptions.ts'
 import type { LightFunctionOptions } from '../../../sdk-core/src/contracts/lightFunctionOptions.ts'
 import type { LightProfileOptions } from '../../../sdk-core/src/contracts/lightProfileOptions.ts'
+import type { OrderIndependentTranslucencyOptions } from '../../../sdk-core/src/contracts/orderIndependentTranslucencyOptions.ts'
 import type { SeparateTranslucencyOptions } from '../../../sdk-core/src/contracts/separateTranslucencyOptions.ts'
+import type { LightShapeOptions } from '../../../sdk-core/src/contracts/lightShapeOptions.ts'
 import type { RectLightAtlasOptions } from '../../../sdk-core/src/contracts/rectLightAtlasOptions.ts'
 import type { SimpleLightOptions } from '../../../sdk-core/src/contracts/simpleLightOptions.ts'
 import type { VolumetricLightmapOptions } from '../../../sdk-core/src/contracts/volumetricLightmapOptions.ts'
@@ -36,6 +38,7 @@ import type { ReflectionOptions } from '../../../sdk-core/src/contracts/reflecti
 import type { VolumetricFogOptions } from '../../../sdk-core/src/contracts/volumetricFogOptions.ts'
 import type { LightingDataFormatOptions } from '../../../sdk-core/src/contracts/lightingDataFormatOptions.ts'
 import type { RayTracingOptions } from '../../../sdk-core/src/contracts/rayTracingOptions.ts'
+import type { ClosureOptions } from '../../../sdk-core/src/contracts/closureOptions.ts'
 import type { MeshDistanceFieldTraceOptions } from '../../../sdk-core/src/contracts/meshDistanceFieldTraceOptions.ts'
 import type { ScreenSpaceTracingOptions } from '../../../sdk-core/src/contracts/screenSpaceTracingOptions.ts'
 import type { SingleLayerWaterOptions } from '../../../sdk-core/src/contracts/singleLayerWaterOptions.ts'
@@ -74,6 +77,8 @@ export interface SettingOptions
     HizOptions,
     LightFunctionOptions,
     LightProfileOptions,
+    LightShapeOptions,
+    OrderIndependentTranslucencyOptions,
     SeparateTranslucencyOptions,
     RectLightAtlasOptions,
     SimpleLightOptions,
@@ -106,6 +111,7 @@ export interface SettingOptions
     ScreenSpaceTracingOptions,
     LightingDataFormatOptions,
     RayTracingOptions,
+    ClosureOptions,
     MeshDistanceFieldTraceOptions,
     AmbientOcclusionOptions,
     AmbientCubemapOptions,

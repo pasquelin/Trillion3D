@@ -87,7 +87,7 @@ const composeBeyondText = (text: LocalFogText) => `
 fn fogStack(near:vec4f,behind:vec4f)->vec4f{
  return vec4f(near.rgb+behind.rgb*near.a,near.a*behind.a);
 }
-${text.functions}/** The fog along 'toward', the ray from 'eye' to the point it reaches: an endless one for the sky ('fogBeyondWith'), the distance of the surface seen for a capture that has its depth. */
+${text.functions}/** The fog along \`toward\`, the ray from \`eye\` to the point it reaches: an endless one for the sky (\`fogBeyondWith\`), the distance of the surface seen for a capture that has its depth. */
 fn fogBeyondAlong(toward:vec3f,eye:vec3f,local:bool,pixel:vec2f,inView:bool)->vec4f{
  if(!fogDrawn()){return vec4f(0.0,0.0,0.0,1.0);}
  let height=${fog(FOG_SLOT.color)}.w>${FOG_MODE.exponential - 0.5};

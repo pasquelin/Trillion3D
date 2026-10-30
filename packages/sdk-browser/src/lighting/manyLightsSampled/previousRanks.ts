@@ -4,6 +4,8 @@
  * or an image that does not follow the one before, has none. The words (the rank before plus one, 0 for none, a word a rank) are written to the GPU only when they differ from those it holds.
  */
 import { retire } from '../../gpu/core/frameRetire.ts'
+import { writeChanged } from '../../gpu/core/writeChanged.ts'
+import { grownLength } from '../../../../math/src/sequence/resized.ts'
 import type { SceneLightStore } from '../../../../sdk-core/src/scene/light/store.ts'
 
 const MIN_SLOTS = 16
@@ -15,7 +17,6 @@ export function createPreviousRanks(device: GPUDevice) {
   let simpleShown = new Map<string, number>()
   let simpleNext = new Map<string, number>()
   let words = new Uint32Array(0)
-  let sent = new Uint32Array(0)
   let buffer: GPUBuffer | undefined
   let slots = 0
   let lastImage = -2
@@ -25,21 +26,16 @@ export function createPreviousRanks(device: GPUDevice) {
   function ensure(total: number) {
     if (buffer && total <= slots) return
     if (buffer) retire(device, buffer)
-    slots = Math.max(total, slots * 2, MIN_SLOTS)
+    slots = grownLength(slots, Math.max(total, MIN_SLOTS))
     words = new Uint32Array(slots)
-    sent = new Uint32Array(slots).fill(0xffffffff)
     buffer = device.createBuffer({
       label: 'Trillion3D previous light ranks',
       size: slots * 4,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     })
   }
-  /** Writes the words to the GPU when they differ from those it holds. */
-  function send() {
-    if (!words.some((word, rank) => word !== sent[rank])) return
-    device.queue.writeBuffer(buffer!, 0, words)
-    sent.set(words)
-  }
+  /** Writes the words to the GPU where they differ from those it holds. */
+  const send = () => writeChanged(device, buffer!, words, 0, slots)
   return {
     /**
      * The buffer of the words of image `image`, the lights' ranks being the store's slots then the simple lights'. Idempotent for an image. Where nothing reads the ranks (`wanted` false: no guide by history)

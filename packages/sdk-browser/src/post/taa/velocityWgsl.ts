@@ -147,3 +147,14 @@ export const VECTOR_FORMAT: GPUTextureFormat = 'rg32uint'
  *  restart (`responsiveCode`). */
 export const PIXEL_ANIMATED = RESPONSIVE_ANIMATED
 export const PIXEL_RESTARTS = RESPONSIVE_RESTARTS
+
+/** The reads of a pixel's flags word (the velocity stage's second, its high half the depth step):
+ *  whether the pixel is a pixel animation, whether its history restarts, whether it is either. */
+export const PIXEL_FLAGS_WGSL = wgslBlock(
+  'PIXEL_FLAGS_WGSL',
+  [],
+  `
+fn pixelAnimated(flags:u32)->bool{return (flags&${PIXEL_ANIMATED}u)!=0u;}
+fn pixelRestarts(flags:u32)->bool{return (flags&${PIXEL_RESTARTS}u)!=0u;}
+fn pixelResponsive(flags:u32)->bool{return (flags&${PIXEL_ANIMATED | PIXEL_RESTARTS}u)!=0u;}`,
+)

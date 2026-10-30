@@ -1,7 +1,9 @@
 import { EngineError } from '../../../contracts/cache.ts'
 import type { Texture } from '../../texture/texture.ts'
 import { InputGraph } from './inputs.ts'
-import type { GraphData } from './graph.ts'
+import type { GraphData, Pin } from './graph.ts'
+import { flattenClosures } from './closureFlatten.ts'
+import { MAX_CLOSURES, assertClosureTree, type ClosureOutput, type Operand } from './closures.ts'
 import { isGraphDomain } from './outputs.ts'
 import { graphError } from './valueType.ts'
 
@@ -18,6 +20,35 @@ import { graphError } from './valueType.ts'
  * ```
  */
 export class MaterialGraph extends InputGraph {
+  /** A slab of a closure tree: the closure whose attributes are the wires given (`CLOSURE_OUTPUTS`); returns its rank among the closure nodes. */
+  slab(attributes: Partial<Record<ClosureOutput, Pin>>) {
+    return this.addClosureNode({ kind: 'slab', attributes: { ...attributes } })
+  }
+  /** The horizontal mix of two closures side by side: `foreground` takes the share `mix` (0.5 where not given), `background` the rest.
+   *  `blend` asks the mix to be one closure with the parameters mixed. */
+  horizontalMix(background: number, foreground: number, mix: Operand = 0.5, blend = false) {
+    return this.addClosureNode({ kind: 'horizontal', background, foreground, mix, blend })
+  }
+  /** The vertical layering of `top` over `base`: the base is seen through the top. */
+  verticalLayer(top: number, base: number, blend = false) {
+    return this.addClosureNode({ kind: 'vertical', top, base, blend })
+  }
+  /** The sum of two closures, each at its own coverage. */
+  addClosures(a: number, b: number, blend = false) {
+    return this.addClosureNode({ kind: 'add', a, b, blend })
+  }
+  /** A closure weighted by `weight` (0 to 1). */
+  weightClosure(input: number, weight: Operand) {
+    return this.addClosureNode({ kind: 'weight', input, weight })
+  }
+  /** Makes the closure node `root` the surface's tree: the surface has the closures it flattens to (at most `MAX_CLOSURES`, `flattenClosures`),
+   *  a tree of more operators than the format holds being refused here. */
+  closures(root: number) {
+    assertClosureTree(this.closureNodes, root)
+    flattenClosures(this.closureNodes, root, MAX_CLOSURES)
+    this.setClosureRoot(root)
+  }
+
   /** The graph as a saved world holds it; a graph holding a texture is refused. */
   toJSON(): GraphData {
     const written = [...this.values]
@@ -29,6 +60,9 @@ export class MaterialGraph extends InputGraph {
       domain: this.domain,
       nodes: this.nodes.map((node) => structuredClone(node)),
       outputs: structuredClone(this.outputs),
+      ...(this.closureRoot !== undefined && {
+        closures: { nodes: structuredClone(this.closureNodes), root: this.closureRoot },
+      }),
       ...(written.length && { values: Object.fromEntries(written) as GraphData['values'] }),
     }
   }
@@ -44,6 +78,7 @@ export class MaterialGraph extends InputGraph {
       graph.addNode(node.kind, node.props, node.inputs)
     }
     for (const [name, pin] of Object.entries(data.outputs ?? {})) graph.output(name, pin)
+    if (data.closures) graph.restoreClosures(data.closures)
     for (const [name, value] of Object.entries(data.values ?? {})) graph.set(name, value)
     return graph
   }
@@ -54,7 +89,24 @@ export class MaterialGraph extends InputGraph {
     for (const node of this.nodes)
       graph.addNode(node.kind, node.props, node.inputs, this.textures.get(node.id))
     for (const [name, pin] of Object.entries(this.outputs)) graph.output(name, pin)
+    if (this.closureRoot !== undefined)
+      graph.restoreClosures({ nodes: this.closureNodes, root: this.closureRoot })
     for (const [name, value] of this.values) graph.set(name, value)
     return graph
+  }
+
+  /** The closure tree `tree` made again, every node checked as when it was made. */
+  private restoreClosures(tree: NonNullable<GraphData['closures']>) {
+    if (!tree || typeof tree !== 'object' || !Array.isArray(tree.nodes))
+      throw graphError('a saved graph lists its closure nodes as an array')
+    for (const saved of tree.nodes) {
+      if (!saved || typeof saved !== 'object')
+        throw graphError('a saved closure node is not an object')
+      const { id, ...node } = saved
+      if (id !== this.closureNodes.length)
+        throw graphError('a saved graph lists its closure nodes out of order')
+      this.addClosureNode(node)
+    }
+    this.closures(tree.root)
   }
 }

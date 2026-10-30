@@ -1,7 +1,7 @@
 import { lambertDiffuse } from '../../../../math/src/wgsl/lighting.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { INDIRECT_WGSL } from './indirectWgsl.ts'
-import { SCREEN_INDIRECT_WGSL } from './screen/indirectWgsl.ts'
+import { screenIndirectWgsl } from './screen/indirectWgsl.ts'
 
 /**
  * Bounce application (`bounceLighting`), as the opaque deferred resolve gives it, and its measurement view (`bounceIrradiance`): the
@@ -19,10 +19,11 @@ import { SCREEN_INDIRECT_WGSL } from './screen/indirectWgsl.ts'
  * here); the pixel they did not read has none where their level gathers light, and the sky light's own irradiance (`indirectIrradiance`) where it gathers none or they did not run
  * (`screenOcclusionOnly`).
  */
-export const BOUNCE_APPLY_WGSL = wgslBlock(
-  'BOUNCE_APPLY_WGSL',
-  [lambertDiffuse, INDIRECT_WGSL, SCREEN_INDIRECT_WGSL],
-  `
+export const bounceApplyWgsl = (closures: boolean) =>
+  wgslBlock(
+    closures ? 'BOUNCE_APPLY_WGSL(closures)' : 'BOUNCE_APPLY_WGSL',
+    [lambertDiffuse, INDIRECT_WGSL, screenIndirectWgsl(closures)],
+    `
 /** What the environment adds of the sky light's diffuse: nothing, the screen probes carry it. */
 fn environmentSky(N:vec3f,ao:f32)->vec3f{return vec3f(0.0);}
 /** Diffuse radiance a pixel the screen probes did not read returns: the sky's. */
@@ -40,4 +41,7 @@ fn bounceIrradiance(coord:vec2i,N:vec3f,P:vec3f,exposure:f32)->vec3f{
  if(screenLights(seen)){return seen.rgb*exposure;}
  return select(vec3f(0.0),indirectIrradiance(P,N),screenOcclusionOnly())*exposure;
 }`,
-)
+  )
+
+/** The application for a view of one closure. */
+export const BOUNCE_APPLY_WGSL = bounceApplyWgsl(false)

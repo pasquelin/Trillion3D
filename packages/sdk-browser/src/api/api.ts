@@ -16,6 +16,7 @@ import { createExplorerFogVolumeApi } from './fogVolumeApi.ts'
 import { createExplorerHeterogeneousVolumeApi } from './heterogeneousVolumeApi.ts'
 import { createExplorerLocalFogApi } from './localFogApi.ts'
 import { createExplorerReflectionCaptureApi } from './reflectionCaptureApi.ts'
+import { createExplorerPlanarReflectionApi } from './planarReflectionApi.ts'
 import { createExplorerMaterialApi } from './materialApi.ts'
 
 type Inputs = SessionRuntime & {
@@ -56,6 +57,11 @@ function engineApis(inputs: Inputs, onDispose: (release: () => void) => void) {
       check,
       engine,
       store: context.sceneReflectionCapture,
+    }),
+    ...createExplorerPlanarReflectionApi({
+      check,
+      engine,
+      store: context.scenePlanarReflection,
     }),
     ...createExplorerMaterialApi({
       ...{ check, engine, onDispose },

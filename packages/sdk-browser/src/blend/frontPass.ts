@@ -4,6 +4,10 @@ import type { WebgpuPagesRuntime } from '../frame/backend/runtime.ts'
 import { readHizSetting } from '../../../sdk-core/src/contracts/hizOptions.ts'
 import { drawBlendRuns, type BlendRuns } from './draw.ts'
 import { waterFrontOf } from './water/waterReflection.ts'
+import { waterTableGroup } from './water/waterExclusions.ts'
+import { WATER_GROUP } from './water/waterLayout.ts'
+import { emptyGroup } from './transmission/distortionGroups.ts'
+import { REFLECTION_GROUP } from '../lighting/reflections/viewLayout.ts'
 import { lightsFrontLayer } from '../lighting/manyLightsSampled/frame.ts'
 import { tracesTranslucent } from '../lighting/shadows/vsm/frame/vsmGates.ts'
 import { tracedTranslucencyTraced } from '../lighting/reflections/translucency/stage.ts'
@@ -11,6 +15,9 @@ import { tracedTranslucencyTraced } from '../lighting/reflections/translucency/s
 /** The front pass's runs: no reflection read, near to far — the depth it writes rejects early
  *  what lies behind (`BlendRuns`). */
 const FRONT_RUNS: BlendRuns = { reflected: false, nearFirst: true, water: 'with' }
+/** The same in two runs where the water's surface is cut: the others, then the water's. */
+const FRONT_RUNS_PLAIN: BlendRuns = { reflected: false, nearFirst: true }
+const FRONT_RUNS_WATER: BlendRuns = { reflected: false, nearFirst: true, water: 'only' }
 
 /**
  * The transparents' front pass (`../lighting/reflections/frontLayer.ts`), the one producer of the nearest
@@ -66,6 +73,11 @@ export function encodeFrontPass(
         : 0
   const set = vis.blendPipelines.front(outputs)
   if (!set.ready) return set.ask()
+  // The water's items are drawn apart where the programs cut its surface inside an exclusion volume: their stage reads the volumes' table.
+  const cutSet = vis.blendPipelines.water?.exclusion
+    ? vis.blendPipelines.front(outputs, true)
+    : undefined
+  if (cutSet && !cutSet.ready) return cutSet.ask()
   const hizFront = hiz.front(true)
   if (!hizFront) return
   const { front } = reflection
@@ -82,7 +94,13 @@ export function encodeFrontPass(
   const pass = encoder.beginRenderPass(descriptor)
   if (tiles) pass.setBindGroup(FRONT_TILE_GROUP, tiles.maskGroup)
   pass.setViewport(0, 0, gpu.targetSize[0], gpu.targetSize[1], 0, 1)
-  run.gpuDrawCalls += drawBlendRuns(rt, device, pass, set, FRONT_RUNS)
+  if (cutSet) {
+    run.gpuDrawCalls += drawBlendRuns(rt, device, pass, set, FRONT_RUNS_PLAIN)
+    // The group of the reflection's place holds nothing here, as it does in the water's depth pass.
+    if (!tiles) pass.setBindGroup(REFLECTION_GROUP, emptyGroup(device))
+    pass.setBindGroup(WATER_GROUP, waterTableGroup(rt, device))
+    run.gpuDrawCalls += drawBlendRuns(rt, device, pass, cutSet, FRONT_RUNS_WATER)
+  } else run.gpuDrawCalls += drawBlendRuns(rt, device, pass, set, FRONT_RUNS)
   pass.end()
   if (outputs === 3) front.surfaceFrom(encoder)
 }

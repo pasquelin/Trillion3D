@@ -4,6 +4,9 @@
  * `manager.ts` keeps the slots.
  */
 
+import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
+import { clamp, clampLowWins } from '../../../../math/src/scalar/reals.ts'
+
 /** A point or a size, in texels. */
 export interface Point {
   x: number
@@ -61,17 +64,15 @@ export const newLayout = (width = FIRST_ATLAS_SIDE, height = width): AtlasLayout
   freeRects: [],
 })
 
-const divideAndRoundUp = (value: number, by: number) => Math.ceil(value / by)
-
 /** The size `size` has at mip level `mip`. */
 export const toMip = (size: Point, mip: number): Point => {
   const div = 2 ** mip
-  return { x: divideAndRoundUp(size.x, div), y: divideAndRoundUp(size.y, div) }
+  return { x: ceilDiv(size.x, div), y: ceilDiv(size.y, div) }
 }
 
 /** The highest mip level a slot of `size` is read at: the levels its short side holds, less the last. */
 export const slotMaxMipLevel = (size: Point) => {
-  const max = Math.floor(Math.log2(Math.max(1, Math.min(size.x, size.y))))
+  const max = Math.floor(Math.log2(clampLowWins(size.x, 1, size.y)))
   return max > 0 ? max - 1 : 0
 }
 
@@ -104,7 +105,7 @@ export function sourceResolution(
   const ratioXY = sx / sy
   // A share that rounds to no texel is held to one.
   const out = { x: Math.max(1, Math.trunc(sx)), y: Math.max(1, Math.trunc(sy)) }
-  const threshold = Math.min(16, Math.max(1, maxRatio))
+  const threshold = clamp(maxRatio, 1, 16)
   if (ratioYX > threshold) out.x = Math.trunc(out.x * (ratioYX / threshold))
   else if (ratioXY > threshold) out.y = Math.trunc(out.y * (ratioXY / threshold))
   return out

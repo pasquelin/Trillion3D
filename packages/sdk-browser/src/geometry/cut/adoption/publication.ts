@@ -147,6 +147,8 @@ function publicationBytes(p: Publication) {
  * an image that adopted nothing new walks nor makes anything.
  */
 function createViewReadbacks({ views, capture }: Pick<WebgpuPagesCore, 'views' | 'capture'>) {
+  /** The readback `view` adds to the union: none for a parked view, whose cut counts for no one. */
+  const counted = (view: WebgpuView) => (view.parked ? undefined : view.cut?.adopted)
   const readbacks: GpuCut[] = [],
     handed = { cuts: readbacks, first: null as GpuCut | null },
     /** Each view's adoption `handed` was made of: the main view's, then the persistent ones'. */
@@ -155,7 +157,7 @@ function createViewReadbacks({ views, capture }: Pick<WebgpuPagesCore, 'views' |
     if (madeOf.length !== views.persistent.length + 1) return false
     if (madeOf[0] !== views.main.cut?.adopted) return false
     for (let v = 0; v < views.persistent.length; v++)
-      if (madeOf[v + 1] !== views.persistent[v].cut?.adopted) return false
+      if (madeOf[v + 1] !== counted(views.persistent[v])) return false
     return true
   }
   return () => {
@@ -164,8 +166,9 @@ function createViewReadbacks({ views, capture }: Pick<WebgpuPagesCore, 'views' |
     handed.first = first
     readbacks.length = madeOf.length = 0
     for (const view of [views.main, ...views.persistent]) {
-      madeOf.push(view.cut?.adopted)
-      if (view.cut?.adopted && view.cut.adopted !== first) readbacks.push(view.cut.adopted)
+      const adopted = counted(view)
+      madeOf.push(adopted)
+      if (adopted && adopted !== first) readbacks.push(adopted)
     }
     return handed
   }

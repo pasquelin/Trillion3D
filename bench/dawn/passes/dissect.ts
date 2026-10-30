@@ -14,8 +14,26 @@ import type { BenchPlay } from '../runs/play.ts'
 import { playChild } from '../runs/playChild.ts'
 import { passKey } from '../report/summary.ts'
 
-/** One play of the dissect scenario, with the shader as `spec` says: its numbers. */
-function playVariant(options: BenchOptions, scenario: string, spec: DissectSpec, out: string) {
+/** The tries a variant's play gets, and the wait between them: a play is a fresh process that reads
+ *  the sources again, and a file another session is half way through writing fails it once. */
+const VARIANT_TRIES = 40
+const VARIANT_RETRY_MS = 30_000
+
+/** One play of the dissect scenario, with the shader as `spec` says: its numbers, played again
+ *  while a try fails. */
+async function playVariant(options: BenchOptions, scenario: string, spec: DissectSpec, out: string) {
+  for (let i = 1; ; i++) {
+    try {
+      return await playVariantOnce(options, scenario, spec, out)
+    } catch (error) {
+      if (i >= VARIANT_TRIES) throw error
+      console.error(`[bench] dissect: try ${i} of ${spec.cut ?? 'the whole shader'} failed, again in ${VARIANT_RETRY_MS / 1000} s: ${String(error).slice(0, 200)}`)
+      await new Promise((done) => setTimeout(done, VARIANT_RETRY_MS))
+    }
+  }
+}
+
+function playVariantOnce(options: BenchOptions, scenario: string, spec: DissectSpec, out: string) {
   return playChild(
     [
       options.file,

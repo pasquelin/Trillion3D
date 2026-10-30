@@ -12,6 +12,7 @@ import {
   isCustomDepthStencilWriteMask,
   type CustomDepthStencilWriteMask,
 } from '../../contracts/customDepthAbi.ts'
+import { OBJECT_TRANSLUCENT_SHADOW_RULES } from '../../contracts/translucentObjectShadowOptions.ts'
 import { OBJECT_MOBILITIES, type ObjectMobility } from '../../contracts/objectAbi.ts'
 import {
   DEFAULT_LIGHTING_CHANNELS,
@@ -58,6 +59,8 @@ import {
  * `shadowCapsules` (none), spheres and capsules fitted to its bones, from the lights and on the sky and the indirect light
  * (`../../contracts/capsuleShadowOptions.ts`), `capsuleIndirectShadowMinVisibility` (0.1) the share of the indirect light that
  * stays under that shadow.
+ * `castVolumetricTranslucentShadow` (false) makes the object cast a volumetric translucent shadow into the classic shadow maps of the lights that
+ * let translucent surfaces cast (`../../contracts/translucentObjectShadowOptions.ts`); it needs the object to cast a dynamic shadow.
  * `lightingChannels` (channel 0 alone) says which of the three lighting channels the object is in: a light
  * lights it, and a light's shadow holds it, only where they share a channel (`../../contracts/lightingChannelsAbi.ts`).
  * `renderCustomDepth` (false) draws the object into the custom depth (`../../contracts/customDepthOptions.ts`), whatever stands in front
@@ -98,6 +101,7 @@ export interface OffsetSwitches {
   castContactShadow: boolean
   affectDistanceFieldLighting: boolean
   castCapsuleDirectShadow: boolean
+  castVolumetricTranslucentShadow: boolean
   castCapsuleIndirectShadow: boolean
   capsuleIndirectShadowMinVisibility: number
   shadowCapsules: readonly ShadowCapsuleBody[]
@@ -123,6 +127,8 @@ const DEFAULTS: Readonly<OffsetSwitches> = {
   castContactShadow: true,
   affectDistanceFieldLighting: true,
   castCapsuleDirectShadow: OBJECT_CAPSULE_SHADOW_RULES.castCapsuleDirectShadow.default,
+  castVolumetricTranslucentShadow:
+    OBJECT_TRANSLUCENT_SHADOW_RULES.castVolumetricTranslucentShadow.default,
   castCapsuleIndirectShadow: OBJECT_CAPSULE_SHADOW_RULES.castCapsuleIndirectShadow.default,
   capsuleIndirectShadowMinVisibility:
     OBJECT_CAPSULE_SHADOW_RULES.capsuleIndirectShadowMinVisibility.default,
@@ -223,6 +229,11 @@ const SWITCHES = {
     'true or false',
   ),
   castCapsuleDirectShadow: switchRule('castCapsuleDirectShadow', isBoolean, 'true or false'),
+  castVolumetricTranslucentShadow: switchRule(
+    'castVolumetricTranslucentShadow',
+    isBoolean,
+    'true or false',
+  ),
   castCapsuleIndirectShadow: switchRule('castCapsuleIndirectShadow', isBoolean, 'true or false'),
   capsuleIndirectShadowMinVisibility: switchRule(
     'capsuleIndirectShadowMinVisibility',

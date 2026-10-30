@@ -16,9 +16,11 @@ import { followBlendScene } from '../../blend/resources.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { followLiveTextures } from '../io/memory.ts'
 import { followFeedback } from '../prepare/feedbackVariant.ts'
+import { followBlendWorld } from '../../blend/growth.ts'
 import { followModelSwitches } from '../prepare/lobesTarget.ts'
 import { followContactShadows } from '../../lighting/contactShadow/frame.ts'
 import { followSimpleLights } from './encodeLights.ts'
+import { followClosureLimit } from '../prepare/closures.ts'
 import { beginTaaFrame } from '../../post/taa/frame.ts'
 import { lightingPhase } from '../../lighting/surfaceCache/lighting/phase.ts'
 import { askFramePipelines } from '../loop/framePipelines.ts'
@@ -107,6 +109,8 @@ function followSceneInputs(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
   // does a surface rewritten since in what its clusters read beside its record — a flag, its class —
   // (`follow`, `../../materials/table/materialTable.ts`): a colour, a factor, a map's slot writes its one
   // record and no cluster's.
+  // The closures per pixel the surfaces' programs are compiled for, before the records follow them.
+  followClosureLimit(rt)
   const sampling = !!vis.textures?.followSampling()
   if (vis.materialTable.follow(vis) || sampling) {
     rt.layout.clusters.infoEpoch++
@@ -124,6 +128,8 @@ function followSceneInputs(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
   followModelSwitches(rt)
   // Textures that came or went switch the pipelines' feedback output, the target following.
   followFeedback(rt, gpuDevice)
+  // A water exclusion volume or the object shadow switch that came or went asks the blend programs built again.
+  followBlendWorld(rt, gpuDevice)
   // What entered the scene since has its pipelines asked, compiled off the thread: the frame is
   // held on them below (`deviceAnswering`), never compiles one.
   askFramePipelines(rt)

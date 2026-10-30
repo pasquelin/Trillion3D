@@ -6,13 +6,29 @@ import { createPreviousRanks } from './previousRanks.ts'
 
 ;(globalThis as { GPUBufferUsage?: object }).GPUBufferUsage ??= { STORAGE: 128, COPY_DST: 8 }
 
+/** A device whose buffers hold their words, zero when made as on the GPU: `writes` counts the writes, `held` reads the last buffer made. */
 function fakeDevice() {
-  const writes: number[][] = []
+  const writes: number[] = []
+  let last = new Uint32Array(0)
   const device = {
-    createBuffer: (d: { size: number }) => ({ size: d.size }),
-    queue: { writeBuffer: (_b: unknown, _o: number, w: Uint32Array) => writes.push([...w]) },
+    createBuffer: (d: { size: number }) => {
+      last = new Uint32Array(d.size / 4)
+      return { size: d.size, words: last }
+    },
+    queue: {
+      writeBuffer: (
+        b: { words: Uint32Array },
+        at: number,
+        w: Uint32Array,
+        from = 0,
+        count = w.length - from,
+      ) => {
+        b.words.set(w.subarray(from, from + count), at / 4)
+        writes.push(count)
+      },
+    },
   }
-  return { device: device as unknown as GPUDevice, writes }
+  return { device: device as unknown as GPUDevice, writes, held: () => [...last] }
 }
 
 const entry = (local: number) => ({
@@ -23,24 +39,24 @@ const entry = (local: number) => ({
 })
 
 test('a view follows scene lights by name and simple lights by identity, across order and count', () => {
-  const { device, writes } = fakeDevice()
+  const { device, held } = fakeDevice()
   const store = createSceneLightStore()
   store.add({ ...LIGHT, id: 'a' })
   store.add({ ...LIGHT, id: 'b' })
   store.setSimpleLights([entry(0), entry(1)])
   const ranks = createPreviousRanks(device)
   ranks.encode(store, 1)
-  assert.deepEqual(writes.at(-1)!.slice(0, 4), [0, 0, 0, 0], 'no image before: no history')
+  assert.deepEqual(held().slice(0, 4), [0, 0, 0, 0], 'no image before: no history')
   // A scene light is added first, and the simple lights swap.
   store.remove('a')
   store.setSimpleLights([entry(1), entry(0), entry(2)])
   ranks.encode(store, 2)
   // b was rank 1 and is rank 0; simple 1 was 3 and is 1, simple 0 was 2 and is 2, simple 2 is new.
-  assert.deepEqual(writes.at(-1)!.slice(0, 4), [2, 4, 3, 0])
+  assert.deepEqual(held().slice(0, 4), [2, 4, 3, 0])
 })
 
 test('an image that does not follow the one before has no history, and a repeated image writes nothing', () => {
-  const { device, writes } = fakeDevice()
+  const { device, writes, held } = fakeDevice()
   const store = createSceneLightStore()
   store.add({ ...LIGHT, id: 'a' })
   const ranks = createPreviousRanks(device)
@@ -49,13 +65,13 @@ test('an image that does not follow the one before has no history, and a repeate
   ranks.encode(store, 1)
   assert.equal(writes.length, count)
   ranks.encode(store, 5)
-  assert.equal(writes.at(-1)![0], 0)
+  assert.equal(held()[0], 0)
   ranks.encode(store, 6)
-  assert.equal(writes.at(-1)![0], 1)
+  assert.equal(held()[0], 1)
 })
 
 test('an unchanged list does no work from one image to the next, and a changed one does', () => {
-  const { device, writes } = fakeDevice()
+  const { device, writes, held } = fakeDevice()
   const store = createSceneLightStore()
   store.add({ ...LIGHT, id: 'a' })
   store.setSimpleLights([entry(0)])
@@ -65,7 +81,7 @@ test('an unchanged list does no work from one image to the next, and a changed o
   const ranks = createPreviousRanks(device)
   ranks.encode(store, 1)
   ranks.encode(store, 2)
-  assert.equal(writes.at(-1)![1], 2, 'the first image that follows writes the ranks')
+  assert.equal(held()[1], 2, 'the first image that follows writes the ranks')
   reads = 0
   const count = writes.length
   ranks.encode(store, 3)
@@ -75,10 +91,10 @@ test('an unchanged list does no work from one image to the next, and a changed o
   store.setSimpleLights([entry(1), entry(0)])
   ranks.encode(store, 5)
   assert.ok(reads > 0)
-  assert.deepEqual(writes.at(-1)!.slice(0, 3), [1, 0, 2])
+  assert.deepEqual(held().slice(0, 3), [1, 0, 2])
   // The image after a change computes once more: its words are the identity, and stay so while the list does.
   ranks.encode(store, 6)
-  assert.deepEqual(writes.at(-1)!.slice(0, 3), [1, 2, 3])
+  assert.deepEqual(held().slice(0, 3), [1, 2, 3])
   const settledCount = writes.length
   reads = 0
   ranks.encode(store, 7)
@@ -88,31 +104,31 @@ test('an unchanged list does no work from one image to the next, and a changed o
 })
 
 test('ranks nobody reads are not computed and the next image that reads them has no history', () => {
-  const { device, writes } = fakeDevice()
+  const { device, writes, held } = fakeDevice()
   const store = createSceneLightStore()
   store.add({ ...LIGHT, id: 'a' })
   const ranks = createPreviousRanks(device)
   ranks.encode(store, 1)
   ranks.encode(store, 2)
-  assert.equal(writes.at(-1)![0], 1)
+  assert.equal(held()[0], 1)
   assert.ok(ranks.encode(store, 3, false))
   const count = writes.length
   ranks.encode(store, 4, false)
   assert.equal(writes.length, count)
   ranks.encode(store, 5)
-  assert.equal(writes.at(-1)![0], 0)
+  assert.equal(held()[0], 0)
 })
 
 test('the words an unwanted view leaves are zeroed once, on the switch', () => {
-  const { device, writes } = fakeDevice()
+  const { device, writes, held } = fakeDevice()
   const store = createSceneLightStore()
   store.add({ ...LIGHT, id: 'a' })
   const ranks = createPreviousRanks(device)
   ranks.encode(store, 1)
   ranks.encode(store, 2)
-  assert.equal(writes.at(-1)![0], 1)
+  assert.equal(held()[0], 1)
   ranks.encode(store, 3, false)
-  assert.equal(writes.at(-1)![0], 0)
+  assert.equal(held()[0], 0)
   const count = writes.length
   ranks.encode(store, 4, false)
   assert.equal(writes.length, count)

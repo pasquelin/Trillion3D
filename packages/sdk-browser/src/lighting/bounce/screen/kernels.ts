@@ -16,6 +16,7 @@ import {
   integrateEntries,
   integrateShader,
   TILE_BINDINGS,
+  TILE_OVERFLOW_BINDINGS,
   tileShader,
 } from './integratePassWgsl.ts'
 import { occlusionEntries, occlusionShader, type OcclusionShape } from './occlusionWgsl.ts'
@@ -55,6 +56,8 @@ export interface KernelShape {
   integral: number
   /** Whether the integration is dispatched over the lists of tiles of its modes (`screenProbeIntegrationTileClassification`): else over every pixel. */
   classified: boolean
+  /** Whether the view holds several closures a pixel (`SurfaceBuffer.closures` above one), whose past the first the classified integration reads the overflow tiles of (`tileOverflow`, `integrateOverflow`). */
+  overflow: boolean
   /** Whether the height fog is laid over the light of the probes' rays (`screenProbeHeightFogOnGI`): the scene stages that write it lay it. */
   heightFog: boolean
   /** Whether the conversion sums its projection by the subgroups where the device has them (`screenProbeFilteringWaveOps`). */
@@ -93,6 +96,7 @@ export const kernelShapeOf = (
   integrate: settings.integrateDownsample,
   integral: settings.integralMethod,
   classified: settings.tileClassification,
+  overflow: false,
   heightFog: settings.values.screenProbeHeightFogOnGI,
   waveOps: settings.values.screenProbeFilteringWaveOps,
   occupancy: settings.values.screenProbeScreenTracesMinimumOccupancy > 0,
@@ -127,6 +131,7 @@ export const shapeKey = (shape: KernelShape) =>
     shape.integrate,
     shape.integral,
     shape.classified,
+    shape.overflow,
     shape.heightFog,
     shape.waveOps,
     shape.occupancy,
@@ -300,8 +305,8 @@ const castFilterSources = (shape: KernelShape, waves: number) => {
 /** The sources of the pixels' side: the texel each pixel reads, the classification of the tiles and the integration of the probes they read. */
 const castPixelSources = (shape: KernelShape) => {
   const { samples, occlusion, extraAo, gatherMips, integrate, integral, classified } = shape
-  const integrated = {
-    key: `${samples}|${occlusion.downsample}|${integrate}|${integral}|${classified}|${occlusion.bentNormal}|${extraAo}|${gatherMips}`,
+  const integratedOf = (overflow: boolean) => ({
+    key: `${samples}|${occlusion.downsample}|${integrate}|${integral}|${classified}|${occlusion.bentNormal}|${extraAo}|${gatherMips}${overflow ? '|overflow' : ''}`,
     code: integrateShader(
       occlusion.downsample,
       integrate,
@@ -311,9 +316,12 @@ const castPixelSources = (shape: KernelShape) => {
       extraAo,
       gatherMips,
       classified,
+      overflow,
     ),
     entries: integrateEntries(occlusion.bentNormal, classified),
-  }
+  })
+  const integrated = integratedOf(false)
+  const overflowed = classified && shape.overflow ? integratedOf(true) : undefined
   return {
     ...(integrate > 1 && {
       stochastic: sourceOf(
@@ -335,6 +343,22 @@ const castPixelSources = (shape: KernelShape) => {
       integrate: sourceOf(
         integrated.key,
         integrated.code,
+        integrated.entries,
+        ...CLASSIFIED_POINTS,
+      ),
+    }),
+    ...(overflowed && {
+      tileOverflow: sourceOf(
+        `${samples}|${integrate}|${integral}|overflow`,
+        tileShader(integrate, integral, samples, true),
+        TILE_OVERFLOW_BINDINGS.entries,
+        'tileInit',
+        'tileClassify',
+        'tileFinish',
+      ),
+      integrateOverflow: sourceOf(
+        overflowed.key,
+        overflowed.code,
         integrated.entries,
         ...CLASSIFIED_POINTS,
       ),
@@ -382,6 +406,8 @@ export const screenProbeSources = (
   return {
     ...castSources(shape, width, waves, march, compaction, filterableMip),
     occlusion: occlusionSource(shape),
+    // The same pass over the overflow tiles of the closures past the first, where the view holds several.
+    ...(shape.overflow && { occlusionOverflow: occlusionSource(shape, true) }),
     temporal: sourceOf(
       `${samples}|${occlusion.downsample}|${occlusion.bentNormal}|${shape.integrate}|${occlusion.gi}`,
       temporalShader(
@@ -398,14 +424,14 @@ export const screenProbeSources = (
 }
 
 /** The source of the short-range occlusion's kernel for a shape: the one pass the irradiance field also runs alone. */
-export const occlusionSource = ({
-  samples,
-  occlusion,
-}: Pick<KernelShape, 'samples' | 'occlusion'>) =>
+export const occlusionSource = (
+  { samples, occlusion }: Pick<KernelShape, 'samples' | 'occlusion'>,
+  overflow = false,
+) =>
   sourceOf(
-    `${samples}|${occlusion.downsample}|${occlusion.pyramid}|${occlusion.power}|${occlusion.bentNormal}|${occlusion.bitmask}|${occlusion.rays}|${occlusion.slope}|${occlusion.gi}`,
-    occlusionShader(occlusion, samples),
-    occlusionEntries(occlusion.bentNormal, occlusion.gi),
+    `${samples}|${occlusion.downsample}|${occlusion.pyramid}|${occlusion.power}|${occlusion.bentNormal}|${occlusion.bitmask}|${occlusion.rays}|${occlusion.slope}|${occlusion.gi}${overflow ? '|overflow' : ''}`,
+    occlusionShader(occlusion, samples, overflow),
+    occlusionEntries(occlusion.bentNormal, occlusion.gi, overflow),
     'occlusion',
   )
 
@@ -441,6 +467,11 @@ export interface CastKernels {
   /** The classification of the integration's tiles and the integration over the lists of each mode (`screenProbeIntegrationTileClassification`): none where the tiles are not classified. */
   tile?: Kernel<'tileInit' | 'tileClassify' | 'tileFinish'>
   integrate?: Kernel<(typeof CLASSIFIED_POINTS)[number]>
+  /** The short-range occlusion over the overflow tiles of the closures past the first (`closureTilesOf`), where the view holds several (`KernelShape.overflow`). */
+  occlusionOverflow?: Kernel<'occlusion'>
+  /** The same two over the overflow tiles of the closures past the first, where the view holds several and its tiles are classified (`KernelShape.overflow`). */
+  tileOverflow?: Kernel<'tileInit' | 'tileClassify' | 'tileFinish'>
+  integrateOverflow?: Kernel<(typeof CLASSIFIED_POINTS)[number]>
   /** The integration over every pixel at once, where the tiles are not classified. */
   integrateEvery?: Kernel<typeof EVERY_POINT>
   /** The pass that picks the texel each pixel reads of the integration where it is downsampled (`screenProbeIntegrateDownsampleFactor` above one): none else. */

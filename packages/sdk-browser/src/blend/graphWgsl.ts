@@ -271,10 +271,13 @@ ${cases}
 
 /** The distinct programs of the graphs the surfaces of `items` wear for the transparent pass, by id:
  *  what the modules hold the functions of (`blendGraphs`). */
-export function graphProgramsOf(items: readonly { readonly surface: GraphSurface }[]) {
+export function graphProgramsOf(
+  items: readonly { readonly surface: GraphSurface }[],
+  closures?: number,
+) {
   const found = new Map<number, SurfaceProgram>()
   for (const { surface } of items) {
-    const program = programOf(surface)
+    const program = programOf(surface, undefined, closures)
     if (isProgram(program) && program.kind === 'blend') found.set(program.id, program)
   }
   return [...found.values()].sort((a, b) => a.id - b.id)

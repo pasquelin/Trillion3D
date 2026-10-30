@@ -23,8 +23,7 @@ import { RECORD_DRAWABLE, RECORD_LINE, RECORD_NO_AREA, RECORD_WORDS } from './ra
  * met where it is drawn. A point is met on its dot, the octahedron the page draws; a sprite has no
  * area, never met. A line has no width in the world — the rasters widen it on screen —: each of its
  * quads, whose corners all sit on its segment, is met where the ray passes within `lineReach` of
- * that segment (`raySegmentDistance`), as three.js's `Raycaster.params.Line.threshold` meets it,
- * its normal facing the ray.
+ * that segment (`raySegmentDistance`), its normal facing the ray.
  *
  * The test is the engine's (`rayTriangleDistance`), two-sided, in the placement's own space: the
  * ray's origin and direction are taken there by the inverse of its world, so a parameter along it

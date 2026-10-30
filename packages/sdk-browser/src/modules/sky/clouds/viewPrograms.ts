@@ -7,8 +7,7 @@ import { entryOf } from '../../../../../math/src/sequence/counts.ts'
 import { airShapeKey, type AirShape } from '../../../lighting/atmosphere/shape.ts'
 import type { CloudSetup } from './cloudModes.ts'
 import { postSamplers } from '../../../gpu/core/postSamplers.ts'
-import { describeCompose } from './compose.ts'
-import type { HeldClouds } from './composeWgsl.ts'
+import { describeCompose, type ComposeKind } from './compose.ts'
 import { describeDepthRange } from './depthRange.ts'
 import type { DepthRangePass } from './depthRangeWgsl.ts'
 import { describeReconstruct } from './reconstruct.ts'
@@ -90,8 +89,8 @@ function drawnPass(device: GPUDevice, label: string, d: DrawnDescription): Recon
 /** The kinds of image, as a key: what makes one reconstruction or composition program. */
 const reconstructKey = (s: CloudSetup, history: boolean) =>
   `${history}|${s.mode.index}|${s.minMaxDepth}|${s.boxConstraint}|${s.lateFogOnTranslucent}`
-const composeKey = (s: CloudSetup, held?: HeldClouds) =>
-  `${s.direct}|${s.upsampling}|${s.minMaxDepth}|${held ? `held ${held.cloud}` : ''}`
+const composeKey = (s: CloudSetup, kind: ComposeKind) =>
+  `${s.direct}|${s.upsampling}|${s.minMaxDepth}|${kind}`
 
 /** The pass of the scene's depth range that writes `pass`'s texture. */
 function depthRangePass(device: GPUDevice, pass: DepthRangePass) {
@@ -129,10 +128,10 @@ function composePass(
   device: GPUDevice,
   setup: CloudSetup,
   localFog: boolean,
-  held?: HeldClouds,
+  kind: ComposeKind,
 ): ComposePass {
   const label = 'Trillion3D cloud composition'
-  const d = describeCompose(SIZE, setup, localFog, held)
+  const d = describeCompose(SIZE, setup, localFog, kind)
   const [air, layout] = d.groups.map((entries) => device.createBindGroupLayout({ entries }))
   const module = device.createShaderModule({ label, code: d.code })
   return {
@@ -179,9 +178,9 @@ function createCloudViewPrograms(
       entryOf(reconstructions, reconstructKey(setup, history), () =>
         reconstructPass(device, setup, history, shape.localFog),
       ),
-    compose: (setup: CloudSetup, held?: HeldClouds) =>
-      entryOf(compositions, composeKey(setup, held), () =>
-        composePass(device, setup, shape.localFog, held),
+    compose: (setup: CloudSetup, kind: ComposeKind = 'over') =>
+      entryOf(compositions, composeKey(setup, kind), () =>
+        composePass(device, setup, shape.localFog, kind),
       ),
   }
 }

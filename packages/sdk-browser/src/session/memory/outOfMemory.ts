@@ -3,8 +3,8 @@ import type { PoolClamp } from './pools.ts'
 /** A pool a refusal shrinks: the bytes it may hold, the bytes it holds, and why no more. */
 export type ShrunkPool = { budgetBytes: number; allocatedBytes: number; clamp: PoolClamp }
 
-/** The pools a refusal halves (`halvedPool`): the geometry, the texture and the shadow grants. */
-export type HalvedPool = 'geometry' | 'texture' | 'shadow'
+/** The pools a refusal halves (`halvedPool`): the geometry, the texture, the shadow and the sorted translucency grants. */
+export type HalvedPool = 'geometry' | 'texture' | 'shadow' | 'oit'
 
 /**
  * THE ONE out-of-memory rule of the GPU pools (#483 rule 5): the refused pool is drawn again, by its

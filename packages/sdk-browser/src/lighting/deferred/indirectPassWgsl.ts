@@ -17,10 +17,11 @@ import {
 import { SURFACE_MODEL_LIGHT_WGSL } from '../../materials/surface/surfaceModel.ts'
 import { scattersPixelModel } from '../../materials/surface/pixelModel.ts'
 import { SKY_DIFFUSE_READ_WGSL } from '../atmosphere/skyReadWgsl.ts'
-import { BOUNCE_APPLY_WGSL } from '../bounce/applyWgsl.ts'
+import { bounceApplyWgsl } from '../bounce/applyWgsl.ts'
 import { screenFoliageStatement } from '../bounce/screen/indirectWgsl.ts'
 import { dfaoReadWgsl } from '../distanceField/ao/readWgsl.ts'
 import { directLightWgsl } from '../direct/lightWgsl.ts'
+import { INDIRECT_DIFFUSE_VIEW_GREY } from '../direct/indirectDiffuseView.ts'
 import { ENVIRONMENT_LIGHTING_WGSL, THIN_SURFACE_WGSL } from '../direct/lightingWgsl.ts'
 import {
   LOBELESS_LIGHTING_WGSL,
@@ -52,6 +53,8 @@ import {
   SUBSURFACE_BINDING_WGSL,
   type LitPixelCut,
   litPixelStatements,
+  closureLoop,
+  CLOSURE_READ_WGSL,
 } from './litSurfaceWgsl.ts'
 import { TILE_VERTEX_WGSL } from './tilePass.ts'
 import type { TileClass } from './tileClass.ts'
@@ -196,9 +199,13 @@ export function indirectModules(
   cut: LitPixelCut,
   capsule = false,
   captured = false,
+  diffuseView = false,
 ) {
   const resolve = reflectionResolveWgsl(
     captured ? capturedLocalLightWgsl(DEFERRED_CAPTURE_BINDINGS) : NO_LOCAL_LIGHT_WGSL,
+    bounce && !!cut.closures,
+    !!cut.closures,
+    diffuseView,
   )
   return [
     cut.models ? toonTablesBinding(DEFERRED_TOON_TABLES) : TOON_TABLES_NONE_WGSL,
@@ -218,17 +225,23 @@ export function indirectModules(
     ENVIRONMENT_LIGHTING_WGSL,
     VOLUMETRIC_LIGHT_READ_WGSL,
     ...(bounce
-      ? [BOUNCE_APPLY_WGSL, resolve.RESOLVED_INDIRECT_WGSL]
+      ? [bounceApplyWgsl(!!cut.closures), resolve.RESOLVED_INDIRECT_WGSL]
       : [NO_BOUNCE_WGSL, resolve.resolvedReflectionWgsl]),
     ...(skyShadowing ? [skyShadowingWgsl(resolve.resolvedReflectionOccludedWgsl)] : []),
     ...(capsule ? [CAPSULE_INDIRECT_WGSL] : []),
     ...(cubed ? [ambientCubemapWgsl(cut.lobes)] : []),
     AMBIENT_OCCLUSION_READ_WGSL,
     LIT_PIXEL_WGSL,
+    ...(cut.closures ? [CLOSURE_READ_WGSL] : []),
     TILE_VERTEX_WGSL,
     ...(cut.thin ? [SUBSURFACE_BINDING_WGSL] : []),
   ]
 }
+
+/** What the bounce pass runs on entering a closure of the loop: the closure the screen probes' reads (`screenWordsAt`, `screenShortRangeGiAt`) take their layer of the history from. */
+const ENTERING_CLOSURE = '\n  screenClosure=closure;'
+/** What every indirect pass of several closures runs on entering one: the closure the traced reflection's reads (`resolvedReflectionTexel`) take their layers of the target from. */
+const ENTERING_REFLECTION = '\n  reflectionClosure=closure;'
 
 /** The entry `indirectMain`. */
 function indirectMainWgsl(
@@ -238,22 +251,29 @@ function indirectMainWgsl(
   cut: LitPixelCut,
   capsule: boolean,
   captured: boolean,
+  diffuseView: boolean,
 ) {
+  // The view of the indirect diffuse light alone: every diffuse term takes the grey in place of the surface's colour and metalness, and the reflection is
+  // not read (the traced reflections and the sky's are skipped, as the reference skips them under its view); the surface's own colour stays for the bounce
+  // term, whose multi-bounce occlusion reads it (`resolvedIndirect`).
+  const diffuse = diffuseView ? `vec3f(${INDIRECT_DIFFUSE_VIEW_GREY}),0.0` : 'albedo,base.a'
   const terms = bounce
     ? INDIRECT_TERMS.bounce
-    : skyShadowing
-      ? INDIRECT_TERMS.skyShadowed
-      : INDIRECT_TERMS.direct
+    : diffuseView
+      ? 'mat2x3f(vec3f(0.0),vec3f(0.0))'
+      : skyShadowing
+        ? INDIRECT_TERMS.skyShadowed
+        : INDIRECT_TERMS.direct
   const sky = skyShadowing
-    ? 'environmentLightingOccluded(albedo,base.a,N,occlusion.sky,skyVis)'
+    ? `environmentLightingOccluded(${diffuse},N,occlusion.sky,skyVis)`
     : sharesPlainVisibility(bounce, skyShadowing, cut)
-      ? 'environmentLightingWith(albedo,base.a,N,occlusion.sky,PI*skyLightDiffuseOccluded(skyVis))'
-      : 'environmentLighting(albedo,base.a,N,occlusion.sky)'
-  const environment = captured ? `capturedAmbient(${sky},albedo,base.a,N,occlusion.both)` : sky
-  const lightmap = 'volumetricLightmapLighting(coord,albedo,base.a,occlusion.sky)'
-  const reflection = cubed ? '(indirect[1]+cube[1])' : 'indirect[1]'
-  return `
-@fragment fn indirectMain(@builtin(position) pixel:vec4f)->@location(0) vec4f{${litPixelStatements(cut)}${
+      ? `environmentLightingWith(${diffuse},N,occlusion.sky,PI*skyLightDiffuseOccluded(skyVis))`
+      : `environmentLighting(${diffuse},N,occlusion.sky)`
+  const environment = captured ? `capturedAmbient(${sky},${diffuse},N,occlusion.both)` : sky
+  const lightmap = `volumetricLightmapLighting(coord,${diffuse},occlusion.sky)`
+  const reflection = diffuseView ? 'vec3f(0.0)' : cubed ? '(indirect[1]+cube[1])' : 'indirect[1]'
+  // The statements after the pixel is read: one closure's, or, for a view whose pixels hold several, those of each closure the record holds, summed by coverage.
+  const body = (done: (light: string) => string) => `${
     captured
       ? `
  capturePoint=P;`
@@ -274,7 +294,7 @@ function indirectMainWgsl(
  let indirect=${terms};${
    cubed
      ? `
- let cube=ambientCubemapAt(albedo,base.a,normal.a,N,V,occlusion.both);
+ let cube=ambientCubemapAt(${diffuse},normal.a,N,V,occlusion.both);
  thinCubeBack=ambientCubemapBack(N,thinScreenBack.a==2.0);`
      : ''
  }
@@ -293,7 +313,9 @@ function indirectMainWgsl(
  `
      : ''
  }let rgb=litSurface(vec3f(0.0),bounceLight,ambientLight,${cut.models ? 'reflected' : reflection},vec3f(0.0),N,P,occlusion.sky);
- return lightOut(${capsule ? 'rgb*capsuleFactor' : 'rgb'});
+ ${done(`lightOut(${capsule ? 'rgb*capsuleFactor' : 'rgb'})`)}`
+  return `
+@fragment fn indirectMain(@builtin(position) pixel:vec4f)->@location(0) vec4f{${litPixelStatements(cut)}${cut.closures ? closureLoop(body, (bounce ? ENTERING_CLOSURE : '') + ENTERING_REFLECTION, cut.lobes) : body((light) => `return ${light};`)}
 }`
 }
 
@@ -305,7 +327,8 @@ function indirectMainWgsl(
  * none, its probes carry the sky; with `cubed`, the ambient cubemap's diffuse and specular light
  * (`ambientCubemapWgsl.ts`), added to the environment's and to the reflection; with `captured`, the reflection captures laid over the sky in the rough light of the
  * reflection and, with their diffuse light on, in the environment's diffuse light (`reflectionCapture/localLightWgsl.ts`). A view of the lit image shows one term in its place: 1 the
- * reflection alone.
+ * reflection alone. With `diffuseView`, the variant of the view of the indirect diffuse light alone (`indirectDiffuseView.ts`, the lit view 5), compiled only when that view is asked: the diffuse terms
+ * on a grey of 0.18, no reflection.
  */
 export function indirectPassWgsl({
   bounce,
@@ -313,6 +336,8 @@ export function indirectPassWgsl({
   cubed = false,
   capsule = false,
   captured = false,
+  closures = false,
+  diffuseView = false,
   tileClass,
 }: {
   bounce: boolean
@@ -320,14 +345,18 @@ export function indirectPassWgsl({
   cubed?: boolean
   capsule?: boolean
   captured?: boolean
+  /** The view's pixels hold several closures (`ContractKey.closures`): the pass lights each and sums them by coverage. */
+  closures?: boolean
+  /** The view of the indirect diffuse light alone: its variant of the pass. */
+  diffuseView?: boolean
   tileClass: TileClass
 }) {
   if (bounce && skyShadowing) throw new Error('the bounce program has no sky shadowing')
   // No light's term tests a pixel's lighting channels here: it unpacks none.
-  const cut = { ...CLASS_CUTS[tileClass], channels: false }
+  const cut = { ...CLASS_CUTS[tileClass], channels: false, ...(closures ? { closures } : {}) }
   return wgslBlock(
-    `indirectPassWgsl(${bounce}, ${skyShadowing}, ${tileClass}${cubed ? ', cube' : ''}${capsule ? ', capsule' : ''}${captured ? ', captures' : ''})`,
-    indirectModules(bounce, skyShadowing, cubed, cut, capsule, captured),
-    indirectMainWgsl(bounce, skyShadowing, cubed, cut, capsule, captured),
+    `indirectPassWgsl(${bounce}, ${skyShadowing}, ${tileClass}${cubed ? ', cube' : ''}${capsule ? ', capsule' : ''}${captured ? ', captures' : ''}${closures ? ', closures' : ''}${diffuseView ? ', diffuse view' : ''})`,
+    indirectModules(bounce, skyShadowing, cubed, cut, capsule, captured, diffuseView),
+    indirectMainWgsl(bounce, skyShadowing, cubed, cut, capsule, captured, diffuseView),
   )
 }

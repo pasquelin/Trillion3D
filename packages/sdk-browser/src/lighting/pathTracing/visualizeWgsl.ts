@@ -1,11 +1,11 @@
-import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { wgslBlock, wgslVariants } from '../../../../math/src/wgsl/decl.ts'
 import { luminance } from '../../../../math/src/wgsl/color.ts'
 import { PI } from '../../../../math/src/wgsl/constants.ts'
 import { frameAround, outOfFrame } from '../../../../math/src/wgsl/basis.ts'
 import { PATH_TRACING_VISUALIZE_MODES } from '../../../../sdk-core/src/contracts/pathTracingOptions.ts'
 import { sheenFuzzRoughness } from '../direct/sheenLobeWgsl.ts'
 import { PT_HIT_KIND } from './hitRecordWgsl.ts'
-import { PT_HIT_MATERIAL_VECS, PT_MATERIAL_FLAG } from './hitMaterialWgsl.ts'
+import { PT_MATERIAL_FLAG, ptHitMaterialStride } from './hitMaterialWgsl.ts'
 import { PT_GROUND_CLASS } from './airWgsl.ts'
 import { PT_NO_CLASS } from './traceBounceWgsl.ts'
 import { PT_VISUALIZE_COLOURS_WGSL, visualizeMode as mode } from './visualizeColoursWgsl.ts'
@@ -36,18 +36,19 @@ export const visualizeWords = (view: string, maxCount: number, distance: number)
  * The ray goes through every surface that does not cover it, in the rounds of the bounce, and the layers add their colours in proportion to what they cover (the opacity, the throughput what the layers before let through); the count of the translucent layers rides in `PtPath.segment.x`.
  * The last round has the surface cover the ray whatever its opacity.
  */
-export const PT_VISUALIZE_WGSL = wgslBlock(
-  'PT_VISUALIZE_WGSL',
-  [
-    PT_VOLUME_LIGHT_WGSL,
-    PT_VISUALIZE_COLOURS_WGSL,
-    luminance,
-    sheenFuzzRoughness,
-    PI,
-    frameAround,
-    outOfFrame,
-  ],
-  `fn ptShowVolumeLights(path:ptr<function,PtPath>,reach:f32)->vec3f{
+export const ptVisualizeWgsl = wgslVariants((weighted: boolean) =>
+  wgslBlock(
+    weighted ? 'PT_VISUALIZE_WGSL(weighted)' : 'PT_VISUALIZE_WGSL',
+    [
+      PT_VOLUME_LIGHT_WGSL,
+      PT_VISUALIZE_COLOURS_WGSL,
+      luminance,
+      sheenFuzzRoughness,
+      PI,
+      frameAround,
+      outOfFrame,
+    ],
+    `fn ptShowVolumeLights(path:ptr<function,PtPath>,reach:f32)->vec3f{
  var n=0u;
  for(var id=ptGridParams.infinite;id<ptView.counts.x;id++){
   let setup=ptPrepareVolumeLight(id,(*path).origin,(*path).direction,0.0,reach);
@@ -106,7 +107,7 @@ fn ptShowHit(path:ptr<function,PtPath>,bounce:u32,index:u32)->bool{
  var mat:PtHitMaterial;
  var shaded=false;
  if(h.classKey!=${PT_NO_CLASS}u&&h.classKey!=${PT_GROUND_CLASS}u){
-  mat=ptUnpackHitMaterial(ptMaterials[index*${PT_HIT_MATERIAL_VECS}u],ptMaterials[index*${PT_HIT_MATERIAL_VECS}u+1u],ptMaterials[index*${PT_HIT_MATERIAL_VECS}u+2u]);
+  mat=ptUnpackHitMaterial(ptMaterials[index*${ptHitMaterialStride(weighted)}u],ptMaterials[index*${ptHitMaterialStride(weighted)}u+1u],ptMaterials[index*${ptHitMaterialStride(weighted)}u+2u]);
   shaded=true;
  }
  let view=(*path).direction;
@@ -186,4 +187,8 @@ fn ptShowHit(path:ptr<function,PtPath>,bounce:u32,index:u32)->bool{
  if(m==${mode('TransparencyCount')}){ptShowCount(path,true,normal);}
  return false;
 }`,
+  ),
 )
+
+/** The views of the payload over the materials laid out without the weight of the slab. */
+export const PT_VISUALIZE_WGSL = ptVisualizeWgsl(false)

@@ -19,6 +19,7 @@ import { kernelShapeOf } from './kernels.ts'
 import {
   OCCLUSION_TRIANGLES_BINDINGS,
   OCCLUSION_TRIANGLES_ENTRY,
+  OCCLUSION_TRIANGLES_OVERFLOW_BINDING,
   OCCLUSION_TRIANGLES_SCENE,
   occlusionTrianglesEntries,
   occlusionTrianglesProgram,
@@ -32,13 +33,13 @@ const shapes = new WeakMap<GPUDevice, Map<string, OcclusionTrianglesShape>>()
  * What tells apart the kernels made for the occlusion of `settings`, whatever the programs (`key`), and what the kernel is made of (`shape`, out of the settings, which a maker does not
  * keep): both out of one reading of the settings.
  */
-function occlusionTrianglesOf(settings: ScreenProbeSettings) {
+function occlusionTrianglesOf(settings: ScreenProbeSettings, overflow = false) {
   const { occlusion, samples } = kernelShapeOf(settings)
   const rays = settings.occlusionTriangleRays,
     bias = settings.occlusionTriangleBias
   return {
-    key: `${samples.join('x')}|${occlusion.downsample}|${occlusion.bentNormal}|${rays}|${bias}`,
-    shape: { occlusion, samples, rays, bias },
+    key: `${samples.join('x')}|${occlusion.downsample}|${occlusion.bentNormal}|${rays}|${bias}${overflow ? '|overflow' : ''}`,
+    shape: { occlusion, samples, rays, bias, overflow },
   }
 }
 
@@ -51,7 +52,7 @@ type OcclusionTrianglesShape = ReturnType<typeof occlusionTrianglesOf>['shape']
  */
 const occlusionTrianglesKernel = oncePerDeviceOverPrograms(
   (device: GPUDevice, key: string, programs: SceneMaskPrograms) => {
-    const { occlusion, samples, rays, bias } = shapes.get(device)!.get(key)!
+    const { occlusion, samples, rays, bias, overflow } = shapes.get(device)!.get(key)!
     const label = `Trillion3D screen probe occlusion TRIANGLES ${key}|${sceneMaskKey(programs)}`
     return startedTracedKernel(
       device,
@@ -59,12 +60,12 @@ const occlusionTrianglesKernel = oncePerDeviceOverPrograms(
       [
         device.createBindGroupLayout({
           label,
-          entries: occlusionTrianglesEntries(occlusion.bentNormal),
+          entries: occlusionTrianglesEntries(occlusion.bentNormal, overflow),
         }),
         reflectionLayout(device),
         device.createBindGroupLayout({ label, entries: occlusionTrianglesSceneEntries() }),
       ],
-      occlusionTrianglesProgram(occlusion, samples, rays, bias, programs),
+      occlusionTrianglesProgram(occlusion, samples, rays, bias, programs, overflow),
       OCCLUSION_TRIANGLES_ENTRY,
     )
   },
@@ -87,6 +88,7 @@ export function occlusionTrianglesBinder(g: GroupParts) {
     identity.next[2] = views.frames
     identity.next[3] = views.worlds
     identity.next[4] = views.tree
+    identity.next[5] = g.overflow?.buffer
     if (identity.moved())
       group = device.createBindGroup({
         label: 'Trillion3D screen probe occlusion triangles',
@@ -98,6 +100,9 @@ export function occlusionTrianglesBinder(g: GroupParts) {
             occlusion: r.occlusion,
             blue: inputs.blue,
           }),
+          ...(g.overflow
+            ? [{ binding: OCCLUSION_TRIANGLES_OVERFLOW_BINDING, resource: g.overflow }]
+            : []),
           ...dagReadGroupEntries(views),
         ],
       })
@@ -115,6 +120,11 @@ export interface OcclusionTrianglesStage {
   readonly rays: SceneRays
   readonly pipeline: GPUComputePipeline
   readonly groups: readonly [GPUBindGroup, GPUBindGroup]
+  /** The pass over the overflow tiles of the closures past the first, once compiled: its pipeline and the groups 0 and 2 of each closure, over the closure's own textures and its region of the closure tiles' list (none for a closure whose region is not there). */
+  readonly overflow?: {
+    readonly pipeline: GPUComputePipeline
+    readonly closures: readonly (readonly [GPUBindGroup, GPUBindGroup] | undefined)[]
+  }
 }
 
 /**
@@ -126,6 +136,7 @@ export function occlusionTrianglesStageOf(
   device: GPUDevice,
   settings: ScreenProbeSettings,
   bind: ReturnType<typeof occlusionTrianglesBinder>,
+  closureBinds: readonly (ReturnType<typeof occlusionTrianglesBinder> | undefined)[] = [],
 ): OcclusionTrianglesStage | undefined {
   if (!settings.occlusionTriangles) return undefined
   const rays = sceneRaysOf(rt.surfaceCache?.lighting, rt.run.frame)
@@ -142,5 +153,35 @@ export function occlusionTrianglesStageOf(
     isPending,
   )?.kernel
   if (!kernel?.ready) return undefined
-  return { rays, pipeline: kernel.pipeline(), groups: bind(kernel.layouts, rays) }
+  return {
+    rays,
+    pipeline: kernel.pipeline(),
+    groups: bind(kernel.layouts, rays),
+    overflow: overflowStageOf(device, settings, rays, closureBinds),
+  }
+}
+
+/** The pass over the overflow tiles of the closures past the first, where the view has any (`closureBinds`) and its kernel is compiled: asked beside the first closure's, and not waited for (until it is ready those closures' occlusion is the horizon search's). */
+function overflowStageOf(
+  device: GPUDevice,
+  settings: ScreenProbeSettings,
+  rays: SceneRays,
+  closureBinds: readonly (ReturnType<typeof occlusionTrianglesBinder> | undefined)[],
+): OcclusionTrianglesStage['overflow'] {
+  if (!closureBinds.length) return undefined
+  const { key, shape } = occlusionTrianglesOf(settings, true)
+  const ofDevice = shapes.get(device)!
+  if (!ofDevice.has(key)) ofDevice.set(key, shape)
+  const kernel = rays.sceneTrace.maskHold.use(
+    'screen occlusion overflow',
+    key,
+    occlusionTrianglesMaker(device, key),
+    isReady,
+    isPending,
+  )?.kernel
+  if (!kernel?.ready) return undefined
+  return {
+    pipeline: kernel.pipeline(),
+    closures: closureBinds.map((bindClosure) => bindClosure?.(kernel.layouts, rays)),
+  }
 }

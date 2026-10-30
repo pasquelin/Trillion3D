@@ -7,6 +7,7 @@ import { createWebgpuBindIdentity, type WebgpuBindIdentity } from '../gpu/bind/b
 import { viewKey } from '../frame/backend/state/viewKey.ts'
 import { liveResources } from '../gpu/bind/liveEntries.ts'
 import { BLEND_VIEW_SIZE } from './viewLayout.ts'
+import type { ObjectShadowAtlasRead } from '../gpu/core/objectShadowRead.ts'
 import type { WebgpuPagesRuntime } from '../frame/backend/runtime.ts'
 
 /** The groups of the transparents in one view: what they currently name, the group every item shares and the one of the display-filtered
@@ -15,6 +16,8 @@ export type BlendViewGroups = {
   identity: WebgpuBindIdentity
   sharedGroups: (GPUBindGroup | undefined)[]
   filteredGroups: (GPUBindGroup | undefined)[]
+  /** How the programs the entries were listed for read their object's shadow: the list is made again when the programs in place read it otherwise (`followBlendWorld`). */
+  read?: ObjectShadowAtlasRead
 }
 
 /** The identities each view holds. */
@@ -78,12 +81,15 @@ export function blendEntries(rt: WebgpuPagesRuntime) {
       rectAtlas: () => rt.blendState.lighting?.rectAtlas,
       rectSampler: () => rt.blendState.lighting?.rectSampler,
       volumeCamera: () => rt.blendState.lighting?.volumeCamera,
+      objectShadow: () => rt.blendState.lighting?.objectShadow,
       cloudShade: () => rt.blendState.lighting?.cloudShade,
       cloudFog: () => rt.blendState.lighting?.cloudFog,
       material: () => rt.vis.materialTable.view,
       frame: () => rt.gpu.device && rt.vis.graphFrame.bufferOn(rt.gpu.device),
     }),
     true,
+    // The object shadow read's bindings, in the layouts of the programs in place when they read it on a device that grants it.
+    rt.vis.blendPipelines?.objectShadowRead,
   )
 }
 
@@ -91,8 +97,13 @@ export function blendEntries(rt: WebgpuPagesRuntime) {
  *  image's `lighting` on `blendState`, which the live entries read. */
 export function voidStaleBlendGroups(rt: WebgpuPagesRuntime, lighting: BlendLighting) {
   const { vis, blendState } = rt,
-    { identity, sharedGroups, filteredGroups } = blendGroupsOf(rt)
+    groups = blendGroupsOf(rt),
+    { identity, sharedGroups, filteredGroups } = groups
   blendState.lighting = lighting
+  if (groups.read !== vis.blendPipelines?.objectShadowRead) {
+    groups.read = vis.blendPipelines?.objectShadowRead
+    identity.entries.length = 0
+  }
   identity.entries[0] ??= blendEntries(rt)
   if (!identity.entriesMoved(vis.blendBindGroupLayout)) return
   const { slot } = identity

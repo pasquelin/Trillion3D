@@ -24,6 +24,7 @@ test('the passes of the lights of a class that holds the models write the toon d
   for (const [name, code, entry] of [
     ['the sun’s', text(sunPassWgsl(WITH, TILE_CLASS.single)), 'sunMain'],
     ['the local lights’', text(localPassWgsl(WITH, TILE_CLASS.single)), 'localMain'],
+    ['a light’s own', text(localPassWgsl(WITH, TILE_CLASS.single, { loop: 'one' })), 'localMain'],
     ['the per-light draw’s', text(perLightPassWgsl(WITH, TILE_CLASS.single)), 'perLightMain'],
   ] as const) {
     assert.match(

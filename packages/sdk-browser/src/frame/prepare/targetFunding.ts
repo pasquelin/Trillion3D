@@ -80,6 +80,7 @@ function frameShareBytes(rt: WebgpuPagesRuntime) {
     return viewTargetBytes(viewGpu(rt, view))
   }
   bytes += held(views.main)
+  // A parked view keeps its targets (they exist while it draws nothing), so it is counted like the others: `viewTargetBytes` is zero for a view that holds none.
   for (const view of views.persistent) bytes += held(view)
   return bytes
 }

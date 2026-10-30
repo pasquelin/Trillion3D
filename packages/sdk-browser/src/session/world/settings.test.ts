@@ -49,6 +49,7 @@ import { SCREEN_PROBE_RULES } from '../../../../sdk-core/src/bounce/screenProbeO
 import { REFLECTION_RULES } from '../../../../sdk-core/src/contracts/reflectionOptions.ts'
 import { LIGHTING_DATA_FORMAT_RULES } from '../../../../sdk-core/src/contracts/lightingDataFormatOptions.ts'
 import { RAY_TRACING_RULES } from '../../../../sdk-core/src/contracts/rayTracingOptions.ts'
+import { CLOSURE_RULES } from '../../../../sdk-core/src/contracts/closureOptions.ts'
 import { MESH_DISTANCE_FIELD_TRACE_RULES } from '../../../../sdk-core/src/contracts/meshDistanceFieldTraceOptions.ts'
 import { SCREEN_SPACE_TRACING_RULES } from '../../../../sdk-core/src/contracts/screenSpaceTracingOptions.ts'
 import { AMBIENT_OCCLUSION_RULES } from '../../../../sdk-core/src/contracts/ambientOcclusionOptions.ts'
@@ -58,7 +59,9 @@ import { LIGHT_FUNCTION_RULES } from '../../../../sdk-core/src/contracts/lightFu
 import { SAMPLED_LIGHTS_RULES } from '../../../../sdk-core/src/contracts/sampledLightsOptions.ts'
 import { PATH_TRACING_RULES } from '../../../../sdk-core/src/contracts/pathTracingOptions.ts'
 import { LIGHT_PROFILE_RULES } from '../../../../sdk-core/src/contracts/lightProfileOptions.ts'
+import { ORDER_INDEPENDENT_TRANSLUCENCY_RULES } from '../../../../sdk-core/src/contracts/orderIndependentTranslucencyOptions.ts'
 import { SEPARATE_TRANSLUCENCY_RULES } from '../../../../sdk-core/src/contracts/separateTranslucencyOptions.ts'
+import { LIGHT_SHAPE_RULES } from '../../../../sdk-core/src/contracts/lightShapeOptions.ts'
 import { RECT_LIGHT_ATLAS_RULES } from '../../../../sdk-core/src/contracts/rectLightAtlasOptions.ts'
 import { SIMPLE_LIGHT_RULES } from '../../../../sdk-core/src/contracts/simpleLightOptions.ts'
 import { DISTANCE_FIELD_OCCLUSION_RULES } from '../../../../sdk-core/src/contracts/distanceFieldOcclusionOptions.ts'
@@ -152,6 +155,8 @@ const TODAY: Record<keyof typeof WORLD_SETTINGS, boolean | number | string> = {
   ...resolveSettings(LIGHTING_DATA_FORMAT_RULES, {}),
   // The ray tracing switch: on, a new project's value.
   ...resolveSettings(RAY_TRACING_RULES, {}),
+  // The closures of a pixel: four, counted from the materials in view.
+  ...resolveSettings(CLOSURE_RULES, {}),
   // The meshes' fields trace: off by default, the reference's project setting; its distances and grid are the reference's.
   ...resolveSettings(MESH_DISTANCE_FIELD_TRACE_RULES, {}),
   // The screen-space ambient occlusion: the reference's post-process defaults, in metres.
@@ -163,6 +168,8 @@ const TODAY: Record<keyof typeof WORLD_SETTINGS, boolean | number | string> = {
   ...resolveSettings(LIGHT_FUNCTION_RULES, {}),
   // The light profiles' atlas: the reference's 256 texels a slice and 32 profiles.
   ...resolveSettings(LIGHT_PROFILE_RULES, {}),
+  ...resolveSettings(LIGHT_SHAPE_RULES, {}),
+  ...resolveSettings(ORDER_INDEPENDENT_TRANSLUCENCY_RULES, {}),
   ...resolveSettings(SEPARATE_TRANSLUCENCY_RULES, {}),
   ...resolveSettings(RECT_LIGHT_ATLAS_RULES, {}),
   ...resolveSettings(SIMPLE_LIGHT_RULES, {}),

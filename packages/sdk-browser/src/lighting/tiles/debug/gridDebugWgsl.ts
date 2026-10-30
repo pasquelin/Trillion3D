@@ -1,4 +1,5 @@
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
+import { hueToRgb } from '../../../../../math/src/wgsl/color.ts'
 import { SCREEN_PASS_VERTEX } from '../../../diagnostic/screenPass.ts'
 import { DIGIT_GLYPH_BITS, FONT_CELLS } from '../../../hair/debugFont.ts'
 import { LIGHT_GRID_WGSL } from '../../direct/lightWgsl.ts'
@@ -31,7 +32,7 @@ fn cellCount(column:vec2u,slice:u32)->u32{
 }
 fn heatColor(x:f32)->vec3f{
  let hue=(1.0-saturate(x))*0.6;
- return saturate(vec3f(abs(hue*6.0-3.0)-1.0,2.0-abs(hue*6.0-2.0),2.0-abs(hue*6.0-4.0)));
+ return hueToRgb(hue);
 }
 fn glyphLit(digit:u32,rel:vec2i)->f32{
  if(any(rel<vec2i(0))||rel.x>=${FONT_CELLS.width * CELL_PIXELS}||rel.y>=${FONT_CELLS.height * CELL_PIXELS}){return 0.0;}
@@ -82,5 +83,5 @@ fn printDigit(color:vec3f,pixel:vec2i,left:vec2i,digit:u32)->vec3f{
  if(!drawn){discard;}
  return vec4f(color,1.0);
 }`,
-  [LIGHT_GRID_WGSL],
+  [LIGHT_GRID_WGSL, hueToRgb],
 )

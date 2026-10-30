@@ -50,7 +50,7 @@ import { EMISSIVE_AO_FLAG_WGSL } from '../../materials/surface/surfaceEmission.t
 import { FLAG_BACK, FLAG_DISTANCE_FIELD, FLAG_FOG_FREE, FLAG_HOLDOUT, FLAG_LIT } from '../types.ts'
 import { DISTANCE_FIELD_REPRESENTATION_FLAG } from '../../lighting/distanceField/representationWgsl.ts'
 import { PHYSICAL_LOBES_CALL, physicalUvRead } from './physicalWgsl.ts'
-import { SHADE_ENTRY_WGSL } from './shadeEntryWgsl.ts'
+import { SHADE_ENTRY_WGSL, shadeEntry } from './shadeEntryWgsl.ts'
 import { visPageIndex, visTriangle } from '../visWords.ts'
 import { DISPLACED_PIXEL_WGSL } from '../tessellation/prismWgsl.ts'
 import type { CompiledGraph } from '../../materials/graph/compile.ts'
@@ -258,7 +258,7 @@ ${o.graph?.thin ?? ''}  if(any(thin>vec3f(0.0))){thinOut=thin;thinOpacity=subsur
  }
  rough=max(rough,curvature);
  ${o.graph?.lobes ?? ''}${PHYSICAL_LOBES_CALL}
- // The emission-and-occlusion texel is read only under its bit (\`surfaceEmission.ts\`, #1369).
+${o.graph?.closures?.after ?? ''} // The emission-and-occlusion texel is read only under its bit (\`surfaceEmission.ts\`, #1369).
  return SurfaceOut(vec4f(rgb,metal),vec4f(N,rough),vec4f(emissive,ao),flag|emissiveAoFlag(emissive,ao),request);
 }
 `
@@ -285,7 +285,7 @@ export const shadeShader = ({
   const o: ShadeOptions = { voxel, displaced, graph: graph && shadeGraph(graph) }
   const parts = [SURFACE_HEAD, SURFACE_READS, SURFACE_VIEWS, SURFACE_NORMALS, SURFACE_TAIL]
   return wgslProgram(parts.map((part) => part(o)).join(''), [
-    SHADE_ENTRY_WGSL,
+    o.graph?.closures ? shadeEntry(o.graph.closures.decl) : SHADE_ENTRY_WGSL,
     NORMAL_VIEW_COLOR_WGSL,
     modelFlag,
     pixelModelFlag,

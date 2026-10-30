@@ -47,24 +47,6 @@ export interface HitLightingRun {
   grid: LightGridHolder
   /** The light grid of this image, the texture the first pass culls its lights with. */
   lightGrid: GPUTextureView
-  /** The head of each surface's list of traces to light, emptied for an image on the commands of `encoder` (`resetHitLighting`). */
-  reset(
-    encoder: GPUCommandEncoder,
-    reflection: TraceResources,
-    sides: readonly ('opaque' | 'front')[],
-    grid: readonly [number, number],
-  ): void
-  /** The hit lighting of a surface's traces in the open compute pass (`encodeHitLighting`); a call of the run, so that the reflections' encoding names none of this module's values. */
-  encode(
-    pass: GPUComputePassEncoder,
-    reflection: TraceResources,
-    inputs: TraceInputs,
-    rays: SceneRays,
-    side: 'opaque' | 'front',
-    scene: { maskedScene: GPUBindGroup },
-    grid: readonly [number, number],
-    depthGroup: GPUBindGroup,
-  ): void
 }
 
 /** The run each view keeps, written over each image: nothing is allocated an image. It is read by the encoding of the same image, before another view's. */
@@ -133,17 +115,13 @@ export function hitLightingRun(
   const lightGrid = grid.prepare(lights, settings.lightGrid, image)
   const held = runs.get(reflection)
   if (!held) {
-    const made: HitLightingRun = {
+    const made = {
       kernels,
       bucket: settings.bucket,
       vertices: settings.vertices,
       group,
       grid,
       lightGrid,
-      reset: (encoder, reflection, sides, grid) =>
-        resetHitLighting(encoder, reflection, sides, grid, made.vertices),
-      encode: (pass, reflection, inputs, rays, side, scene, grid, depthGroup) =>
-        encodeHitLighting(pass, made, reflection, inputs, rays, side, scene, grid, depthGroup),
     }
     runs.set(reflection, made)
     return made
@@ -169,6 +147,14 @@ const held = new WeakMap<object, LitGroups>()
 const binders = {
   opaque: litRunBinder<LitListKernels, LitListArgs>(REFLECTION_HARDWARE_SCENE.group),
   front: litRunBinder<LitListKernels, LitListArgs>(REFLECTION_HARDWARE_SCENE.group),
+}
+/** The run of the list of each closure past the first, by its grids. */
+const closureBinders = new WeakMap<ReflectionGrids, typeof binders.opaque>()
+
+/** A closure past the first as the hit lighting lights its traces: its grids and the pixels it traces for (the first closure's kernels, the closure's textures). */
+export interface LitSide {
+  readonly grids: ReflectionGrids
+  readonly pixels: { flags: GPUTextureView; normals: GPUTextureView; lobes: GPUTextureView }
 }
 /** The parameters' words, written from when the grid's width changes. */
 const PARAMS = new Uint32Array(4)
@@ -287,6 +273,7 @@ export function resetHitLighting(
   sides: readonly ('opaque' | 'front')[],
   grid: readonly [number, number],
   vertices: number,
+  closures: readonly LitSide[] = [],
 ) {
   for (const side of sides)
     encoder.clearBuffer(
@@ -294,6 +281,7 @@ export function resetHitLighting(
       0,
       4,
     )
+  for (const { grids } of closures) encoder.clearBuffer(grids.lit(grid, vertices).list, 0, 4)
 }
 
 /**
@@ -308,15 +296,17 @@ export function encodeHitLighting(
   reflection: TraceResources,
   inputs: TraceInputs,
   rays: SceneRays,
-  side: 'opaque' | 'front',
+  side: 'opaque' | 'front' | LitSide,
   scene: { maskedScene: GPUBindGroup },
   grid: readonly [number, number],
   depthGroup: GPUBindGroup,
 ) {
   const opaque = side === 'opaque'
-  const own = opaque ? reflection.grids : reflection.front.grids
-  const pixels = opaque ? inputs : reflection.front.views
-  const layer = opaque ? 0 : 1
+  const closure = typeof side === 'object' ? side : undefined
+  const own = closure ? closure.grids : opaque ? reflection.grids : reflection.front.grids
+  const pixels = closure ? closure.pixels : opaque ? inputs : reflection.front.views
+  // A closure past the first is lit by the opaque surface's kernels (the layer 0).
+  const layer = opaque || closure ? 0 : 1
   const lit = own.lit(grid, run.vertices)
   const groups = groupsOf(
     reflection,
@@ -337,7 +327,12 @@ export function encodeHitLighting(
     reflection.device.queue.writeBuffer(lit.params, 0, PARAMS)
     state.width = grid[0]
   }
-  const bound = binders[side](run.kernels.layer(layer), lit, groups, run.bucket)
+  let binder = closure ? closureBinders.get(own) : binders[side as 'opaque' | 'front']
+  if (!binder) {
+    binder = litRunBinder<LitListKernels, LitListArgs>(REFLECTION_HARDWARE_SCENE.group)
+    closureBinders.set(own, binder)
+  }
+  const bound = binder(run.kernels.layer(layer), lit, groups, run.bucket)
   // The first pass binds the reflection group of the run (without the lit image), the second the image's own.
   const view = (bound.view ??= { index: REFLECTION_GROUP, direct: run.group, finish: depthGroup })
   view.direct = run.group

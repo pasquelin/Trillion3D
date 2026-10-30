@@ -6,7 +6,7 @@ import { PT_FINISH_BOUNCE_WGSL } from './finishWgsl.ts'
 import { PT_LIGHT_TABLE_STRUCT } from './lightTable.ts'
 import { PT_QUEUE_WGSL } from './queueWgsl.ts'
 import { PT_TRACE_BOUNCE_WGSL } from './traceBounceWgsl.ts'
-import { PT_VISUALIZE_ENTRY, PT_VISUALIZE_WGSL } from './visualizeWgsl.ts'
+import { PT_VISUALIZE_ENTRY, ptVisualizeWgsl } from './visualizeWgsl.ts'
 
 /** The bindings of the group 0 of the trace and of the finish of a bounce, past the cut's tables (`dagReadLayoutEntries`, at 1, 6, 7 and 9): the parameters, the paths' states and queue; for the finish,
  *  the lights with the energy table before them, the light grid and the sky's tables. */
@@ -137,9 +137,17 @@ export const ptTraceProgram = (programs: SceneMaskPrograms = NO_SCENE_MASKS, clo
     [PT_QUEUE_WGSL, PT_TRACE_BOUNCE_WGSL(PT_TRACE_SCENE, programs, clouds)],
   )
 
-/** The finish program: the rest of each bounce over the hit and its material (`PT_FINISH_BOUNCE_WGSL`), with the clouds' bindings where they are traced, and the views of the payload (`PT_VISUALIZE_WGSL`) that take its place. */
-export const ptFinishProgram = (programs: SceneMaskPrograms = NO_SCENE_MASKS, clouds = false) =>
+/** The finish program: the rest of each bounce over the hit and its material (`PT_FINISH_BOUNCE_WGSL`), with the clouds' bindings where they are traced, and the views of the payload (`ptVisualizeWgsl`) that take its place; with `weighted`, over the materials that carry the weight of the closure chosen (`ptHitMaterialStride`). */
+export const ptFinishProgram = (
+  programs: SceneMaskPrograms = NO_SCENE_MASKS,
+  clouds = false,
+  weighted = false,
+) =>
   wgslProgram(
     `${paths}\n${lights}\n${air}\n${clouds ? `${ptCloudDeclarations()}\n` : ''}${queue}\n${finish}\n${visualize}`,
-    [PT_QUEUE_WGSL, PT_FINISH_BOUNCE_WGSL(PT_TRACE_SCENE, programs, clouds), PT_VISUALIZE_WGSL],
+    [
+      PT_QUEUE_WGSL,
+      PT_FINISH_BOUNCE_WGSL(PT_TRACE_SCENE, programs, clouds, weighted),
+      ptVisualizeWgsl(weighted),
+    ],
   )

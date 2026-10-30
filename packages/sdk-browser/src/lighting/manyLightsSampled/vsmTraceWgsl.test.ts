@@ -17,3 +17,13 @@ test('the trace of every other caller keeps its text: the view’s count of rays
   const code = wgslModule(vsmFragmentTraceWgsl(VSM_TRACE_BINDING.pool, trace, 3))
   assert.ok(code.includes('let rays=select(vsmView.traceRays.y,vsmView.traceRays.x,directional);'))
 })
+
+test('the map trace of several closures offsets its rays along the normal of the closure the pixel is lit as; one closure keeps the text', () => {
+  for (const classic of [false, true]) {
+    const several = vsmTraceSamplesWgsl(classic, true)
+    assert.ok(several.includes('pickedNormalLayer(vec2i(screen))'))
+    assert.ok(several.includes('fn closuresHeld('))
+    assert.equal(several.split('var blueNoiseMask').length, 2, 'the blue noise is declared once')
+    assert.ok(!/pickedClosure|closuresHeld/.test(vsmTraceSamplesWgsl(classic)))
+  }
+})

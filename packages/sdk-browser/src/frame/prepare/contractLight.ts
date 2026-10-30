@@ -23,6 +23,8 @@ import {
   type ContractKey,
   type LitPass,
 } from '../../lighting/deferred/contractCuts.ts'
+import { supportsMultipleClosures } from './closures.ts'
+import { limitOf } from '../../materials/closures/closureLimit.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { reflectionCapturesMade } from '../render/reflectionCaptureState.ts'
 import { skyLightReadOf } from '../render/skyLightState.ts'
@@ -49,6 +51,9 @@ import { readSingleLayerWaterSetting } from '../../../../sdk-core/src/contracts/
 import { readScreenProbeSetting } from '../../../../sdk-core/src/bounce/screenProbeOptions.ts'
 import { waterTraces } from '../../blend/water/waterReflection.ts'
 import { waterSeparates } from '../../blend/water/waterTargets.ts'
+import type { BlendVariant } from '../../blend/variant.ts'
+import { waterExclusionVolumes } from '../../blend/water/waterExclusions.ts'
+import { objectShadowsOn } from '../../lighting/shadows/perObject/objectShadowFeed.ts'
 import { track } from '../../lighting/deferred/compileLedger.ts'
 import { drawsLit, lightViewCode, showsRaw } from '../../visibility/shader/shadeMode.ts'
 import { unlitLights } from '../render/captureLights.ts'
@@ -105,6 +110,19 @@ export const litPrograms = (rt: WebgpuPagesRuntime): LitPrograms => ({
   localFog: rt.setup.localFog,
 })
 
+/** What the world asks of the blend programs now (`BlendVariant`). */
+export const worldVariant = (rt: WebgpuPagesRuntime): BlendVariant => ({
+  exclusion: waterExclusionVolumes(rt).volumes.size > 0,
+  objectShadow: objectShadowsOn(rt),
+})
+
+/** The variant the programs are built for: the programs in place keep their object shadow verdict (their layout is the one bound), only `followBlendWorld` builds them for the
+ *  setting's; the world's where there are none. The water's cut is the world's. */
+export const heldVariant = (rt: WebgpuPagesRuntime): BlendVariant => {
+  const world = worldVariant(rt)
+  return { ...world, objectShadow: rt.vis.blendPipelines?.world.objectShadow ?? world.objectShadow }
+}
+
 /** What the blend programs are built with (`createWebgpuBlendPipelines`): the session's
  *  context, and the key each pass's first frame asks for, as the lit programs' (`keyFor`); a failed
  *  variant is said, the pass's twin lighting in its place; how they cut at a view's plane (the
@@ -130,6 +148,10 @@ export const blendContext = (rt: WebgpuPagesRuntime) => {
     translucentRectLights: rt.setup.translucentRectLights,
     sampledFront: lightsFrontLayer(rt),
     localFog: rt.setup.localFog,
+    oit: rt.setup.oitSortedPixels,
+    // The programs in place keep their object shadow verdict (their layout is the one bound): only `followBlendWorld` builds them for the setting's.
+    world: heldVariant(rt),
+    closures: limitOf(rt.vis),
     rasters: rt.vis.rasters,
     frontLayer: tracesFrontLayer(rt.context),
     waterReflects: waterTraces(rt),
@@ -180,6 +202,8 @@ function contractKey(
   key.captureless = !(pass === 'opaque' && reflectionCapturesMade(rt))
   // The opaque passes read the shadows the heterogeneous volumes cast while the scene has volumes that cast them.
   key.volumeShadow = pass === 'opaque' && volumeShadowsOn(rt)
+  // The opaque passes loop over a pixel's closures while the view's pixels hold several (`supportsMultipleClosures`).
+  key.closures = pass === 'opaque' && supportsMultipleClosures(rt)
   // The sampled lighting lights the local lights (and the suns, if it is asked to) of the opaque passes once it is lighting them (`sampledLightsKey`).
   sampledLightsKey(rt, pass === 'opaque', key)
   return key as ContractKey
@@ -373,6 +397,10 @@ function litPassResources(rt: WebgpuPagesRuntime, lit: boolean) {
     ? (rt.gpu.screenProbes?.indirect ?? indirectWordsView(rt))
     : undefined
   contractResources.screenShortRangeGi = lit ? rt.gpu.screenProbes?.shortRangeGi : undefined
+  contractResources.screenIndirectClosures = lit ? rt.gpu.screenProbes?.indirectClosures : undefined
+  contractResources.screenShortRangeGiClosures = lit
+    ? rt.gpu.screenProbes?.shortRangeGiClosures
+    : undefined
   // The ambient occlusion this image drew (`../../lighting/ao/frame.ts`).
   contractResources.ambientOcclusion = lit ? rt.gpu.ambientOcclusion?.output : undefined
   // The volumetric lightmap, where the scene has one and the setting reads it

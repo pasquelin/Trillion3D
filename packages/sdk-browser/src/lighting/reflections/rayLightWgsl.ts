@@ -62,7 +62,7 @@ export const reflectionFogWgsl = (cubemap: number, sampler: number) =>
 const REFLECTION_RAY_HELD_WGSL = `fn reflectionEdgeNoise(coord:vec2u)->f32{
  return interleavedGradientNoise(vec2f(coord)+vec2f(0.5),f32(reflectionView.temporal.y));
 }
-/** The last lit image at \`texel\`, one point of its level 0, in the units of a ray's radiance: a channel that is not finite or is negative reads as black. */
+/** The last lit image at texel, one point of its level 0, in the units of a ray's radiance: a channel that is not finite or is negative reads as black. */
 fn reflectionLitAt(texel:vec2i)->vec3f{
  return max(makeFinite3(textureLoad(reflectionImage,texel,0).rgb),vec3f(0.0))*reflectionView.radiance.w;
 }
@@ -103,7 +103,7 @@ export const REFLECTION_SKYLIGHT_LEAK_WGSL = wgslBlock(
 
 /** What a hit shows (`reflectionSeenAt`), with the sky light leaking onto it (`reflectionSkylightLeak`) and the cone it is read with
  *  (`reflectionHitSpread`). */
-const REFLECTION_RAY_SEEN_WGSL = `/** The point a ray's radiance is read from, the surface it leaves (\`reflectionSeenAt\`). */
+const REFLECTION_RAY_SEEN_WGSL = `/** The point a ray's radiance is read from, the surface it leaves (reflectionSeenAt). */
 var<private> reflectionOrigin:vec3f;
 /** Whether the lit image held (reflectionHeld) wins the noise of the pixel: it agrees there and its weight reaches the noise. */
 fn reflectionHeldWins(held:vec4f,noise:f32)->bool{return held.w>0.0&&held.w>=noise;}

@@ -26,7 +26,9 @@ import {
   previousCameraOf,
 } from '../../frame/backend/state/previousCamera.ts'
 import { demandSurfaceCache, surfaceHitReads } from '../surfaceCache/frame.ts'
-import { encodeReflectionTrace } from './trace/traceEncode.ts'
+import { mostClosures } from '../../frame/prepare/closures.ts'
+import { encodeReflectionTrace, type ClosureInputs } from './trace/traceEncode.ts'
+import { closureTilesOf } from '../../visibility/closureTiles/closureTiles.ts'
 import { reflectionMeshesOf } from './trace/meshes.ts'
 import { radianceCacheStage } from './radianceCache/stage.ts'
 import { screenProbeVectors } from '../bounce/screen/vectorSource.ts'
@@ -64,6 +66,9 @@ const reconstructs: [boolean, boolean] = [false, false]
 
 /** The sphere that holds the first-person stand-ins, the scratch every image fills (`firstPersonBoundsOf`). */
 const firstPerson = new Float64Array(4)
+
+/** What the traced reflections of the closures past the first read of the frame, filled in place for the trace (`traceReflections`). */
+const closureInputs = { surfaces: undefined, tiles: undefined } as unknown as ClosureInputs
 
 /** Stages the image's reflection view (`stageReflectionImage`), which the trace and the forward
  *  programs read: `traced`, whether the trace runs this image; unchanged, nothing is sent. */
@@ -156,6 +161,7 @@ function bindTraceInputs(
   inputs.flags = views[3]
   inputs.normals = views[1]
   inputs.lobes = surfaces.lobesView
+  inputs.closureNormals = surfaces.closureNormals
   inputs.lights = lights.buffer!
   inputs.fog = rayFogReadOf(gpu, gpu.deferred!.placeholders)
   inputs.field = reflectionField(rt)!
@@ -219,6 +225,8 @@ export function stageReflections(
     gpu.deferred?.setReflectionLook(1, 1)
     return undefined
   }
+  // The target and the closures' sides follow the closures a pixel of the record holds.
+  if (gpu.surfaces) gpu.targetBytes += reflection.follow(gpu.surfaces.closures)
   // The kernels follow the format the surface cache's final light is stored in.
   followReflectionLight(
     vis,
@@ -244,6 +252,14 @@ export function stageReflections(
   writeFrame(rt, reflection, settings, traced)
   if (!hiz || !depth || !traced) return undefined
   return { reflection, stages, depth, lightView, surfaces, settings }
+}
+
+/** The frame's inputs of the traced reflections of the closures past the first: the surface record and the closure tiles, none for a record of one closure or while no surface of the scene has several (`mostClosures`): their flags, classification and layers are then left alone. */
+function closuresOf(rt: WebgpuPagesRuntime, surfaces: ClosureInputs['surfaces']) {
+  if (!(surfaces.closures > 1) || mostClosures(rt) < 2) return undefined
+  closureInputs.surfaces = surfaces
+  closureInputs.tiles = closureTilesOf(rt)
+  return closureInputs
 }
 
 /** The image's reflections traced, over the view it staged (`stageReflections`) and the vectors the screen probes made of this image. */
@@ -319,6 +335,7 @@ export function traceReflections(
     meshes,
     radianceCacheStage(rt, reflection, reflection.inputs, settings),
     hitRun,
+    closuresOf(rt, surfaces),
   )
   reflection.depthImage = reflection.frame.image ?? NEVER_SEEN
   reflection.census.copy(encoder, rt.run.frame, !hardware)
@@ -341,6 +358,9 @@ export function keepReflectionGrids(rt: WebgpuPagesRuntime) {
   const ask = litAsk.set ? litAsk : undefined
   reflection.grids.keepLit(rt.run.frame, ask)
   reflection.front.grids.keepLit(rt.run.frame, ask)
+  // The grids of a closure past the first exist once it was traced.
+  for (const side of reflection.closureSides?.sides ?? [])
+    if (side.written) side.grids.keepLit(rt.run.frame, ask)
   litAsk.set = false
 }
 

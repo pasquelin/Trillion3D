@@ -6,6 +6,7 @@ import {
   flagSetting as flag,
   integerSetting as integer,
   nonZeroSetting as nonZero,
+  positiveSetting as positive,
   numberSetting as number,
   rulesOf,
   type SettingOptions,
@@ -37,9 +38,7 @@ import {
  * darken it by their shadow map (`volumetricFogLocalShadows`), and the functions of light multiply
  * the colour of the sun and, where `lightFunctionFog` is set, of each local light
  * (`./lightFunctionOptions.ts`). Of the systems those engines keep around the volume,
- * two are the engine's not: the injection of lights the GPU
- * traces rays for, and the screen-space blur of the fog; no setting stands for either. The same
- * of the local fog volumes' culling: its run on a queue of its own — the pass runs with the frame's
+ * the local fog volumes' culling has two the engine's not: its run on a queue of its own — the pass runs with the frame's
  * others — and the debug view of each tile's count of volumes; no setting stands for either.
  */
 
@@ -68,6 +67,9 @@ const VOLUMETRIC_FOG_LEVEL_KNOBS = {
 /** The knobs of a level: none for `off`. */
 export const volumetricFogKnobs = (level: VolumetricFogLevel): VolumetricFogKnobs | undefined =>
   level === 'off' ? undefined : VOLUMETRIC_FOG_LEVEL_KNOBS[level]
+
+/** The ways the fog may be drawn into textures of its own: when the scene asks for it, never, always. */
+export const FOG_SEPARATE_COMPOSITION = ['auto', 'off', 'on'] as const
 
 /** The filters a surface may read the volume through: the plain trilinear one, a cubic one in the
  *  plane of the screen, or in the depth too. */
@@ -139,7 +141,19 @@ export const VOLUMETRIC_FOG_FILTERS = ['trilinear', 'bicubic', 'tricubic'] as co
  *  position gives, not from its eye;
  *  `fogReadsSkyLight`, off — the project switch of the sky light lighting the height fog: only with
  *  it on does the fog's `skyLightScattering` (`../scene/core/fogHeight.ts`) read the sky light's
- *  cube. */
+ *  cube;
+ *  `fogSeparateComposition`, `auto` — whether the fog is drawn into textures of its own and laid over the
+ *  image by a last pass: `auto` when the scene's fog asks for the screen-space scattering
+ *  (`SceneHeightFog.screenSpaceScattering`) and the setting below is on, `off` never, `on` always;
+ *  `fogScreenSpaceScattering`, on — the screen-space scattering of the fog is allowed; off, the fog
+ *  that asks for it is drawn plainly;
+ *  `fogScreenSpaceScatteringMaxLuminance`, 10 — the most luminance a texel holds when the
+ *  scattering blurs it, above 0 (held to 0.1 or more), so the blur does not saturate on the sun's disc;
+ *  `fogScreenSpaceScatteringTemporal`, on — the blur chain's second level is the first level filtered in
+ *  time (a history of its own, the camera's motion from the depth, the history held to the box of the
+ *  pixel and its neighbours) instead of a box of it, so the blurred fog does not flicker; off, the box;
+ *  `fogScreenSpaceScatteringTemporalWeight`, 0.04 — the weight of the new image in that filter, in 0…1:
+ *  low values blur and ghost, high ones leave the jitter showing. */
 export const VOLUMETRIC_FOG_RULES = /* @__PURE__ */ (() =>
   rulesOf([
     choice('volumetricFogQuality', DEFAULT_VOLUMETRIC_FOG_LEVEL, VOLUMETRIC_FOG_LEVELS),
@@ -174,6 +188,11 @@ export const VOLUMETRIC_FOG_RULES = /* @__PURE__ */ (() =>
     flag('fogMatchesVolume', false),
     flag('fogOrthoHeightAdjustment', true),
     flag('fogReadsSkyLight', false),
+    choice('fogSeparateComposition', 'auto', FOG_SEPARATE_COMPOSITION),
+    flag('fogScreenSpaceScattering', true),
+    positive('fogScreenSpaceScatteringMaxLuminance', 10),
+    flag('fogScreenSpaceScatteringTemporal', true),
+    number('fogScreenSpaceScatteringTemporalWeight', 0.04, [0, 1]),
   ] as const))()
 /** The field of one setting of the volume. */
 export type VolumetricFogField = keyof typeof VOLUMETRIC_FOG_RULES

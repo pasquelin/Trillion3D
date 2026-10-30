@@ -7,12 +7,23 @@ import { retire } from '../../gpu/core/frameRetire.ts'
 import { standInTexture } from '../../gpu/core/standIns.ts'
 import { layerView } from '../../gpu/core/textureViews.ts'
 import {
+  SURFACE_CLOSURES,
   SURFACE_COLOURS_FORMAT,
   SURFACE_WORD_LAYERS,
   SURFACE_WORDS,
   SURFACE_WORDS_FORMAT,
+  closureColourLayers,
+  closureNormalLayer,
+  closureWordLayers,
+  closuresHeld,
 } from './surfaceOutputs.ts'
-import { checkSurfaceSize, emissiveAoBytes, holds, type SurfaceBuffer } from './surfaceBuffer.ts'
+import {
+  checkSurfaceSize,
+  closureBytes,
+  emissiveAoBytes,
+  holds,
+  type SurfaceBuffer,
+} from './surfaceBuffer.ts'
 
 /** A layered target of the buffer, `layers` of `format` at `width` × `height`: each layer cleared
  *  as an attachment, every one written as storage by the material classes' shading
@@ -83,31 +94,36 @@ function owning<T>(build: (made: GPUTexture[]) => T): T {
 }
 
 /** What the buffer holds full-size besides its targets (`createSurfaceBuffer`). */
-export type SurfaceOptions = { subsurface?: boolean; emissiveAo?: boolean; lobes?: boolean }
+export type SurfaceOptions = {
+  subsurface?: boolean
+  emissiveAo?: boolean
+  lobes?: boolean
+  /** The most closures a pixel holds (`effectiveMaxClosures`): one by default, the record then the single-closure one. */
+  closures?: number
+}
 
 /** The surface buffer of a `width` × `height` frame. Without `emissiveAo`, the colours hold no
  *  emission-and-occlusion layer: its view is a 1×1 `(0, 0, 0, 1)`, no texel is marked
  *  (`surfaceEmitsOrOccludes`), its readers load under the mark alone (`surfaceEmissiveAo`), its
  *  passes leave the slot empty. Without `subsurface`, no thin transmission layer: its view is a 1×1
- *  zero. Without `lobes`, the lobes target is 1×1. */
+ *  zero. Without `lobes`, the lobes target is 1×1. With `closures` above one, the colours and the words hold the closure slices
+ *  (`SURFACE_CLOSURES`). */
 export function createSurfaceBuffer(
   device: GPUDevice,
   width: number,
   height: number,
-  { subsurface = false, emissiveAo = true, lobes = false }: SurfaceOptions = {},
+  { subsurface = false, emissiveAo = true, lobes = false, closures = 1 }: SurfaceOptions = {},
 ): SurfaceBuffer {
   const allocationBytes =
     checkSurfaceSize(device, width, height) +
+    closureBytes(width, height, closures) +
     SUBSURFACE_TARGET.bytes(width, height, subsurface) +
     PHYSICAL_LOBES_TARGET.bytes(width, height, lobes) -
     emissiveAoBytes(width, height, true) +
     emissiveAoBytes(width, height, emissiveAo)
   const size = [width, height] as const
   return owning((made) => {
-    const words = kept(
-      made,
-      layeredTarget(device, 'words', SURFACE_WORDS_FORMAT, size, SURFACE_WORD_LAYERS),
-    )
+    const words = kept(made, wordsTarget(device, size, closures))
     return assemble(
       {
         width,
@@ -116,10 +132,20 @@ export function createSurfaceBuffer(
         words,
         lobes: kept(made, lobesTarget(device, size, lobes)),
       },
-      colouredParts(device, size, emissiveAo, subsurface, made),
+      colouredParts(device, size, { emissiveAo, subsurface, closures }, made),
     )
   })
 }
+
+/** The words of a buffer `size` holding `closures` closures a pixel: the flags, and the closure slices past one closure. */
+const wordsTarget = (device: GPUDevice, size: readonly [number, number], closures: number) =>
+  layeredTarget(
+    device,
+    'words',
+    SURFACE_WORDS_FORMAT,
+    size,
+    SURFACE_WORD_LAYERS + closureWordLayers(closures),
+  )
 
 /** The parts of a buffer besides its colours: what a remade colours or lobes target keeps. */
 type SurfaceParts = Pick<SurfaceBuffer, 'width' | 'height' | 'allocationBytes' | 'words' | 'lobes'>
@@ -127,27 +153,56 @@ type SurfaceParts = Pick<SurfaceBuffer, 'width' | 'height' | 'allocationBytes' |
  *  stand-ins of the layers it holds not. */
 type ColouredParts = Pick<
   SurfaceBuffer,
-  'colours' | 'layers' | 'hasEmissiveAo' | 'hasSubsurface'
+  'colours' | 'layers' | 'hasEmissiveAo' | 'hasSubsurface' | 'closures'
 > & {
   standIns: { emission?: GPUTexture; thin?: GPUTexture }
 }
 
+/** The options a buffer was made with, `patch` changed. */
+const optionsOf = (
+  surfaces: SurfaceBuffer,
+  patch: Pick<SurfaceOptions, 'emissiveAo' | 'closures'>,
+): SurfaceOptions => ({
+  subsurface: surfaces.hasSubsurface,
+  emissiveAo: surfaces.hasEmissiveAo,
+  closures: surfaces.closures,
+  ...patch,
+})
+
 /** The colours of a buffer `size` — the base and the normal, then the emission and occlusion's
- *  layer with `emissiveAo`, then the thin transmission's with `subsurface` — and the stand-in of
- *  each it holds not; each texture made kept in `made`. */
+ *  layer with `emissiveAo`, then the thin transmission's with `subsurface`, then the closure
+ *  slices of a pixel holding `closures` — and the stand-in of each it holds not; each texture made
+ *  kept in `made`. */
 function colouredParts(
   device: GPUDevice,
   size: readonly [number, number],
-  emissiveAo: boolean,
-  subsurface: boolean,
+  { emissiveAo = true, subsurface = false, closures = 1 }: SurfaceOptions,
   made: GPUTexture[],
 ): ColouredParts {
   const emission = emissiveAo ? 2 : 0,
     thin = subsurface ? 2 + Number(emissiveAo) : 0
-  const layers = 2 + Number(emissiveAo) + Number(subsurface)
+  const own = 2 + Number(emissiveAo) + Number(subsurface)
+  const held = closuresHeld(closures)
+  // The layer of the closure slices and their count ride in the head's word above the two layers, as bytes.
+  const slices =
+    held > 1
+      ? ((own << SURFACE_CLOSURES.headShift.colours) |
+          (held << SURFACE_CLOSURES.headShift.held)) >>>
+        0
+      : 0
   return {
-    colours: kept(made, layeredTarget(device, 'colours', SURFACE_COLOURS_FORMAT, size, layers)),
-    layers: emission | (thin << 8),
+    colours: kept(
+      made,
+      layeredTarget(
+        device,
+        'colours',
+        SURFACE_COLOURS_FORMAT,
+        size,
+        own + closureColourLayers(closures),
+      ),
+    ),
+    layers: (emission | (thin << 8) | slices) >>> 0,
+    closures: held,
     hasEmissiveAo: emissiveAo,
     hasSubsurface: subsurface,
     standIns: {
@@ -172,7 +227,7 @@ function assemble(parts: SurfaceParts, coloured: ColouredParts): SurfaceBuffer {
   const { words, lobes } = parts,
     { colours, layers, standIns } = coloured
   const emission = layers & 255,
-    thin = layers >> 8
+    thin = (layers >> 8) & 255
   const views = [
     layerView(colours, 0),
     layerView(colours, 1),
@@ -196,6 +251,13 @@ function assemble(parts: SurfaceParts, coloured: ColouredParts): SurfaceBuffer {
     layers,
     hasEmissiveAo: coloured.hasEmissiveAo,
     hasSubsurface: coloured.hasSubsurface,
+    closures: coloured.closures,
+    closureNormals: Array.from({ length: coloured.closures - 1 }, (_, at) =>
+      layerView(
+        colours,
+        closureNormalLayer((layers >> SURFACE_CLOSURES.headShift.colours) & 255, at + 1),
+      ),
+    ),
     subsurfaceView: thin ? layerView(colours, thin) : standIns.thin!.createView(),
     lobesView: lobes.createView(),
     views: () => live(views),
@@ -238,7 +300,7 @@ const partsOf = ({
 export function withEmissiveAo(device: GPUDevice, surfaces: SurfaceBuffer): SurfaceBuffer {
   const { width, height } = surfaces
   const coloured = owning((made) =>
-    colouredParts(device, [width, height], true, surfaces.hasSubsurface, made),
+    colouredParts(device, [width, height], optionsOf(surfaces, { emissiveAo: true }), made),
   )
   const record = assemble(
     {
@@ -275,4 +337,51 @@ export function withLobes(device: GPUDevice, surfaces: SurfaceBuffer, wanted: bo
     },
     COLOURED.get(surfaces)!,
   )
+}
+
+/**
+ * The same buffer holding `count` closures a pixel (`effectiveMaxClosures`), for a view whose most changed: a new record, its views new,
+ * on new colours and words holding the closure slices (none for one closure: the single-closure record), the lobes target kept. The
+ * colours, words and stand-ins replaced are retired, destroyed after the frame's submit (`../../gpu/core/frameRetire.ts`); the
+ * record replaced is not disposed; the image that first holds the slices writes every layer anew.
+ */
+export function withClosures(
+  device: GPUDevice,
+  surfaces: SurfaceBuffer,
+  count: number,
+): SurfaceBuffer {
+  const { width, height } = surfaces
+  const made: GPUTexture[] = []
+  const size = [width, height] as const
+  const replaced = COLOURED.get(surfaces)!
+  const coloured = owning((own) =>
+    colouredParts(device, size, optionsOf(surfaces, { closures: count }), own),
+  )
+  let words: GPUTexture
+  try {
+    words = kept(made, wordsTarget(device, size, count))
+  } catch (error) {
+    for (const texture of [coloured.colours, coloured.standIns.emission, coloured.standIns.thin])
+      texture?.destroy()
+    throw error
+  }
+  const record = assemble(
+    {
+      ...partsOf(surfaces),
+      words,
+      allocationBytes:
+        surfaces.allocationBytes -
+        closureBytes(width, height, surfaces.closures) +
+        closureBytes(width, height, count),
+    },
+    coloured,
+  )
+  for (const texture of [
+    replaced.colours,
+    replaced.standIns.emission,
+    replaced.standIns.thin,
+    surfaces.words,
+  ])
+    if (texture) retire(device, texture)
+  return record
 }

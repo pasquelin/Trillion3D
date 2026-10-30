@@ -245,9 +245,9 @@ function retireMask(
 const sharedSize: [number, number] = [0, 0]
 
 /** Widens `sharedSize` to the targets `view` holds, unless it is the drawn one, whose targets
- *  are the size asked. */
+ *  are the size asked, or a parked one, whose targets count for no one. */
 function widenTo(rt: Pick<WebgpuPagesRuntime, 'gpu' | 'views'>, view: WebgpuView) {
-  if (view === rt.views.active) return
+  if (view === rt.views.active || view.parked) return
   const [width, height] = viewGpu(rt, view).allocatedSize
   sharedSize[0] = Math.max(sharedSize[0], width)
   sharedSize[1] = Math.max(sharedSize[1], height)

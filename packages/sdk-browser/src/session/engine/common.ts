@@ -4,7 +4,7 @@
  * witness publishes live in the witness library.
  */
 import { DEFAULT_STREAMING_MAX_PENDING_PAGES } from '../../../../sdk-core/src/contracts/streamingOptions.ts'
-import { BLEND_SAMPLED_TEXTURES_WITH_PICTURES } from '../../gpu/core/rectPictures.ts'
+import { BLEND_SAMPLED_TEXTURES_ASKED } from '../../gpu/core/stageStorage.ts'
 import { STREAMING_PAGE_BYTES } from '../../../../sdk-core/src/contracts/writtenFormats.ts'
 /** The ratio a session's drawing buffer was sized at (`devicePixels`): read live, a resize
  *  rewrites it. Unset, the screen's of `view` (the canvas's window) when one is given, else 1:
@@ -65,7 +65,7 @@ export const devicePixels = (logical: number, pixelRatio: number | undefined) =>
  *  - A count, the most bindings of that kind one stage of the engine's layouts holds: the device
  *    asks no more than it binds, and a layout that outgrows the count fails its unit test
  *    (`gpu/core/stageLimits.test.ts`) before any device sees it. Sampled textures: WebGPU's
- *    guaranteed 16, which every adapter grants, and 17 where the adapter offers them (the blends' pictures of the rectangle lights); the widest of the lighting's passes, the sun's, binds 9 in its own
+ *    guaranteed 16, which every adapter grants, and up to 23 where the adapter offers them (the blends' pictures of the rectangle lights, the forward programs' reflection of the scene, the path tracer's finish where it traces the clouds: 19, `PT_CLOUD_FINISH_TEXTURES`); the widest of the lighting's passes, the sun's, binds 9 in its own
  *    group (`sunLayoutEntries`, its targets read by load alone being read-only storage
  *    textures). */
 export const WEBGPU_REQUIRED_LIMITS = {
@@ -77,13 +77,17 @@ export const WEBGPU_REQUIRED_LIMITS = {
   // The vertex stage's own count, where the browser has one: the vertex stages that read the colour atlas
   // bind ten in it (`../../gpu/core/vertexTextures.ts`, `grantsVertexTextures`).
   maxStorageBuffersInVertexStage: Infinity,
+  // The fragment stage's own count, where the browser has one: the sorted translucency's collect binds ten in it
+  // (`../../blend/oit/oitResources.ts`, `grantsOit`).
+  maxStorageBuffersInFragmentStage: Infinity,
   maxColorAttachmentBytesPerSample: Infinity,
   // The virtual shadow maps (`../../lighting/shadows/vsm/`): workgroup votes and page lists, mask storage textures.
   maxComputeWorkgroupStorageSize: Infinity,
   maxComputeInvocationsPerWorkgroup: Infinity,
   maxStorageTexturesPerShaderStage: Infinity,
-  // The blends' widest fragment stage binds 17 where the rectangle lights' pictures are read (`../../gpu/core/rectPictures.ts`); an adapter that stops at 16 is asked 16.
-  maxSampledTexturesPerShaderStage: BLEND_SAMPLED_TEXTURES_WITH_PICTURES,
+  // The blends' widest fragment stage binds 17 where the rectangle lights' pictures are read (`../../gpu/core/rectPictures.ts`) and 23 where the forward
+  // programs reflect the scene (`../../gpu/core/translucentReflection.ts`), 24 where the blends read their object's shadow from the packed table, 25 with the atlas sampled too, one more where they sort their translucency (`BLEND_TEXTURE_FEATURES`, `../../gpu/core/stageStorage.ts`, the list this total is of); an adapter that stops lower is asked what it offers.
+  maxSampledTexturesPerShaderStage: BLEND_SAMPLED_TEXTURES_ASKED,
 } as const satisfies Partial<Record<keyof GPUSupportedLimits, number>>
 /** The WGSL language features every engine program relies on: the targets read by load alone
  *  (subsurface, lobes, shadow mask table) are read-only storage textures, and the placement tree's

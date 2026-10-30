@@ -98,8 +98,13 @@ export function createShadeCensus(
     emits = emitting(worn),
     counted = false,
     stale = false,
-    rewear = false
+    rewear = false,
+    revision = 0
   return {
+    /** How many times the census was taken again: what a reader of its surfaces keeps its answer for. */
+    get revision() {
+      return revision
+    },
     /** The classes of the last census, sorted. */
     get keys(): readonly number[] {
       if (!counted) classKeys(worn, layers, seen, keys)
@@ -129,6 +134,7 @@ export function createShadeCensus(
       emits = emitting(worn)
       classKeys(worn, layers, seen, keys)
       counted = true
+      revision++
       return true
     },
   }

@@ -160,7 +160,7 @@ fn reflectingPixelAt(layer:u32,coord:vec2i,flags:u32)->ReflectingPixel{
  return ReflectingPixel(P,N,V,normal.a,top.xyz,top.w,z,flags);
 }
 /** A ray's origin and the normal of the lobe it traces, which the scene stage alone needs of its pixel: the point from the depth and the top lobe's normal, none of the
- *  lobes decoded (lobesAt), the roughness or the eye. */
+ *  lobes decoded (\`lobesAt\`), the roughness or the eye. */
 struct ReflectingPoint{P:vec3f,topN:vec3f,}
 fn reflectingPointAt(layer:u32,coord:vec2i)->ReflectingPoint{
  return ReflectingPoint(surfacePointAt(layer,coord),surfaceTopRawAt(coord,surfaceFlagsAt(coord)).xyz);

@@ -2,10 +2,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
-import {
-  cacheTracedProgramOf,
-  cacheTraceProgramOf,
-} from '../../lighting/bounce/cache/cacheTraceWgsl.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { ENGINE_SHADERS } from './engineShaders.fixture.ts'
 import { ensureSurfaceAtlases } from '../../lighting/surfaceCache/atlases.ts'
@@ -20,8 +16,6 @@ import {
   tracedShadowKernels,
 } from '../../lighting/surfaceCache/lighting/kernels.ts'
 import { WORD_LIGHT_FORMAT } from './lightAtlasFormat.ts'
-const CACHE_TRACE_PROGRAM = cacheTraceProgramOf(WORD_LIGHT_FORMAT, false)
-const CACHE_TRACED_PROGRAM = cacheTracedProgramOf(WORD_LIGHT_FORMAT)
 
 const digest = (value: unknown) =>
   createHash('sha256')
@@ -35,16 +29,15 @@ const digest = (value: unknown) =>
 // SURFACE_CACHE_RADIOSITY_FILTER_WGSL is re-pinned: the radiosity's filter lists the declarations its kernels share (`radiosityKernelDeclarations`) before its own, so they come in another order; the declarations are the same.
 // Re-pinned 29/10 for the traces the morning's sweeps changed: their shared text, not the surface cache's word format.
 // Re-pinned 29/10 for the march's hit, which names the object of the grid whose cards lit it (`ScHitSurface.instance`): every trace that reads a hit of the field.
-// Re-pinned 30/10 for the simple lights' word (the tile slice's walk of the lights past the scene's, `DirectLights.simple`): every program that lists the lights' walk (the surface cache's direct light, shadow masks, shadow and radiosity traces, cull, the reflection traces, the translucency GI trace and the cache traces).
-// Re-pinned for the fog beyond a ray worked out over any reach (`fogBeyondAlong`, the sky meshes' capture): the reflection traces, which hold the fog's text.
+// Re-pinned 29/10 (diff of the generated programs against HEAD): the scene trace's geometry in one buffer and its any-hit test (`stMaskKeeps`, `rays/sceneTrace/sceneMaskWgsl.ts`) changed only the programs that list the scene trace — SURFACE_CACHE_SHADOW_TRACE*, SURFACE_CACHE_RADIOSITY_TRACED, REFLECTION_TRACE_HARDWARE_SHADER and CACHE_TRACED_PROGRAM; the others changed for the hit read's `hiRes` argument of `scEvaluate` (every program that lists the surface cache's hit: SURFACE_CACHE_RESAMPLE*, TRANSLUCENCY_GI_TRACE*, CACHE_TRACE_PROGRAM), the lobes' `coatSampleAlpha2` (every REFLECTION_TRACE_* shader) and the radiosity trace's comments (SURFACE_CACHE_RADIOSITY_TRACE_WGSL).
 const WORD_PROGRAMS = {
-  REFLECTION_TRACE_SHADER: 'b6e9db89ba090fdb',
-  REFLECTION_TRACE_STATISTICS_SHADER: '78ee9c2cfb6a04ce',
+  REFLECTION_TRACE_SHADER: 'ca2d3bc9cd04e635',
+  REFLECTION_TRACE_STATISTICS_SHADER: '0bf30bcf96b556b4',
   SURFACE_CACHE_RESOLVE_WGSL: '3d49d6105d5fd6bf',
-  SURFACE_CACHE_RESAMPLE_WGSL: '718df4696635dbd6',
-  SURFACE_CACHE_RESAMPLE_COMPRESSED_WGSL: '07e6174f45994148',
-  SURFACE_CACHE_RESAMPLE_LIGHTING_WGSL: 'f07b7abc1b63366b',
-  SURFACE_CACHE_RESAMPLE_LIGHTING_COMPRESSED_WGSL: 'e2bc788adda530f4',
+  SURFACE_CACHE_RESAMPLE_WGSL: 'f251a94f1c7f371c',
+  SURFACE_CACHE_RESAMPLE_COMPRESSED_WGSL: 'ca53ed82efb677b1',
+  SURFACE_CACHE_RESAMPLE_LIGHTING_WGSL: '4183c478e21f2cbe',
+  SURFACE_CACHE_RESAMPLE_LIGHTING_COMPRESSED_WGSL: 'db99617a086255a6',
   SURFACE_CACHE_COPY_WGSL: 'b7911e82d61f6103',
   SURFACE_CACHE_COPY_COMPRESSED_WGSL: 'c51c2bfeced1892c',
   SURFACE_CACHE_LIGHTS_WGSL: 'b4e653e9141b0662',
@@ -54,39 +47,39 @@ const WORD_PROGRAMS = {
   SURFACE_CACHE_FEEDBACK_COMPACTION_SHADER: 'd7d88317e54f0487',
   SURFACE_CACHE_CONTEXT_WGSL: '1ceaa8e59f4bdf3b',
   SURFACE_CACHE_SPLICE_WGSL: '4771140dcf5c0bd1',
-  SURFACE_CACHE_DIRECT_WGSL: '2cfba0d5c279787f',
-  SURFACE_CACHE_DIRECT_COLOURED_WGSL: '44c0e6420a8acd09',
-  SURFACE_CACHE_SHADOW_MASK_WGSL: '0883f4cebc9108b3',
-  SURFACE_CACHE_SHADOW_MASK_COLOURED_WGSL: 'abdadbb2c8a90aa5',
+  SURFACE_CACHE_DIRECT_WGSL: '27a965b4c0c15aeb',
+  SURFACE_CACHE_DIRECT_COLOURED_WGSL: '43e88a67e6ef36dc',
+  SURFACE_CACHE_SHADOW_MASK_WGSL: 'e13a6f4e79dd580a',
+  SURFACE_CACHE_SHADOW_MASK_COLOURED_WGSL: '445af088824c2dc6',
   SURFACE_CACHE_SHADOW_ARGS_WGSL: 'e748644cfeec6aa4',
-  SURFACE_CACHE_SHADOW_TRACE_WGSL: 'b7898336cd27a184',
-  SURFACE_CACHE_SHADOW_TRACE_COLOURED_WGSL: '77f4cb431af363ca',
-  SURFACE_CACHE_STOCHASTIC_GENERATE_WGSL: 'c06886ad37b03057',
+  SURFACE_CACHE_SHADOW_TRACE_WGSL: '84a1f14f68d68ab0',
+  SURFACE_CACHE_SHADOW_TRACE_COLOURED_WGSL: '68e1de7a1975db9d',
+  SURFACE_CACHE_STOCHASTIC_GENERATE_WGSL: 'e1897fd201bdfb04',
   SURFACE_CACHE_STOCHASTIC_COMPACT_WGSL: '63623ec4c29fa2bf',
   SURFACE_CACHE_STOCHASTIC_COMPACT_COLOURED_WGSL: 'b94d4f827513a8f9',
   SURFACE_CACHE_STOCHASTIC_SHADE_WGSL: '20a00ff1366b5643',
   SURFACE_CACHE_STOCHASTIC_SHADE_COLOURED_WGSL: 'd9ab808588189017',
   SURFACE_CACHE_STOCHASTIC_TEMPORAL_WGSL: 'a56b3f99563278ab',
   SURFACE_CACHE_RADIOSITY_BUILD_WGSL: '3cd762d737dc1f1d',
-  SURFACE_CACHE_RADIOSITY_TRACE_WGSL: '4349cb1102459000',
-  SURFACE_CACHE_RADIOSITY_TRACED_WGSL: '4c8e6d4eb2ab75dc',
+  SURFACE_CACHE_RADIOSITY_TRACE_WGSL: '51cbd5baf0578c7d',
+  SURFACE_CACHE_RADIOSITY_TRACED_WGSL: 'a441db73e37399b1',
   SURFACE_CACHE_RADIOSITY_FILTER_WGSL: '3ea2afcd4daba370',
   SURFACE_CACHE_RADIOSITY_INTEGRATE_WGSL: 'c8b9737509d51495',
   SURFACE_CACHE_TILE_DEPTH_RANGE: '4c5ec16d5eb973a9',
-  SURFACE_CACHE_CULL: 'f05634a7b9fa93b9',
+  SURFACE_CACHE_CULL: '9d9cc558a92e0b8b',
   SURFACE_CACHE_LIGHT_TILE_COUNTS: '0637a1d86f091a1b',
   SURFACE_CACHE_LIGHT_TILE_COMPACT: '3f284a690974065a',
   SURFACE_CACHE_COMBINE: 'ea6e1e372eb3d0e2',
   SURFACE_CACHE_COMBINE_COMPRESSED: 'a201efe327f6d6c7',
-  TRANSLUCENCY_GI_TRACE: '8b8d79df7340a54c',
-  TRANSLUCENCY_GI_TRACE_PACKED: '57e0744f578a9f81',
-  REFLECTION_TRACE_HARDWARE_SHADER: '51696e76c65d17c8',
-  REFLECTION_TRACE_NATIVE_SHADER: 'd594d96dd8cf3745',
-  REFLECTION_TRACE_NATIVE_STATISTICS_SHADER: 'b3502242e1ee2b37',
-  REFLECTION_TRACE_POLYFILL_SHADER: '264f8dd8964ec539',
-  REFLECTION_TRACE_POLYFILL_STATISTICS_SHADER: '87a05e64c869a485',
-  CACHE_TRACED_PROGRAM: 'd70d124ee0fb524f',
-  CACHE_TRACE_PROGRAM: 'b68a665b44fe966b',
+  TRANSLUCENCY_GI_TRACE: '9d1e9d6c4033a455',
+  TRANSLUCENCY_GI_TRACE_PACKED: '9dd97818c68768d5',
+  REFLECTION_TRACE_HARDWARE_SHADER: 'd517a0f15b7da650',
+  REFLECTION_TRACE_NATIVE_SHADER: '0d8bb980803b2030',
+  REFLECTION_TRACE_NATIVE_STATISTICS_SHADER: '244bbe67d0110465',
+  REFLECTION_TRACE_POLYFILL_SHADER: 'f8ce8cd33b70cb03',
+  REFLECTION_TRACE_POLYFILL_STATISTICS_SHADER: 'dc67e78e4a09261c',
+  CACHE_TRACED_PROGRAM: 'b0733002c33cd08d',
+  CACHE_TRACE_PROGRAM: '94b12c369c693767',
 }
 
 /** The layouts the surface cache's kernels are made with, and the textures of its atlases, recorded on a device that grants every limit. */
@@ -156,8 +149,8 @@ test('the word format writes, in the surface cache and the passes that read it, 
     layoutsFixedGrey: 'e4010dec0611a24a',
     layoutsFixedColour: 'e4010dec0611a24a',
     layoutsField: 'c8a19d87e4b66a9d',
-    layoutsShadow: 'ef257a0b5bbe8268',
-    layoutsRadiosityTraced: '04e144a3739a50ce',
+    layoutsShadow: '4df63cb9181c7946',
+    layoutsRadiosityTraced: '40528562ede0c4c7',
     layoutsShaped: 'b6ac6fd920be7f38',
     layoutsStochastic: '1896c80f0db5a6a6',
     layoutsCapture: '6f12f59be6e73943',

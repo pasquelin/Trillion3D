@@ -1,8 +1,11 @@
 /**
- * THE LIT PROGRAM'S PER-LIGHT PASSES (`shadowOnePassProjection` false): the batched local pass without
- * the shadowed lights (`localPassWgsl` with `skipHeld`) and the per-light draw (`perLightPassWgsl`), a pipeline
+ * THE LIT PROGRAM'S PER-LIGHT PASSES (`shadowOnePassProjection` or `clusteredDeferredShading` false): the batched local pass without
+ * the shadowed lights (`localPassWgsl`, the loop `unbatched`) and the per-light draw, a pipeline
  * for each class of tile, made at the first frame that takes the path: the program of a scene that never
- * does compiles neither. The draw's group layout is the program's own (`perLightLayoutEntries`).
+ * does compiles neither. The draw is `perLightPassWgsl` (its shadow its layer of the light's mask, its group layout the program's own,
+ * `perLightLayoutEntries`), or, where the lights are projected in the one pass (`PerLightLights.mask` absent), the local lights' pass
+ * for one light (the loop `one`, its shadow its lane of the packed mask, over the local pass's layout and the light's record,
+ * `oneLightLayoutEntries`).
  */
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import type { WgslDecl } from '../../../../math/src/wgsl/decl.ts'
@@ -10,7 +13,7 @@ import { PER_LIGHT_RECORD_AT, recordOffset } from '../shadows/vsm/projection/per
 import type { PerLightLights } from '../shadows/vsm/projection/perLightPass.ts'
 import type { ContractKey } from './contractCuts.ts'
 import { chainReady, preparedPipeline, type PreparedPipeline } from './fullscreen.ts'
-import { perLightLayoutEntries } from './layoutEntries.ts'
+import { oneLightLayoutEntries, perLightLayoutEntries } from './layoutEntries.ts'
 import { localPassWgsl } from './lightPassWgsl.ts'
 import { PER_LIGHT_ENTRY, perLightPassWgsl } from './perLightPassWgsl.ts'
 import { drawTileClasses, lightPipelineDescriptor } from './tilePass.ts'
@@ -86,14 +89,27 @@ function scissorToLight(
 /** The per-light passes of a lit program (`createLitProgram`). */
 export function createPerLightProgram(device: GPUDevice, sources: PerLightSources) {
   const { key, classes, label } = sources
-  const layout = device.createBindGroupLayout({
-    entries: perLightLayoutEntries(
-      sources.lobes,
-      sources.profiled,
-      sources.contact,
-      sources.volume,
-    ),
-  })
+  // The group layouts are made with the pipelines that use them, at the first frame that takes the path.
+  let layout: GPUBindGroupLayout | undefined, oneLayout: GPUBindGroupLayout | undefined
+  const layoutOf = () =>
+    (layout ??= device.createBindGroupLayout({
+      entries: perLightLayoutEntries(
+        sources.lobes,
+        sources.profiled,
+        sources.contact,
+        sources.volume,
+      ),
+    }))
+  const oneLayoutOf = () =>
+    (oneLayout ??= device.createBindGroupLayout({
+      entries: oneLightLayoutEntries(
+        sources.lobes,
+        sources.profiled,
+        sources.contact,
+        !!key.sampled,
+        sources.volume,
+      ),
+    }))
   const pipelinesOf = (
     wgsl: (tileClass: TileClass) => WgslDecl,
     entry: string,
@@ -101,34 +117,53 @@ export function createPerLightProgram(device: GPUDevice, sources: PerLightSource
     name: string,
   ) =>
     classPipelines(device, { classes, label, toon: !!key.toonData }, wgsl, entry, groupLayout, name)
-  let unbatched: ClassPipelines | undefined, lights: ClassPipelines | undefined
+  let unbatched: ClassPipelines | undefined,
+    lights: ClassPipelines | undefined,
+    one: ClassPipelines | undefined
   const compiledBatched: (GPURenderPipeline | undefined)[] = [],
-    compiledLights: (GPURenderPipeline | undefined)[] = []
-  const asks = () => {
-    unbatched ??= pipelinesOf(
-      (tileClass) => localPassWgsl(key, tileClass, { skipHeld: true }),
+    compiledLights: (GPURenderPipeline | undefined)[] = [],
+    compiledOne: (GPURenderPipeline | undefined)[] = []
+  /** The pipelines the path asks, by class: the batched local pass's and the draws' (the one-light local pass's where `packed`). */
+  const unbatchedAsk = () =>
+    (unbatched ??= pipelinesOf(
+      (tileClass) => localPassWgsl(key, tileClass, { loop: 'unbatched' }),
       'localMain',
       sources.localLayout,
       'LOCAL_UNBATCHED',
-    )
-    lights ??= pipelinesOf(
-      (tileClass) => perLightPassWgsl(key, tileClass),
-      PER_LIGHT_ENTRY,
-      layout,
-      'PER_LIGHT',
-    )
-    return { unbatched, lights }
+    ))
+  const asks = (packed: boolean) => {
+    if (packed)
+      one ??= pipelinesOf(
+        (tileClass) => localPassWgsl(key, tileClass, { loop: 'one' }),
+        'localMain',
+        oneLayoutOf(),
+        'LOCAL_ONE',
+      )
+    else
+      lights ??= pipelinesOf(
+        (tileClass) => perLightPassWgsl(key, tileClass),
+        PER_LIGHT_ENTRY,
+        layoutOf(),
+        'PER_LIGHT',
+      )
+    return { unbatched: unbatchedAsk(), draws: packed ? one! : lights! }
   }
   return {
     /** The group layout of the per-light draw. */
-    layout,
-    /** Whether the passes' pipelines are compiled; the frames wait for them otherwise. */
-    ready() {
-      const { unbatched, lights } = asks()
-      return chainReady(...unbatched, ...lights)
+    get layout() {
+      return layoutOf()
+    },
+    /** The group layout of the one-light local pass (the lights read the packed mask). */
+    get oneLayout() {
+      return oneLayoutOf()
+    },
+    /** Whether the passes' pipelines are compiled, those of the draws that read the packed mask where `packed`; the frames wait for them otherwise. */
+    ready(packed: boolean) {
+      const { unbatched, draws } = asks(packed)
+      return chainReady(...unbatched, ...draws)
     },
     /** The compiled pipelines of the batched local pass without the per-light lights, by class. */
-    unbatchedLocal: () => compiledOf(asks().unbatched, compiledBatched),
+    unbatchedLocal: () => compiledOf(unbatchedAsk(), compiledBatched),
     /** Draws light `i` of `perLight` into `pass`, over the tiles `draws` lists: the light's record at its
      *  offset in `group`, the pixels the light reaches the only ones drawn. Returns the draws made. */
     drawLight(
@@ -139,7 +174,12 @@ export function createPerLightProgram(device: GPUDevice, sources: PerLightSource
       i: number,
     ) {
       scissorToLight(pass, group, perLight, i)
-      return drawTileClasses(pass, compiledOf(asks().lights, compiledLights), draws)
+      const packed = !perLight.mask
+      return drawTileClasses(
+        pass,
+        compiledOf(asks(packed).draws, packed ? compiledOne : compiledLights),
+        draws,
+      )
     },
   }
 }

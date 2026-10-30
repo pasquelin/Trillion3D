@@ -27,7 +27,7 @@ test('the default local pass knows nothing of the per-light path', () => {
 
 test('a shadowed light leaves the batched local loop, an unshadowed one stays', () => {
   const batched = functionsOf(wgslModule(localPassWgsl(KEY, CLASS)), ['localLighting'])
-  const module = wgslModule(localPassWgsl(KEY, CLASS, { skipHeld: true }))
+  const module = wgslModule(localPassWgsl(KEY, CLASS, { loop: 'unbatched' }))
   const skip = 'if(isSun(directLights.items[rank])){continue;}'
   // The same loop, one statement longer: a local light of a shadow slot is left to its draw.
   assert.ok(batched.includes(skip))
@@ -60,6 +60,22 @@ test('the per-light draw lights one light of its record through the batched ligh
   )
   assert.doesNotMatch(draw, /vsmLocalFactor|vsmMaskLaneOf|vsmSunMask/)
   assert.match(draw, /var<uniform> perLight:PerLightRecord;/)
+})
+
+test('the one-light local pass lights the light of its record directly, no walk of the cell’s list, reading the packed mask as the whole loop does', () => {
+  const batched = functionsOf(wgslModule(localPassWgsl(KEY, CLASS)), ['localLighting'])
+  const module = wgslModule(localPassWgsl(KEY, CLASS, { loop: 'one' }))
+  const one = functionsOf(module, ['localLighting'])
+  // The batched loop's term, on the record's rank: the same call the loop makes of a listed light.
+  const term = batched
+    .match(/declaredLight\(rank,[^;]*;/)![0]
+    .replace('declaredLight(rank,', 'declaredLight(perLight.rank,')
+  assert.ok(one.includes(`return ${term.replace(/;$/, '')};`), 'the one light term of the record')
+  assert.doesNotMatch(one, /for\(|listedLight|listedDrawn|isSun/, 'no walk of the list')
+  assert.match(module, /var<uniform> perLight:PerLightRecord;/)
+  assert.match(module, /vsmMaskAt\(coord,record\);/, 'the lane is found in the pixel’s cell')
+  assert.doesNotMatch(module, /vsmPerLightMask/)
+  assert.doesNotMatch(wgslModule(localPassWgsl(KEY, CLASS)), /PerLightRecord/)
 })
 
 /** The lit frames of a lobeless lighting, drawn with and without the per-light lights. */
@@ -105,14 +121,16 @@ async function frames() {
       ),
     }
   }
-  return { ...made, perLight, frame, compiling: () => void (ready = false) }
+  // The same lights read from the one-pass projection's packed mask: no mask of their own.
+  const packed: PerLightLights = { ...perLight, mask: undefined }
+  return { ...made, perLight, packed, frame, compiling: () => void (ready = false) }
 }
 
 /** The kinds of pass the pipelines a pass drew with belong to, in order, the surface colour's (named by no pass of the lights) left out. */
 const kindsOf = (pipelines: string[]) => [
   ...new Set(
     pipelines
-      .map((label) => /_(SUN|LOCAL_UNBATCHED|LOCAL|PER_LIGHT|INDIRECT)_/.exec(label)?.[1])
+      .map((label) => /_(SUN|LOCAL_UNBATCHED|LOCAL_ONE|LOCAL|PER_LIGHT|INDIRECT)_/.exec(label)?.[1])
       .filter((kind) => kind !== undefined),
   ),
 ]
@@ -147,6 +165,22 @@ test('with them, each light is drawn after its mask in a pass of its own, the in
   )
   assert.deepEqual(kindsOf(labels[1]), ['PER_LIGHT'])
   assert.deepEqual(kindsOf(labels[2]), ['PER_LIGHT'])
+})
+
+test('lights that read the packed mask are drawn one after the other in the pass of the batched ones, with no mask between them', async () => {
+  const { frame, packed, device } = await frames()
+  await frame(packed)
+  await pipelinesSettled(device)
+  const { order, loads, labels } = await frame(packed)
+  assert.deepEqual(
+    order,
+    [`render ${SURFACE_COLOUR_PASS}`],
+    'no mask is encoded and the pass is not ended',
+  )
+  assert.deepEqual(loads, ['clear'])
+  assert.deepEqual(kindsOf(labels[0]), ['INDIRECT', 'SUN', 'LOCAL_UNBATCHED', 'LOCAL_ONE'])
+  assert.equal(labels[0].filter((label) => /_LOCAL_ONE_/.test(label)).length > 0, true)
+  assert.equal(labels[0].filter((label) => /PER_LIGHT/.test(label)).length, 0)
 })
 
 test('while the path’s pipelines compile the shadowed lights are left out of the batch and no per-light draw is made', async () => {

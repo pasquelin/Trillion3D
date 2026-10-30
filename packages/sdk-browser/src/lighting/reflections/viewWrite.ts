@@ -62,17 +62,15 @@ export type ReflectionFrame = {
   exposure?: number
 }
 
-/** The switches a layer's flags differ in: its denoising passes and its scene trace. */
-type FlagSwitches = Pick<
-  ReflectionSettings,
-  'temporal' | 'reconstruction' | 'bilateral' | 'sceneTraces' | 'distantTraces'
->
-
-/** The flags of what a trace does (`ReflectionView.scene.z`): each bit of `REFLECTION_COUNTS` its setting's;
- *  the front layer's (`scene.w`) take their three denoising switches and the two traces' from `frontTemporal` and the four after it. */
+/** The flags of what a trace does (`ReflectionView.scene.z`): each bit of `REFLECTION_COUNTS` its setting's, the switches a layer's flags differ in — its three denoising passes and its two traces — given;
+ *  the front layer's (`scene.w`) take them from `frontTemporal` and the four after it. */
 function flagsOf(
   trace: ReflectionSettings,
-  { temporal, reconstruction, bilateral, sceneTraces, distantTraces }: FlagSwitches = trace,
+  temporal: boolean,
+  reconstruction: boolean,
+  bilateral: boolean,
+  sceneTraces: boolean,
+  distantTraces: boolean,
 ) {
   return (
     flagIf(sceneTraces, REFLECTION_COUNTS.REFLECTION_SCENE_TRACES) |
@@ -114,47 +112,66 @@ function putTraceLanes(
   cardDepthBias: number,
   preExposure: number,
 ) {
-  const put = (
-    field: keyof typeof REFLECTION_VIEW_AT,
-    x: number,
-    y: number,
-    z: number,
-    w: number,
-  ) => putLane(staged, field, x, y, z, w)
-  put('reach', t.surfaceBias, t.distantDistance, t.maxRoughnessFoliage, t.bilateralDepthScale)
-  put('march', t.relativeThickness, t.distantTolerance, t.distantOffsetBias, t.traceDistance)
-  put(
+  putLane(
+    staged,
+    'reach',
+    t.surfaceBias,
+    t.distantDistance,
+    t.maxRoughnessFoliage,
+    t.bilateralDepthScale,
+  )
+  putLane(
+    staged,
+    'march',
+    t.relativeThickness,
+    t.distantTolerance,
+    t.distantOffsetBias,
+    t.traceDistance,
+  )
+  putLane(
+    staged,
     'light',
     t.maxRayIntensity / preExposure,
     t.sampleDepthThickness,
     t.sampleFacing,
     t.fogSkyDistance,
   )
-  put('denoise', t.historyFrames, t.clampScale, t.historyDistance, t.tonemapRange)
-  put(
+  putLane(staged, 'denoise', t.historyFrames, t.clampScale, t.historyDistance, t.tonemapRange)
+  putLane(
+    staged,
     'spread',
     t.reconstructionRadius,
     t.bilateralRadius,
     t.reconstructionMinWeight,
     t.disocclusionFrames,
   )
-  put('lobe', t.maxRoughness, t.roughnessFade, t.samplingBias, t.smoothBias)
-  put(
+  putLane(staged, 'lobe', t.maxRoughness, t.roughnessFade, t.samplingBias, t.smoothBias)
+  putLane(
+    staged,
     'leak',
     t.skylightLeakColor[0],
     t.skylightLeakColor[1],
     t.skylightLeakColor[2],
     t.skylightLeakAlbedo,
   )
-  put('hardware', t.hardwareBias, t.hardwareNormalBias, t.hardwarePullbackBias, cardDepthBias)
-  put(
+  putLane(
+    staged,
+    'hardware',
+    t.hardwareBias,
+    t.hardwareNormalBias,
+    t.hardwarePullbackBias,
+    cardDepthBias,
+  )
+  putLane(
+    staged,
     'cache',
     t.radianceCacheMinRoughness,
     t.radianceCacheMaxRoughness,
     t.radianceCacheFade,
     t.radianceCacheRadiusScale,
   )
-  put(
+  putLane(
+    staged,
     'cacheTrace',
     t.radianceCacheMaxDistance,
     t.radianceCacheMinDistance,
@@ -192,17 +209,27 @@ function createTraceWriter(staged: Float32Array) {
     frontLanes[2] = trace.frontBlock[1]
     scene[0] = trace.screenSteps
     scene[1] = trace.distantSteps
-    scene[2] = flagsOf(trace)
-    scene[3] = flagsOf(trace, {
-      temporal: trace.frontTemporal,
-      reconstruction: trace.frontReconstruction,
-      bilateral: trace.frontBilateral,
-      sceneTraces: trace.frontSceneTraces,
-      distantTraces: trace.frontDistantTraces,
-    })
+    scene[2] = flagsOf(
+      trace,
+      trace.temporal,
+      trace.reconstruction,
+      trace.bilateral,
+      trace.sceneTraces,
+      trace.distantTraces,
+    )
+    scene[3] = flagsOf(
+      trace,
+      trace.frontTemporal,
+      trace.frontReconstruction,
+      trace.frontBilateral,
+      trace.frontSceneTraces,
+      trace.frontDistantTraces,
+    )
     taps[0] = trace.reconstructionSamples
     taps[1] = trace.bilateralSamples
     taps[2] = trace.screenMinimumOccupancy
+    translucent[0] = trace.translucencyScreenQuality
+    translucent[1] = trace.translucencyCache ? 1 : 0
     translucent[2] = hitUnlit ? 0 : hitLightFlags(trace.hit)
     translucent[3] = hitLightWord(trace.hit)
     putTraceLanes(staged, trace, cardDepthBias, preExposure)

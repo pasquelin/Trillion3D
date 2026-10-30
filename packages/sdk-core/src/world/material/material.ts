@@ -21,6 +21,10 @@ import {
   forgetLightFunctionMaterial,
   LIGHT_FUNCTION_MATERIAL_KIND,
 } from './lightFunctionMaterial.ts'
+import {
+  MATERIAL_TRANSLUCENT_SHADOW_RULES,
+  TRANSLUCENT_MULTIPLE_SCATTERING_EXTINCTION_DEFAULT,
+} from '../../contracts/translucentObjectShadowOptions.ts'
 import { POST_PROCESS_MATERIAL_KIND } from './postProcessMaterial.ts'
 import { MaterialGraph } from './graph/api.ts'
 import type { GraphData } from './graph/graph.ts'
@@ -97,6 +101,13 @@ export class Material {
   /** Whether the `emissive` output of the material's graph may be negative: held at zero unless it is. */ allowNegativeEmissive = false
   /** The value the `opacityMask` output of the material's graph must reach for a pixel to be drawn: unset, the `alphaTest` where above 0, else 0.3333. */ declare opacityMaskClipValue?: number
   /** Whether the `opacityMask` output of the material's graph cuts by a dither of the output instead of a hard threshold. */ ditherOpacityMask = false
+  /** The scale on the opacity of the shadow the surface casts when its object casts a volumetric translucent shadow (`castVolumetricTranslucentShadow`): above 1 darker than the opacity says, below 1 lighter; 0.5 by default. */ translucentShadowDensityScale = MATERIAL_TRANSLUCENT_SHADOW_RULES.translucentShadowDensityScale.default as number
+  /** Where the shadow the surface casts as a translucent object shadow starts along the light, in centimetres; 100 by default. */ translucentShadowStartOffset = MATERIAL_TRANSLUCENT_SHADOW_RULES.translucentShadowStartOffset.default as number
+  /** The scale on the density of its object's shadow a surface reads of the sun's, when it lights from the translucency volume; 2 by default. */ translucentSelfShadowDensityScale = MATERIAL_TRANSLUCENT_SHADOW_RULES.translucentSelfShadowDensityScale.default as number
+  /** The scale of the second gradient laid in the shadowed part of its self shadow; 10 by default. */ translucentSelfShadowSecondDensityScale = MATERIAL_TRANSLUCENT_SHADOW_RULES.translucentSelfShadowSecondDensityScale.default as number
+  /** The weight of that second gradient, 0 to 1; 0 by default. */ translucentSelfShadowSecondOpacity = MATERIAL_TRANSLUCENT_SHADOW_RULES.translucentSelfShadowSecondOpacity.default as number
+  /** The exponent of the lobe a subsurface surface scatters the sun back by, tighter and brighter as it grows; 30 by default. */ translucentBackscatteringExponent = MATERIAL_TRANSLUCENT_SHADOW_RULES.translucentBackscatteringExponent.default as number
+  /** The extinction, per channel, the density its self shadow crosses is divided by; (1, 0.833, 0.588) by default. */ translucentMultipleScatteringExtinction: readonly [number, number, number] = [...TRANSLUCENT_MULTIPLE_SCATTERING_EXTINCTION_DEFAULT]
   /** Whether a double-sided see-through surface is drawn in two passes, its back faces then its front faces. */ twoSidedPasses = false
   /** Whether the roughness is raised to at least the one the change of the vertex normal across the pixel gives it. */ normalCurvatureToRoughness = false
   /** The greatest distance in metres along each axis the `worldPositionOffset` output may move a vertex, which also grows the bounds of the surface's clusters; 0 holds nothing and grows nothing. */ maxWorldPositionOffset = 0

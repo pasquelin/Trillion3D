@@ -1,4 +1,5 @@
 import { createReflectionPipelines } from '../../lighting/reflections/reflectionPipelines.ts'
+import { closuresOf } from './closures.ts'
 import { surfaceCacheLightOf } from '../../lighting/surfaceCache/light.ts'
 import { createWebgpuVisibilityShaders } from '../../visibility/passes/shaders.ts'
 import { NO_RASTERS, graphRastersOf } from '../../materials/graph/graphRasters.ts'
@@ -41,6 +42,7 @@ export function holdGraphRasters(rt: WebgpuPagesRuntime, device: GPUDevice) {
       ...NO_RASTERS,
       textures: grantsVertexTextures(device),
     },
+    closuresOf(rt).limit,
   )
 }
 

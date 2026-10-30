@@ -4,6 +4,7 @@ import type { GlobalFieldRead } from '../../distanceField/view.ts'
 import type { FrontLayer } from '../frontLayer.ts'
 import type { ReflectionCensus } from '../census.ts'
 import type { ReflectionGrids } from '../grids.ts'
+import type { ClosureSides } from '../closureSides.ts'
 import { surfaceHitEntries, type SurfaceHitResources } from '../../surfaceCache/hitWgsl.ts'
 import type { SceneRays } from '../../surfaceCache/lighting/surfaceLighting.ts'
 import type { LightProfileResources } from '../../lightProfile/profileBindings.ts'
@@ -22,6 +23,8 @@ export type TraceInputs = {
   flags: GPUTextureView
   normals: GPUTextureView
   lobes: GPUTextureView
+  /** The normal and roughness of each closure past the first (`SurfaceBuffer.closureNormals`): what the traced reflections of those closures read; none for a record of one closure. */
+  closureNormals?: readonly GPUTextureView[]
   lights: GPUBuffer
   /** The fog's own cubemap and the sampler it is read through, which tint the height fog the scene stage lays over a ray (`reflectionFogged`):
    *  the stand-in white cube while the fog has none. */
@@ -72,14 +75,20 @@ type SurfaceGroups = Record<Kernel | 'classify' | 'meshCompact' | 'meshTrace', G
 export const createTraceGroups = (device: GPUDevice) => ({
   identity: createWebgpuBindIdentity(),
   groups: undefined as
-    { opaque: SurfaceGroups; front: SurfaceGroups; keepDepth: GPUBindGroup } | undefined,
+    | {
+        opaque: SurfaceGroups
+        front: SurfaceGroups
+        keepDepth: GPUBindGroup
+        /** The groups of each closure past the first (`closureSides`), in their order; none for one whose normals the frame does not bind. */
+        closures: (SurfaceGroups | undefined)[]
+      }
+    | undefined,
   parity: 0,
   /** The groups of the scene stage that casts its rays through the scene's triangles (`traceHardwareGroups.ts`). */
   hardware: createHardwareTraceGroups(device),
 })
 
-/** What a view's trace holds: the target the opaque last pass writes, the resolved pixels both
- *  surfaces resolve into in turn, the opaque surface's grids, the counters its rays add to
+/** What a view's trace holds: the target the opaque last pass writes, the opaque surface's resolved pixels (the front surface's are its own once it reflects), the opaque surface's grids, the counters its rays add to
  *  (`../census.ts`, none where nothing is counted), the transparents' front layer and its groups. */
 export type TraceResources = {
   device: GPUDevice
@@ -90,6 +99,8 @@ export type TraceResources = {
   grids: ReflectionGrids
   census: ReflectionCensus
   front: Pick<FrontLayer, 'views' | 'grids'>
+  /** The traced reflections of the closures past the first (`../closureSides.ts`): their textures and grids, each traced as the opaque surface is, over its own pixels. */
+  closureSides?: ClosureSides
   trace: ReturnType<typeof createTraceGroups>
 }
 
@@ -306,11 +317,15 @@ function recordGroupInputs(reflection: TraceResources, stages: object, inputs: T
     census.buffer,
   )
   next.push(front.views.normals, front.views.lobes, front.views.traced, inputs.flags)
+  next.push(front.views.resolved)
   next.push(inputs.normals, inputs.lobes, inputs.lights)
   next.push(inputs.fog.cubemap, inputs.fog.sampler)
   next.push(inputs.field, inputs.field.readGeneration, inputs.vectors, inputs.blue)
   const { hit } = inputs
   next.push(hit.tables, hit.depth, hit.final, hit.feedback, hit.grid, hit.instances)
+  for (const side of reflection.closureSides?.sides ?? [])
+    next.push(side.flagsView, side.resolvedView, side.targetView, side.grids)
+  next.push(...(inputs.closureNormals ?? []))
 }
 
 /** The bind groups of `reflection`'s trace over `inputs` on `layouts`, made again when a resource
@@ -363,7 +378,8 @@ export function traceGroups(
       sceneEntries,
       front.views,
       front.grids,
-      resolvedView,
+      // Its own resolved pixels once it reflects: the accumulation of the opaque surface reads its own after the front's resolve ran, in another pass.
+      front.views.resolved ?? resolvedView,
       inputs.vectors,
       depthView,
       {
@@ -372,5 +388,23 @@ export function traceGroups(
         out: { frontTarget: front.views.traced },
       },
     ),
+    // A closure past the first is traced as the opaque surface is, the kernels the same, over the textures of its own: its flags, its normals and roughness, its grids, its resolved pixels,
+    // and its two layers of the reflection target.
+    closures: (reflection.closureSides?.sides ?? []).map((side) => {
+      const normals = inputs.closureNormals?.[side.closure - 1]
+      if (!normals) return undefined
+      return surfaceGroups(
+        device,
+        layouts,
+        scene,
+        sceneEntries,
+        { flags: side.flagsView, normals, lobes: side.lobesView },
+        side.grids,
+        side.resolvedView,
+        inputs.vectors,
+        depthView,
+        { bilateral: layouts.bilateral, clear: layouts.clear, out: { target: side.targetView } },
+      )
+    }),
   })
 }

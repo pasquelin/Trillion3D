@@ -176,7 +176,7 @@ test('the light beginning is a change of the noise’s clock: the image is drawn
   const { device } = deferredLightingHarness()
   const rt = settledRt()
   const lighting: { begunAt?: number } = {}
-  Object.assign(rt, { surfaceCache: { lighting } })
+  Object.assign(rt, { surfaceCache: { lighting, settings: {} } })
   for (let i = 0; i < 2; i++) {
     rt.run.frame++
     keepWebgpuFrame(rt)

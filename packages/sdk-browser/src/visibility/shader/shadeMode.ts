@@ -32,12 +32,15 @@ export const diagnosticCode = (mode: DiagnosticMode) => viewOf(mode)?.code ?? 0
 /** The cluster word a view reads, if any (`DIAGNOSTIC_VIEWS`). */
 export const diagnosticReads = (mode: DiagnosticMode) => viewOf(mode)?.reads
 
+/** The lighting term of the view of the indirect light alone on a diffuse grey (`LIT_VIEWS`, `indirectDiffuseView`). */
+export const INDIRECT_DIFFUSE_LIGHT_VIEW = 5
+
 /**
  * THE VIEWS OF THE LIT IMAGE: drawn through the normal pipeline — the resolve at code zero, the
  * lighting, the temporal pass — and shown by a step of it rather than painted by `diagnosticColor`.
  * `light` is the term the lighting program outputs in place of the lit surface (`view.views.x`,
  * `../../lighting/deferred/litSurfaceWgsl.ts`): 1 the reflection alone, 2 the shadowed lights'
- * visibility, 3 the lighting on a white surface; 0 the lit surface itself. `chain`, whether the
+ * visibility, 3 the lighting on a white surface, 5 the indirect light alone on a diffuse grey of 0.18; 0 the lit surface itself. `chain`, whether the
  * image keeps the rest of the beauty chain — effects, particles, display layers — which a view of
  * one lighting term leaves out, so that nothing but that term reaches the screen. `raw`, whether it
  * is shown in raw values, no display curve: a measure in grey. `taa`, what the temporal resolve
@@ -63,6 +66,7 @@ const LIT_VIEWS = {
   reflections: { light: 1, chain: false },
   shadows: { light: 2, chain: false, raw: true },
   lighting: { light: 3, chain: false },
+  'indirect-diffuse': { light: INDIRECT_DIFFUSE_LIGHT_VIEW, chain: true },
   'hair-light-bounds': { light: 0, chain: true },
   'hair-deep-opacity-maps': { light: 0, chain: true },
   'hair-macro-group-screen-rect': { light: 0, chain: true },
@@ -100,6 +104,7 @@ const LIT_VIEWS = {
   'reflection-traces': { light: 0, chain: true },
   'radiance-cache-probes': { light: 0, chain: true },
   'scene-visualization': { light: 0, chain: true },
+  'material-properties': { light: 0, chain: true },
   'heterogeneous-volumes-dda-marching': { light: 0, chain: true },
   'heterogeneous-volumes-sample-marching': { light: 0, chain: true },
   'heterogeneous-volumes-sample-majorant': { light: 0, chain: true },

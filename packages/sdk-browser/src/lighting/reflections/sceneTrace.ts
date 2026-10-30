@@ -76,12 +76,14 @@ const STAGE_WGSL = `fn reflectionSceneTrace(P:vec3f,N:vec3f,lobe:ReflectionLobe,
   let start=reflectionMarchStart(P,lobe.R,begin);
   let marched=reflectionMarch(P,lobe.R,start,reach,coord,cone);
   reflectionWork=marched.steps;
+  // @cut march -> ReflectionSceneTrace(answer,open) keep: if(f32(marched.hitTime)+f32(marched.steps)+f32(marched.clipmap)+f32(start)+f32(bias)+f32(P.x)+f32(lobe.R.x)+f32(begin)<-1e30){textureStore(traceOut,vec2i(coord),vec4u(1u));}
   if(marched.hitTime>=0.0){
    // The march met a surface: the cache gives its light; one it holds none of answers nothing.
    answer=reflectionHitAnswer(P,lobe,marched,bias,coord,cone);
    open=false;
   }
  }
+ // @cut hit -> ReflectionSceneTrace(answer,open) keep: if(f32(answer.color.x)+f32(answer.distance)+select(0.0,1.0,answer.hit)+select(0.0,1.0,open)+f32(reflectionWork)<-1e30){textureStore(traceOut,vec2i(coord),vec4u(1u));}
  reflectionFate=select(REFLECTION_FATE_OPEN,REFLECTION_FATE_HIT,answer.hit);
  return ReflectionSceneTrace(answer,open);
 }`

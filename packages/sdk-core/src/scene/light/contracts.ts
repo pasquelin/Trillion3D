@@ -126,6 +126,8 @@ export interface SceneLight
   /** Whether the light draws a deep shadow of the hair strands it reaches (an extra cost for the light);
    *  absent, off. */
   castHairDeepShadow?: boolean
+  /** Whether translucent objects that cast a volumetric translucent shadow cast it into the light's classic shadow maps; absent, on. */
+  castTranslucentShadows?: boolean
   /** How the four layers of the light's hair deep shadow are spread, from 0 (evenly) to 1 (gathered near the
    *  front); absent, 0.5. */
   hairDeepShadowLayerDistribution?: number

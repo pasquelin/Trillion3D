@@ -64,11 +64,13 @@ const heightFogBody = (localFog: boolean, behindWater: boolean) =>
   wgslBlock(
     `heightFogWgsl(${localFog},${behindWater})`,
     [...fogOverModules(localFog), FULLSCREEN_VERTEX],
-    behindWater ? behindWaterText : heightFogText,
+    behindWater ? behindWaterText : `${fogOverText}${heightFogText}`,
   )
 
-const heightFogText = `
-@fragment fn ${HEIGHT_FOG_ENTRY}(@builtin(position) pixel:vec4f)->@location(0) vec4f{
+/** The fog of a pixel: the light it scatters toward the eye and, in the alpha, the transmittance of the
+ *  way; a pixel the fog leaves is discarded. */
+export const fogOverText = `
+fn fogOverPixel(pixel:vec4f)->vec4f{
  let coord=vec2i(pixel.xy);
  let surfaceFlag=textureLoad(words,coord,${SURFACE_WORDS.flags},0).r;let flag=surfaceFlag&${SURFACE_MODEL_MASK}u;
  let eye=view.display.yzw;
@@ -79,7 +81,7 @@ const heightFogText = `
   if(view.viewport.z!=0.0){discard;}
   if(!(${AIR_SHOWN})&&(view.camera.w==0.0||!fogsBackground())){discard;}
   // The ray of the pixel: from the eye, or, in an orthographic view, parallel to the others, as the
-  // sky lies under it (\`airRay\`).
+  // sky lies under it (airRay).
   var dir=normalize(worldAt(pixel.xy,0.5)-eye);
   if(view.camera.w==0.0){dir=normalize(worldAt(pixel.xy,0.5)-worldAt(pixel.xy,1.0));}
   over=fogBeyondAt(dir,eye,pixel.xy);
@@ -89,6 +91,12 @@ const heightFogText = `
   if(view.views.x!=0.0&&pixelTileClass(surfaceFlag)!=0u){discard;}
   over=fogOpaque(worldAt(pixel.xy,textureLoad(depth,coord,0)),eye,pixel.xy);
  }
+ return over;
+}`
+
+const heightFogText = `
+@fragment fn ${HEIGHT_FOG_ENTRY}(@builtin(position) pixel:vec4f)->@location(0) vec4f{
+ let over=fogOverPixel(pixel);
  return vec4f(preExposed(over.rgb),1.0-over.a);
 }`
 

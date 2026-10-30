@@ -203,6 +203,23 @@ export const localLayoutEntries = (
   ...surfaceTargets(lobes),
 ]
 
+/** The local lights' pass for one light (`localPassWgsl`, the loop `one`): the local pass's layout and the light's record, a uniform read at a
+ *  dynamic offset, as the per-light draw's. */
+export const oneLightLayoutEntries = (
+  lobes: boolean,
+  profiled = false,
+  contact = false,
+  sampled = false,
+  volume = false,
+): GPUBindGroupLayoutEntry[] => [
+  ...localLayoutEntries(lobes, profiled, contact, sampled, volume),
+  computeUniformEntry(
+    DEFERRED_BINDINGS.perLightRecord,
+    { hasDynamicOffset: true, minBindingSize: PER_LIGHT_RECORD_BINDING_BYTES },
+    fragment,
+  ),
+]
+
 /** The strands' samples' lighting (`../../hair/hairLightWgsl.ts`): the local lights' group and the clouds' shade, which the
  *  suns of a cell are lit with. */
 export const hairLayoutEntries = (
@@ -268,6 +285,7 @@ export const indirectLayoutEntries = ({
   cubed = false,
   capsule = false,
   captured = false,
+  closures = false,
 }: {
   bounce: boolean
   skyShadowing: boolean
@@ -275,6 +293,8 @@ export const indirectLayoutEntries = ({
   cubed?: boolean
   capsule?: boolean
   captured?: boolean
+  /** The program lights a pixel's several closures (`ContractKey.closures`): the bounce program binds the screen probes' history of every closure beside the first's. */
+  closures?: boolean
 }): GPUBindGroupLayoutEntry[] => [
   ...pixelEntries(),
   ...tileEntries(),
@@ -294,6 +314,22 @@ export const indirectLayoutEntries = ({
           '2d',
           fragment,
         ),
+        ...(closures
+          ? [
+              computeTextureEntry(
+                DEFERRED_BINDINGS.screenIndirectClosures,
+                'uint',
+                '2d-array',
+                fragment,
+              ),
+              computeTextureEntry(
+                DEFERRED_BINDINGS.screenShortRangeGiClosures,
+                'unfilterable-float',
+                '2d-array',
+                fragment,
+              ),
+            ]
+          : []),
       ]
     : []),
   ...(skyShadowing

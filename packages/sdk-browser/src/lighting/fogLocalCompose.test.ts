@@ -168,6 +168,7 @@ const TRACE = {
   skyLight: false,
   volumeShadowMap: false,
   closestDepth: false,
+  debugView: 0,
 } as const
 
 test('the project switch off: no program that lays the fog holds any of the local fog volumes’ code, and each holds it with the switch on', () => {

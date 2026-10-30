@@ -22,6 +22,11 @@ import {
 import { skyLightReadLayoutEntries } from '../../modules/sky/skyLight/read.ts'
 import { hizDepthEntries, hizLevelZeroEntries } from '../../visibility/hiz/gpu/pyramidTexture.ts'
 import { hasSubgroupsOf } from '../../gpu/core/subgroups.ts'
+import {
+  grantsTranslucentReflection,
+  translucentReflectionLight,
+} from '../../gpu/core/translucentReflection.ts'
+import { radianceCacheEntries } from './radianceCache/wgsl.ts'
 import { MARCH_VIRTUAL_LANES } from '../../visibility/hiz/gpu/screenMarchLanes.ts'
 import { reflectionTraceShader } from './trace/trace.ts'
 import {
@@ -89,21 +94,32 @@ export const reflectionLayout = oncePerDevice((device: GPUDevice) =>
  *  fragment reads — the view uniform, level 0 of the depth (the screen segment of a translucent surface's traced shadow reads it,
  *  `vsmScreenSegmentWgsl`) and its levels, the lighting's view and the sky light —, not the depth pyramid nor the lit
  *  image, which only the trace reads, nor the front depth, which the front's traced radiance carries (`FRONT_TRACED_FORMAT`): three of the
- *  fragment stage's sixteen sampled textures spared. */
-export const reflectionForwardLayout = oncePerDevice((device: GPUDevice) =>
-  device.createBindGroupLayout({
-    entries: reflectionEntries(GPUShaderStage.FRAGMENT, {
-      depth: 'level0',
-      image: false,
-      front: false,
-    }).map((entry) =>
-      // The vertex stage works the fog out at each vertex (`fogLaidFar`): it reads the view and the sky light's uniform.
-      entry.binding === REFLECTION_VIEW_BINDING || entry.binding === REFLECTION_SKY_LIGHT.params
-        ? { ...entry, visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT }
-        : entry,
-    ),
-  }),
-)
+ *  fragment stage's sixteen sampled textures spared. On a device that grants the sampled textures (`grantsTranslucentReflection`) the group holds what the
+ *  fragments need to reflect the scene (`translucentReflectionWgsl`): the whole depth pyramid, the lit image the last image lit and the radiance cache's resources. */
+export const reflectionForwardLayout = oncePerDevice((device: GPUDevice) => {
+  const scene = grantsTranslucentReflection(device)
+  const FRAGMENT = GPUShaderStage.FRAGMENT
+  return device.createBindGroupLayout({
+    entries: [
+      ...reflectionEntries(FRAGMENT, {
+        depth: scene ? 'pyramid' : 'level0',
+        image: scene,
+        front: false,
+      }).map((entry) =>
+        // The vertex stage works the fog out at each vertex (`fogLaidFar`): it reads the view and the sky light's uniform.
+        entry.binding === REFLECTION_VIEW_BINDING || entry.binding === REFLECTION_SKY_LIGHT.params
+          ? { ...entry, visibility: GPUShaderStage.VERTEX | FRAGMENT }
+          : entry,
+      ),
+      ...(scene
+        ? radianceCacheEntries(translucentReflectionLight(device)).map((entry) => ({
+            ...entry,
+            visibility: FRAGMENT,
+          }))
+        : []),
+    ],
+  })
+})
 
 /** The reflection group layout of the hit lighting's first pass, once a device: of the reflection group's bindings (`reflectionLayout`) all but the lit image, which
  *  only the passes that read a hit's screen light read (`reflectionHeld`): one of the compute stage's sixteen sampled textures spared, which the light profiles' atlas takes. */

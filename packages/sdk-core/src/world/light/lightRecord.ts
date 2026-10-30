@@ -84,6 +84,7 @@ export function lampRecord(
   recordLocalNumbers(light, record)
   recordUnits(light, record)
   recordColourAndAir(light, record)
+  if (!light.castTranslucentShadows) record.castTranslucentShadows = false
   if (light.shadowsFog !== (kind === 'directional')) record.shadowsFog = light.shadowsFog
   if (light.mobility !== DEFAULT_LIGHT_MOBILITY) record.mobility = light.mobility
   if (light.lightingChannels !== DEFAULT_LIGHTING_CHANNELS)
@@ -210,6 +211,7 @@ export function lightFromRecord(record: SceneLight): Light {
     softAngle: record.softAngle,
     hairDeepShadowLayerDistribution: record.hairDeepShadowLayerDistribution,
     castHairDeepShadow: record.castHairDeepShadow,
+    castTranslucentShadows: record.castTranslucentShadows,
     atmosphereSun: record.atmosphereSun,
     atmosphereSunIndex: record.atmosphereSunIndex,
     forwardShadingPriority: record.forwardShadingPriority,

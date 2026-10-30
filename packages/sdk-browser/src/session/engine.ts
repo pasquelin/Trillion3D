@@ -24,6 +24,7 @@ import type { MeshCards } from '../../../sdk-core/src/lighting/meshCardsFile.ts'
 import type { RayTracing } from '../../../sdk-core/src/lighting/rayTracingFile.ts'
 import { createSceneLightStore } from '../../../sdk-core/src/scene/light/store.ts'
 import { createSceneFogVolumeStore } from '../../../sdk-core/src/scene/volume/store.ts'
+import { createScenePlanarReflectionStore } from '../../../sdk-core/src/scene/planarReflection/store.ts'
 import { createSceneLocalFogStore } from '../../../sdk-core/src/scene/localFog/store.ts'
 import { createSceneReflectionCaptureStore } from '../../../sdk-core/src/scene/reflectionCapture/store.ts'
 import { createSceneHeterogeneousVolumeStore } from '../../../sdk-core/src/scene/heterogeneousVolume/store.ts'
@@ -89,6 +90,7 @@ async function sessionLights(session: ExplorerSession, base: string) {
     sceneVolumes: createSceneFogVolumeStore(),
     sceneLocalFog: createSceneLocalFogStore(),
     sceneReflectionCapture: createSceneReflectionCaptureStore(),
+    scenePlanarReflection: createScenePlanarReflectionStore(),
     sceneHeterogeneousVolumes: createSceneHeterogeneousVolumeStore(),
   }
 }

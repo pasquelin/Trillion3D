@@ -6,6 +6,7 @@ import { fourRooksJitter } from '../../../../../math/src/wgsl/sampling.ts'
 import { DIFFUSE_INTEGRAL_METHOD } from '../../../../../sdk-core/src/bounce/screenProbeOptions.ts'
 import { computeTextureEntry } from '../../../gpu/core/computeBindings.ts'
 import { blueNoiseWgsl } from '../../../gpu/noise/blueNoiseWgsl.ts'
+import { overflowTilesBlock } from '../../../visibility/closureTiles/closureTilesWgsl.ts'
 import { spCommon, spParams } from './commonWgsl.ts'
 import { SP_DIFFUSE_METHOD, SP_ROUGH_LERP, spIntegrate } from './integrateWgsl.ts'
 import { spOcclusionRead } from './occlusionReadWgsl.ts'
@@ -22,7 +23,7 @@ import {
 
 /** The tile classification's bindings: the image's normals and flags, the light, rough specular and back it clears for the tiles of no lit pixel, the
  *  list of the tiles each mode integrates and the workgroups of each mode's integration. */
-export const TILE_BINDINGS = bindingTable({
+const TILE_TABLE = {
   params: [0, 'uniform'],
   normals: [1, 'float'],
   flags: [2, 'uint'],
@@ -31,7 +32,11 @@ export const TILE_BINDINGS = bindingTable({
   back: [6, { store: F.back }],
   tiles: [7, 'buffer'],
   args: [8, 'buffer'],
-})
+} as const
+export const TILE_BINDINGS = bindingTable(TILE_TABLE)
+
+/** The classification of the overflow tiles' bindings (`tileShader` with `overflow`): the tile classification's, and the closure's region of the closure tiles' list (`closureRegionOf`), the tiles it classifies. */
+export const TILE_OVERFLOW_BINDINGS = bindingTable({ ...TILE_TABLE, overflow: [9, 'buffer-read'] })
 
 /** The integration's bindings: the image's normals and flags, the occlusion, the light, rough specular and back it writes, the probes' pixels, each tile's
  *  adaptive probes (their count, their list), their irradiance (with their extra ambient occlusion in its alpha, where they keep one), the share of their rays that move, their records and their filtered radiance, the blue noise, the
@@ -61,7 +66,7 @@ export const INTEGRATE_BINDINGS = bindingTable({
   args: [21, 'buffer-read'],
 })
 
-const T = TILE_BINDINGS.at
+const T = TILE_OVERFLOW_BINDINGS.at
 const I = INTEGRATE_BINDINGS.at
 
 /** The layout of the integration's group: the occlusion is read as a float, or, with the bent normal, as the word that holds it; the tiles' list and counts only where the tiles
@@ -104,6 +109,14 @@ fn spTileCount()->u32{
 }`,
 )
 
+/** The tiles a mode's list holds at most for the overflow tiles (`spTileCount`): one for each tile of the closure tiles' side (`CLOSURE_TILE_SIZE`, `INTEGRATE_TILE_SIDE` pixels) of the image, whatever the integration's reduction. */
+const SP_TILE_COUNT_OVERFLOW = wgslBlock(
+  'SP_TILE_COUNT_OVERFLOW',
+  [SP_INTEGRATE_CELLS],
+  `const SP_TILE_ROW:u32=${INTEGRATE_TILE_ROW}u;
+fn spTileCount()->u32{return ((sp.size.x+${SIDE - 1}u)/${SIDE}u)*((sp.size.y+${SIDE - 1}u)/${SIDE}u);}`,
+)
+
 /**
  * THE CLASSIFICATION OF THE TILES of cells the integration is dispatched over, in three entries. `tileInit` empties the workgroups of the integration of each of its three modes
  * (`INTEGRATE_TILE_MODE`) to (0, 1, 1) and their counts to zero (`args`). `tileClassify`, a workgroup a tile of `INTEGRATE_TILE_SIDE` cells on a side, marks each lit pixel of the tile's block of pixels (the cells' pixels,
@@ -113,10 +126,16 @@ fn spTileCount()->u32{
  * back are cleared, the integration not reaching them. `tileFinish` turns each count into the workgroups of its dispatch, in rows of `INTEGRATE_TILE_ROW`
  * where a mode holds more tiles than a dispatch's axis.
  */
-const TILE_CLASSIFICATION = wgslBlock(
-  'TILE_CLASSIFICATION',
-  [SP_ROUGH_LERP, SP_DIFFUSE_METHOD, SP_TILE_COUNT],
-  `const SP_ARGS_WORDS:u32=${INTEGRATE_TILE_ARGS_WORDS}u;
+const tileClassification = (overflow: boolean) =>
+  wgslBlock(
+    overflow ? 'TILE_CLASSIFICATION(overflow)' : 'TILE_CLASSIFICATION',
+    [
+      SP_ROUGH_LERP,
+      SP_DIFFUSE_METHOD,
+      overflow ? SP_TILE_COUNT_OVERFLOW : SP_TILE_COUNT,
+      ...(overflow ? [overflowTilesBlock(T.overflow)] : []),
+    ],
+    `const SP_ARGS_WORDS:u32=${INTEGRATE_TILE_ARGS_WORDS}u;
 const SP_COUNTS_AT:u32=${INTEGRATE_TILE_COUNTS_AT}u;
 @group(0) @binding(${T.light}) var lightOut:texture_storage_2d<${F.light},write>;
 @group(0) @binding(${T.rough}) var roughOut:texture_storage_2d<${F.rough},write>;
@@ -130,10 +149,15 @@ fn tileInit(){
 }
 @compute @workgroup_size(${SIDE},${SIDE})
 fn tileClassify(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_id) local:vec3u,@builtin(local_invocation_index) lane:u32){
- if(lane==0u){atomicStore(&tileModes,0u);}
+${overflow ? ' let entry=overflowTileAt(group);\n' : ''} if(lane==0u){atomicStore(&tileModes,0u);}
  workgroupBarrier();
- let cell=group.xy*${SIDE}u+local.xy;
- let inside=all(cell<spIntegrateSize());
+${
+  overflow
+    ? ` let cell=entry.xy*(${SIDE}u/SP_INTEGRATE_DOWNSAMPLE)+local.xy;
+ let inside=entry.z!=0u&&all(local.xy<vec2u(${SIDE}u/SP_INTEGRATE_DOWNSAMPLE))&&all(cell<spIntegrateSize());`
+    : ` let cell=group.xy*${SIDE}u+local.xy;
+ let inside=all(cell<spIntegrateSize());`
+}
  if(inside){
   for(var block=0u;block<SP_INTEGRATE_DOWNSAMPLE*SP_INTEGRATE_DOWNSAMPLE;block++){
    let pixel=cell*SP_INTEGRATE_DOWNSAMPLE+vec2u(block%SP_INTEGRATE_DOWNSAMPLE,block/SP_INTEGRATE_DOWNSAMPLE);
@@ -159,7 +183,7 @@ fn tileClassify(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_id)
  if(lane==0u){
   let mode=select(select(SP_TILE_SIMPLE,SP_TILE_SAMPLED,(modes&SP_TILE_BIT_SAMPLED)!=0u),SP_TILE_COMPLETE,(modes&SP_TILE_BIT_COMPLETE)!=0u);
   let place=atomicAdd(&tileArgs[SP_COUNTS_AT+mode],1u);
-  tileList[mode*spTileCount()+place]=group.x|(group.y<<16u);
+  tileList[mode*spTileCount()+place]=${overflow ? 'entry.x|(entry.y<<16u)' : 'group.x|(group.y<<16u)'};
  }
 }
 @compute @workgroup_size(1)
@@ -170,18 +194,27 @@ fn tileFinish(){
   atomicStore(&tileArgs[mode*3u+1u],max((tiles+SP_TILE_ROW-1u)/SP_TILE_ROW,1u));
  }
 }`,
-)
+  )
 
-/** The tile classification's program over the integration's reduction `integrate`, the integral method `integral` and the `samples` of a tile. */
+const TILE_CLASSIFICATION = tileClassification(false)
+const TILE_CLASSIFICATION_OVERFLOW = tileClassification(true)
+
+/** The tile classification's program over the integration's reduction `integrate`, the integral method `integral` and the `samples` of a tile; with `overflow`, over the tiles of one closure past
+ *  the first (`TILE_OVERFLOW_BINDINGS`), the reference's classification of the overflow tiles (`ScreenProbeTileClassificationBuildListsCS`, `PERMUTATION_OVERFLOW_TILE`). */
 export const tileShader = (
   integrate: number,
   integral: number,
   samples: readonly [number, number],
+  overflow = false,
 ) =>
   wgslProgram(
     `${spParams(T.params)}
 ${wgslConsts({ SP_INTEGRATE_DOWNSAMPLE: integrate, SP_INTEGRAL_METHOD: integral })}`,
-    [spCommon(samples), spSurface(T.normals, T.flags), TILE_CLASSIFICATION],
+    [
+      spCommon(samples),
+      spSurface(T.normals, T.flags),
+      overflow ? TILE_CLASSIFICATION_OVERFLOW : TILE_CLASSIFICATION,
+    ],
   )
 
 /** The entry points of the integration of the tiles each mode lists, in the order of `INTEGRATE_TILE_MODE`. */
@@ -203,10 +236,10 @@ export const EVERY_POINT = 'integrateEvery'
  * setting applies the occlusion during the integration), written for the temporal pass to blend: the light, under the probes' extra ambient occlusion and the material's, and the share of it that moves in the first target, the rough
  * specular in the second, the back in the third, each an 11-11-10 word, at the cell's texel. A cell whose pixel is no lit surface is cleared.
  */
-const integrateKernel = (classified: boolean) =>
+const integrateKernel = (classified: boolean, overflow: boolean) =>
   wgslBlock(
-    `INTEGRATE_KERNEL(${classified})`,
-    [SP_TILE_COUNT, makeFinite3],
+    `INTEGRATE_KERNEL(${classified}${overflow ? ', overflow' : ''})`,
+    [overflow ? SP_TILE_COUNT_OVERFLOW : SP_TILE_COUNT, makeFinite3],
     `@group(0) @binding(${I.light}) var lightOut:texture_storage_2d<${F.light},write>;
 @group(0) @binding(${I.rough}) var roughOut:texture_storage_2d<${F.rough},write>;
 @group(0) @binding(${I.back}) var backOut:texture_storage_2d<${F.back},write>;
@@ -237,7 +270,13 @@ fn spIntegrateTile(group:vec3u,local:vec2u,mode:u32){
  let index=group.y*SP_TILE_ROW+group.x;
  if(index>=tileCounts[${INTEGRATE_TILE_COUNTS_AT}u+mode]){return;}
  let tile=tileList[mode*spTileCount()+index];
- spIntegrateCell(vec2u(tile&0xffffu,tile>>16u)*${SIDE}u+local,mode);
+${
+  overflow
+    ? ` // The tile is a closure tile of the side of a workgroup in pixels: the cells of its pixels are the first threads of the workgroup, the side over the reduction along each way.
+ if(any(local>=vec2u(${SIDE}u/SP_INTEGRATE_DOWNSAMPLE))){return;}
+ spIntegrateCell(vec2u(tile&0xffffu,tile>>16u)*(${SIDE}u/SP_INTEGRATE_DOWNSAMPLE)+local,mode);`
+    : ` spIntegrateCell(vec2u(tile&0xffffu,tile>>16u)*${SIDE}u+local,mode);`
+}
 }
 ${CLASSIFIED_POINTS.map(
   (point, mode) => `@compute @workgroup_size(${SIDE},${SIDE})
@@ -254,7 +293,7 @@ fn ${EVERY_POINT}(@builtin(global_invocation_id) id:vec3u){
 
 /** The integration's program over the occlusion's `downsample` (kept with the bent normal where `bentNormal`), its own reduction `integrate`, the integral method `integral` and the `samples` of a tile; with the
  *  probes' extra ambient occlusion where `extraAo`, the levels of detail of their filtered radiance the gather holds (`mips`, one where it holds one), and its tiles dispatched
- *  in lists of their modes where `classified`, else over every cell. */
+ *  in lists of their modes where `classified`, else over every cell; with `overflow`, the lists' tiles are those of the overflow tiles (`tileShader`): closure tiles, the cells of their pixels. */
 export const integrateShader = (
   downsample: number,
   integrate: number,
@@ -264,6 +303,7 @@ export const integrateShader = (
   extraAo: boolean,
   mips: number,
   classified: boolean,
+  overflow = false,
 ) =>
   wgslProgram(
     `${spParams(I.params)}
@@ -282,6 +322,6 @@ ${wgslConsts({ SP_OCCLUSION_DOWNSAMPLE: downsample, SP_INTEGRATE_DOWNSAMPLE: int
         mips,
         numerical: integral === DIFFUSE_INTEGRAL_METHOD.numerical,
       }),
-      integrateKernel(classified),
+      integrateKernel(classified, overflow),
     ],
   )

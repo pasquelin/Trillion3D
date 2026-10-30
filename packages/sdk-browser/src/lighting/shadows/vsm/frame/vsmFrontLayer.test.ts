@@ -9,7 +9,7 @@ import { viewMarking } from '../markingPass.ts'
 import { marksWater } from './vsmFrontLayer.ts'
 
 const runtime = (context: object, water = true) =>
-  ({ context, run: { frame: 1 }, blendState: { water } }) as unknown as WebgpuPagesRuntime
+  ({ context, run: { frame: 1 }, blendState: { waterItems: water ? [{}] : [] } }) as unknown as WebgpuPagesRuntime
 
 const marking = (marks: boolean, froxels: boolean) =>
   viewMarking({

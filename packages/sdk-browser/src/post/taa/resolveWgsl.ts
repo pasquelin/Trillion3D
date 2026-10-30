@@ -153,7 +153,8 @@ const updateHeadText = ({ p, pixels, down, wave, half }: UpdateText) => {
  let uv=pixel*view.viewport.zw;
  let screen=uvToNdc(uv);
  var ppco=uv*view.render.xy+vec2f(view.jitter.x,-view.jitter.y);
- let at=clampTexel(vec2i(ppco));`
+ let at=clampTexel(vec2i(ppco));
+ // @cut head keep: if(f32(at.x)+f32(uv.x)+f32(screen.x)<-1e30){textureStore(validityOut,hp,vec4f(1.0));}`
 }
 
 /** The texel the reprojection field's boundary sends the pixel to, and the pixel's place in it. */
@@ -173,7 +174,8 @@ const updateFieldText = ({ p }: UpdateText) => {
    dilatedAt=clampTexel(at+applied);
    coordinate=ko0-${V2}(applied);
   }
- }`
+ }
+ // @cut field keep: if(f32(dilatedAt.x)+f32(dilatedAt.y)+f32(coordinate.x)+f32(coordinate.y)+f32(ko0.x)<-1e30){textureStore(validityOut,hp,vec4f(1.0));}`
 }
 
 /** The analysis the pixel reads: its rejection, its vector, dilated and moved by the field, its anti-aliaser word. */
@@ -195,7 +197,8 @@ const updateAnalysisText = ({ p }: UpdateText) => {
   upscale=${F}(1.0/reprojectionUpscale(TaaJacobian(vec2f(j0),vec2f(j1))));
  }
  var antiAliased=vec2u(${ANTI_ALIAS_NEUTRAL}u,0u);
- if(view.quality.y!=0.0){antiAliased=textureLoad(antiAliasing,at,0).rg;}`
+ if(view.quality.y!=0.0){antiAliased=textureLoad(antiAliasing,at,0).rg;}
+ // @cut analysis keep: if(f32(lowFrequency)+f32(clampLift)+f32(validityDrop)+f32(bits)+f32(vector.x)+f32(vector.y)+f32(upscale)+f32(antiAliased.x)+f32(antiAliased.y)+f32(dilatedAt.x)<-1e30){textureStore(validityOut,hp,vec4f(1.0));}`
 }
 
 /** Where the history pixel was, whether it restarts, and the history read there. */
@@ -213,7 +216,8 @@ const updatePastText = ({ p }: UpdateText) => {
  let prevUv=clamp(ndcToUv(prevScreen),0.5*view.viewport.zw,vec2f(1.0)-0.5*view.viewport.zw);
  var past=TaaPast${S}(${V4}(0.0),${V4}(0.0));
  let pastRead=!(lowFrequency<=0.0||offScreen);
- if(pastRead){past=historyRead${S}(prevUv,resurrected);}`
+ if(pastRead){past=historyRead${S}(prevUv,resurrected);}
+ // @cut past keep: if(f32(past.color.x)+f32(past.color.y)+f32(past.color.z)+f32(past.color.w)+f32(past.tag.x)+f32(speed)+f32(noise)+select(0.0,1.0,restarts)+select(0.0,1.0,disoccluded)+f32(lowFrequency)+f32(antiAliased.x)<-1e30){textureStore(validityOut,hp,vec4f(1.0));}`
 }
 
 /** The kernel's centre, and the image's and the history's weights. */
@@ -238,13 +242,16 @@ const updateWeightsText = ({ p }: UpdateText) => {
  let align=mix(${F}(1.0),ratioP,kernelLerp);
  let currentWeight=taaAlignment${S}(d2*align*align)*hysteresis;
  var prevWeight=min(select(coarseCurrent,currentWeight,currentWeight>0.0)*prevMultiplier${S}(minRejection),held);
- prevWeight=min(prevWeight,1.0-currentWeight);`
+ prevWeight=min(prevWeight,1.0-currentWeight);
+ // @cut weights keep: if(f32(prevWeight)+f32(currentWeight)+f32(factor)+f32(minRejection)+f32(refining)+f32(held)+f32(ko.x)+f32(ko.y)+f32(k.x)+f32(k.y)+f32(past.color.x)+f32(past.tag.x)<-1e30){textureStore(validityOut,hp,vec4f(1.0));}`
 }
 
 /** The kernel, the history held to its box, the validity, and the blend dithered to the history's format. */
 const updateBlendText = ({ p, down, filtered, historyFormat }: UpdateText) => {
   const { F, V3, V4, S } = p
-  return `${kernelText(filtered, p)} let clamped=clamp(past.color,lo,hi);
+  return `${kernelText(filtered, p)}
+ // @cut kernel keep: if(f32(filtered.x)+f32(filtered.y)+f32(filtered.z)+f32(lo.x)+f32(hi.y)+f32(total)+f32(past.color.x)+f32(past.tag.x)+f32(prevWeight)+f32(currentWeight)<-1e30){textureStore(validityOut,hp,vec4f(1.0));}
+ let clamped=clamp(past.color,lo,hi);
  let boxed=(1.0-clampLift)*toneWeight${S}(clamped.rgb);let lifted=clampLift*toneWeight${S}(past.color.rgb);
  let liftScale=safeRcp${S}(boxed+lifted);
  let blended=clamped*(boxed*liftScale)+past.color*(lifted*liftScale);
@@ -253,14 +260,17 @@ const updateBlendText = ({ p, down, filtered, historyFormat }: UpdateText) => {
  let stable=abs(nowLuma-prevLuma)/max(max(nowLuma,prevLuma),${wgslF32(p.tiny)});
  prevWeight=min(prevWeight,max(1.0-${F}(movingValidityDrop())*saturate(speed*${F}(movingSpeedInverse())),stable));
  let validity=ceil(255.0*(currentWeight+prevWeight))/255.0;
+ // @cut clamp keep: if(f32(blended.x)+f32(blended.y)+f32(blended.z)+f32(validity)+f32(prevWeight)+f32(currentWeight)+f32(stable)+f32(filtered.x)+f32(nowLuma)<-1e30){textureStore(validityOut,hp,vec4f(1.0));}
  // The blend's weights in 32 bits, as the reference keeps them against extreme differences.
  let wh=f32(prevWeight*toneWeightOfLuma4${S}(prevLuma));let wc=f32(currentWeight*toneWeightOfLuma4${S}(nowLuma));
  let blendScale=safeRcp(wh+wc);
  let whScaled=${F}(wh*blendScale);let wcScaled=${F}(wc*blendScale);
  var color=blended*whScaled+filtered*wcScaled;
+ // @cut blend keep: if(f32(color.x)+f32(color.y)+f32(color.z)+f32(color.w)+f32(validity)<-1e30){textureStore(validityOut,hp,vec4f(1.0));}
  // One draw a lane, at its first pixel, for each pixel it takes.
  let random=${F}(frameRandom(hp-vec2i(0,px*${down}),u32(view.jitter.w)).x);
- color=${V4}(clamp(ditherFloat${S}(color.rgb,random,${V3}(${quantizationErrorsOf(historyFormat)})),${V3}(0.0),${V3}(${F}(min(${wgslF32(MAX_10_BIT_FLOAT)},${wgslF32(HALF_MAX)})))),color.a);`
+ color=${V4}(clamp(ditherFloat${S}(color.rgb,random,${V3}(${quantizationErrorsOf(historyFormat)})),${V3}(0.0),${V3}(${F}(min(${wgslF32(MAX_10_BIT_FLOAT)},${wgslF32(HALF_MAX)})))),color.a);
+ // @cut dither keep: if(f32(color.x)+f32(color.y)+f32(color.z)+f32(color.w)+f32(validity)<-1e30){textureStore(validityOut,hp,vec4f(1.0));}`
 }
 
 /** The diagnostic view's output, the layers, the stores of the frame and the half-size image. */
@@ -268,6 +278,7 @@ const updateStoreText = ({ p, filtered, wave, half }: UpdateText) => {
   const { V4 } = p
   return `${viewText(p)}${layerText(filtered, 'kept', V4)} if(all(hp<vec2i(textureDimensions(historyOut)))){
 ${taaStores(filtered)} }
+ // @cut stored keep: if(f32(color.x)+f32(validity)<-1e30){textureStore(validityOut,hp,vec4f(1.0));}
 ${half ? halfText(wave, p) : ''} }
 }`
 }

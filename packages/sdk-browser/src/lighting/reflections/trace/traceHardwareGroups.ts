@@ -28,6 +28,8 @@ type HardwareGroups = {
   /** The trace's group 0 for each surface, and its scene trace group with the any-hit test. */
   hits: { opaque: GPUBindGroup; front: GPUBindGroup }
   maskedScene: GPUBindGroup
+  /** The answer's and the trace's groups of each closure past the first (`TraceResources.closureSides`), in their order; none for one whose normals the frame does not bind. */
+  closures: ({ surface: GPUBindGroup; hits: GPUBindGroup } | undefined)[]
 }
 
 /** The textures of a surface's pixels both groups of a surface bind. */
@@ -70,6 +72,13 @@ export function hardwareTraceGroups(
   next.push(inputs.vectors, reflection.depthView)
   next.push(hit.tables, hit.depth, hit.final, hit.feedback, hit.instances)
   next.push(grids.hits(words, hits.grid), front.grids.hits(words, hits.grid))
+  const sides = reflection.closureSides?.sides ?? []
+  for (const side of sides)
+    next.push(
+      side.flagsView,
+      side.grids.hits(words, hits.grid),
+      inputs.closureNormals?.[side.closure - 1],
+    )
   // The cut's tables the trace of the rays binds (`dagReadGroupEntries`).
   next.push(views.nodes, views.frames, views.worlds, views.tree)
   const scene = trace.hardware.sceneGroup(
@@ -129,6 +138,12 @@ export function hardwareTraceGroups(
       ],
     })
   return (trace.hardware.groups = {
+    closures: sides.map((side) => {
+      const normals = inputs.closureNormals?.[side.closure - 1]
+      if (!normals) return undefined
+      const pixels = { flags: side.flagsView, normals, lobes: side.lobesView }
+      return { surface: surface(pixels, side.grids), hits: hitsOf(pixels, side.grids) }
+    }),
     opaque: surface(inputs, grids),
     front: surface(front.views, front.grids),
     scene,

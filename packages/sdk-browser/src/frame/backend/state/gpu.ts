@@ -28,6 +28,7 @@ import type { TargetGrant } from '../../prepare/targetsSet.ts'
 import type { FrameDifference } from '../../render/frameDifference.ts'
 import type { AtmosphereGpu } from '../../../lighting/atmosphere/gpu.ts'
 import type { FogVolumeState } from '../../render/encodeFogVolume.ts'
+import type { FogSeparateState } from '../../render/encodeFogSeparate.ts'
 import type { TranslucencyVolumeState } from '../../../lighting/translucency/frame.ts'
 import type { TranslucencyGiState } from '../../../lighting/translucencyGi/gpu.ts'
 import { localFogBytes, type LocalFogGpu } from '../../render/localFogGpu.ts'
@@ -168,6 +169,8 @@ export interface WebgpuGpuState {
   /** The scene's fog volume and cubemap, made once a scene turns the volume on or sets a cubemap
    *  (`../../render/encodeFogVolume.ts`). */
   fogVolume?: FogVolumeState
+  /** The fog drawn into textures of its own, made once a scene asks for it (`../../render/encodeFogSeparate.ts`). */
+  fogSeparate?: FogSeparateState
   /** The translucency lighting volume, made once a scene's surfaces are lit from it
    *  (`../../../lighting/translucency/frame.ts`). */
   translucencyVolume?: TranslucencyVolumeState
@@ -290,6 +293,7 @@ type ViewPassHolders = Partial<Pick<WebgpuGpuState, 'deferred'>> &
     | 'ambientOcclusion'
     | 'subsurface'
     | 'fogVolume'
+    | 'fogSeparate'
     | 'translucencyVolume'
     | 'translucencyGi'
     | 'localFog'
@@ -312,6 +316,7 @@ export const viewPassBytes = (gpu: ViewPassHolders) =>
   (gpu.ambientOcclusion?.bytes ?? 0) +
   (gpu.subsurface?.bytes ?? 0) +
   (gpu.fogVolume?.bytes ?? 0) +
+  (gpu.fogSeparate?.bytes ?? 0) +
   (gpu.translucencyVolume?.bytes ?? 0) +
   (gpu.translucencyGi?.bytes ?? 0) +
   localFogBytes(gpu) +

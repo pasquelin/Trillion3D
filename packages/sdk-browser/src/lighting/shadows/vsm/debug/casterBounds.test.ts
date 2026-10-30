@@ -3,13 +3,14 @@ import assert from 'node:assert/strict'
 import {
   MOBILITY_DEFORMS,
   MOBILITY_MOVING,
+  MOBILITY_NO_CONTACT_SHADOW,
   MOBILITY_OFFSET_INVALIDATES,
   MOBILITY_OFTEN_MOVING,
   MOBILITY_SHADOWLESS,
 } from '../../mobilityBits.ts'
 import { CASTER_LEGEND, casterClass } from './casterBounds.ts'
 
-const [staticColor, staticInvalidating, dynamicColor, dynamicInvalidating, dynamicMaybe] =
+const [staticColor, staticInvalidating, dynamicColor, dynamicInvalidating, dynamicMaybe, contact] =
   CASTER_LEGEND.map(([, color]) => color)
 
 test('the class of a placement follows how the shadows keep it', () => {
@@ -27,8 +28,11 @@ test('the class of a placement follows how the shadows keep it', () => {
   })
 })
 
-test('a placement that casts no shadow is grey and shows no box', () => {
-  const grey = casterClass(MOBILITY_SHADOWLESS | MOBILITY_MOVING)
+test('a placement that casts no shadow into the maps is yellow where it casts a contact shadow, grey where it does not, with no box', () => {
+  const yellow = casterClass(MOBILITY_SHADOWLESS | MOBILITY_MOVING)
+  assert.deepEqual(yellow, { color: contact, bounds: false })
+  const grey = casterClass(MOBILITY_SHADOWLESS | MOBILITY_MOVING | MOBILITY_NO_CONTACT_SHADOW)
   assert.equal(grey.bounds, false)
+  assert.notEqual(grey.color, contact)
   assert.notEqual(grey.color, staticColor)
 })

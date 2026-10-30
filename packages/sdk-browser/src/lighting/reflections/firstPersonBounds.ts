@@ -1,4 +1,6 @@
 import { boxCenter, boxRadius, boxUnionBox } from '../../../../math/src/geometry/box.ts'
+import { clamp } from '../../../../math/src/scalar/reals.ts'
+import { length3 } from '../../../../math/src/vector/vector.ts'
 import { worldSpaceRanks } from '../../frame/render/hiddenFromViews.ts'
 import { rootWorldBox } from '../../geometry/selection/rootWorld.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
@@ -36,12 +38,10 @@ export function firstPersonBoundsOf(rt: WebgpuPagesRuntime, out: Float64Array): 
       const cx = out[0]!,
         cy = out[1]!,
         cz = out[2]!
-      out[3] = Math.min(
+      out[3] = clamp(
+        length3(centre[0]! - cx, centre[1]! - cy, centre[2]! - cz) + radius,
+        length3(ox - cx, oy - cy, oz - cz) + before,
         boxRadius(union),
-        Math.max(
-          Math.hypot(ox - cx, oy - cy, oz - cz) + before,
-          Math.hypot(centre[0]! - cx, centre[1]! - cy, centre[2]! - cz) + radius,
-        ),
       )
     } else {
       union.set(box)

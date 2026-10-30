@@ -80,6 +80,7 @@ export function createLightProfileAtlas(device: GPUDevice) {
   let writes = 0
 
   const laid = createLaidProfiles()
+  const held = { texture: undefined as unknown as GPUTexture, side: 0, slices: 0, writes: 0 }
 
   const made = () => {
     ;({ texture, view } = makeAtlasTexture(device, side, asked))
@@ -137,6 +138,15 @@ export function createLightProfileAtlas(device: GPUDevice) {
         held: slots.size,
         writes,
       }
+    },
+    /** The texture, side, slices and `writes` of the atlas, for a copy of it each image (`blend/objectShadow`): one record, held and refilled, none allocated; none while the atlas is not made. */
+    figures() {
+      if (!texture) return undefined
+      held.texture = texture
+      held.side = side
+      held.slices = texture.depthOrArrayLayers
+      held.writes = writes
+      return held
     },
     /** Hands the texture to the frame's retire list: an encoder of this image may still name it. */
     destroy() {

@@ -134,16 +134,22 @@ export function encodeTrace(f: CloudViewFrame, range: CloudDepthRange | undefine
         : range!.views.half
   const names = [f.material, block, f.noise, depthRange, out.views.colour, out.views.secondary]
   const closest = f.key.closestDepth ? raw?.views.depth : undefined
-  const cloud = gpu.group('trace cloud', pass.cloud, [...names, traced.views.depth, closest], () =>
-    cloudTraceEntries(f.material, {
-      block: { buffer: block },
-      blueNoise: f.noise,
-      depthRange,
-      colour: out.views.colour,
-      secondary: setup.minMaxDepth ? out.views.secondary : undefined,
-      depth: traced.views.depth,
-      closest,
-    }),
+  const holdout = f.key.holdout ? gpu.holdout(texture).views.colour : undefined
+  const cloud = gpu.group(
+    'trace cloud',
+    pass.cloud,
+    [...names, traced.views.depth, closest, holdout],
+    () =>
+      cloudTraceEntries(f.material, {
+        block: { buffer: block },
+        blueNoise: f.noise,
+        depthRange,
+        colour: out.views.colour,
+        secondary: setup.minMaxDepth ? out.views.secondary : undefined,
+        depth: traced.views.depth,
+        closest,
+        holdout,
+      }),
   )
   const compute = cloudSteps.pass(TRACE_PASS)
   const pipeline = pass.pipeline.get()

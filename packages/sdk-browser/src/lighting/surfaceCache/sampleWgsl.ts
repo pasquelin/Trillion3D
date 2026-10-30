@@ -109,6 +109,8 @@ export interface SurfaceCacheRead {
   readonly feedback: boolean
   readonly compressed: boolean
   readonly light: LightAtlasFormat
+  /** Whether a read gathers the surface (`scEvaluateMaterialCards`: its albedo, emission and normal) in place of its final light: the final layer is then no binding of the program. */
+  readonly material?: boolean
   /** The mode of the scene view the read is made for (`visualizeModes.ts`): a layer mode shows the layer it names (`visualizeLayersOf`) in place of the final light, which is then no binding of the program; the coverage mode marks the points the mesh cards were met at. */
   readonly visualize?: number
 }
@@ -162,13 +164,13 @@ const recordTables = (group: number, first: number, access: 'read' | 'read_write
 const readBindings = (
   group: number,
   first: number,
-  { feedback, compressed, light, visualize }: SurfaceCacheRead,
+  { feedback, compressed, light, material, visualize }: SurfaceCacheRead,
 ) =>
   `@group(${group}) @binding(${first + L.depth}) var scDepthAtlas:texture_2d<u32>;
 @group(${group}) @binding(${first + L.albedo}) var scAlbedoAtlas:texture_2d<f32>;
 @group(${group}) @binding(${first + L.normal}) var scNormalAtlas:texture_2d<f32>;
 @group(${group}) @binding(${first + L.emissive}) var scEmissiveAtlas:texture_2d<${compressed ? 'f32' : 'u32'}>;
-${isLayerMode(visualize) ? '' : `@group(${group}) @binding(${first + L.final}) var scFinalAtlas:texture_2d<${lightAtlasScalar(light)}>;\n`}${feedback ? `@group(${group}) @binding(${first + L.feedback}) var<storage,read_write> scFeedback:array<atomic<u32>>;\n` : ''}${visualizeBindings(group, first, light, visualize)}`
+${material || isLayerMode(visualize) ? '' : `@group(${group}) @binding(${first + L.final}) var scFinalAtlas:texture_2d<${lightAtlasScalar(light)}>;\n`}${feedback ? `@group(${group}) @binding(${first + L.feedback}) var<storage,read_write> scFeedback:array<atomic<u32>>;\n` : ''}${visualizeBindings(group, first, light, visualize)}`
 
 /** The declarations of the layers the scene view's mode `mode` reads beside the albedo, normal and emission: the direct light, the indirect light's words, the radiosity's frames, the shadow factors. */
 const visualizeBindings = (
@@ -364,7 +366,7 @@ export const surfaceCacheRecordsWgsl = (
 
 /** The sample of a card at a point of its face (`scComputeSample`) and the accumulator the cards' samples
  *  add into. */
-const sampleReads = (feedback: boolean) => `
+const sampleReads = (feedback: boolean, material: boolean) => `
 struct ScSample{card:u32,page:u32,uv:vec2f,weights:vec4f,valid:bool,feedback:vec2u}
 /**
  * Where the point \`local\` of card \`card\`'s face reads the atlas: the page its card coordinates fall
@@ -413,12 +415,12 @@ ${
 }
 struct ScAccum{
  best:ScSample,validMeshCards:bool,maxWeight:f32,
- lit:vec3f,weightSum:f32,
+ lit:vec3f,weightSum:f32,${material ? '\n albedo:vec3f,emissive:vec3f,normal:vec3f,' : ''}
 }
 fn scAccumulator()->ScAccum{
  var a:ScAccum;
  a.best.valid=false;a.validMeshCards=false;a.maxWeight=0.0;
- a.lit=vec3f(0.0);a.weightSum=0.0;
+ a.lit=vec3f(0.0);a.weightSum=0.0;${material ? '\n a.albedo=vec3f(0.0);a.emissive=vec3f(0.0);a.normal=vec3f(0.0);' : ''}
  return a;
 }
 `
@@ -469,6 +471,7 @@ function visualValueOf(mode: number, light: LightAtlasFormat, feedback: boolean)
     case V.indirectLightingUpdates:
       return `scVisualAge(scPageW(s.page,${PAGE_LIGHTING.lastUpdate + 1}u),16.0)`
     case V.lastUsedPage:
+      return `scVisualAge(${feedback ? `atomicLoad(&scFeedback[atomicLoad(&scFeedback[${FEEDBACK_AT.lastUsed}u])+s.page])` : '0u'},8.0)`
     case V.lastUsedPageHighRes:
       return `scVisualAge(${feedback ? `atomicLoad(&scFeedback[atomicLoad(&scFeedback[${FEEDBACK_AT.lastUsedHiRes}u])+s.page])` : '0u'},8.0)`
     case V.radiosityNumFramesAccumulated:
@@ -520,7 +523,7 @@ const visualCardText = (mode: number, light: LightAtlasFormat, feedback: boolean
 `
 
 /** The sample of one card, added to the accumulator, the final light read stored in `light`. */
-const sampleCardText = (light: LightAtlasFormat, visualize?: number) => `
+const sampleCardText = (light: LightAtlasFormat, material: boolean, visualize?: number) => `
 /**
  * The sample of card \`cardIndex\` at the point \`meshPos\` of the space of the mesh cards, if the point is
  * in the card's box and the face is turned to the normal (\`axisWeights\`, the squares of its components
@@ -557,9 +560,13 @@ fn scSampleCard(meshPos:vec3f,radius:f32,bias:f32,cardIndex:u32,axisWeights:vec3
  weights=weights/sum;
  let invPre=scF(SC_AT_INV_PRE_EXPOSURE);
  ${
-   isLayerMode(visualize)
-     ? `(*acc).lit+=scVisualCard(card,cardIndex,s,b,weights,invPre)*cardWeight;`
-     : `(*acc).lit+=${lightReaderOf(light)}(scFinalAtlas,b,weights)*invPre*cardWeight;`
+   material
+     ? `(*acc).albedo+=scDecodeAlbedo(scAlbedo4(b,weights))*cardWeight;
+ (*acc).emissive+=scEmissive4(b,weights)*invPre*cardWeight;
+ (*acc).normal+=scDecodeNormal(card,scNormal4(b,weights))*cardWeight;`
+     : isLayerMode(visualize)
+       ? `(*acc).lit+=scVisualCard(card,cardIndex,s,b,weights,invPre)*cardWeight;`
+       : `(*acc).lit+=${lightReaderOf(light)}(scFinalAtlas,b,weights)*invPre*cardWeight;`
  }
  (*acc).weightSum+=cardWeight;
  // The single sample that weighs most.
@@ -622,54 +629,82 @@ ${
   feedback
     ? `/** Tells the CPU the page a read would have used at the cone's level: once in the tile of the image
  *  \`dither\` falls in, where its place in the tile is the image's jitter. The page's last use is the
- *  image's. */
-fn scWriteFeedback(acc:ScAccum,dither:vec2u){
+ *  image's; only a high-resolution read appends the request, a coarse one writes the last use alone. */
+fn scWriteFeedback(acc:ScAccum,dither:vec2u,hiRes:bool){
  let mask=atomicLoad(&scFeedback[${FEEDBACK_AT.wrapMask}]);
  let size=atomicLoad(&scFeedback[${FEEDBACK_AT.size}]);
  let tile=vec2u(atomicLoad(&scFeedback[${FEEDBACK_AT.jitterX}]),atomicLoad(&scFeedback[${FEEDBACK_AT.jitterY}]));
  if(any((dither&vec2u(mask))!=tile)||size==0u||!(acc.weightSum>0.1)){return;}
  let frame=atomicLoad(&scFeedback[${FEEDBACK_AT.frame}]);
- let slot=atomicAdd(&scFeedback[${FEEDBACK_AT.counter}],1u);
- if(slot<size){
-  let at=atomicLoad(&scFeedback[${FEEDBACK_AT.elements}])+2u*slot;
-  atomicStore(&scFeedback[at],acc.best.feedback.x);
-  atomicStore(&scFeedback[at+1u],acc.best.feedback.y);
+ var zone=atomicLoad(&scFeedback[${FEEDBACK_AT.lastUsed}]);
+ if(hiRes){
+  zone=atomicLoad(&scFeedback[${FEEDBACK_AT.lastUsedHiRes}]);
+  let slot=atomicAdd(&scFeedback[${FEEDBACK_AT.counter}],1u);
+  if(slot<size){
+   let at=atomicLoad(&scFeedback[${FEEDBACK_AT.elements}])+2u*slot;
+   atomicStore(&scFeedback[at],acc.best.feedback.x);
+   atomicStore(&scFeedback[at+1u],acc.best.feedback.y);
+  }
  }
- atomicStore(&scFeedback[atomicLoad(&scFeedback[${FEEDBACK_AT.lastUsedHiRes}])+acc.best.page],frame);
+ atomicStore(&scFeedback[zone+acc.best.page],frame);
 }
 `
     : ''
 }`
 
 /** The accumulator evaluated. */
-const evaluateWgsl = (feedback: boolean) => `/**
+const evaluateWgsl = (feedback: boolean, material: boolean) => `/**
  * The light of the surface at the point the accumulator read: the sums over their weight, scaled to
  * the light the cards keep it multiplied by; nothing where no card gave any.${feedback ? ' The feedback is written (`scWriteFeedback`).' : ''}
  */
-fn scEvaluate(acc:ScAccum,dither:vec2u)->ScHit{
+fn scEvaluate(acc:ScAccum,dither:vec2u,hiRes:bool)->ScHit{
  var h:ScHit;
  h.valid=acc.weightSum>0.0;
  h.radiance=vec3f(0.0);
  if(h.valid){
   h.radiance=acc.lit/acc.weightSum;
-${feedback ? '  scWriteFeedback(acc,dither);\n' : ''} }
+${feedback ? '  scWriteFeedback(acc,dither,hiRes);\n' : ''} }
  return h;
 }
 /** The light at the point \`worldPos\` the mesh cards \`meshCards\` hold: \`scSampleMeshCards\`, then \`scEvaluate\`. */
 fn scEvaluateMeshCards(meshCards:u32,worldPos:vec3f,worldNormal:vec3f,radius:f32,bias:f32,hiRes:bool,dither:vec2u)->ScHit{
  var acc=scAccumulator();
  scSampleMeshCards(meshCards,worldPos,worldNormal,radius,bias,hiRes,&acc);
- return scEvaluate(acc,dither);
+ return scEvaluate(acc,dither,hiRes);
+}
+${
+  material
+    ? `struct ScMaterial{albedo:vec3f,emissive:vec3f,normal:vec3f,valid:bool}
+/** The surface at the point \`worldPos\` the mesh cards \`meshCards\` hold: the sums of the cards' albedo (decoded), emission (times the inverse of the
+ *  pre-exposure) and normal over their weight (the normal unit, the surface's if no card gave any), \`valid\` where any card gave any. */
+fn scEvaluateMaterialCards(meshCards:u32,worldPos:vec3f,worldNormal:vec3f,radius:f32,bias:f32,hiRes:bool)->ScMaterial{
+ var acc=scAccumulator();
+ scSampleMeshCards(meshCards,worldPos,worldNormal,radius,bias,hiRes,&acc);
+ var m=ScMaterial(vec3f(0.0),vec3f(0.0),worldNormal,acc.weightSum>0.0);
+ if(m.valid){
+  m.albedo=acc.albedo/acc.weightSum;
+  m.emissive=acc.emissive/acc.weightSum;
+  let n=acc.normal/acc.weightSum;
+  if(dot(n,n)>0.0){m.normal=normalize(n);}
+ }
+ return m;
 }
 `
+    : ''
+}`
 
 /** The cards of a mesh cards read for a point, and the accumulator evaluated. */
-const meshCardReads = (feedback: boolean, light: LightAtlasFormat, visualize?: number) =>
+const meshCardReads = (
+  feedback: boolean,
+  light: LightAtlasFormat,
+  material: boolean,
+  visualize?: number,
+) =>
   (isLayerMode(visualize) ? visualCardText(visualize, light, feedback) : '') +
-  sampleCardText(light, visualize) +
+  sampleCardText(light, material, visualize) +
   sampleMeshCardsText(visualize) +
   feedbackWriteWgsl(feedback) +
-  evaluateWgsl(feedback)
+  evaluateWgsl(feedback, material)
 
 /**
  * The surface cache's read library for a program whose bindings are in `group` from `first`
@@ -681,9 +716,9 @@ export function surfaceCacheSampleWgsl(
   first: number,
   read: SurfaceCacheRead,
 ): WgslDecl {
-  const { feedback, compressed, light, visualize } = read
+  const { feedback, compressed, light, material = false, visualize } = read
   return wgslBlock(
-    `SURFACE_CACHE_SAMPLE_WGSL(${group},${first},${feedback},${compressed},${light}${visualize === undefined ? '' : `,visualize${visualize}`})`,
+    `SURFACE_CACHE_SAMPLE_WGSL(${group},${first},${feedback},${compressed},${light}${material ? ',material' : ''}${visualize === undefined ? '' : `,visualize${visualize}`})`,
     [
       unpackLight,
       ...(visualize === VISUALIZE_MODE.cardSharingId ||
@@ -695,6 +730,6 @@ export function surfaceCacheSampleWgsl(
         : []),
       surfaceCacheRecordsWgsl(group, first, 'read'),
     ],
-    `${readBindings(group, first, read)}${atlasReads(compressed, light)}${sampleReads(feedback)}${meshCardReads(feedback, light, visualize)}`,
+    `${readBindings(group, first, read)}${atlasReads(compressed, light)}${sampleReads(feedback, material)}${meshCardReads(feedback, light, material, visualize)}`,
   )
 }

@@ -45,13 +45,6 @@ export interface LightFunctionFrame {
 
 type Rt = WebgpuPagesRuntime
 
-/** Whether a directional light wears a light function: the volumetric fog reads it for its sun
- *  whatever the setting of its local lights. */
-function sunWearsOne(rt: Rt) {
-  for (const { light } of wearing(rt)) if (light.kind === 'directional') return true
-  return false
-}
-
 /** Whether the atlas is wanted this image: the system on, the view drawing light functions, a light
  *  wearing one, and a consumer asking. */
 function lightFunctionsWanted(rt: Rt) {
@@ -59,7 +52,7 @@ function lightFunctionsWanted(rt: Rt) {
     rt.lights.store.lightFunctionCount > 0 &&
     read(rt, 'lightFunctionAtlas') &&
     rt.views.active.overrides.lightFunctions &&
-    (CONSUMERS.some((consumer) => read(rt, consumer)) || sunWearsOne(rt))
+    CONSUMERS.some((consumer) => read(rt, consumer))
   )
 }
 
@@ -232,7 +225,5 @@ export const lightFunctionRevision = (rt: Rt, consumer: LightFunctionConsumer) =
  *  atlas is not made: the atlas, whose table is under its slots (`layout.ts`). */
 export function lightFunctionResources(rt: Rt, consumer: LightFunctionConsumer) {
   const frame = rt.lights.lightFunction
-  // The fog's sun reads the atlas whatever its local lights' setting: the shader tells them apart.
-  const asked = consumer === 'lightFunctionFog' || read(rt, consumer)
-  return frame?.active && asked ? frame.atlas.view : undefined
+  return frame?.active && read(rt, consumer) ? frame.atlas.view : undefined
 }

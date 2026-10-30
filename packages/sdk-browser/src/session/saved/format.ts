@@ -1,3 +1,4 @@
+import type { WaterBodyOptions } from '../../../../sdk-core/src/fluids/waterBody.ts'
 import type { OffsetSwitchValues } from '../../../../sdk-core/src/world/object/offsetSwitches.ts'
 import type { SceneFog } from '../../../../sdk-core/src/scene/core/fog.ts'
 import type { ResolvedAtmosphere } from '../../../../sdk-core/src/scene/core/atmosphere.ts'
@@ -63,10 +64,18 @@ export interface SavedPose {
   up?: number[]
 }
 
+/**
+ * A body a water exclusion volume names: its rank in the saved tree read depth first (a node of the tree's first top node has
+ * rank 0); a node a loaded model's file carried (never saved, the file brings it back), by the rank of the model and the node's
+ * name (`getObjectByName`); `null` for a node outside the saved tree, which the list keeps in its place and reads back as a node
+ * that is in no scene.
+ */
+export type SavedWaterBody = number | { model: number; name: string } | null
+
 /** A node: its pose and what it is — a group, a mesh, a light or a loaded model — and below it. */
 export interface SavedNode extends SavedPose, OffsetSwitchValues {
   /** What the node is. */
-  kind: 'object' | 'group' | 'mesh' | 'light' | 'model'
+  kind: 'object' | 'group' | 'mesh' | 'light' | 'model' | 'waterExclusion'
   /** Its name. */
   name: string
   /** How it is stretched on each axis. */
@@ -91,6 +100,13 @@ export interface SavedNode extends SavedPose, OffsetSwitchValues {
     material: number | number[]
     primitive: string
     center?: [number, number]
+    /** The fields of the mesh's water body (`Mesh.waterBody`), those it sets. */
+    waterBody?: WaterBodyOptions
+  }
+  /** A water exclusion volume's mode, and the nodes whose water bodies it names (`SavedWaterBody`), in the order it lists them. */
+  waterExclusion?: {
+    mode: 'allExceptListed' | 'onlyListed'
+    bodies: SavedWaterBody[]
   }
   /** A light's kind, colours, numbers, aim and probe coefficients. */
   light?: {

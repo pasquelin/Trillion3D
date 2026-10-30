@@ -1,4 +1,5 @@
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
+import { hueToRgb } from '../../../math/src/wgsl/color.ts'
 import { wgslBlock, wgslFn } from '../../../math/src/wgsl/decl.ts'
 import { pixelToNdc, transformHomogeneousPoint } from '../../../math/src/wgsl/projection.ts'
 import { interleavedGradientNoise } from '../../../math/src/wgsl/sampling.ts'
@@ -89,12 +90,11 @@ ${SCREEN_PASS_VERTEX}
 /** The colour of a strands' count: blue at the least, red at `COUNT_RED`, black for none. */
 const countColor = wgslFn(
   'debugCountColor',
-  [],
+  [hueToRgb],
   `fn debugCountColor(count:f32)->vec3f{
  let x=saturate(count/${COUNT_RED}.0);
  let hue=(1.0-x)*0.6;
- let rgb=saturate(vec3f(abs(hue*6.0-3.0)-1.0,2.0-abs(hue*6.0-2.0),2.0-abs(hue*6.0-4.0)));
- return select(vec3f(0.0),rgb,count>0.0);
+ return select(vec3f(0.0),hueToRgb(hue),count>0.0);
 }`,
 )
 

@@ -38,6 +38,9 @@ export type ContractKey = {
   /** The image holds the shadows the heterogeneous volumes cast (`heterogeneousVolumesShadows` on, a volume in the scene): the opaque lit
    *  passes read them (`beerShadowReadWgsl.ts`) and bind their buffer. Left out, false: no read, no binding. */
   volumeShadow?: boolean
+  /** The view's pixels hold several closures (`supportsMultipleClosures`): the opaque lit passes loop over a pixel's closures and sum them by coverage
+   *  (`closureTail`, `litSurfaceWgsl.ts`). Left out, false: the passes light the one closure, their text unchanged. Kept by the twin, as `sampled` is. */
+  closures?: boolean
   /** The lit passes write the toon data (`toonUnifiedDiffuse`): the diffuse light of each toon pixel, unramped, with its weight and weighted cosine, in two more targets
    *  of the lit image's pass, which the step after the lights applies the ramp to. Not a cut: a program of its own, made when the frame asks (`createContractVariants`). Left out, false. */
   toonData?: boolean
@@ -65,13 +68,15 @@ export const CUTS: readonly Cut[] = [
   'sampledSun',
   'volumeShadow',
   'captureless',
+  'closures',
 ]
 export const CUT_COUNT = CUTS.length
 /** The bit of cut `name` in a set, read off `CUTS`'s order. */
 const cutBit = (name: Cut) => 1 << CUTS.indexOf(name)
 const UNSHADOWED = cutBit('unshadowed'),
   KINDS = cutBit('sunless') | cutBit('localless'),
-  SAMPLED = cutBit('sampled') | cutBit('sampledSun')
+  SAMPLED = cutBit('sampled') | cutBit('sampledSun'),
+  CLOSURES = cutBit('closures')
 /** The lobe cut's and the contact cut's bits: the only cuts a program's twin keeps (`twinOf`). */
 const LOBELESS_BIT = CUTS.indexOf('lobeless'),
   LOBELESS = cutBit('lobeless'),
@@ -104,6 +109,7 @@ export const FULL_CONTRACT: Readonly<ContractKey> = {
   sampled: false,
   sampledSun: false,
   volumeShadow: false,
+  closures: false,
 }
 
 /** The set of cuts `key` makes; `lobed`, when given, says the lobe cut in its place. Read by every
@@ -129,11 +135,11 @@ export function keyOf(narrow: boolean, set: number) {
  *  the test serves the frame meanwhile, `SERVING`); and the light profile code, which a scene with no profiled
  *  light leaves out of its own, bound to the stand-in atlas where the frame has none; and the ambient cubemap's code, bound
  *  to the stand-in cube and a black colour where the image sets none. */
-export const twinOf = (set: number) => set & (LOBELESS | CONTACTLESS | SAMPLED)
+export const twinOf = (set: number) => set & (LOBELESS | CONTACTLESS | SAMPLED | CLOSURES)
 
 /** Whether `key` is a twin's: it leaves out no code but, maybe, the lobes' and the contact shadows'. */
 export const isTwin = (key: Partial<ContractKey>) =>
-  !(cutsIn(key) & ~(LOBELESS | CONTACTLESS | SAMPLED))
+  !(cutsIn(key) & ~(LOBELESS | CONTACTLESS | SAMPLED | CLOSURES))
 
 /** The sets of cuts of the programs that serve a frame of cuts `set`, the most cuts first — the
  *  closest fit: a program serves the frames that keep what it leaves out. An unshadowed frame
@@ -144,11 +150,11 @@ const serving = (set: number) => {
   const served = set & UNSHADOWED ? set | KINDS : set
   const sets: number[] = []
   for (let own = served; ; own = (own - 1) & served) {
-    // A program lights the sampled lights in a way no other does: only the frames of the very same sampled cuts are served by it.
+    // A program lights the sampled lights, and a pixel's several closures, in a way no other does: only the frames of the very same sampled and closure cuts are served by it.
     if (
       !(own & UNSHADOWED && own & KINDS) &&
       (own & KINDS) !== KINDS &&
-      (own & SAMPLED) === (set & SAMPLED)
+      (own & (SAMPLED | CLOSURES)) === (set & (SAMPLED | CLOSURES))
     )
       sets.push(own)
     if (!own) break

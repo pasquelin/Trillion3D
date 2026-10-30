@@ -2,6 +2,7 @@ import { alignUp, workgroupCount } from '../../../../math/src/scalar/integers.ts
 import type { PageRec, ClusterRoot } from '../../geometry/selection/types.ts'
 
 import type { BlendGpuItem } from '../state.ts'
+import { levelDiagnostic } from '../../visibility/pageInfo.ts'
 import { readsVolume } from '../../materials/surface/blendLightSource.ts'
 import { createPageCatalogue, type PageList } from '../../geometry/selection/catalogue.ts'
 import { createSparseInts } from '../../geometry/cut/sparseInts.ts'
@@ -138,6 +139,11 @@ function transparentTable(recordOf: (packed: number) => PageRec | undefined) {
     itemRanges: new Uint32Array(2),
     /** The entry packed page `page` draws from, -1 when it is no blended instance. */
     entryOf: (page: number) => entryPlus.get(page) - 1,
+    /** Whether entry `entry` draws a cluster of the finest level (level 0; a coarse cluster of a root is not): what a draw of the whole object from another place keeps. */
+    isFinest: (entry: number) => {
+      const record = recordOf(table.pageOfEntry[entry]!)
+      return !!record && levelDiagnostic(record) === 0
+    },
     /** Items the table describes, in the order the transparent pass draws them. */
     pagedItems: [] as BlendGpuItem[],
     /** Items of `pagedItems` lit from the translucency lighting volume (`readsVolume`): the frame asks it in O(1). */

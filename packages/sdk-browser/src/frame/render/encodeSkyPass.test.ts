@@ -1,4 +1,4 @@
-// The sky pass opens no pass without the frame's lights' key (no transparent was prepared) nor without a sky surface in the plan.
+// The sky pass opens no pass without prepared transparents nor without a sky surface in the plan.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createWebgpuBlendState } from '../../blend/state.ts'

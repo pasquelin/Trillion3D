@@ -48,22 +48,23 @@ export function heldOutputs(g: CompiledGraph, call: OutputCall) {
  * floor, and the cloth's fuzz colour and amount (`sheen`). None where the graph wires none of the
  * three. `on` holds the tests of the pixel's shading model that keep its coat and its cloth
  * (`shadingModel`): each is the model's own, so a pixel of another has none. `prelude` declares `mgA`, the anisotropy, which `law`
- * reads.
+ * reads. `wired` says which outputs the shaded point has: the graph's own by default, a closure past the first's its slab's.
  */
 export function graphLobes(
   g: CompiledGraph,
   call: OutputCall,
   on: { coat?: string; cloth?: string } = {},
+  wired: (name: GraphOutput) => boolean = (name) => !!g.functions[name],
 ) {
   const { coat: coatOn, cloth: clothOn } = on
-  const aniso = !!g.functions.anisotropy
-  const coat = !!g.functions.clearCoat
-  const cloth = !!g.functions.cloth
+  const aniso = wired('anisotropy')
+  const coat = wired('clearCoat')
+  const cloth = wired('cloth')
   const strength = `saturate(${coat ? call('clearCoat') : '0.0'})`
   if (!aniso && !coat && !cloth) return undefined
   // The cloth: the fuzz colour is the `subsurfaceColor` output, held to its range, the amount the
   // `cloth` output; a pixel of another model, where the graph picks one, has none.
-  const fuzz = g.functions.subsurfaceColor
+  const fuzz = wired('subsurfaceColor')
     ? `clamp(${call('subsurfaceColor')},vec3f(0.0),vec3f(1.0))`
     : 'vec3f(1.0)'
   const amount = `saturate(${call('cloth')})`

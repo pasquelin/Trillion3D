@@ -590,9 +590,25 @@ const STATS_WORDS: Record<string, { label: string; hint: string }> = {
     'reflection scene',
     'Traces the rays the screen could not answer through the scene; rises with the reflective pixels the screen missed.',
   ),
-  'pass.reflection denoise': word(
-    'reflection denoise',
-    'Reuses neighbouring and earlier reflections to clean the image; rises with the render size.',
+  'pass.reflection clear': word(
+    'reflection clear',
+    'Empties the reflection image where no ray is traced; rises with the render size.',
+  ),
+  'pass.reflection resolve': word(
+    'reflection resolve',
+    'Reuses the rays of neighbouring pixels to fill the reflection image; rises with the reflective pixels.',
+  ),
+  'pass.reflection temporal': word(
+    'reflection temporal',
+    'Accumulates the reflections of earlier images to clean the image; rises with the reflective pixels.',
+  ),
+  'pass.reflection bilateral': word(
+    'reflection bilateral',
+    'Filters the noisy or new reflections with their neighbours and writes the reflection image; rises with the reflective pixels.',
+  ),
+  'pass.reflection keep depth': word(
+    'reflection keep depth',
+    'Keeps the opaque depth for the next image reflections; rises with the render size.',
   ),
   'pass.particles': word(
     'particles',

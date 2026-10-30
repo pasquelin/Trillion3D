@@ -33,7 +33,7 @@ export type Granted<P, R> = { pool: P; made: R; halvings: number }
  * `gpu-out-of-memory`, naming the pool, the bytes asked and the bytes granted (`null` when even
  * the floor was refused: the caller then keeps what it holds).
  */
-async function grantedPool<P extends ShrunkPool, R extends Made>(options: {
+export async function grantedPool<P extends ShrunkPool, R extends Made>(options: {
   device: GPUDevice
   name: HalvedPool
   budgetBytes: number

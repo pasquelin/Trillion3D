@@ -95,6 +95,7 @@ export const VIEW_GPU_KEYS = [
   'subsurface',
   // The fog's volume and its history, which follow the camera of the view that built them.
   'fogVolume',
+  'fogSeparate',
   // The translucency lighting volume and its history, which follow the camera of the view that built them.
   'translucencyVolume',
   // The translucency global illumination volume and its history, which follow the camera of the view that built them.
@@ -172,6 +173,10 @@ export interface WebgpuView {
   every?: number
   drawnBeside?: number
   metrics?: ViewFrameMetrics
+  /** Whether the view draws nothing for now (a planar reflection not seen): it stays among the
+   *  persistent views, so every sweep over them still reaches its state, but its cut, its stale
+   *  time and its origin count for no one (its targets are held, and funded). */
+  parked?: boolean
 }
 
 /** The cut a view asks for and the one it draws, published by differences into the shared sets,

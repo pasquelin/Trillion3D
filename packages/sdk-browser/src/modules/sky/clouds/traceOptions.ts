@@ -15,6 +15,9 @@ import type { CLOUD_TRACE_LAYOUT, CloudTraceImage } from './traceLayout.ts'
 export const CLOUD_EMPTY_SPACE_SLICES = 64
 export const CLOUD_EMPTY_SPACE_SIDE = 32
 
+/** The diagonal of a unit cube: a froxel's bounding sphere is half of it across. */
+export const CLOUD_EMPTY_SPACE_DIAGONAL = 1.73
+
 /** The words of the trace block's fields. */
 type CloudTraceLayoutAt = (typeof CLOUD_TRACE_LAYOUT)['at']
 
@@ -71,6 +74,6 @@ export function writeCloudTraceOptions(
     clamp(quality.cloudLocalLightShadowSamples, 0, 128),
     settings.alphaHole ? 1 : 0,
     image.exposure ?? 1,
-    0,
+    quality.cloudAerialPerspective && image.airPresent ? 1 : 0,
   )
 }

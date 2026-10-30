@@ -8,6 +8,7 @@ import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
 import { Sprite } from '../../../../sdk-core/src/world/object/sprite.ts'
+import type { WaterExclusionVolume } from '../../../../sdk-core/src/world/object/waterExclusionVolume.ts'
 import type { Light } from '../../../../sdk-core/src/world/light/light.ts'
 import { tintSet } from '../../../../sdk-core/src/world/light/lightAirSettings.ts'
 import { settingsSet } from '../../../../sdk-core/src/world/light/lightShaftSettings.ts'
@@ -28,6 +29,7 @@ import {
   type SavedGeometry,
   type SavedMaterial,
   type SavedNode,
+  type SavedWaterBody,
   type SavedPose,
   type SavedScene,
 } from './format.ts'
@@ -116,8 +118,16 @@ function saveCamera(camera: Camera): SavedCamera {
 export function saveScene(scene: SceneLike, camera?: Camera): SavedScene {
   const background = scene.background as Color | null
   if (scene.environment) notSavable('a picture environment')
-  const tables: Tables = { geometries: new Map(), materials: new Map() }
+  const tables: Tables = {
+    geometries: new Map(),
+    materials: new Map(),
+    ranks: new Map(),
+    volumes: [],
+  }
   const children = scene.children.filter((c) => !isHelper(c)).map((c) => saveNode(c, tables))
+  // The bodies a volume names are found in the tree just saved: each stays in its place in the list, whatever it is.
+  for (const [saved, volume] of tables.volumes)
+    saved.waterExclusion!.bodies = volume.bodies.map((body) => savedWaterBody(body, tables.ranks))
   return {
     format: SCENE_FORMAT,
     formatVersion: SCENE_FORMAT_VERSION,
@@ -130,8 +140,31 @@ export function saveScene(scene: SceneLike, camera?: Camera): SavedScene {
   }
 }
 
+/** The reference to a water body `body` in the tree saved (`SavedWaterBody`): its rank, else the model whose file carried it, else none. */
+function savedWaterBody(body: Object3D, ranks: ReadonlyMap<Object3D, number>): SavedWaterBody {
+  const own = ranks.get(body)
+  if (own !== undefined) return own
+  for (let up = body.parent; up; up = up.parent) {
+    const at = ranks.get(up)
+    if (at === undefined) continue
+    // The first node up the chain that was saved: a model's file brings its nodes back, found by name.
+    const model = up as LoadedModel
+    return model.isLoadedModel && model.getObjectByName(body.name) === body
+      ? { model: at, name: body.name }
+      : null
+  }
+  return null
+}
+
 /** The shapes and materials a save stores once, each at the rank it was first met at. */
-type Tables = { geometries: Map<Geometry, number>; materials: Map<Material, number> }
+type Tables = {
+  geometries: Map<Geometry, number>
+  materials: Map<Material, number>
+  /** The rank of each node saved, depth first. */
+  ranks: Map<Object3D, number>
+  /** The water exclusion volumes saved, their bodies filled once the whole tree has its ranks. */
+  volumes: [SavedNode, WaterExclusionVolume][]
+}
 
 const rank = <T>(table: Map<T, number>, item: T) => {
   if (!table.has(item)) table.set(item, table.size)
@@ -142,9 +175,19 @@ const rank = <T>(table: Map<T, number>, item: T) => {
 function saveNode(o: Object3D, tables: Tables): SavedNode {
   const mesh = o as Mesh,
     lamp = o as Light,
-    model = o as LoadedModel
+    model = o as LoadedModel,
+    volume = o as WaterExclusionVolume
+  tables.ranks.set(o, tables.ranks.size)
   const saved: SavedNode = {
-    kind: mesh.isMesh ? 'mesh' : lamp.isLight ? 'light' : model.isLoadedModel ? 'model' : 'object',
+    kind: mesh.isMesh
+      ? 'mesh'
+      : lamp.isLight
+        ? 'light'
+        : model.isLoadedModel
+          ? 'model'
+          : volume.isWaterExclusionVolume
+            ? 'waterExclusion'
+            : 'object',
     name: o.name,
     ...savePose(o),
     scale: o.scale.toArray(),
@@ -165,6 +208,10 @@ function saveNode(o: Object3D, tables: Tables): SavedNode {
   if (mesh.isMesh) saveMesh(saved, mesh, tables)
   if (lamp.isLight) saved.light = saveLight(lamp, tables)
   if (model.isLoadedModel) saved.model = { url: model.record.manifestUrl }
+  if (volume.isWaterExclusionVolume) {
+    saved.waterExclusion = { mode: volume.mode, bodies: [] }
+    tables.volumes.push([saved, volume])
+  }
   return saved
 }
 
@@ -233,5 +280,6 @@ function saveMesh(saved: SavedNode, mesh: Mesh, { geometries, materials }: Table
   }
   const center = mesh instanceof Sprite ? mesh.center : undefined
   if (center) saved.mesh.center = [center.x, center.y]
+  if (mesh.waterBody) saved.mesh.waterBody = { ...mesh.waterBody }
   if (mesh.physics) saved.physics = plain(savedPhysics(mesh.physics))
 }

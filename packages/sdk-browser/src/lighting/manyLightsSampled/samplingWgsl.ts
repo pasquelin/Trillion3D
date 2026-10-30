@@ -62,6 +62,7 @@ import {
   unpackTile,
 } from './lightSamplerWgsl.ts'
 import { SAMPLED_PARAMS_WGSL } from './paramsWgsl.ts'
+import { SAMPLED_CLOSURE_WGSL, closureStateWgsl, closureStatements } from './closurePickWgsl.ts'
 import { SAMPLED_TILE_SIZE } from './parameters.ts'
 
 const B = SAMPLED_BINDINGS
@@ -189,18 +190,52 @@ const VECTORS_BINDING_WGSL = wgslBlock(
 
 const LUMA = 'vec3f(0.3,0.59,0.11)'
 
+/** The luminance of a light on the pixel, pre-exposed: the light term's, or, for a view of several closures, the closures' (`closureLuminance`). */
+const lightLuminance = (closures: boolean) =>
+  closures
+    ? 'closureLuminance(rank,albedo,metal,rough,N,V,P,shading)'
+    : `dot(declaredLight(rank,albedo,metal,rough,N,V,P,1.0,shading),${LUMA})*view.preExposure.x`
+
+/** The luminance of the light of a pixel of several closures: the closure lit as the pixel (the first, or the picked) scaled by its weight where the lighting is stochastic,
+ *  else the closures' lights summed by their weights, each past the first lit from its own slice (`closureSlice`). */
+const closureLuminanceWgsl = (lobes: boolean) =>
+  wgslBlock(
+    `SAMPLING_CLOSURE_LUMINANCE_WGSL(${lobes})`,
+    [SAMPLED_CLOSURE_WGSL, closureStateWgsl(lobes)],
+    `fn closureLuminance(rank:u32,albedo:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,shading:LobeSurface)->f32{
+ let first=dot(declaredLight(rank,albedo,metal,rough,N,V,P,1.0,shading),${LUMA})*view.preExposure.x;
+ let count=pixelClosures(closurePixel);
+ if(count<2u){return first;}
+ if(stochasticClosures()){return first*pickedScale(closurePixel);}
+ var sum=first*pixelWeight(closurePixel,0u);
+ for(var k=1u;k<count;k++){
+  let w=pixelWeight(closurePixel,k);
+  let s=closureSlice(closurePixel,k);
+  enterClosure(closurePixel,k,s.N,V);
+  let lobes=clothSurface(lobeSurface(s.albedo,s.base.a,s.normal.a,s.N,V));
+  lobeView(lobes);
+  sum+=w*dot(declaredLight(rank,s.albedo,s.base.a,s.normal.a,s.N,V,P,1.0,lobes),${LUMA})*view.preExposure.x;
+ }
+ enterClosure(closurePixel,0u,N,V);
+ lobeView(shading);
+ return sum;
+}`,
+  )
+
 /** The weighing of one light on the pixel, and the offer of it to the sampler. */
-const OFFER_WGSL = wgslBlock(
-  'SAMPLING_OFFER_WGSL',
-  [
-    SAMPLED_PARAMS_WGSL,
-    GUIDE_WGSL,
-    estimateLocalLight,
-    lightTargetWeight,
-    isLightVisible,
-    addLightSample,
-  ],
-  `/** What the sampling weighs a light at on the pixel: the luminance of its light there (pre-exposed) and the weight the draw gives it. */
+const offerWgsl = (closures: boolean, lobes = false) =>
+  wgslBlock(
+    closures ? `SAMPLING_OFFER_CLOSURES_WGSL(${lobes})` : 'SAMPLING_OFFER_WGSL',
+    [
+      SAMPLED_PARAMS_WGSL,
+      GUIDE_WGSL,
+      estimateLocalLight,
+      lightTargetWeight,
+      isLightVisible,
+      addLightSample,
+      ...(closures ? [closureLuminanceWgsl(lobes)] : []),
+    ],
+    `/** What the sampling weighs a light at on the pixel: the luminance of its light there (pre-exposed) and the weight the draw gives it. */
 struct LightWeigh{luminance:f32,weight:f32}
 /** The weighing of light 'rank' on the pixel: a local light under the least estimate is dropped (weight 0), the others weighed by the luminance of their
  *  light on the pixel (pre-exposed). A rectangle light is never dropped by the estimate. */
@@ -212,12 +247,12 @@ fn weighLight(rank:u32,albedo:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,
   let power=dot(light.colorIntensity.rgb,${LUMA})*lightStrength(light)*max(shares.x,shares.y);
   if(estimateLocalLight(dot(toLight,toLight),power,1.0/max(light.positionRange.w,1e-6),light.shape.y,view.preExposure.x)<params.minEstimate){return LightWeigh(0.0,0.0);}
  }
- var luminance=dot(declaredLight(rank,albedo,metal,rough,N,V,P,1.0,shading),${LUMA})*view.preExposure.x;
+ var luminance=${lightLuminance(closures)};
  if(thinSurface()){
   // The transmission is weighed by the share assumed before it is traced ('sampledLightsTransmissionSampleWeight'), and not at all for a light that does not transmit.
   let kept=thinSubsurface;
   thinSubsurface=vec3f(0.0);
-  let without=dot(declaredLight(rank,albedo,metal,rough,N,V,P,1.0,shading),${LUMA})*view.preExposure.x;
+  let without=${lightLuminance(closures)};
   thinSubsurface=kept;
   luminance=without+select(0.0,params.transmission,transmitsLight(light))*(luminance-without);
  }
@@ -239,7 +274,10 @@ fn offerLight(s:ptr<function,LightSampler>,rank:u32,albedo:vec3f,metal:f32,rough
  if(!visibleBefore){weight*=select(params.hiddenMissWeight,params.hiddenWeight,pixelHistory);}
  addLightSample(s,weight,rank,visibleBefore,radial,params.count1d,params.dirRatio,params.dirMinWeight);
 }`,
-)
+  )
+const OFFER_WGSL = offerWgsl(false),
+  OFFER_CLOSURES_WGSL = offerWgsl(true),
+  OFFER_CLOSURES_LOBES_WGSL = offerWgsl(true, true)
 
 /** The direction toward a light's centre from `P`: what decides, until the rays are drawn on the light, whether a ray enters a two-sided or
  *  transmitting surface. */
@@ -271,6 +309,7 @@ export function samplingParts(
   cut: ReturnType<typeof litCutOf>,
   textured: boolean,
   resources: WgslDecl = SAMPLING_RESOURCES_WGSL,
+  closures = !!cut.closures,
 ) {
   return [
     lightingBase(samplingBindingsOf(textured), lights, {
@@ -290,7 +329,7 @@ export function samplingParts(
     pixelToNdc,
     SURFACE_PAST_WGSL,
     VECTORS_BINDING_WGSL,
-    OFFER_WGSL,
+    closures ? (cut.lobes ? OFFER_CLOSURES_LOBES_WGSL : OFFER_CLOSURES_WGSL) : OFFER_WGSL,
     TOWARD_WGSL,
     lightTraits,
     pixelModelOf,
@@ -421,11 +460,12 @@ export function samplingWgsl(
   textured = true,
 ) {
   const { lights, cut } = sampledClassOf(key, tileClass, rect)
-  const statements = litPixelStatements(cut, 'writeEmpty(down);return;')
+  const lit = litPixelStatements(cut, 'writeEmpty(down);return;')
+  const statements = cut.closures ? closureStatements(lit) : lit
   const twoSided = cut.thin ? 'thinSurface()' : 'false'
   const transmits = cut.thin ? `(surfaceFlag&${SUBSURFACE_FLAG}u)!=0u` : 'false'
   return wgslBlock(
-    `samplingWgsl(${tileClass}, ${rect}, ${key.lobeless}, ${key.profileless}, ${key.channelless}, ${key.narrow}${front ? ', front layer' : ''}${textured ? '' : ', plain rectangles'})`,
+    `samplingWgsl(${tileClass}, ${rect}, ${key.lobeless}, ${key.profileless}, ${key.channelless}, ${key.narrow}${cut.closures ? ', closures' : ''}${front ? ', front layer' : ''}${textured ? '' : ', plain rectangles'})`,
     samplingParts(key, lights, cut, textured),
     samplingText(front, statements, twoSided, transmits),
   )

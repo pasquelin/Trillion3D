@@ -2,8 +2,14 @@ import { NO_INDEX } from '../../../../math/src/constants.ts'
 import { invertMatrix4 } from '../../../../math/src/matrix/matrix4Inverse.ts'
 import { cloudSeparatesAir, type CloudPart } from '../../../../sdk-core/src/modules/sky/clouds.ts'
 import { cloudShadowOfLight } from '../../../../sdk-core/src/scene/light/lightCloudShadow.ts'
-import { cloudsInView, cloudSetupOf, type CloudSetup } from '../../modules/sky/clouds/cloudModes.ts'
+import {
+  cloudDebugSetup,
+  cloudsInView,
+  cloudSetupOf,
+  type CloudSetup,
+} from '../../modules/sky/clouds/cloudModes.ts'
 import { shownHeightFog } from '../../../../sdk-core/src/scene/core/fog.ts'
+import { cloudHistoryKey, drawnPartOf } from '../../modules/sky/clouds/drawnPart.ts'
 import { advanceCloudView } from '../../modules/sky/clouds/reconstruct.ts'
 import { cloudTraceKey } from '../../modules/sky/clouds/traceExtraLayout.ts'
 import { cloudHazeInSecondPass } from '../../modules/sky/clouds/traceOptions.ts'
@@ -31,6 +37,12 @@ import { airRequests, airShapeOfRuntime, atmosphereDeclared } from './airState.t
 import { writeAirlessFrame } from './airlessFrame.ts'
 import { atmosphereHoldout, encodeOpaqueHaze, encodeSky } from './encodeAtmosphere.ts'
 import { encodeHeightFog } from './encodeHeightFog.ts'
+import {
+  encodeSeparateFog,
+  finishSeparateFog,
+  planSeparateFog,
+  separateFogTarget,
+} from './encodeFogSeparate.ts'
 import { cloudShadowOf } from './encodeCloudShadow.ts'
 import { directTiles } from './encodeLights.ts'
 import { followSkyModule, skyStateOf, sunChannelOf } from './encodeCloudsSky.ts'
@@ -38,6 +50,7 @@ import { requestSkyAir as askSkyLightAir } from './encodeSkyLight.ts'
 import { cloudTraceFrameOf } from './skyModuleGate.ts'
 import { fogReadOf } from './localFogGpu.ts'
 import { waterWanted } from '../../blend/water/waterTargets.ts'
+import { waterViewOf } from '../../blend/water/waterView.ts'
 
 /**
  * THE CLOUDS IN THE VIEW'S IMAGE, drawn after the sky and the haze on the surfaces and before the
@@ -72,17 +85,7 @@ export function requestSkyAir(rt: WebgpuPagesRuntime, device: GPUDevice) {
 function drawnPart(rt: WebgpuPagesRuntime): CloudPart | undefined {
   const part = skyStateOf(rt)?.sky?.clouds
   if (!part || !cloudsInView(part.settings, false)) return undefined
-  // Clouds that hold their light out (`alphaHole`) do so with the alpha holdout alone.
-  return part.settings.alphaHole && !holdoutOn(rt) ? withoutHole(part) : part
-}
-
-/** The part with its hole off, made once for a part (a part is replaced, never written). */
-const withoutHoleOf = new WeakMap<CloudPart, CloudPart>()
-function withoutHole(part: CloudPart) {
-  let made = withoutHoleOf.get(part)
-  if (!made)
-    withoutHoleOf.set(part, (made = { ...part, settings: { ...part.settings, alphaHole: false } }))
-  return made
+  return drawnPartOf(part, holdoutOn(rt))
 }
 
 /** Whether the clouds of the last image of this view change over time with nothing else moving: they
@@ -160,16 +163,16 @@ function continues(rt: WebgpuPagesRuntime, key: string, rebuilds: boolean) {
   return continued
 }
 
-/** What the clouds of this image hold out of the alpha, where the alpha holdout is in effect: the clouds
- *  themselves (`alphaHole`), or the haze of the air and the fog in front of them, which hold out
+/** Whether the clouds of this image hold anything out of the alpha, where the alpha holdout is in effect: the
+ *  clouds themselves (`alphaHole`), or the haze of the air and the fog in front of them, which hold out
  *  (`SceneAtmosphere.holdout`, `SceneHeightFog.holdout`). As the reference does it, for the clouds traced one
- *  pixel to a pixel (the fourth mode) alone, and never for a direct trace. */
-function heldCloudsOf(rt: WebgpuPagesRuntime, part: CloudPart, setup: CloudSetup) {
-  if (!holdoutOn(rt) || setup.direct || setup.mode.index !== 3) return undefined
-  const { alphaHole: cloud } = part.settings
+ *  pixel to a pixel (the fourth mode) alone, never for a direct trace, and not where the clouds go into the fog's own texture. */
+function cloudsHoldOut(rt: WebgpuPagesRuntime, part: CloudPart, setup: CloudSetup) {
+  if (!holdoutOn(rt) || setup.direct || setup.mode.index !== 3 || separateFogTarget(rt))
+    return false
   const sky = !!rt.gpu.atmosphere && atmosphereHoldout(rt)
   const fog = fogHoldout(rt, shownHeightFog(rt.lights.store.environment?.fog))
-  return cloud || sky || fog ? { cloud } : undefined
+  return part.settings.alphaHole || sky || fog
 }
 
 /** The programs this image needs, compiled or asked, and the options their key says: none until
@@ -183,27 +186,59 @@ function programsOf(
 ) {
   const { gpu, lights } = rt,
     deferred = gpu.deferred!
-  const setup = cloudSetupOf(part.quality, true, perspective)
+  const traced = cloudSetupOf(part.quality, true, perspective)
   const maps = vsmOrStandIns(vsmConsumerResources(rt), deferred.placeholders)
   const first = lights.store.atmosphereLight(0)
   const channel = sunChannelOf(rt)
   const frame = cloudTraceFrameOf(first, channel !== NO_INDEX, airless)
   const tiles = lights.tiles && directTiles()[0] > 0 ? lights.tiles : undefined
-  const asked = cloudTraceKey(part.quality, frame, setup, part.material)
-  const key = asked.localLights && !tiles ? { ...asked, localLights: false } : asked
+  const asked = cloudTraceKey(part.quality, frame, traced, part.material)
+  const setup = asked.debugView === 0 ? traced : cloudDebugSetup(traced)
+  // A debug view of the tracing holds nothing out of the alpha.
+  const holdout = asked.debugView === 0 && cloudsHoldOut(rt, part, setup)
+  const key = { ...asked, localLights: asked.localLights && !!tiles, holdout }
   const shape = airless ? airShapeOfRuntime(rt) : gpu.atmosphere!.shape
   const programs = cloudViewProgramsOf(device, shape, (error) =>
     rt.diag.diagnosticFailure('cloud-program-failed', error),
   )
   const hazed = cloudHazeInSecondPass(part.quality, !airless)
   const corners = part.quality.cloudEmptySpaceSkippingCorners
-  const held = heldCloudsOf(rt, part, setup)
-  if (!cloudProgramsReady(programs, setup, key, hazed, corners, held)) return undefined
-  return { setup, maps, channel, key, programs, tiles, held }
+  if (!cloudProgramsReady(programs, setup, key, hazed, corners, !!waterWanted(rt))) return undefined
+  return { setup, maps, channel, key, programs, tiles }
 }
 
+/** Whether the sky, the fog, the haze and the clouds wait for the single-layer water: it is shaded over the image and the camera is not under
+ *  it. A camera under the water has them laid before it, the water shaded over them. */
+const holdsForWater = (rt: WebgpuPagesRuntime) => waterViewOf(rt).stage === 'after'
+
 /** What the image lays over the lit image after the single-layer water, held until then (`encodeAfterWater`): by image, none once played. */
-const afterWater = new WeakMap<WebgpuPagesRuntime, () => void>()
+const afterWater = new WeakMap<WebgpuPagesRuntime, { lay: () => void; finish: () => void }>()
+
+/** The sky where no surface was drawn, the fog and the haze, in the order of the image. With no separate fog: the sky, the fog over the lit image and the sky, then the haze.
+ *  In the fog's textures (`separate`) the atmosphere is one pass ahead of the fog: the sky is drawn only where a dome was drawn (`dome`); else the textures come first and the
+ *  sky is drawn over the image whole, the fog laid over it afterwards (`finishSeparateFog`). */
+function layAtmosphere(
+  rt: WebgpuPagesRuntime,
+  encoder: GPUCommandEncoder,
+  air: boolean,
+  separate: ReturnType<typeof planSeparateFog>,
+  dome: boolean,
+) {
+  if (!separate) {
+    if (air && !dome) encodeSky(rt, encoder)
+    encodeHeightFog(rt, encoder, air)
+    if (air) encodeOpaqueHaze(rt, encoder)
+    return
+  }
+  const fogFirst = air && !dome
+  if (fogFirst) encodeSeparateFog(rt, encoder)
+  if (air) {
+    // The sky pixels are the dome's where one was drawn: the atmosphere draws none of its own there.
+    if (!dome) encodeSky(rt, encoder)
+    encodeOpaqueHaze(rt, encoder)
+  }
+  if (!fogFirst) encodeSeparateFog(rt, encoder)
+}
 
 /** The sky where no surface was drawn (`air`: the image shows an atmosphere), the fog over the lit image
  *  and the sky, the haze marched on the surfaces (`air` again), then the clouds over them. The temporal pass measures the
@@ -218,40 +253,55 @@ export function encodeSkyAndClouds(
   air: boolean,
 ) {
   if (rt.gpu.hdrView) measureBeforeTranslucency(rt, encoder, rt.gpu.hdrView)
-  // The sky pixels are the dome's where the sky pass drew one this image: the atmosphere draws none of its own there.
+  // The fog drawn into textures of its own is composed over the image with the sky and the haze in it where the sky pass drew a dome
+  // (the scene has a sky material for this view), else before them (`lay`), so the share of the image its scattering takes holds them or
+  // not, and is laid over the image once the clouds are in it (`finishSeparateFog`).
+  const separate = planSeparateFog(rt, device, cam, air)
   const dome = skyDrawn(rt)
-  const lay = () => {
-    if (air && !dome) encodeSky(rt, encoder)
-    encodeHeightFog(rt, encoder, air)
-    if (air) encodeOpaqueHaze(rt, encoder)
-  }
+  const water = holdsForWater(rt)
   // An image's held work never outlives it: one an earlier image left unplayed is dropped here.
   afterWater.delete(rt)
-  if (waterWanted(rt)) afterWater.set(rt, lay)
-  else lay()
+  if (water)
+    afterWater.set(rt, {
+      lay: () => layAtmosphere(rt, encoder, air, separate, dome),
+      finish: () => finishSeparateFog(rt, encoder),
+    })
+  else layAtmosphere(rt, encoder, air, separate, dome)
   encodeClouds(rt, device, encoder, cam, air)
+  if (!water) finishSeparateFog(rt, encoder)
 }
 
 /** The composition of the clouds the image held back for the water (none where it held none), encoded now: over the image the water was
  *  shaded over, `water` the texture whose alpha marks the water's pixels, none where it drew none. */
 function composeDeferredClouds(rt: WebgpuPagesRuntime, water?: GPUTextureView) {
   const view = rt.gpu.clouds
-  const pending = view?.pending
-  if (!view || !pending) return
-  view.pending = undefined
-  pending(water)
+  const held = view?.deferred
+  if (!view || held?.stage !== 'water') return
+  view.deferred = undefined
+  held.compose(water)
+}
+
+/** The debug view of the cloud tracing (`cloudDebugView`), laid over the lit image once the translucent surfaces are drawn: the
+ *  composition the view held back, encoded now, once. Nothing where the view has no debug view. */
+export function encodeCloudDebugView(rt: WebgpuPagesRuntime) {
+  const view = rt.gpu.clouds
+  const held = view?.deferred
+  if (!view || held?.stage !== 'translucency') return
+  view.deferred = undefined
+  held.compose()
 }
 
 /** What the image held back for the water, in the reference's order after it: the sky, the fog, the haze, then the clouds' composition
  *  (`water` as `composeDeferredClouds` has it). Nothing where nothing was held, so the stage that finds the water done and the one
  *  that closes the image can both call it: it plays once. */
 export function encodeAfterWater(rt: WebgpuPagesRuntime, water?: GPUTextureView) {
-  const lay = afterWater.get(rt)
-  if (lay) {
+  const held = afterWater.get(rt)
+  if (held) {
     afterWater.delete(rt)
-    lay()
+    held.lay()
   }
   composeDeferredClouds(rt, water)
+  held?.finish()
 }
 
 /** The air an image of the clouds reads, over `stands` (`cloudAirOf`): the atmosphere's tables and
@@ -297,9 +347,14 @@ function frameOf(
   const view = viewOf(rt, device)
   const allocated = { width: gpu.allocatedSize[0], height: gpu.allocatedSize[1] }
   const size = { width: gpu.targetSize[0], height: gpu.targetSize[1] }
-  const cut = !continues(rt, `${allocated.width}x${allocated.height}`, made.setup.mode.reconstructs)
+  const cut = !continues(
+    rt,
+    cloudHistoryKey(allocated, made.key.debugView),
+    made.setup.mode.reconstructs,
+  )
   // The clouds' shade this image: the maps built, or the stand-in that shades nothing.
   const shade = cloudShadowOf(rt) ?? cloudShadowStandIn(device)
+  const separate = separateFogTarget(rt)
   return {
     device,
     encoder,
@@ -315,7 +370,8 @@ function frameOf(
     view: size,
     preExposureRatio: preExposureOf(rt).now / view.last.preExposure,
     sceneDepth: depthView,
-    hdr: hdrView,
+    // The fog drawn into textures of its own takes the clouds in its first level, not the lit image.
+    hdr: made.key.debugView === 0 ? (separate ?? hdrView) : hdrView,
     air: {
       lights: lights.buffer,
       ...air,
@@ -331,7 +387,6 @@ function frameOf(
       cloudShadow: made.key.volumeShadowMap ? shade : undefined,
     },
     hazeMaps: { maps: made.maps, cloudShadow: shade },
-    held: made.held,
   }
 }
 
@@ -352,13 +407,18 @@ function encodeClouds(
   const stands = cloudAirOf(rt, air)
   if (!part || !stands) return disposeCloudView(rt.gpu)
   // What the translucent surfaces read of the clouds is this image's, left by its encoding.
-  if (rt.gpu.clouds) rt.gpu.clouds.shown = rt.gpu.clouds.pending = undefined
+  if (rt.gpu.clouds) rt.gpu.clouds.shown = rt.gpu.clouds.deferred = undefined
   const frame = frameOf(rt, device, encoder, cam, part, stands)
-  // Where the single-layer water is shaded over the image, the clouds are composed after it (`composeDeferredClouds`).
-  const pending = frame ? encodeCloudView(frame, !!waterWanted(rt)) : undefined
+  const debug = !!frame && frame.key.debugView !== 0
+  // Where the single-layer water is shaded over the image and the camera is not under it, the clouds are composed after it (`composeDeferredClouds`);
+  // a debug view of the tracing, after the translucent surfaces (`encodeCloudDebugView`).
+  const composition = frame ? encodeCloudView(frame, debug || holdsForWater(rt)) : undefined
   const view = rt.gpu.clouds
   if (!view) return
-  view.pending = pending
+  if (composition)
+    view.deferred = debug
+      ? { stage: 'translucency', compose: composition.compose }
+      : { stage: 'water', ...composition }
   view.last.drawn = !!frame
   if (frame) {
     view.last.preExposure = preExposureOf(rt).now

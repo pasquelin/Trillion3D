@@ -69,11 +69,12 @@ function sidesOf(item: BlendGpuItem) {
 export function refreshBlendPlan(blendState: WebgpuBlendState) {
   const items = blendState.blendGpu
   const entries: number[] = []
+  blendState.waterItems.length = 0
+  blendState.waterRanks.length = 0
   // Whether a mode filters the display: found with the plan, never per frame.
   let filters = false,
     refracts = false,
-    chromatic = false,
-    water = false
+    chromatic = false
   const modes = new Set<Blending>(),
     variants = new Set<number>()
   for (let i = 0; i < items.length; i++) {
@@ -88,7 +89,10 @@ export function refreshBlendPlan(blendState: WebgpuBlendState) {
     }
     refracts ||= !!item.transmissive && !!item.surface.refracts
     chromatic ||= !!item.transmissive && chromaticSurface(item.surface)
-    water ||= !!item.surface.water
+    if (item.surface.water) {
+      blendState.waterItems.push(item)
+      blendState.waterRanks.push(i)
+    }
     for (const side of sides) entries.push(planEntry(i, side, vertexCull))
   }
   blendState.seeds = Uint32Array.from(entries)
@@ -97,7 +101,6 @@ export function refreshBlendPlan(blendState: WebgpuBlendState) {
   blendState.filtersDisplay = filters
   blendState.refracts = refracts
   blendState.chromatic = chromatic
-  blendState.water = water
   blendState.planModes = [...modes]
   blendState.planVariants = [...variants]
   forgetViews(blendState)

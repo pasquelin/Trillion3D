@@ -4,6 +4,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { unsettledMask, unsettledReasons } from './unsettled.ts'
 import { settledRt } from './hold.fixture.ts'
+import { imagesToForget } from '../../lighting/bounce/screen/historyReady.ts'
 import { createShadowMobility } from '../../lighting/shadows/casters/mobility.ts'
 
 test('probes still converging keep the frame drawn, a closed series lets it hold', () => {
@@ -67,7 +68,13 @@ test('screen probes follow a change by blending: a view changed (a tile landed) 
     ['screenProbes'],
     'four images after the change',
   )
-  rt.run.frame = 271
+  rt.run.frame = 261 + imagesToForget(10) - 1
+  assert.deepEqual(
+    unsettledReasons(unsettledMask(rt)),
+    ['screenProbes'],
+    'the last image before the old light is under a display step',
+  )
+  rt.run.frame = 261 + imagesToForget(10)
   assert.equal(unsettledMask(rt), 0, 'the history has taken the change in')
 })
 
@@ -77,6 +84,8 @@ test('a caster that moved keeps the frame drawn until the frames without a move 
   const world = new Float64Array(16)
   mobility.ensure(1, () => world)
   ;(rt.lights as { mobility: typeof mobility }).mobility = mobility
+  // The shadow maps' cache holds a previous frame's maps: it takes the invalidations that turn a caster static.
+  ;(rt.lights as { vsm?: unknown }).vsm = { state: { cache: { acceptsInvalidations: () => true } } }
   assert.equal(unsettledMask(rt), 0, 'a scene that never moved holds')
   const moved = new Float64Array(16)
   moved[12] = 3

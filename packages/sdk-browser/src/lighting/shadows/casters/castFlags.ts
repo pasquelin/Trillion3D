@@ -1,3 +1,4 @@
+import { PLACEMENT_NO_CONTACT_SHADOW } from '../../../geometry/dag/info/placementInfoLayout.ts'
 import type { RootOffsetRow } from '../../../geometry/rows/page/offsetRow.ts'
 import { CASTS_NO_SHADOW_MAP } from '../../../visibility/shader/spriteWgsl.ts'
 import {
@@ -18,6 +19,7 @@ import {
   MOBILITY_SHADOWLESS,
   MOBILITY_WORLD_SPACE,
   MOBILITY_HIDDEN_SHADOW,
+  MOBILITY_NO_CONTACT_SHADOW,
   mobilityChannelsOf,
 } from '../mobilityBits.ts'
 
@@ -26,7 +28,7 @@ type CastOffsets = Pick<RootOffsetRow, 'evaluate' | 'cache' | 'worn' | 'always' 
 
 /** The bits of the offset a root's surfaces wear (`castFlagsOf`): whether its object evaluates none,
  *  keeps it from invalidating its shadows (`'rigid'`, `'static'`) or wears one that may invalidate
- *  them, whether it evaluates it whatever the distance says, and the lighting channels it is in. */
+ *  them, whether it evaluates it whatever the distance says, whether its object stops no contact shadow ray, and the lighting channels it is in. */
 const offsetFlagsOf = (offsets?: CastOffsets) => {
   const keeps = offsets?.cache === 'rigid' || offsets?.cache === 'static'
   const invalidates = !!offsets?.worn && !keeps && !!(offsets.evaluate || offsets.always)
@@ -35,6 +37,7 @@ const offsetFlagsOf = (offsets?: CastOffsets) => {
     (keeps ? MOBILITY_OFFSET_KEEPS_CACHE : 0) |
     (invalidates ? MOBILITY_OFFSET_INVALIDATES : 0) |
     (offsets?.always ? MOBILITY_OFFSET_ALWAYS : 0) |
+    ((offsets?.bits ?? 0) & PLACEMENT_NO_CONTACT_SHADOW ? MOBILITY_NO_CONTACT_SHADOW : 0) |
     mobilityChannelsOf(offsets?.bits ?? 0)
   )
 }

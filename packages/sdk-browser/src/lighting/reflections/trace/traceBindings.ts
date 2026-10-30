@@ -112,6 +112,10 @@ export const REFLECTION_TRACE_BINDINGS = {
   litProfileSampler: 68,
   // The light grid the first pass culls its lights with (`../../rays/lightGrid/`), a read-only storage texture.
   litGrid: 69,
+  // The classification of a closure past the first over its overflow tiles (`closureClassify.ts`): the region of the closure tiles' list, the mark of the reflection tiles they are in, and the list of the marked tiles.
+  overflow: 70,
+  marks: 71,
+  marked: 72,
 } as const
 
 const B = REFLECTION_TRACE_BINDINGS
@@ -217,6 +221,29 @@ const classifyLayout = (device: GPUDevice) =>
     ],
   })
 
+/** The layouts of the kernels that classify the tiles of a closure past the first (`closureClassify.ts`), once a device: the mark of the tiles its overflow tiles are in, the list of the marked tiles, and the classification over that list (the classification's, with the list it runs over). */
+export const closureClassifyLayouts = oncePerDevice((device: GPUDevice) => ({
+  mark: device.createBindGroupLayout({
+    entries: [
+      computeBufferEntry(B.overflow, 'read-only-storage'),
+      computeBufferEntry(B.marks, 'storage'),
+    ],
+  }),
+  list: device.createBindGroupLayout({
+    entries: [computeBufferEntry(B.marks, 'storage'), computeBufferEntry(B.marked, 'storage')],
+  }),
+  classify: device.createBindGroupLayout({
+    entries: [
+      ...pixels(),
+      computeBufferEntry(B.tiles, 'read-only-storage'),
+      computeBufferEntry(B.tracingOut, 'storage'),
+      computeBufferEntry(B.clearTracingOut, 'storage'),
+      computeBufferEntry(B.resolveOut, 'storage'),
+      computeBufferEntry(B.clearOut, 'storage'),
+    ],
+  }),
+}))
+
 type LayoutOf = (
   entries: GPUBindGroupLayoutEntry[],
   words?: GPUBindGroupLayoutEntry,
@@ -265,7 +292,11 @@ function rayLayouts(
     // The meshes' fields stage (`meshes.ts`) over the rays the screen missed: the first compaction reads their list (it is the dispatch's indirect arguments: read alone) and the rays; the trace reads what a hit reads, the fog and the lights, writes the fresh grid and the list.
     meshCompact: layout([computeBufferEntry(B.pendingMesh, 'read-only-storage')], rays(), false),
     meshTrace: layout(
-      [...scene(light, filterableMip), storageEntry(B.traceOut), computeBufferEntry(B.pendingMesh, 'storage')],
+      [
+        ...scene(light, filterableMip),
+        storageEntry(B.traceOut),
+        computeBufferEntry(B.pendingMesh, 'storage'),
+      ],
       rays(),
       false,
     ),

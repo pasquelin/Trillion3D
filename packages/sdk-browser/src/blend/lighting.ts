@@ -10,6 +10,7 @@ import { translucencyGiSampler, translucencyGiView } from '../lighting/transluce
 import { lightProfileResources } from '../lighting/lightProfile/frame.ts'
 import { cameraStandIn, heterogeneousCameraOf } from '../lighting/heterogeneousVolumes/cameraMap.ts'
 import { lightProfileStandIn } from '../lighting/lightProfile/profileStandIn.ts'
+import { objectShadowReadResources } from './objectShadow/objectShadowSelf.ts'
 
 /** Each runtime's one lighting record, rewritten by each image: the live entries read it. */
 const records = new WeakMap<object, BlendLighting>()
@@ -68,6 +69,8 @@ export function blendLightResources(
   into.rectSampler = profiles.rectSampler
   // The heterogeneous volumes' camera map this image made (composited with the translucency), or the stand-in that holds nothing.
   into.volumeCamera = (!sky && heterogeneousCameraOf(rt.gpu)?.view) || cameraStandIn(device)
+  // The records and table of the translucent surfaces' own shadow the depth pass made this image, or the stand-ins that shadow nothing.
+  into.objectShadow = objectShadowReadResources(rt, device)
   // The clouds' shade and the cloud image the programs that read the clouds read per vertex, or
   // their stand-ins (`cloudVertex.ts`).
   into.cloudShade = clouds.shade

@@ -7,6 +7,7 @@ import { lightFunctionsWaiting } from '../../lighting/lightFunction/frame.ts'
 import { sunFogWaiting } from '../../lighting/fog/sunFunction/frame.ts'
 import { lightProfilesWaiting } from '../../lighting/lightProfile/frame.ts'
 import { ambientCubemapPending } from '../../lighting/deferred/ambientCubemapFrame.ts'
+import { lightShapesAnimating } from '../../lighting/lightShape/frame.ts'
 import { surfaceCacheBusy } from '../../lighting/surfaceCache/frame.ts'
 import { pathTracingAccumulating } from '../../lighting/pathTracing/frame.ts'
 import { hairDebugShown } from '../../hair/debugView.ts'
@@ -42,6 +43,7 @@ const TERMS: readonly (readonly [string, (rt: WebgpuPagesRuntime) => boolean | u
   ['fogSunLightFunction', sunFogWaiting],
   ['lightProfiles', lightProfilesWaiting],
   ['ambientCubemap', ambientCubemapPending],
+  ['lightShapes', lightShapesAnimating],
   ['graphsAnimated', (rt) => rt.vis.graphsAnimated],
   ['blendGraphsAnimated', (rt) => blendGraphsAnimated(rt.vis.blendPipelines?.graphs)],
   ['fogVolumeAnimated', (rt) => rt.gpu.fogVolume?.gpu?.animated],

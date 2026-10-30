@@ -39,6 +39,8 @@ const AIMED = new Set(['directional', 'spot', 'hemisphere'])
 const point = new Vector3()
 /** Whether a light may be the sun of the atmosphere, on by default (`Light.atmosphereSun`). */
 const atmosphereSun = lightFlag('atmosphereSun', true)
+/** Whether translucent surfaces may cast into the light's classic shadow maps, on by default (`Light.castTranslucentShadows`). */
+const castTranslucentShadows = lightFlag('castTranslucentShadows', true)
 /** The lights a page set to the atmosphere's second light (`Light.atmosphereSunIndex`): few, as the
  *  lights left out of the candidates. */
 const SUN_INDEX = new WeakMap<Light, AtmosphereSunIndex>()
@@ -171,6 +173,7 @@ export class Light extends Object3D {
     lightContactShadow.take(this, p)
     if (p.shadowsFog !== undefined) this.setFogShadow(p.shadowsFog)
     atmosphereSun.take(this, p.atmosphereSun)
+    castTranslucentShadows.take(this, p.castTranslucentShadows)
     lightMobility.take(this, p.mobility)
     if (p.lightingChannels) this.lightingChannels = p.lightingChannels
     if (p.atmosphereSunIndex !== undefined) this.setSunIndex(p.atmosphereSunIndex)
@@ -188,6 +191,9 @@ export class Light extends Object3D {
   /** Whether a directional light may be the sun of the sky module's atmosphere (`scene.sky`): of
    *  the lights that may, the brightest is; `true` by default. A write reaches the world at once. */
   declare atmosphereSun: boolean
+  /** Whether translucent objects that cast a volumetric translucent shadow (`Object3D.castVolumetricTranslucentShadow`) cast it into this light's
+   *  classic shadow maps (`shadowVirtualEnable` off, `translucentObjectShadows` on); `true` by default. A write reaches the world at once. */
+  declare castTranslucentShadows: boolean
   /** Which of the atmosphere's two lights this directional light may be, 0 or 1 (a sun and a moon,
    *  or two suns): of the lights that may be one, the brightest is held for each index; 0 by
    *  default. Any other value is refused (`INVALID_SCENE_LIGHT`). A write reaches the world at
@@ -242,6 +248,7 @@ export class Light extends Object3D {
     if (!(source instanceof Light)) return this
     ;(this as { _values: Light['_values'] })._values = { ...source._values }
     atmosphereSun.copy(this, source)
+    castTranslucentShadows.copy(this, source)
     lightMobility.copy(this, source)
     this.setSunIndex(source.atmosphereSunIndex)
     this.setFogShadow(source.shadowsFog)
@@ -282,6 +289,7 @@ export class Light extends Object3D {
 defineSwitches(Light.prototype)
 defineLampSettings(Light.prototype)
 atmosphereSun.define(Light.prototype)
+castTranslucentShadows.define(Light.prototype)
 lightMobility.define(Light.prototype)
 defineLightingChannels(Light.prototype)
 lightFunction.define(Light.prototype)

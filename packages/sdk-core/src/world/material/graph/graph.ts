@@ -9,6 +9,12 @@ import {
   type NodeSpec,
 } from './nodeSpecs.ts'
 import { assertDomainOutput, isGraphDomain, type GraphOutput } from './outputs.ts'
+import {
+  assertClosureNode,
+  operandPins,
+  type ClosureNode,
+  type ClosureNodeInput,
+} from './closures.ts'
 import { graphError } from './valueType.ts'
 
 /** A wire's source: the output `output` of the node `node`. */
@@ -33,6 +39,8 @@ export interface GraphData {
   readonly outputs: Partial<Record<GraphOutput, Pin>>
   /** The numbers written to parameters by name (`set`). */
   readonly values?: Record<string, number | readonly number[]>
+  /** The closure tree (`closures.ts`), none for a surface of one closure wired on `outputs`. */
+  readonly closures?: { readonly nodes: readonly ClosureNode[]; readonly root: number }
 }
 
 /** The graphs made so far: each one's identity, which what keys a material by its graph reads. */
@@ -58,6 +66,9 @@ export class GraphStore {
   readonly domain: MaterialDomain
   readonly nodes: GraphNode[] = []
   readonly outputs: Partial<Record<GraphOutput, Pin>> = {}
+  /** The nodes of the closure tree and the rank of its root, none while the surface is of one closure (`closures.ts`). */
+  readonly closureNodes: ClosureNode[] = []
+  closureRoot: number | undefined
   /** The texture of a texture node, by node rank. */
   readonly textures = new Map<number, Texture>()
   /** The values written by name to a parameter, over those of its nodes. */
@@ -110,6 +121,27 @@ export class GraphStore {
     return { node: id, output: 0 }
   }
 
+  /** Adds a closure node (`closures.ts`) after the ones it names; returns its rank. */
+  addClosureNode(node: ClosureNodeInput): number {
+    if (this.domain !== 'surface') throw graphError('only a surface has closures')
+    assertClosureNode(node, this.closureNodes.length)
+    const made = { ...node, id: this.closureNodes.length } as ClosureNode
+    for (const pin of node.kind === 'slab' ? Object.values(node.attributes) : operandPins(made))
+      this.assertPin(pin)
+    this.closureNodes.push(made)
+    this.shape++
+    this.changed()
+    return made.id
+  }
+
+  /** Makes the closure node `root` the tree's root: the surface then has the closures the tree flattens to. */
+  setClosureRoot(root: number) {
+    if (!this.closureNodes[root]) throw graphError('the closure root does not exist', { root })
+    this.closureRoot = root
+    this.shape++
+    this.changed()
+  }
+
   private assertPin(pin: Pin) {
     const node = this.nodes[pin?.node]
     if (
@@ -134,7 +166,8 @@ export class GraphStore {
     if (this.signed?.shape === this.shape) return this.signed.text
     const nodes = this.nodes.map(({ kind, props, inputs }) => [kind, props, inputs])
     const held = [...this.textures].map(([node, texture]) => `${node}:${texture.id}`)
-    const text = JSON.stringify([this.domain, nodes, this.outputs, held])
+    const tree = this.closureRoot === undefined ? [] : [this.closureNodes, this.closureRoot]
+    const text = JSON.stringify([this.domain, nodes, this.outputs, held, ...tree])
     this.signed = { shape: this.shape, text }
     return text
   }

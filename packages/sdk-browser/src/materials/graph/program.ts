@@ -9,11 +9,19 @@ import {
   type GraphOutput,
   type GraphReading,
 } from '../../../../sdk-core/src/world/material/graph/outputs.ts'
+import type { Pin } from '../../../../sdk-core/src/world/material/graph/graph.ts'
 import { graphError } from '../../../../sdk-core/src/world/material/graph/valueType.ts'
 import { Slots } from './layout.ts'
+import { blendStruct } from './closureBlend.ts'
 import { NOISE_WGSL } from './noiseWgsl.ts'
 import { sampleRequest } from './nodesTexture.ts'
-import { State, type Derivatives, type SampleRead, type Uses } from './state.ts'
+import {
+  State,
+  type InternalOutput,
+  type Derivatives,
+  type SampleRead,
+  type Uses,
+} from './state.ts'
 import { translateNode } from './translate.ts'
 import { constantOf, forceCast, wgslType } from './value.ts'
 
@@ -64,6 +72,8 @@ export const askFunction = (suffix = '') => `mgAsk${suffix}`
  *  read finds its footprint. The names of the declarations come after (`outputText`). */
 export interface Compilation {
   readonly graph: MaterialGraph
+  /** The wires the graph reads its outputs from (`closureOutputs`), merged once for the compile. */
+  readonly outputs: Partial<Record<GraphOutput, Pin>>
   readonly domain: MaterialDomain
   readonly slots: Slots
   readonly derivatives: Derivatives
@@ -73,15 +83,29 @@ export interface Compilation {
 
 /** One output compiled: the lines of its function and what it reads. */
 export interface CompiledOutput {
-  readonly name: GraphOutput
+  /** The output, or the function a closure tree adds (`INTERNAL_OUTPUTS`). */
+  readonly name: GraphOutput | InternalOutput
+  /** The slab of the closure tree it is an attribute of, none for the primary slab and the graph's own outputs. */
+  readonly slab?: number
+  /** The wire of the scalar a closure operator reads (`operandKey`). */
+  readonly operand?: string
+  /** The root of the subtree a `closureBlend` mixes into one closure (`closureBlend.ts`). */
+  readonly root?: number
+  /** The lines of the function, written for the suffix that names the declarations it calls where they depend on it (`closureBlend`). */
+  readonly bodyOf?: (suffix: string) => string
   readonly body: string
   readonly uses: Uses
   readonly samples: readonly SampleRead[]
 }
 
-/** The lines of the function of one output: what the graph needs, then the value cast to the output's type. */
-export function compileOutput(c: Compilation, name: GraphOutput): CompiledOutput {
-  const pin = c.graph.outputs[name]
+/** The lines of the function of one output: what the graph needs, then the value cast to the output's type. `pin` and `slab` name the
+ *  wire of an attribute of a slab of the closure tree, the graph's own output `name` where not given. */
+export function compileOutput(
+  c: Compilation,
+  name: GraphOutput,
+  pin: Pin | undefined = c.outputs[name],
+  slab?: number,
+): CompiledOutput {
   if (!pin) throw graphError(`the ${name} output is not wired`)
   const state = new State({ ...c, output: name, translate: translateNode })
   const spec = GRAPH_OUTPUTS[name]
@@ -89,12 +113,67 @@ export function compileOutput(c: Compilation, name: GraphOutput): CompiledOutput
   if (value.type === 'texture' || value.type === 'sparseVolume')
     throw graphError(`a texture cannot be wired to ${name}`)
   const body = [...state.e.lines, `return ${value.code};`].join('\n ')
-  return { name, body, uses: state.uses, samples: state.samples }
+  return { name, slab, body, uses: state.uses, samples: state.samples }
 }
+
+/** What names the scalar a closure operator reads at `pin`: two operators reading one wire share a function. */
+export const operandKey = (pin: Pin) => `${pin.node}_${pin.output}`
+
+/** The function of the scalar `pin` a closure operator reads, cast to one component. */
+export function compileOperand(c: Compilation, pin: Pin): CompiledOutput {
+  const state = new State({ ...c, output: 'closureOperand', translate: translateNode })
+  const value = forceCast(state.value(pin), 'f1')
+  if (value.type === 'texture' || value.type === 'sparseVolume')
+    throw graphError('a texture cannot be wired to a closure operator')
+  const body = [...state.e.lines, `return ${value.code};`].join('\n ')
+  return {
+    name: 'closureOperand',
+    operand: operandKey(pin),
+    body,
+    uses: state.uses,
+    samples: state.samples,
+  }
+}
+
+/** What names and types the functions a closure tree adds: an operand by its wire, a blend by the root of its subtree. */
+const INTERNAL_OUTPUTS = {
+  closureOperand: {
+    name: (o, suffix) => `mgClosureOperand${o.operand}${suffix}`,
+    type: () => 'f32',
+  },
+  closureBlend: {
+    name: (o, suffix) => `mgClosureBlend${o.root}${suffix}`,
+    type: (_, suffix) => `MgBlend${suffix}`,
+  },
+} as const satisfies Record<
+  InternalOutput,
+  {
+    name: (o: CompiledOutput, suffix: string) => string
+    type: (o: CompiledOutput, suffix: string) => string
+  }
+>
+
+/** Whether `name` is a function a closure tree adds, not an output of the graph. */
+export const isInternalOutput = (name: GraphOutput | InternalOutput): name is InternalOutput =>
+  name in INTERNAL_OUTPUTS
+
+/** The name of the function of `o`: its output's (`outputFunction`), the slab's rank after it for a slab's attribute, an internal one's own. */
+export const compiledFunction = (o: CompiledOutput, suffix = '') =>
+  isInternalOutput(o.name)
+    ? INTERNAL_OUTPUTS[o.name].name(o, suffix)
+    : o.slab === undefined
+      ? outputFunction(o.name, suffix)
+      : `${outputFunction(o.name)}S${o.slab}${suffix}`
+
+/** The type a compiled function returns. */
+const returnType = (o: CompiledOutput, suffix: string) =>
+  isInternalOutput(o.name)
+    ? INTERNAL_OUTPUTS[o.name].type(o, suffix)
+    : wgslType(GRAPH_OUTPUTS[o.name].type)
 
 /** The function of the output `o`, its declaration named with `suffix`. */
 export const outputText = (o: CompiledOutput, suffix: string) =>
-  `fn ${outputFunction(o.name, suffix)}(ctx:MgContext,g:${valuesStruct(suffix)})->${wgslType(GRAPH_OUTPUTS[o.name].type)}{\n ${o.body}\n}`
+  `fn ${compiledFunction(o, suffix)}(ctx:MgContext,g:${valuesStruct(suffix)})->${returnType(o, suffix)}{\n ${o.bodyOf?.(suffix) ?? o.body}\n}`
 
 /**
  * The lines of the function that asks the tile each texture read of the graph takes (`mgAsk`): for
@@ -139,14 +218,15 @@ export const isCompiled = (
   name: GraphOutput,
   reading: GraphReading,
   modelFromGraph = true,
+  outputs: Partial<Record<GraphOutput, Pin>> = graph.outputs,
 ) =>
-  !!graph.outputs[name] &&
+  !!outputs[name] &&
   (modelFromGraph || name !== 'shadingModel') &&
   outputActive(domain, name, {
     ...reading,
-    models: modelFromGraph && !!graph.outputs.shadingModel,
-    water: isWaterGraph(graph.outputs),
-    thin: isThinTranslucentGraph(graph.outputs),
+    models: modelFromGraph && !!outputs.shadingModel,
+    water: isWaterGraph(outputs),
+    thin: isThinTranslucentGraph(outputs),
   })
 
 /** The helper that reads an absolute level of the colour atlas, written only for a graph that reads
@@ -181,7 +261,8 @@ export interface BlockParts {
  *  (`colorSample`); in a program that finds footprints by neighbours, their contexts. */
 export function programBlock(parts: BlockParts): WgslDecl {
   const { hash, suffix, slots, functions, ask } = parts
-  const text = `struct ${valuesStruct(suffix)}{v:array<vec4f,${Math.max(slots.vectors.length, 1)}>,t:array<vec4u,${slots.textureRows}>,}
+  const blends = functions.some((f) => f.name === 'closureBlend')
+  const text = `struct ${valuesStruct(suffix)}{v:array<vec4f,${Math.max(slots.vectors.length, 1)}>,t:array<vec4u,${slots.textureRows}>,}${blends ? `\n${blendStruct(suffix)}` : ''}
 ${functions.map((f) => outputText(f, suffix)).join('\n')}${ask ? `\n${askText(ask.body, suffix)}` : ''}`
   return wgslBlock(`materialGraph(${hash}${suffix})`, dependencies(parts), text)
 }

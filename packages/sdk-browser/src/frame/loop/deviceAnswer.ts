@@ -10,6 +10,8 @@ import { litProgramPending } from '../prepare/contractLight.ts'
 import { askFramePipelines, askFramePipelinesMoved } from './framePipelines.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { heldTargetGrant } from '../backend/state/gpu.ts'
+import { oitBuffersAwaited } from '../../blend/oit/oitResources.ts'
+import { objectShadowTableAwaited } from '../../blend/objectShadow/objectShadowSelf.ts'
 
 /** One answer the device may still owe the frame: whether it is pending, read without allocating
  *  (the held frame asks it every frame), and the promise it settles with, `undefined` once given. */
@@ -26,12 +28,14 @@ const answerOf = (name: string, answer: Answer['answer']): Answer => ({
 })
 
 /** Every answer, in one list both `deviceAnswering` and `deviceAnswer` read: the targets' grant
- *  the frames wait for (asked the held way, never one made aside), the lit program the device
+ *  the frames wait for (asked the held way, never one made aside), the sorted translucency's first buffers, the translucent shadows' packed table the records need, the lit program the device
  *  compiles, the compiles the frame waits for — counted while only asked whether
  *  (`pipelinesCompiling`). */
 const ANSWERS: readonly Answer[] = [
   answerOf('targets in flight', (rt) => grantPending(heldTargetGrant(rt.gpu))),
   answerOf('lit program', litProgramPending),
+  answerOf('sorted translucency buffers', (rt) => oitBuffersAwaited(rt.gpu)),
+  answerOf('translucent object shadow table', objectShadowTableAwaited),
   {
     // Each pipeline waited for by its name (`pipelineLabel`), never the word alone.
     name: (rt) => `pipelines: ${heldCompiles(rt.gpu.device).join(', ')}`,

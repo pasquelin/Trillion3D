@@ -30,7 +30,7 @@ export const PT_SHADE_RESOURCE_BINDINGS: ReadonlySet<number> = new Set([
  * the same bindings) and the paths' (group 1: the parameters, the queue, the hits and the materials) —, and for a class key the pipeline that shades the hits of that class, its features the resolve's overrides, the module
  * of a graph's program shared by every class of the program, each prepared off the frame.
  */
-export const hitShadePipelinesOf = oncePerDevice((device: GPUDevice) => {
+const hitShadePipelinesMade = (device: GPUDevice, weighted: boolean) => {
   const b = SHADE_BINDINGS
   const resources = device.createBindGroupLayout({
     label: 'Trillion3D path tracer hit shade resources',
@@ -52,12 +52,19 @@ export const hitShadePipelinesOf = oncePerDevice((device: GPUDevice) => {
       computeBufferEntry(PT_SHADE_PATHS.queue, 'storage'),
       computeBufferEntry(PT_SHADE_PATHS.hits, 'read-only-storage'),
       computeBufferEntry(PT_SHADE_PATHS.materials, 'storage'),
+      // The choice among closures reads the ray's direction and the lights' energy table.
+      ...(weighted
+        ? [
+            computeBufferEntry(PT_SHADE_PATHS.states, 'read-only-storage'),
+            computeBufferEntry(PT_SHADE_PATHS.lights, 'read-only-storage'),
+          ]
+        : []),
     ],
   })
   const layout = pipelineLayoutOf(device, [resources, paths])
   const plain = device.createShaderModule({
     label: 'Trillion3D path tracer hit shade',
-    code: shadeHitProgram(),
+    code: shadeHitProgram(undefined, weighted),
   })
   // By the graph program's text: every class of the program shares its module.
   const graphModules = new Map<string, GPUShaderModule>()
@@ -71,7 +78,7 @@ export const hitShadePipelinesOf = oncePerDevice((device: GPUDevice) => {
         compiled.key,
         (module = device.createShaderModule({
           label: 'Trillion3D path tracer hit shade graph',
-          code: shadeHitProgram(compiled),
+          code: shadeHitProgram(compiled, weighted),
         })),
       )
     return module
@@ -90,5 +97,14 @@ export const hitShadePipelinesOf = oncePerDevice((device: GPUDevice) => {
       compute: { module: moduleOf(key), entryPoint: PT_SHADE_ENTRY, constants },
     })
   }, classIdentity)
-  return { layouts: [resources, paths] as const, of: classes.of, prune: classes.prune }
-})
+  return { layouts: [resources, paths] as const, weighted, of: classes.of, prune: classes.prune }
+}
+
+export const hitShadePipelinesOf = oncePerDevice((device: GPUDevice) =>
+  hitShadePipelinesMade(device, false),
+)
+
+/** The same pipelines for a view whose pixels hold several closures: the shade of a hit chooses one closure of its material and writes the weight of the choice beside the record (`ptHitMaterialStride`). */
+export const weightedHitShadePipelinesOf = oncePerDevice((device: GPUDevice) =>
+  hitShadePipelinesMade(device, true),
+)

@@ -29,20 +29,24 @@ export const SP_THIN_FEATURE = wgslBlock(
 )
 
 /**
- * HOW FAR A SAMPLE OF A FIXED-STEP RAY MAY LIE IN FRONT of the depth and still hit it (\`spFixedTolerance\`), in device depth: under a perspective, the greater of the ray's own depth step
- * and the depth the projection gains over a view distance \`span\` — \`slope\` times that gain —, from the depth \`startZ\` of its start (the view distance of the start is
- * the one the depth \`A + B / distance\` names); under an orthographic projection the gain alone, which the depth gradient (\`slab.z / slab.x\` a metre) gives.
+ * HOW FAR A SAMPLE OF A FIXED-STEP RAY MAY LIE IN FRONT of the depth and still hit it (`spFixedTolerance`), in device depth: the greater of the ray's own depth step and the depth the
+ * start gains over a view distance `span` (`spFixedDeeper`: the device depth at its end, from the depth `startZ` of its start) times `slope` under a perspective, that gain
+ * alone under an orthographic projection, where the depth gradient (`slab.z / slab.x` a metre) gives it. In a perspective the view distance of the start is the one the depth
+ * `A + B / distance` names.
  */
 export const SP_FIXED_TOLERANCE = wgslBlock(
   'SP_FIXED_TOLERANCE',
   [slabPerspective],
-  `fn spFixedTolerance(startZ:f32,stepZ:f32,span:f32,slope:f32)->f32{
+  `fn spFixedDeeper(startZ:f32,span:f32)->f32{
  let slab=reflectionView.slab;
  if(slabPerspective(slab)){
   let away=slab.z/max(startZ-slab.y,1e-12);
-  let deeper=slab.y+slab.z/(away+span);
-  return max(abs(stepZ),(startZ-deeper)*slope);
+  return slab.y+slab.z/(away+span);
  }
- return max(0.0,slab.z/slab.x*span*slope);
+ return startZ-slab.z/slab.x*span;
+}
+fn spFixedTolerance(startZ:f32,stepZ:f32,span:f32,slope:f32)->f32{
+ let gain=(startZ-spFixedDeeper(startZ,span))*slope;
+ return select(max(0.0,gain),max(abs(stepZ),gain),slabPerspective(reflectionView.slab));
 }`,
 )

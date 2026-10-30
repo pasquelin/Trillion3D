@@ -12,6 +12,7 @@ import {
   choiceSetting as choice,
   countSetting as count,
   flagSetting as flag,
+  gatedFlagSetting as gatedFlag,
   integerSetting as integer,
   nonNegativeSetting as nonNegative,
   numberSetting as number,
@@ -144,6 +145,15 @@ import {
  * project does (`reflectionFrontLayer`, false by default): the reference's project setting of its high quality translucency
  * reflections, off by default and on at its cinematic level, off at its high one. Without it a transparent surface reads the
  * screen and the screen probes alone, never a ray.
+ *
+ * THE TRANSLUCENT SURFACES' REFLECTION OF THE SCENE (`reflectionTranslucencyRadianceCache`, true; `reflectionTranslucencyScreenQuality`, 3): a blended, water or
+ * transmissive fragment that is not the traced front layer reflects, along its mirror direction, in this order: the screen probes' radiance cache where it
+ * covers the fragment's point (read through a cone of no width, one probe of the eight drawn at one half, the cache's level chosen by the noise of the fragment's pixel at
+ * the frame modulo eight), else the environment through its lobe; then, where the quality is above 0 and the view was not cut, a march of the last lit image through the
+ * depth pyramid in 12 steps (from no offset, rougher surfaces looking at coarser levels) whose hit, faded at the border of both images and by
+ * `saturate(2 - 6.6 * roughness)`, replaces what the first answered by the share of its alpha. A device that grants fewer than 23 sampled textures a stage,
+ * or a lighting data format other than `r11g11b10`, reflects the traced front layer or the environment alone, as before. The quality keeps the reference's range (0 to 4) but the march of a
+ * translucent surface only tells 0 from above 0: its 12 steps are fixed, as the reference's are.
  */
 
 /** The most neighbours the bilateral filter reads, whatever the setting asks. */
@@ -180,7 +190,7 @@ export const REFLECTION_RULES = /* @__PURE__ */ (() =>
     number('reflectionSampleSceneColorNormalThreshold', 85, [0, 180]),
     flag('reflectionHeightFog', true),
     flag('reflectionHiResSurface', true),
-    flag('reflectionHardwareRayTracing', true),
+    gatedFlag('reflectionHardwareRayTracing', true, 'rayTracingEnable'),
     nonNegative('reflectionHardwareRayTracingBias', 0.1, CENTIMETRES_NOTE),
     nonNegative('reflectionHardwareRayTracingNormalBias', 0.1, CENTIMETRES_NOTE),
     nonNegative('reflectionHardwareRayTracingFirstPersonMinimumHitDistance', 4, CENTIMETRES_NOTE),
@@ -211,6 +221,8 @@ export const REFLECTION_RULES = /* @__PURE__ */ (() =>
     number('reflectionContrast', 1, [0.001, 1]),
     nonNegative('reflectionSpecularScale', 1),
     flag('reflectionFrontLayer', false),
+    flag('reflectionTranslucencyRadianceCache', true),
+    integer('reflectionTranslucencyScreenQuality', 3, [0, 4]),
     number('reflectionSkylightLeaking', 0, [0, 1]),
     nonNegative('reflectionSkylightLeakingTintRed', 1),
     nonNegative('reflectionSkylightLeakingTintGreen', 1),
@@ -261,6 +273,10 @@ export interface ReflectionSettings {
   reconstructionMinWeight: number
   /** Whether the transparents' front layer is traced: where the level allows it and the level or the project asks for it. */
   frontLayer: boolean
+  /** The translucent surfaces' reflection of the scene (`reflectionTranslucencyRadianceCache`, `reflectionTranslucencyScreenQuality`): whether they read the
+   *  screen probes' radiance cache along their mirror direction (with the cache on), and the quality of the march of the last lit image they look at (0: none). */
+  translucencyCache: boolean
+  translucencyScreenQuality: number
   /** The same for the front layer's trace: the side of its blocks of pixels, and whether its reconstruction,
    *  temporal and bilateral passes run. Those of the opaque trace (`block`, `reconstruction`, `temporal`,
    *  `bilateral`) unless the scene's water asks for the front layer (`WaterFrontSettings`). */
@@ -505,6 +521,8 @@ function marchOf(values: ReflectionValues, probes: ScreenProbeSettings) {
     distantTolerance: values.reflectionDistantScreenDepthThreshold,
     distantOffsetBias: values.reflectionDistantScreenOffsetBias,
     ...cache,
+    translucencyCache: values.reflectionTranslucencyRadianceCache && probes.radianceCache,
+    translucencyScreenQuality: values.reflectionTranslucencyScreenQuality,
     traceDistance: probes.values.screenProbeMaxTraceDistance,
     maxRayIntensity: values.reflectionMaxRayIntensity,
     sampleDepthThickness: values.reflectionSampleSceneColorDepthThickness,

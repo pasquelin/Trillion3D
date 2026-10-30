@@ -2,6 +2,7 @@ import {
   ANY_NUMBER,
   contextReader,
   flagSetting as flag,
+  gatedFlagSetting as gatedFlag,
   integerSetting as integer,
   numberSetting as number,
   rulesOf,
@@ -185,7 +186,7 @@ export const HETEROGENEOUS_VOLUME_RULES = /* @__PURE__ */ (() =>
     flag('heterogeneousVolumesShadowsLightRect', true),
     integer('heterogeneousVolumesDebug', 0, [0, 9]),
     integer('heterogeneousVolumesShadowsType', 1, [0, 1]),
-    flag('heterogeneousVolumesHardwareRayTracing', false),
+    gatedFlag('heterogeneousVolumesHardwareRayTracing', false, 'rayTracingEnable'),
   ] as const))()
 /** The heterogeneous volume setting `field` of a runtime's context (`contextReader`): its default
  *  where the context holds none. */

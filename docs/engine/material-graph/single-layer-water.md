@@ -35,5 +35,6 @@ depths are metres in the world, centimetres in the law (`WATER_CM`).
 
 Exclusion volumes cut the surface: in a world holding one, the water programs are a variant whose
 `fsWater` and `fsWaterDepth` discard a fragment inside a volume that excludes its body (the item's
-rank, handed by the vertex stage in a lane of its own; the volumes' table is the water group's
-binding 10). No volume: the texts and layouts are the default's.
+rank, handed by the vertex stage in a spare lane of its extras, whatever else the program reads; the
+volumes' table is the water group's binding 10 and grows to what the world holds, no volume or body
+left out). The front pass draws the water's items apart in the same variant, with the table in its own group. The programs are rebuilt through the one blend rebuild (`followWaterExclusion`, `buildGranted`) when a volume appears or goes. No volume: the texts and layouts are the default's.

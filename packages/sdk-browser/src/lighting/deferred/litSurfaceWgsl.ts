@@ -8,7 +8,20 @@
  * their terms are the parts of one sum.
  */
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { SURFACE_COLOUR_LAYERS, SURFACE_WORDS } from '../../materials/surface/surfaceOutputs.ts'
+import {
+  COVERAGE_MAX,
+  COVERAGE_PRESENT,
+  LUMINANCE_MAX,
+  LUMINANCE_SHIFT,
+  SURFACE_CLOSURES,
+  SURFACE_COLOUR_LAYERS,
+  SURFACE_WORDS,
+  SURFACE_WORD_LAYERS,
+  closureCountOf,
+  closureFlagsLayerOf,
+  closureLobesLayerOf,
+  closuresHeldOf,
+} from '../../materials/surface/surfaceOutputs.ts'
 import { SURFACE_MODEL_MASK } from '../../materials/surface/surfaceModelWord.ts'
 import {
   MODEL_SWITCH,
@@ -104,6 +117,8 @@ export interface LitPixelCut extends ClassCut {
   channels: boolean
   /** Whether the pass writes the toon data (`ContractKey.toonData`): the toon diffuse of a toon pixel is left unramped to the pass after the lights. */
   toonData?: boolean
+  /** Whether the pass lights every closure of a pixel and sums them by coverage (`ContractKey.closures`, `closureTail`): with the toon data too, the toon light of each closure added to the data by its coverage, the ramp applied once to the pixel's sum. */
+  closures?: boolean
 }
 
 /** The cut of each class: a tile is of the class of its most demanding pixel (`pixelTileClass`), so
@@ -118,11 +133,12 @@ export const CLASS_CUTS: Record<TileClass, ClassCut> = {
  *  lighting channels where the program's lights test them. */
 export const litCutOf = (
   tileClass: TileClass,
-  key: { readonly channelless: boolean; readonly toonData?: boolean },
+  key: { readonly channelless: boolean; readonly toonData?: boolean; readonly closures?: boolean },
 ): LitPixelCut => ({
   ...CLASS_CUTS[tileClass],
   channels: !key.channelless,
   toonData: !!key.toonData && CLASS_CUTS[tileClass].models,
+  ...(key.closures ? { closures: true } : {}),
 })
 
 /**
@@ -157,6 +173,128 @@ fn lightOut(rgb:vec3f)->vec4f{
  return sssLitResult(preExposed(rgb),scatterLuma*view.preExposure.x,sssLitPostprocess(bits),sssLitCheckerboard(bits));
 }`,
 )
+
+/**
+ * WHAT A PASS READS OF A PIXEL'S CLOSURES, for a view whose pixels hold several (`ContractKey.closures`): the closures the record holds,
+ * the colour layer its first closure past the first sits at, and a closure's coverage — all read off the sizes of the two targets, which
+ * the record (`SURFACE_CLOSURES`) lays out as the first closure's layers, then two colour layers a closure after them, and in the words the
+ * flags, a coverage per closure and the offsets. The coverage of the first closure is one where its word was never written: a pixel of a
+ * material of one closure.
+ */
+export const CLOSURE_READ_WGSL = wgslBlock(
+  'CLOSURE_READ_WGSL',
+  [
+    COLOURS_BINDING_WGSL,
+    WORDS_BINDING_WGSL,
+    closuresHeldOf,
+    closureCountOf,
+    closureFlagsLayerOf,
+    closureLobesLayerOf,
+  ],
+  `
+fn closuresHeld()->u32{return closuresHeldOf(textureNumLayers(words));}
+/** The closures the pixel itself has, by its offsets word (the first, and one for each step that is not zero), as the reference loops the BSDF count of the pixel: one where the record holds one. */
+fn closureCountAt(coord:vec2i)->u32{
+ let held=closuresHeld();
+ if(held<2u){return 1u;}
+ return closureCountOf(textureLoad(words,coord,i32(textureNumLayers(words))-1,0).x,held);
+}
+/** The flags of closure: the pixel's for the first, its own (the pixel's with its specular and lobe mark) past it. */
+fn closureFlagsAt(coord:vec2i,closure:u32)->u32{
+ return textureLoad(words,coord,select(${SURFACE_WORDS.flags}u,closureFlagsLayerOf(closuresHeld(),closure),closure>0u),0).r;
+}
+/** The lobes texel of closure past the first, in the four word layers after its flags. */
+fn closureLobesTexel(coord:vec2i,closure:u32)->vec4u{
+ let at=closureLobesLayerOf(closuresHeld(),closure);
+ return vec4u(textureLoad(words,coord,at,0).r,textureLoad(words,coord,at+1u,0).r,textureLoad(words,coord,at+2u,0).r,textureLoad(words,coord,at+3u,0).r);
+}
+fn closureColourLayer(closure:u32)->u32{return textureNumLayers(colours)-${SURFACE_CLOSURES.colours}u*(closuresHeld()-closure);}
+fn closureCoverageAt(coord:vec2i,closure:u32)->f32{
+ let word=textureLoad(words,coord,${SURFACE_WORD_LAYERS}u+closure,0).r;
+ if(closure==0u&&word==0u){return 1.0;}
+ return select(0.0,f32(word&${COVERAGE_MAX}u)/${COVERAGE_MAX}.0,(word&${COVERAGE_PRESENT}u)!=0u);
+}
+/** What a closure's light is weighed by: its coverage, and the luminance weight the tops above it leave it (one where none covers it): the reference's LuminanceWeight. */
+fn closureWeightAt(coord:vec2i,closure:u32)->f32{
+ let word=textureLoad(words,coord,${SURFACE_WORD_LAYERS}u+closure,0).r;
+ return closureCoverageAt(coord,closure)*select(f32(word>>${LUMINANCE_SHIFT}u)/${LUMINANCE_MAX}.0,1.0,closure==0u&&word==0u);
+}`,
+)
+
+/**
+ * The tail of a pass's fragment, where it returns the light `light` (an expression in the pixel's `albedo`, `base`, `normal` and `N`): for
+ * one closure, `single` — the pass's own return, its text unchanged —; for a view whose pixels hold several, the light of every closure
+ * the record holds, summed by the closure's coverage, as the reference loops the closures of a pixel and weighs each one's light
+ * (the reference's deferred lighting of the closures, its luminance weight). The first closure is the pixel's read as ever (its model, its
+ * lobes); a closure past it is read from its slice — base colour and metalness, normal and roughness — under the same view of the lit
+ * image. Every closure is lit whatever its coverage, a zero one adding nothing, so the loop stays uniform for the texture reads of the light.
+ */
+export const closureTail = (
+  cut: Pick<LitPixelCut, 'closures' | 'lobes' | 'toonData'>,
+  light: string,
+  single: (light: string) => string,
+) =>
+  cut.closures ? closureLoop((add) => add(light), '', cut.lobes, !!cut.toonData) : single(light)
+
+/**
+ * What the loop of `closureLoop` reads of a closure past the first beside its colours, the model and the lobes it keeps of its own (`SurfaceBuffer.words`, the layers
+ * `closureFlagsLayerOf` names, the resolve writes them): its specular, and, where the program holds the lobes (`lobes`), its anisotropy, its coat and its cloth, decoded as a
+ * pixel's are (`lobesAt`) from its own texel, none where its flags carry no lobe. The pixel's shading model and what the model needs beyond the surface (the thin
+ * transmission, the toon data) are the graph's one output for the pixel, the first closure's.
+ */
+const closureModel = (lobes: boolean) => `   let closureFlags=closureFlagsAt(coord,closure);
+   surfaceSpecular=select(specularOfFlags(closureFlags),0.0,lightView==3u);${
+     lobes
+       ? `
+   roughDiffuse=(modelBits&${MODEL_SWITCH.roughDiffuse}u)!=0u;
+   lobes.on=false;
+   if((closureFlags&${PHYSICAL_SURFACE_FLAG}u)!=0u){
+    lobesAt(closureLobesTexel(coord,closure),1.0,N,V,normal.a);
+    setLobeBase(base.rgb,base.a,normal.a);
+   }`
+       : ''
+   }
+`
+
+/**
+ * The loop of `closureTail` over a body of several statements: `body` is handed the statement that adds the light it computes, weighed by the
+ * closure's coverage, to the sum, and is written once for the first closure and once for each closure past it, whose slice shadows the
+ * pixel's `base`, `normal`, `N` and `albedo` for it. `entering` is the statements a pass runs on entering a closure (its reads of what is kept by closure
+ * take the closure's number from it).
+ */
+export const closureLoop = (
+  body: (add: (light: string) => string) => string,
+  entering = '',
+  lobes = false,
+  toon = false,
+) => {
+  // The toon data the lights add (the pixel's model is toon whichever closure is lit) is taken by the closure's coverage like its light, the ramp applied once to the sum: what a closure adds to it is scaled from what it held before.
+  const scaled = (text: string) =>
+    toon
+      ? `   let toonBefore=vec4f(toonDiffuse,toonWeight);let toonBeforeNoL=toonWeightedNoL;
+${text}
+   toonDiffuse=toonBefore.xyz+coverage*(toonDiffuse-toonBefore.xyz);toonWeight=toonBefore.w+coverage*(toonWeight-toonBefore.w);toonWeightedNoL=toonBeforeNoL+coverage*(toonWeightedNoL-toonBeforeNoL);`
+      : text
+  const add = (light: string) => `closureLight+=coverage*${light};`
+  return `
+ var closureLight=vec4f(0.0);
+ let closureCount=closureCountAt(coord);
+ for(var closure=0u;closure<closureCount;closure++){
+  let coverage=closureWeightAt(coord,closure);${entering}
+  if(closure==0u){
+${scaled(body(add))}
+  }else{
+   let slice=closureColourLayer(closure);
+   var base=textureLoad(colours,coord,slice,0);
+   let normal=textureLoad(colours,coord,slice+1u,0);
+   let N=normalize(normal.xyz);
+   if(lightView==3u){base.a=0.0;}
+   let albedo=select(base.rgb,vec3f(${LIGHTING_ONLY_BRIGHTNESS}),lightView==3u);
+${closureModel(lobes)}${scaled(body(add))}
+  }
+ }
+ return closureLight;`
+}
 
 /** The lighting channels of the pixel, unpacked from its flags (`litPixelStatements`, `LitPixelCut.channels`). */
 export const LIT_CHANNELS_WGSL = wgslBlock(

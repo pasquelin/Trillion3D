@@ -131,6 +131,11 @@ function cloudViewTexts() {
       closestDepth: false,
       debugView: 0,
     }),
+    // The debug views: the share of the samples of a ray with conservative density, and the empty-space output with the table's start.
+    // The alpha holdout's coverage written beside the colours.
+    CLOUD_TRACE_HOLDOUT: cloudTraceProgram({ ...scene, holdout: true }),
+    CLOUD_TRACE_DEBUG_DENSITY: cloudTraceProgram({ ...scene, debugView: 1 }),
+    CLOUD_TRACE_DEBUG_EMPTY_SPACE: cloudTraceProgram({ ...scene, emptySpace: true, debugView: 2 }),
     CLOUD_HAZE: cloudHazeProgram(DEFAULT_AIR_SHAPE).code,
     CLOUD_RECONSTRUCT_FIRST: reconstructProgram(target, false),
     CLOUD_RECONSTRUCT_HISTORY: reconstructProgram(target, true),
@@ -139,9 +144,10 @@ function cloudViewTexts() {
     CLOUD_RECONSTRUCT_FOGGED_ONE_SURFACE: reconstructProgram(foggedOne, true),
     CLOUD_COMPOSE_TARGET: composeProgram(target),
     CLOUD_COMPOSE_DIRECT: composeProgram(direct),
-    // The alpha holdout's second draw: the clouds that hold out, then the haze and the fog alone.
-    CLOUD_COMPOSE_HELD: composeProgram(target, true, { cloud: true }),
-    CLOUD_COMPOSE_HELD_ABOVE: composeProgram(target, true, { cloud: false }),
+    // The alpha holdout's second draw: the coverage the trace wrote, laid over the alpha.
+    CLOUD_COMPOSE_HELD: composeProgram(target, true, true),
+    // The clouds laid into the scene copy behind the water, in the bilateral way and in the one that reads the depth of one jittered place.
+    CLOUD_COMPOSE_BEHIND_WATER: composeProgram(target, true, false, true),
   }
 }
 

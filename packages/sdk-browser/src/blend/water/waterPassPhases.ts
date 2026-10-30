@@ -3,6 +3,7 @@ import { feedbackAttachment } from '../../frame/prepare/attachments.ts'
 import { skyLightReadOf } from '../../frame/render/skyLightState.ts'
 import { litImageShown } from '../../frame/prepare/contractLight.ts'
 import { bindForwardReflection } from '../../lighting/reflections/group.ts'
+import { REFLECTION_GROUP } from '../../lighting/reflections/viewLayout.ts'
 import {
   WATER_COPY_PASS,
   WATER_DEPTH_PASS,
@@ -14,10 +15,13 @@ import {
   WATER_VELOCITY_PASS,
 } from '../../diagnostic/stage/passLabels.ts'
 import { encodeWaterSun } from '../../lighting/shadows/vsm/frame/vsmWaterSun.ts'
+import { encodeFieldWaterSun } from '../../lighting/shadows/classic/fieldShadow/fieldShadowWater.ts'
 import { drawBlendRuns, sharedBlendGroup } from '../draw.ts'
+import { emptyGroup } from '../transmission/distortionGroups.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { WATER_GROUP, WATER_TILE_PIXELS } from './waterLayout.ts'
 import type { WaterFrame } from './waterFrame.ts'
+import { waterViewOf } from './waterView.ts'
 import { waterCompositeGroup, waterIdsGroup, waterSunShadowGroup } from './waterTargets.ts'
 
 const WATER_VELOCITY_PASS_DESCRIPTOR: GPUComputePassDescriptor = { label: WATER_VELOCITY_PASS }
@@ -80,6 +84,12 @@ export function encodeDepthPrepass(f: WaterFrame) {
     },
   })
   pass.setViewport(0, 0, width, height, 0, 1)
+  // The variant for a world with exclusion volumes reads the table in the depth pass: the water's group, an empty one at the reflection's
+  // place (the depth runs before the lights, the reflection may not be made).
+  if (f.exclusions) {
+    pass.setBindGroup(REFLECTION_GROUP, emptyGroup(device))
+    pass.setBindGroup(WATER_GROUP, f.exclusions.shade)
+  }
   const drawn = drawBlendRuns(
     rt,
     device,
@@ -165,11 +175,13 @@ export function encodeColourCopy(f: WaterFrame) {
 }
 
 /** The height fog laid on the colour copy at the depths of the copy's linear depth (`singleLayerWaterUnderwaterFogWhenCameraIsAboveWater`): the
- *  fog behind the water, the copy being what the water refracts. Returns the draws encoded. */
+ *  fog behind the water, the copy being what the water refracts. Not with the camera under the water, whose fog is laid before the water
+ *  (`encodeBlend`): it would be laid twice. Returns the draws encoded. */
 export function encodeFogBehindWater(f: WaterFrame) {
   const { rt, targets } = f
   const deferred = rt.gpu.deferred
   if (!f.settings.singleLayerWaterUnderwaterFogWhenCameraIsAboveWater || !deferred) return 0
+  if (waterViewOf(rt).stage !== 'after') return 0
   if (
     !litImageShown(rt) ||
     !(rt.lights.store.environment?.fog || (rt.gpu.localFog?.plan.count ?? 0) > 0)
@@ -181,6 +193,25 @@ export function encodeFogBehindWater(f: WaterFrame) {
     targets.views.sceneDepth,
     targets.width / targets.factor,
     targets.height / targets.factor,
+  )
+  return 1
+}
+
+/** The clouds laid on the colour copy, for a camera that may intersect the water without being under it (`waterViewOf`): the copy is what the
+ *  water refracts, and the clouds are composed over the image only once the water is shaded, so a refraction of the sky would show none.
+ *  Nothing where the image has no clouds held for the water. Returns the draws encoded. */
+export function encodeCloudsBehindWater(f: WaterFrame) {
+  const { rt, targets } = f
+  const view = waterViewOf(rt)
+  const held = rt.gpu.clouds?.deferred
+  if (view.stage !== 'after' || view.intersection !== 'possibly' || held?.stage !== 'water')
+    return 0
+  held.behindWater(
+    targets.views.sceneColor,
+    targets.views.sceneDepth,
+    targets.sceneColor.width,
+    targets.sceneColor.height,
+    targets.factor,
   )
   return 1
 }
@@ -225,7 +256,7 @@ export function encodeShading(f: WaterFrame) {
       : { view: f.depthView, depthLoadOp: 'load', depthStoreOp: 'store' },
   })
   pass.setViewport(0, 0, f.width, f.height, 0, 1)
-  pass.setBindGroup(WATER_GROUP, targets.shadeGroup)
+  pass.setBindGroup(WATER_GROUP, f.exclusions?.shade ?? targets.shadeGroup)
   let drawn = drawBlendRuns(
     f.rt,
     f.device,
@@ -239,37 +270,60 @@ export function encodeShading(f: WaterFrame) {
   return drawn
 }
 
-/** The sun's shadow on the water: the suns projected onto its surface over the listed tiles (the projection of the
- *  shadow maps, input `water`), then the forward sun's share multiplied into the separated sun. Returns the passes
- *  encoded. */
-export function encodeSunShadow(f: WaterFrame) {
-  if (f.sunLayer < 0) return 0
-  const { rt, encoder, targets } = f
-  const pipeline = f.stages.sunShadow.pipeline.get()
-  const sun = targets.views.sun
-  if (!pipeline || !sun) return 0
-  // The count of the list, read by the projection as a uniform.
-  encoder.copyBufferToBuffer(targets.tileArgs, 4, targets.tileCount, 0, 4)
-  const steps = sunShadowRun.begin(encoder)
-  const mask = encodeWaterSun(rt, steps, {
-    depth: targets.views.waterDepth,
-    normals: targets.views.normals,
-    tiles: targets.tileList,
-    count: targets.tileCount,
-    dispatch: targets.tileDispatch,
-  })
-  steps.end()
-  if (!mask) return 0
-  const pass = encoder.beginRenderPass({
+/** The forward sun's share multiplied into the separated sun, over the listed tiles, from the layer of `mask` the frame's sun is. */
+function drawSunShadow(f: WaterFrame, pipeline: GPURenderPipeline, mask: GPUTextureView) {
+  const sun = f.targets.views.sun
+  const pass = f.encoder.beginRenderPass({
     label: WATER_SUN_SHADOW_PASS,
-    colorAttachments: [colour(sun, false)],
+    colorAttachments: [colour(sun!, false)],
   })
   pass.setViewport(0, 0, f.width, f.height, 0, 1)
   pass.setPipeline(pipeline)
-  pass.setBindGroup(0, waterSunShadowGroup(f.device, targets, mask))
-  pass.drawIndirect(targets.tileArgs, 0)
+  pass.setBindGroup(0, waterSunShadowGroup(f.device, f.targets, mask))
+  pass.drawIndirect(f.targets.tileArgs, 0)
   pass.end()
-  return 2
+}
+
+/** The sun's shadow on the water, over the listed tiles: the suns projected onto its surface from the shadow maps (the projection of
+ *  the shadow maps, input `water`) and, with the classic shadows, the sun's distance-field cascade traced on the water's depth and
+ *  upsampled over the tiles (`singleLayerWaterDistanceFieldShadow`); each multiplies the forward sun's share into the separated sun.
+ *  Returns the passes encoded. */
+export function encodeSunShadow(f: WaterFrame) {
+  if (f.sunLayer < 0 && f.fieldSunLayer < 0) return 0
+  const { rt, device, encoder, targets } = f
+  const pipeline = f.stages.sunShadow.pipeline.get()
+  if (!pipeline || !targets.views.sun) return 0
+  // The count of the list, read by the projection as a uniform.
+  encoder.copyBufferToBuffer(targets.tileArgs, 4, targets.tileCount, 0, 4)
+  let drawn = 0
+  if (f.sunLayer >= 0) {
+    const steps = sunShadowRun.begin(encoder)
+    const mask = encodeWaterSun(rt, steps, {
+      depth: targets.views.waterDepth,
+      normals: targets.views.normals,
+      tiles: targets.tileList,
+      count: targets.tileCount,
+      dispatch: targets.tileDispatch,
+    })
+    steps.end()
+    if (mask) {
+      drawSunShadow(f, pipeline, mask)
+      drawn += 2
+    }
+  }
+  if (f.fieldSun) {
+    const mask = encodeFieldWaterSun(rt, device, encoder, f.fieldSun, f.fieldSunLayer, {
+      depth: targets.views.waterDepth,
+      tiles: targets.tileList,
+      count: targets.tileCount,
+      dispatch: targets.tileDispatch,
+    })
+    if (mask) {
+      drawSunShadow(f, pipeline, mask)
+      drawn += 3
+    }
+  }
+  return drawn
 }
 
 /** The reflection of the water's surface added over the water, over the target or the listed tiles.
@@ -286,7 +340,7 @@ export function encodeComposite(f: WaterFrame) {
   pass.setViewport(0, 0, f.width, f.height, 0, 1)
   pass.setBindGroup(0, sharedBlendGroup(rt, device))
   bindForwardReflection(pass, rt, skyLightReadOf(rt))
-  pass.setBindGroup(WATER_GROUP, waterCompositeGroup(device, targets))
+  pass.setBindGroup(WATER_GROUP, f.exclusions?.composite ?? waterCompositeGroup(device, targets))
   pass.setPipeline(pipeline)
   if (f.tiledComposite) pass.drawIndirect(targets.tileArgs, 0)
   else pass.draw(3)

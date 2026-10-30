@@ -132,23 +132,22 @@ test('the word format writes the text the passes held before the setting existed
   // Re-pinned, with splat and traced, for the range test of the cache trace: a thread whose texel lies past the level's rays traces none and writes none.
   // Re-pinned after the morning's sweeps of 29/10, which changed these programs' shared text; and for the screen probes' rays, whose noise is drawn at their probe's tile (`spRayNoiseTexel`) and whose hits tell motion by one test (`spHitMoving`).
   // Re-pinned for the eye's words the screen probes' parameters hold and the two pose tables the scene stage binds: a hit of the field's march takes the speed of the placement that lit it (`spMarchMoving`).
-  // Re-pinned 30/10 for the simple lights' word (the tile slice's walk of the lights past the scene's, `DirectLights.simple`): trace, traced, rays, scene, sceneFog, mesh and gi, the programs that list the lights' walk.
-  // Re-pinned for the fog beyond a ray worked out over any reach (`fogBeyondAlong`, the sky meshes' capture): sceneFog, the scene trace that holds the fog's text.
+  // Re-pinned 29/10 (diff of the generated programs against HEAD): `traced` changed for the scene trace's geometry buffer and its any-hit test (`rays/sceneTrace/sceneMaskWgsl.ts`); trace, scene, sceneFog, mesh and gi for the hit read's `hiRes` argument of `scEvaluate`; gather for `fieldSlotShift`.
   assert.deepEqual(got, {
-    fixup: '0411aa1e53d0b225',
-    filter: 'f024b1af33bf1589',
-    trace: 'b68a665b44fe966b',
-    splat: '473592ed72ba005a',
-    traced: 'd70d124ee0fb524f',
-    irradiance: '4eb05766700c31a1',
-    occlusion: '56f849da20df81b1',
-    gather: '496b0219ad5de1e5',
-    rays: 'ca613957e5c05c19',
-    scene: 'ff1809634092c0cb',
-    sceneFog: 'e04ddfcefa6905b8',
-    mesh: '42a8234514d74759',
-    stage: 'a9e4b9469d365d71',
-    gi: '8b8d79df7340a54c',
+    fixup: '9bfe3a2ea6d87e7f',
+    filter: '7750a8b19dac1573',
+    trace: '94b12c369c693767',
+    splat: 'eb33fad2048864a8',
+    traced: 'b0733002c33cd08d',
+    irradiance: '6910ef3e1b772e26',
+    occlusion: '2d5a1e78d06440ec',
+    gather: '7b9bf7a82866a0be',
+    rays: 'a9e9d8034a8949c1',
+    scene: 'a90c9f4273ea0ab1',
+    sceneFog: '71faa829bf8ab36a',
+    mesh: '2cb76e86c74dd764',
+    stage: 'c430211b501cfedb',
+    gi: '80192adecdf91758',
     entries: '7398b779b1621dda',
     formats: '1f3697191cf3afc0',
   })

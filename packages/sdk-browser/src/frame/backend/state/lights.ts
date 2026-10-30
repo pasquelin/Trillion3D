@@ -13,6 +13,7 @@ import type { GpuLightTiles } from '../../../lighting/tiles/tiles.ts'
 import { createDrawnLights, type DrawnLights } from '../../../lighting/lightDrawRange.ts'
 import type { LightFunctionFrame } from '../../../lighting/lightFunction/frame.ts'
 import type { LightProfileFrame } from '../../../lighting/lightProfile/frame.ts'
+import type { LightShapeFrame } from '../../../lighting/lightShape/frame.ts'
 import type { RectLightAtlasFrame } from '../../../lighting/rectLightAtlas/frame.ts'
 import type { AmbientCubemapFrame } from '../../../lighting/deferred/ambientCubemapFrame.ts'
 import {
@@ -47,6 +48,8 @@ export interface WebgpuLightState {
   /** The light profiles' atlas and the profiles read, made when a light names one
    *  (`../../../lighting/lightProfile/frame.ts`). */
   lightProfile?: LightProfileFrame
+  /** The light shapes' visualization: when its switch last toggled, and the instances' buffer (`../../../lighting/lightShape/frame.ts`). */
+  lightShape?: LightShapeFrame
   /** The rectangle lights' source-texture atlas and the slot each textured light holds, made when a rect names a picture
    *  (`../../../lighting/rectLightAtlas/frame.ts`). */
   rectAtlas?: RectLightAtlasFrame

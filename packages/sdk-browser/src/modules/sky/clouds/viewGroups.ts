@@ -13,7 +13,7 @@ import {
 import type { AirShape } from '../../../lighting/atmosphere/shape.ts'
 import { fogReadBindEntries, type FogRead } from '../../../lighting/fog/read.ts'
 import type { CloudSetup } from './cloudModes.ts'
-import { COMPOSE_AIR_BINDINGS, type HeldClouds } from './composeWgsl.ts'
+import { COMPOSE_AIR_BINDINGS } from './composeWgsl.ts'
 import type { CloudFramePlan } from './reconstruct.ts'
 import type { Size } from './reconstructLayout.ts'
 import { cloudHazeAir } from './traceHazeProgram.ts'
@@ -66,14 +66,12 @@ export interface CloudViewFrame {
   /** The ratio of this image's pre-exposure to the history's. */
   readonly preExposureRatio: number
   readonly sceneDepth: GPUTextureView
+  /** The texture the composition lays the clouds over: the lit image, or the first level of the fog's own textures. */
   readonly hdr: GPUTextureView
   readonly air: CloudAir
   readonly material: readonly GPUBindGroupEntry[]
   readonly noise: GPUTextureView
   readonly extra: CloudTraceInputs
-  /** What the clouds hold out of the image's alpha, where the alpha holdout is in effect and the clouds are
-   *  traced one pixel to a pixel, as the reference supports it (`HeldClouds`); none else. */
-  readonly held?: HeldClouds
   /** The shadow maps and the clouds' shade the haze pass marches the air with. */
   readonly hazeMaps: { readonly maps: CloudShadowMaps; readonly cloudShadow: CloudShadowSet }
 }

@@ -114,6 +114,17 @@ function createLitImageStandIns(device: GPUDevice) {
     SCREEN_PROBE_FORMATS.shortRangeGi,
     { storage: true },
   )
+  // The same two as an array of one layer, what a resolve of several closures reads where the probes gathered none of them (it then reads the first closure's).
+  const screenIndirectClosures = standInTexture(
+    device,
+    'Trillion3D empty screen indirect closures',
+    SCREEN_PROBE_FORMATS.history,
+  )
+  const screenShortRangeGiClosures = standInTexture(
+    device,
+    'Trillion3D empty short-range global illumination closures',
+    SCREEN_PROBE_FORMATS.shortRangeGi,
+  )
   // One texel of zero: what a resolve reads of the ambient occlusion where the image drew none, and applies none
   // of (`DeferredLighting.setAmbientOcclusion`).
   const ambientOcclusion = standInTexture(
@@ -133,6 +144,8 @@ function createLitImageStandIns(device: GPUDevice) {
       reflection: reflection.createView(),
       screenIndirect: screenIndirect.createView(),
       screenShortRangeGi: screenShortRangeGi.createView(),
+      screenIndirectClosures: screenIndirectClosures.createView({ dimension: '2d-array' }),
+      screenShortRangeGiClosures: screenShortRangeGiClosures.createView({ dimension: '2d-array' }),
       ambientOcclusion: ambientOcclusion.createView(),
       volumetricLight: volumetricLight.createView(),
     },
@@ -140,6 +153,8 @@ function createLitImageStandIns(device: GPUDevice) {
       reflection.destroy()
       screenIndirect.destroy()
       screenShortRangeGi.destroy()
+      screenIndirectClosures.destroy()
+      screenShortRangeGiClosures.destroy()
       ambientOcclusion.destroy()
       volumetricLight.destroy()
     },

@@ -33,9 +33,11 @@ export const CLOUD_TRACE_BINDING = {
   depth: 12,
   /** The closest surface's depth, written beside the colours where the haze is laid per pixel. */
   closest: 13,
+  /** The alpha holdout's coverage, written beside the colours where the clouds hold out (`CloudTraceKey.holdout`). */
+  holdout: 14,
 } as const
 
-/** What the trace's group is made of (`CLOUD_TRACE_BINDING`): the material's entries, then each resource at its binding; `secondary` and `closest` only where the pass writes them. */
+/** What the trace's group is made of (`CLOUD_TRACE_BINDING`): the material's entries, then each resource at its binding; `secondary`, `closest` and `holdout` only where the pass writes them. */
 export const cloudTraceEntries = (
   material: readonly GPUBindGroupEntry[],
   r: {
@@ -46,6 +48,7 @@ export const cloudTraceEntries = (
     secondary?: GPUBindingResource
     depth: GPUBindingResource
     closest?: GPUBindingResource
+    holdout?: GPUBindingResource
   },
 ): GPUBindGroupEntry[] => [
   ...material,
@@ -56,6 +59,7 @@ export const cloudTraceEntries = (
   ...(r.secondary ? [{ binding: CLOUD_TRACE_BINDING.secondary, resource: r.secondary }] : []),
   { binding: CLOUD_TRACE_BINDING.depth, resource: r.depth },
   ...(r.closest ? [{ binding: CLOUD_TRACE_BINDING.closest, resource: r.closest }] : []),
+  ...(r.holdout ? [{ binding: CLOUD_TRACE_BINDING.holdout, resource: r.holdout }] : []),
 ]
 
 /** The block's fields:
@@ -93,8 +97,10 @@ export const cloudTraceEntries = (
  *    slices its start is moved by;
  *  - `ground`: the ground's albedo the cloud bounces light from;
  *  - `local`: the samples of a lamp's shadow ray, 1 when the clouds are a hole in the alpha (their
- *    light is left out, their coverage kept: `alphaHole`), and the exposure of the image, which a lamp's blend with it is
- *    taken at (`lightStrength`);
+ *    light is left out, their coverage kept: `alphaHole`), the exposure of the image, which a lamp's blend with it is
+ *    taken at (`lightStrength`), and 1 when the haze of the air lies on the clouds, by this pass or by the
+ *    second one (the cloud aerial perspective option and an air to scatter it): the alpha holdout's
+ *    coverage is let through the haze then;
  *  - `haze`: where the haze of the Rayleigh scattering alone starts on the cloud (kilometres) and the
  *    inverse of the distance it fades in over, then the same for the Mie scattering alone: the two
  *    volumes are read apart when the starts are not both 0. */

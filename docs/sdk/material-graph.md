@@ -15,4 +15,5 @@ output.
 - [Pixel depth offset and displacement](material-graph/depth-and-displacement.md)
 - [Thin translucent](material-graph/thin-translucent.md)
 - [Volume and light function domains](material-graph/volume-and-light-function.md)
+- [Closures: several layers per pixel](material-graph/closures.md)
 - [Compile failures and late joins](material-graph/refusals.md)

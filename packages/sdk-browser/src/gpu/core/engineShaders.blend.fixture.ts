@@ -1,9 +1,11 @@
 // The blend passes' shaders of the engine's shader fixture (`engineShaders.fixture.ts`): the transparent pass's graphs, its transmissive stages, the clipped and the per-vertex
 // variants.
 
+import { blendObjectShadowShader } from '../../blend/objectShadow/objectShadowWgsl.ts'
 import { blendFrontShader } from '../../blend/frontStageWgsl.ts'
 import { DIAGNOSTIC_BLEND_WGSL } from '../../diagnostic/gpuVariant.ts'
 import { transmitWgsl } from '../../blend/transmission/transmitWgsl.ts'
+import { waterWgsl } from '../../blend/water/waterStageWgsl.ts'
 import { blendShader, DEFAULT_TRANSLUCENT_SCENE } from '../../blend/shader.ts'
 import { isProgram, programOf } from '../../materials/graph/surfaceProgram.ts'
 import { material } from '../../../../sdk-core/src/world/material/index.ts'
@@ -36,6 +38,16 @@ function blendGraphPrograms() {
   return [program]
 }
 
+/** The program of a single-layer water's graph: a colour and the scattering of its volume wired. */
+function waterGraphPrograms() {
+  const g = material.graph('surface')
+  g.output('baseColor', g.constant(0.1, 0.3, 0.5))
+  g.output('scatteringCoefficients', g.constant(0.01, 0.02, 0.03))
+  const program = programOf({ graph: g, transparent: true })
+  if (!isProgram(program)) throw new Error('the water graph fixture does not compile')
+  return [program]
+}
+
 export const BLEND_SHADERS: Record<string, string> = {
   // The transmissive stages (`../../blend/transmission/transmitWgsl.ts`), the dual blend where
   // the device grants it.
@@ -47,13 +59,36 @@ export const BLEND_SHADERS: Record<string, string> = {
   ),
   FRONT_STAGE_GRAPH: blendFrontShader(2, undefined, blendGraphPrograms()),
   FRONT_STAGE_GRAPH_DEPTH: blendFrontShader(0, undefined, blendGraphPrograms()),
+  // The front stage of the water's items in a world that holds an exclusion volume: the body's lane and the cut.
+  FRONT_STAGE_WATER_EXCLUSION: blendFrontShader(2, undefined, [], undefined, true),
+  FRONT_STAGE_WATER_EXCLUSION_DEPTH: blendFrontShader(0, undefined, [], undefined, true),
+  // The translucent object shadows' depth stage for a world with an exclusion volume and a water among its graphs: the body's lane and the cut.
+  BLEND_OBJECT_SHADOW_WATER_EXCLUSION: blendObjectShadowShader(
+    undefined,
+    waterGraphPrograms(),
+    undefined,
+    true,
+  ),
   BLEND_TRANSMIT: blendShader({}, { stage: transmitWgsl({}, false) }),
   BLEND_TRANSMIT_DUAL: blendShader({}, { stage: transmitWgsl({}, true), dual: true }),
   BLEND_TRANSMIT_LOBELESS: blendShader(
     { lobeless: true },
     { stage: transmitWgsl({ lobeless: true }, false) },
   ),
+  // The per-pixel sorted translucency (`../../blend/oit/oitWgsl.ts`): the stage that collects, plain and with graphs, and the combination.
+  BLEND_SORTED_PIXELS: blendShader({}, { oit: true }),
+  BLEND_SORTED_PIXELS_GRAPH: blendShader({}, { oit: true, graphs: blendGraphPrograms() }),
   BLEND_DIAGNOSTIC: blendShader({}, { diagnostic: DIAGNOSTIC_BLEND_WGSL }),
+  // The single-layer water's stage (`../../blend/water/waterStageWgsl.ts`) in the blend module.
+  BLEND_WATER: blendShader({}, { water: waterWgsl({}) }),
+  // And its variant for a world that holds an exclusion volume: the body's rank in the vertex stage's extras and the cut in the fragments.
+  BLEND_WATER_EXCLUSION: blendShader(
+    {},
+    {
+      water: waterWgsl({}, undefined, undefined, false, undefined, true),
+      waterExcludes: true,
+    },
+  ),
   // The forward passes' light loops without shadow or rectangle code (`createForwardVariants`).
   BLEND_UNSHADOWED_RECTLESS: blendShader({ unshadowed: true, rectless: true }),
   BLEND_RECTLESS: blendShader({ rectless: true }),

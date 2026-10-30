@@ -28,6 +28,12 @@ export const SINGLE_LAYER_WATER_MEANINGS: Readonly<Record<SingleLayerWaterField,
     "Whether the water's depth is drawn first, ahead of its shading; true by default. The tiles and the refraction mask are made from it.",
   singleLayerWaterUnderwaterFogWhenCameraIsAboveWater:
     'Whether the height fog is also laid on the scene seen through the water, at the depth of what lies behind it, when the camera is above the water; false by default. It avoids artifacts when entering and leaving the water in a strong fog, and causes some when the water is looked at from afar.',
+  singleLayerWaterUnderwaterTest:
+    'Whether the camera is tested against the water bodies each image (a body: the volume under the footprint of a water surface, down to mesh.waterBody.depth, or to the geometry of the scene under the surface at the camera when unset; only bodies with mesh.waterBody.underwaterPostProcess are weighed, and not those a WaterExclusionVolume (object.waterExclusion()) excludes where the camera stands in it); true by default. A camera possibly in the water has the clouds composed into the scene seen through the water too, a camera under water has the sky, the fog and the clouds composed before the water. Off, no camera is ever in the water.',
+  singleLayerWaterUnderwaterTraceDistance:
+    'Metres of the sphere swept from the camera up by the same distance to find the water bodies near it; 1 by default. It is inflated to account for waves, which the sweep does not hit.',
+  singleLayerWaterUnderwaterPreciseTraceDistance:
+    "Metres of the sphere at the camera that verifies the camera overlaps a body once it is under the body's surface; 0.1 by default.",
   singleLayerWaterOptimizedClear:
     "Whether the water's depth is cleared over the view alone, not the whole target; true by default.",
   singleLayerWaterVelocityOutputPass:
@@ -35,7 +41,7 @@ export const SINGLE_LAYER_WATER_MEANINGS: Readonly<Record<SingleLayerWaterField,
   singleLayerWaterShadersSupportDistanceFieldShadow:
     "Whether the water programs keep the sun apart from the rest of the water's light, for the sun's distance-field shadow; true by default. Read when the session opens.",
   singleLayerWaterDistanceFieldShadow:
-    "Whether the sun's light on the water is kept apart for the sun's distance-field shadow, which leaves out the meshes made of clusters (all the engine draws: the shadow maps shadow them); true by default. Needs singleLayerWaterShadersSupportDistanceFieldShadow and a scene whose meshes have distance fields.",
+    "Whether the sun's light on the water is kept apart and shadowed by the classic distance-field cascade of the sun (shadowVirtualEnable off), traced on the water's depth and upsampled over the tiles that hold water; true by default. Needs singleLayerWaterShadersSupportDistanceFieldShadow and a scene whose meshes have distance fields.",
   singleLayerWaterShadersSupportVsmFiltering:
     "Whether the water programs hold the full trace of the sun's shadow that singleLayerWaterVsmFiltering turns on; false by default. Read when the session opens.",
   singleLayerWaterVsmFiltering:

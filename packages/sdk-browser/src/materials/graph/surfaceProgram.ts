@@ -3,6 +3,7 @@ import type { GraphBlend } from '../../../../sdk-core/src/world/material/graph/o
 import { TILE_REQUEST_WGSL } from '../virtual/requestWgsl.ts'
 import { COLOR_SAMPLE_WGSL } from '../virtual/wgsl.ts'
 import { compileGraph, readingKey, type CompileOptions, type CompiledGraph } from './compile.ts'
+import { clampClosureLimit } from '../closures/closureLimit.ts'
 import { compileKept, isRefusal, type GraphRefusal } from './kept.ts'
 
 /**
@@ -81,12 +82,18 @@ type Reading = Required<
 
 /** The graph compiled for `kind`, once: in the transparent pass its declarations are named by the
  *  text's own hash, so that the programs of one module are apart. */
-function compileFor(graph: MaterialGraph, kind: ProgramKind, reading: Reading): Entry {
+function compileFor(
+  graph: MaterialGraph,
+  kind: ProgramKind,
+  reading: Reading,
+  closures: number,
+): Entry {
   const options: CompileOptions = {
     sample: COLOR_SAMPLE_WGSL,
     derivatives: 'neighbours',
     request: TILE_REQUEST_WGSL,
     ...reading,
+    closureLimit: closures,
     named: kind === 'blend',
     // The resolve and the offset carry the vertex colour (`shadeGraphWgsl.ts`, `wpoGraphWgsl.ts`); the
     // transparent pass's fragment has no varying for it (`../../blend/vertexWgsl.ts`).
@@ -102,9 +109,14 @@ function compileFor(graph: MaterialGraph, kind: ProgramKind, reading: Reading): 
  * The program a surface's graph compiles to for `kind` — the pass that shades it, `kindOf` by
  * default —, once for each shape of the graph — a value written to a parameter compiles nothing
  * again —; none for a surface with no graph; a refusal, naming the node, for a graph that does not
- * compile. A program is the one every graph of the same text shares.
+ * compile. A program is the one every graph of the same text shares. `closures` is the project's closures per pixel a
+ * tree of closures is simplified to (`limitOf`, from what the caller receives of its runtime); the setting's default unsaid.
  */
-export function programOf(surface: GraphSurface, kind = kindOf(surface)): Entry | undefined {
+export function programOf(
+  surface: GraphSurface,
+  kind = kindOf(surface),
+  closures = clampClosureLimit(undefined),
+): Entry | undefined {
   const { graph } = surface
   if (!graph) return undefined
   const reading: Reading = {
@@ -114,8 +126,10 @@ export function programOf(surface: GraphSurface, kind = kindOf(surface)): Entry 
     negativeEmissive: surface.allowNegativeEmissive === true,
     modelFromGraph: surface.modelFromGraph !== false,
   }
-  const key = `${kind}:${reading.blend}:${readingKey(reading)}`
-  return compileKept(graph, key, () => compileFor(graph, kind, reading))
+  // A tree of closures is simplified to the project's closures per pixel: it is another program for another limit.
+  const tree = graph.closureRoot === undefined ? '' : `:${closures}`
+  const key = `${kind}:${reading.blend}:${readingKey(reading)}${tree}`
+  return compileKept(graph, key, () => compileFor(graph, kind, reading, closures))
 }
 
 /** The programs of `kind` among those known, by id: what a module of the transparent pass holds the

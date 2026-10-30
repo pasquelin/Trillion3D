@@ -14,6 +14,7 @@ import { isCancelled } from '../../session/engine/common.ts'
 import { families } from '../../session/host/families.ts'
 import { wantsResponsive } from './responsiveTarget.ts'
 import { blendContext } from './contractLight.ts'
+import type { BlendVariant } from '../../blend/variant.ts'
 
 type Shaders = Awaited<ReturnType<typeof createWebgpuVisibilityShaders>>
 type Variant = WebgpuPagesRuntime['context']['diagnosticGpuVariant']
@@ -25,6 +26,8 @@ export async function buildBlendPipelines(
   gpuDevice: GPUDevice,
   items: readonly BlendedSurface[],
   layout?: GPUBindGroupLayout,
+  holdsTransmission?: boolean,
+  world?: BlendVariant,
 ) {
   const { vis, diag } = rt
   try {
@@ -35,7 +38,11 @@ export async function buildBlendPipelines(
       vis.writesFeedback,
       layout,
       wantsResponsive(rt),
-      blendContext(rt),
+      {
+        ...blendContext(rt),
+        ...(holdsTransmission === undefined ? undefined : { holdsTransmission }),
+        ...(world === undefined ? undefined : { world }),
+      },
     )
   } catch (error) {
     diag.diagnosticFailure('forward-material-pipeline-failed', error)

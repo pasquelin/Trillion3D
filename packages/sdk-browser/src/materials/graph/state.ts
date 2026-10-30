@@ -81,14 +81,20 @@ export function mergeUses(into: Uses, from: Uses) {
  *  for the tile it takes is made from. */
 export interface SampleRead {
   readonly node: GraphNode
-  readonly output: GraphOutput
+  readonly output: StateOutput
 }
+
+/** The functions a closure tree adds to the graph's outputs: the scalar a closure operator (a mix, a weight) reads, and the blend of a subtree into one closure. */
+export type InternalOutput = 'closureOperand' | 'closureBlend'
+
+/** What a state compiles: an output of the graph, or the scalar a closure operator reads, which no output's rule governs. */
+export type StateOutput = GraphOutput | 'closureOperand'
 
 /** What a compilation of one output is given. */
 export interface StateInit {
   readonly graph: MaterialGraph
   readonly domain: MaterialDomain
-  readonly output: GraphOutput
+  readonly output: StateOutput
   readonly slots: Slots
   readonly derivatives: Derivatives
   readonly translate: (state: State, node: GraphNode) => Value
@@ -119,7 +125,7 @@ export class State {
   readonly context: string
   readonly graph: MaterialGraph
   readonly domain: MaterialDomain
-  readonly output: GraphOutput
+  readonly output: StateOutput
   readonly slots: Slots
   readonly derivatives: Derivatives
   readonly vertexColor: boolean

@@ -115,8 +115,14 @@ test('only the elements the counter and the buffer’s size both allow are taken
 test('the buffer’s parts follow the header, the last-read part a power of two of pages, 256 at least', () => {
   const words = feedbackWords(100, 1000)
   assert.deepEqual(
-    [words.elements, words.lastUsedHiRes, words.pages, words.words],
-    [FEEDBACK_HEADER_WORDS, FEEDBACK_HEADER_WORDS + 200, 1024, FEEDBACK_HEADER_WORDS + 200 + 1024],
+    [words.elements, words.lastUsedHiRes, words.lastUsed, words.pages, words.words],
+    [
+      FEEDBACK_HEADER_WORDS,
+      FEEDBACK_HEADER_WORDS + 200,
+      FEEDBACK_HEADER_WORDS + 200 + 1024,
+      1024,
+      FEEDBACK_HEADER_WORDS + 200 + 2 * 1024,
+    ],
   )
   assert.equal(feedbackWords(1, 3).pages, 256)
 })

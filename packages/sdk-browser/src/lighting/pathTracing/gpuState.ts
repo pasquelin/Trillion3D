@@ -9,7 +9,7 @@ import { PT_LIGHT_TABLE_WORDS } from './lightTable.ts'
 import { PT_GRID_DATA_WIDTH } from './lightGridWgsl.ts'
 import { PT_LIGHT_FLOATS, PT_LIGHT_MAXIMUM } from './lightRecords.ts'
 import { PT_HIT_BYTES } from './hitRecordWgsl.ts'
-import { PT_HIT_MATERIAL_BYTES } from './hitMaterialWgsl.ts'
+import { ptHitMaterialSlotBytes } from './hitMaterialWgsl.ts'
 import { PT_STATE_BYTES } from './pathWgsl.ts'
 import {
   PT_AOV_FORMAT,
@@ -78,6 +78,7 @@ export function pathTracingBytes(
   gridCapacity: number,
   skySize: number,
   tables = 0,
+  weighted = false,
 ) {
   const pixels = size[0] * size[1]
   const chain = Array.from(
@@ -93,7 +94,7 @@ export function pathTracingBytes(
   const sky = skyTableBytes(skySize)
   return Math.ceil(
     images +
-      paths * (PT_STATE_BYTES + PT_HIT_BYTES + PT_HIT_MATERIAL_BYTES) +
+      paths * (PT_STATE_BYTES + PT_HIT_BYTES + ptHitMaterialSlotBytes(weighted)) +
       queueWords(bounceLevels, paths) * 4 +
       bounceLevels * PT_STEPS * 12 +
       blockCount * PT_VIEW_STRIDE +
@@ -110,7 +111,7 @@ export class PathTracingGpu {
   readonly images: readonly [PathTracingImages, PathTracingImages]
   readonly cameraNormals: GPUTexture
   readonly states: GPUBuffer
-  /** What each path's ray met this bounce (`PT_HIT_BYTES` a path) and the material the shade of the hits gave it (`PT_HIT_MATERIAL_BYTES`). */
+  /** What each path's ray met this bounce (`PT_HIT_BYTES` a path) and the material the shade of the hits gave it (`ptHitMaterialSlotBytes`: the layout with the weight of the slab only where the view's pixels hold several closures). */
   readonly hits: GPUBuffer
   readonly materials: GPUBuffer
   /** The surfaces the cut's placements wear (`hitPlacements.ts`), made again when it outgrows. */
@@ -178,6 +179,7 @@ export class PathTracingGpu {
     gridCapacity: number,
     skySize: number,
     airSide: number,
+    weighted = false,
   ) {
     this.device = device
     this.size = size
@@ -226,7 +228,11 @@ export class PathTracingGpu {
     const paths = tile * tile
     this.states = buffer('states', paths * PT_STATE_BYTES, GPUBufferUsage.STORAGE)
     this.hits = buffer('hits', paths * PT_HIT_BYTES, GPUBufferUsage.STORAGE)
-    this.materials = buffer('hit materials', paths * PT_HIT_MATERIAL_BYTES, GPUBufferUsage.STORAGE)
+    this.materials = buffer(
+      'hit materials',
+      paths * ptHitMaterialSlotBytes(weighted),
+      GPUBufferUsage.STORAGE,
+    )
     this.placements = buffer('placements', 16, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST)
     this.queue = buffer(
       'queue',

@@ -25,22 +25,28 @@ import { REFLECTION_PASS } from '../../diagnostic/stage/passLabels.ts'
 import { viewProj } from '../../frame/backend/helpers.ts'
 import { REFLECTION_VIEW_BYTES } from './viewLayout.ts'
 import { REFLECTION_TARGET, REFLECTION_TARGET_LAYERS } from './weight.ts'
+import { retire } from '../../gpu/core/frameRetire.ts'
 import { standInTexture } from '../../gpu/core/standIns.ts'
 import { VECTOR_FORMAT } from '../../post/taa/velocityWgsl.ts'
+import { closureSideBytes, createClosureSides, layersOf } from './closureSides.ts'
 
 /** Bytes a view's reflection holds at `width × height` (`createScreenReflection`): its target, its
  *  lit image — the other of the HDR targets that take turns (`litImageBytes`) —, its grids
- *  (`gridBytes`), the resolved pixels both surfaces share (`resolvedBytes`), the depth it keeps of its last image (`depthBytes`), its uniform and the
+ *  (`gridBytes`), the opaque surface's resolved pixels (`resolvedBytes`), the depth it keeps of its last image (`depthBytes`), its uniform and the
  *  transparents' front layer (`frontLayerBytes`, which `blends` sizes) and its census (`census.ts`); the
- *  depth it marches is the Hi-Z's, the front layer's covering depth folded in. */
+ *  depth it marches is the Hi-Z's, the front layer's covering depth folded in. For a record of `closures` closures a pixel it holds, for each closure past the first, two more layers
+ *  of the target and the closure's own flags, grids and resolved pixels (`closureSideBytes`). */
 export function reflectionBytes(
   width: number,
   height: number,
   blends: boolean,
   statistics = false,
+  closures = 1,
 ) {
+  const past = Math.max(1, closures) - 1
   return (
-    REFLECTION_TARGET.bytes(width, height, true) +
+    REFLECTION_TARGET.bytes(width, height, true) * (1 + past) +
+    past * closureSideBytes(width, height) +
     litImageBytes(width, height) +
     frontLayerBytes(width, height, blends) +
     gridBytes(width, height, true) +
@@ -52,16 +58,8 @@ export function reflectionBytes(
 }
 
 /** The target the last pass writes, the view uniform, the resolved pixels the opaque surface's
- *  resolve then the front one's write in turn, in the same pass (`trace/trace.ts`), and the depth the view keeps of its last image. */
+ *  resolve writes (`trace/trace.ts`), and the depth the view keeps of its last image. */
 function createReflectionTargets(device: GPUDevice, width: number, height: number) {
-  // `COPY_SRC` and `COPY_DST` serve only the proof tools, which reread the target and set it first;
-  // no frame copies it.
-  const target = device.createTexture({
-    label: 'Trillion3D reflection',
-    size: [width, height, REFLECTION_TARGET_LAYERS],
-    format: HDR_FORMAT,
-    usage: loadOnlyUsage() | GPUTextureUsage.COPY_SRC | GPUTextureUsage.COPY_DST,
-  })
   const uniform = device.createBuffer({
     label: 'Trillion3D reflection view',
     size: REFLECTION_VIEW_BYTES,
@@ -80,7 +78,31 @@ function createReflectionTargets(device: GPUDevice, width: number, height: numbe
     [width, height],
     REFLECTION_DEPTH_FORMAT,
   )
-  return { target, uniform, resolved, depth }
+  return { uniform, resolved, depth }
+}
+
+/** The reflection target of a record of `closures` closures a pixel, two layers for each (`layersOf`), and the traced reflections of the closures past the first
+ *  (`closureSides.ts`); none of them for a record of one closure. */
+function createLayeredTarget(device: GPUDevice, width: number, height: number, closures: number) {
+  // `COPY_SRC` and `COPY_DST` serve the proof tools, which reread the target and set it first, and the closures' sides (`ClosureSide.copyFirst`),
+  // which copy the first closure's two layers into theirs each image until a trace wrote their own (none while no surface has the closure).
+  // `RENDER_ATTACHMENT`: the planar reflections are blended over its first layer.
+  const target = device.createTexture({
+    label: 'Trillion3D reflection',
+    size: [width, height, layersOf(REFLECTION_TARGET_LAYERS, closures)],
+    format: HDR_FORMAT,
+    usage:
+      loadOnlyUsage() |
+      GPUTextureUsage.COPY_SRC |
+      GPUTextureUsage.COPY_DST |
+      GPUTextureUsage.RENDER_ATTACHMENT,
+  })
+  return {
+    closures,
+    target,
+    targetView: target.createView(),
+    past: createClosureSides(device, width, height, closures, target, REFLECTION_TARGET_LAYERS),
+  }
 }
 
 /** What each image of a reflection writes in place, and the groups it keeps: the reflection group
@@ -127,7 +149,7 @@ function reflectionImageCounters(depthView: GPUTextureView) {
     /** The reflections' turn (`ReflectionView.temporal`), advanced every image
      *  (`stageReflectionImage`). */
     turn: 0,
-    /** How many images the reflections staged (\`ReflectionFrame.image\`). */
+    /** How many images the reflections staged (`ReflectionFrame.image`). */
     images: 0,
   }
 }
@@ -146,8 +168,10 @@ export function createScreenReflection(
   height: number,
   blends: boolean,
   statistics = false,
+  closures = 1,
 ) {
-  const { target, uniform, resolved, depth } = createReflectionTargets(device, width, height)
+  const { uniform, resolved, depth } = createReflectionTargets(device, width, height)
+  let layered = createLayeredTarget(device, width, height, closures)
   const lit = createLitImage(device, width, height)
   let grids: ReflectionGrids | undefined
   const front = createFrontLayer(device, width, height, blends)
@@ -158,15 +182,37 @@ export function createScreenReflection(
   return {
     device,
     noVectors: noVectors.createView(),
-    target,
-    targetView: target.createView(),
+    /** The target the last pass writes: two layers a closure (`layersOf`), the first closure's the first two. */
+    get target() {
+      return layered.target
+    },
+    get targetView() {
+      return layered.targetView
+    },
+    /** The traced reflections of the closures past the first (`closureSides.ts`), none for a record of one closure. */
+    get closureSides() {
+      return layered.past
+    },
+    /** Follows the closures a pixel of the record holds (`SurfaceBuffer.closures`): the target and the closures' sides are made again for the new count, the old retired.
+     *  The bytes it holds more (less, negative) than before. */
+    follow(held: number) {
+      const wanted = Math.max(1, held)
+      if (wanted === layered.closures) return 0
+      const old = layered
+      layered = createLayeredTarget(device, width, height, wanted)
+      retire(device, { destroy: () => (old.past.dispose(), old.target.destroy()) })
+      return (
+        reflectionBytes(width, height, blends, statistics, wanted) -
+        reflectionBytes(width, height, blends, statistics, old.closures)
+      )
+    },
     lit,
     /** The opaque surface's grids (`grids.ts`), made when first read, by the first image that traces. */
     get grids() {
       grids ??= createReflectionGrids(device, 'Trillion3D reflection grid', [width, height], true)
       return grids
     },
-    /** The resolved pixels both surfaces resolve into in turn (`resolveWgsl.ts`). */
+    /** The opaque surface's resolved pixels (`resolveWgsl.ts`); the front surface's are its own (`frontLayer.ts`). */
     resolvedView: resolved.createView(),
     uniform,
     ...reflectionImageCounters(depth.createView()),
@@ -184,7 +230,8 @@ export function createScreenReflection(
     settings: createReflectionSettingsReader(),
     ...reflectionImageState(),
     dispose() {
-      target.destroy()
+      layered.past.dispose()
+      layered.target.destroy()
       lit.image.texture.destroy()
       grids?.destroy()
       resolved.destroy()
@@ -197,14 +244,6 @@ export function createScreenReflection(
   }
 }
 export type ScreenReflection = ReturnType<typeof createScreenReflection>
-
-/** The image the reflections last reflected shows a scene that is no more: content joined it. The view holds no lit image of itself again, so the next image traces
- *  nothing and starts the denoiser's history from its own resolve, as a scene opened with that content draws its first, and the images that follow are the same bits as a
- *  fresh open's, whatever the scene was before — a history that blends the old scene in settles on rounded values that depend on where it began. */
-export function forgetReflectedImage(reflection: ScreenReflection | undefined) {
-  if (!reflection) return
-  reflection.lit.held.valid = false
-}
 
 /**
  * Whether the view's reflections still wait for their first image: the view holds no lit image of

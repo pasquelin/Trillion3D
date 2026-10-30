@@ -5,7 +5,6 @@ import { TRANSLUCENT_RECT_LIGHTS_DEFAULT, blendShader, type TranslucentScene } f
 import type { VertexReads } from './cloudVertexText.ts'
 import type { BlendGpuItem } from './state.ts'
 import { contactShadowsOf, translucencyVolumeOf } from '../materials/surface/blendLightSource.ts'
-import { blendLayoutEntries } from '../gpu/bind/blendBindEntries.ts'
 import {
   declaredBlendVariants,
   dualSource,
@@ -28,7 +27,11 @@ import {
   variantOfBlend,
   waterRank,
 } from './plan/planCull.ts'
-import { blendGroupLayouts } from './groupLayouts.ts'
+import { blendLayoutsFor, type blendGroupLayouts } from './groupLayouts.ts'
+import {
+  foldsDepth,
+  type ObjectShadowAtlasRead,
+} from '../gpu/core/objectShadowRead.ts'
 import { createRoutedPipelines } from './routedPipelines.ts'
 import { track } from '../lighting/deferred/compileLedger.ts'
 import { createReach, type Reach, type ReachedBy } from './reach.ts'
@@ -49,13 +52,23 @@ import { HOLDOUT_TARGET } from './holdout.ts'
 import { blendModeConstant } from '../materials/surface/materialBlending.ts'
 import { createFrontStages, prepareFrontStage } from './frontStage.ts'
 import { createRadianceMarkStage, prepareRadianceMarkStage } from './radianceMarkStage.ts'
+import { createObjectShadowStage } from './objectShadow/objectShadowStage.ts'
+import { cutsWater } from './objectShadow/objectShadowWgsl.ts'
+import { PLAIN_VARIANT, type BlendVariant } from './variant.ts'
 import { createDualPasses } from './dualPasses.ts'
+import { createOitPipelines } from './oit/oitPipelines.ts'
+import { oitProgramsWanted } from './oit/oitResources.ts'
 import { createSkyFacePipelines } from './skyFace.ts'
 import { waterWgsl } from './water/waterStageWgsl.ts'
 import { createWaterPipelines } from './water/waterPipelines.ts'
 import { createForwardVariants, type ForwardLit } from '../lighting/deferred/forwardVariants.ts'
-import { FULL_CONTRACT, variantLabel, type ContractKey } from '../lighting/deferred/contractCuts.ts'
+import { variantLabel, type ContractKey } from '../lighting/deferred/contractCuts.ts'
 import { graphProgramsOf } from './graphWgsl.ts'
+import type { LightAtlasFormat } from '../gpu/core/lightAtlasFormat.ts'
+import {
+  grantsTranslucentReflection,
+  translucentReflectionLight,
+} from '../gpu/core/translucentReflection.ts'
 import {
   TRANSLUCENT_SHADOW_DEFAULT,
   asksOfItsOwn,
@@ -89,6 +102,11 @@ type BlendProgramSetup = {
   front: ReturnType<typeof createFrontStages>
   /** The stage that marks the radiance cache's cells the transparents read (`createRadianceMarkStage`). */
   radianceMark: ReturnType<typeof createRadianceMarkStage>
+  objectShadow: ReturnType<typeof createObjectShadowStage>
+  /** How the programs read their object's shadow in the volume read (`blendLayoutsFor`: the project switch `translucentObjectShadows` and a device that grants it), none else. */
+  objectShadowRead?: ObjectShadowAtlasRead
+  /** What the world asked of the programs (`BlendPipelineOptions.world`): its object shadow read asked, whatever the device grants, and the water's cut. */
+  world: BlendVariant
   /** The first program's transmissive pipelines of each lobe choice, lobed then lobeless: what
    *  the others take their unlit stages from (`createTransmitPipelines`). */
   transmitted: (TransmitPipelines | undefined)[]
@@ -118,6 +136,10 @@ type BlendProgramSetup = {
   water: boolean
   /** Whether the water pipelines write the separated sun (`BlendPipelineOptions.waterSeparate`). */
   waterSeparate: boolean
+  /** The format the programs read the radiance cache's final maps in where their fragments reflect the scene (`grantsTranslucentReflection`), else none. */
+  reflectScene: LightAtlasFormat | undefined
+  /** Whether the programs hold the stage that collects the layers the pixels sort (the project switch `oitSortedPixels`, on a device that grants the buffer: `grantsOit`). */
+  oit: boolean
   /** The programs of the graphs the items wear (`graphProgramsOf`). */
   graphs: ReturnType<typeof graphProgramsOf>
   /** The offsets of those programs the session holds, which the vertex stages move vertices by. */
@@ -241,6 +263,12 @@ export interface BlendPipelineOptions {
   /** Whether the settings mark the radiance cache from the translucent surfaces (`screenProbeTranslucencyReflectionsRadianceCache`): the mark stage
    *  (`radianceMarkStage.ts`) is then compiled with the scene, else at the first frame that asks it. */
   radianceMark?: boolean
+  /** Whether the project switch `oitSortedPixels` is on (read once when the session opens): the programs hold the stage that collects the layers a pixel sorts, on a device that grants it. */
+  oit?: boolean
+  /** What the world asks of the programs (`BlendVariant`): with `exclusion`, the world holds a water exclusion volume, the water programs cut the surface inside a volume that excludes its body and the vertex stage carries the body's rank; with `objectShadow`, the project switch `translucentObjectShadows` is on (`objectShadowsOn`), the programs read their object's shadow, on a device that grants it (`objectShadowAtlasRead`), and their group-0 layouts hold the read's bindings. Programs and layouts are built again when it changes (`followBlendWorld`). */
+  world?: BlendVariant
+  /** The closures per pixel the graph programs are compiled for (`limitOf`, the runtime's applied limit): the programs of a material with a closure tree hold that many. */
+  closures?: number
 }
 
 /** Builds the forward-material pipelines for transparent draws, the transmissive stages of a
@@ -264,7 +292,11 @@ export async function createWebgpuBlendPipelines(
   } = options
   // The forward materials' layout, which the feedback-free diagnostic pipelines share: the
   // group's table (`blendLayoutEntries`), the view uniform at its size.
-  const layouts = blendGroupLayouts(device)
+  const layouts = blendLayoutsFor(
+    device,
+    options.world?.objectShadow ?? false,
+    oitProgramsWanted(!!options.oit, device),
+  )
   const blendBindGroupLayout = sharedLayout ?? layouts.full
   // The transmissive stages exist for a scene that transmits, outside any diagnostic variant:
   // under one, a transmissive item draws as one more blend, the same fragment stage measured on
@@ -280,6 +312,7 @@ export async function createWebgpuBlendPipelines(
       device,
       layout: blendBindGroupLayout,
       filtered: layouts,
+      objectShadowRead: layouts.read,
       transmissionCode,
       variant,
       feedback,
@@ -302,6 +335,7 @@ export async function createWebgpuBlendPipelines(
 /** What a pass fixes before its items and options are read (`blendProgramSetup`). */
 type BlendProgramBase = Pick<
   BlendProgramSetup,
+  | 'objectShadowRead'
   | 'device'
   | 'layout'
   | 'filtered'
@@ -329,22 +363,31 @@ function blendProgramSetup(
     rasters = NO_RASTERS,
     waterSunTrace = false,
     waterSeparate = false,
+    world = PLAIN_VARIANT,
+    oit = false,
+    closures,
   } = options
-  const graphs = graphProgramsOf(items)
+  const graphs = graphProgramsOf(items, closures)
   const offsets = blendWpo(rasters, graphs)
   return {
     ...base,
     reach: reachOf(items, base.responsive, base.variant),
     graphs,
+    oit: oitProgramsWanted(oit && !base.variant, base.device),
     water: items.some((item) => item.surface.water === true),
     waterSeparate,
+    world,
     offsets,
-    front: createFrontStages(base.device, base.layout, clipping, graphs, offsets),
+    front: createFrontStages(base.device, base.layout, clipping, graphs, offsets, world),
     radianceMark: createRadianceMarkStage(base.device, clipping, graphs, offsets),
+    objectShadow: createObjectShadowStage(base.device, clipping, graphs, offsets, world),
     transmitted: [],
     clipping,
     localFog,
     reads: { clouds: cloudShade || cloudFogOf(items), fog: fogVertexOf(items) },
+    reflectScene: grantsTranslucentReflection(base.device)
+      ? translucentReflectionLight(base.device)
+      : undefined,
     translucencyVolume: translucencyVolumeOf(items),
     translucentShadow: { ...projectShadow, materials: translucentShadowOf(items, waterSunTrace) },
     scene: { rectLights: translucentRectLights, contact: contactShadowsOf(items), sampledFront },
@@ -378,7 +421,11 @@ function blendModuleCode(setup: BlendProgramSetup, key: ContractKey, pictures: b
     translucentShadow: setup.translucentShadow,
     translucencyVolume: setup.translucencyVolume,
     rectPictures: pictures,
+    reflectScene: setup.reflectScene,
     scene,
+    oit: setup.oit,
+    objectShadow: setup.objectShadowRead,
+    waterExcludes: setup.world.exclusion,
     water: setup.water
       ? waterWgsl(
           key,
@@ -386,6 +433,7 @@ function blendModuleCode(setup: BlendProgramSetup, key: ContractKey, pictures: b
           setup.reads,
           asksOfItsOwn(setup.translucentShadow.materials!),
           scene,
+          setup.world.exclusion,
         )
       : undefined,
   })
@@ -540,7 +588,7 @@ async function blendProgram(setup: BlendProgramSetup, key: ContractKey): Promise
       )
     : undefined
   const water = setup.water
-    ? createWaterPipelines(device, module, layout, feedback, setup.waterSeparate)
+    ? createWaterPipelines(device, module, layout, feedback, setup.waterSeparate, setup.world)
     : undefined
   const blendsCatchUp = blendCatchUp(device, reach, set, responsiveBlends, holdoutBlends, !!variant)
   const others = () => [
@@ -569,6 +617,10 @@ async function blendProgram(setup: BlendProgramSetup, key: ContractKey): Promise
     water,
     front: setup.front,
     radianceMark: setup.radianceMark,
+    objectShadow: setup.objectShadow,
+    objectShadowCut: cutsWater(setup.world.exclusion, setup.graphs),
+    world: setup.world,
+    objectShadowRead: setup.objectShadowRead,
     reach: reach.reach,
     prepare: (next) => {
       // The scope a layer about to join widens this program's by, taken without telling the programs (the frames wait for none): everything it reaches is compiled here,
@@ -581,6 +633,9 @@ async function blendProgram(setup: BlendProgramSetup, key: ContractKey): Promise
     skyFace: createSkyFacePipelines(device, module, layout, selected, feedback),
     responsive: responsiveOf(transmission, responsiveBlends),
     holdout: holdoutOf(transmission, holdoutBlends),
+    oit: setup.oit
+      ? createOitPipelines(device, module, layout, feedback, foldsDepth(setup.objectShadowRead))
+      : undefined,
     at: blendAtOf(transmission, set),
   }
   return { module, pipelines }

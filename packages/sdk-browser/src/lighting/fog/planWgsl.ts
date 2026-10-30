@@ -3,6 +3,22 @@ import { ndcToUv, perspectiveDivide } from '../../../../math/src/wgsl/projection
 import { FOG_VOLUME_FLAG } from './frame.ts'
 import { FOG_SURFACE_WGSL } from './gridWgsl.ts'
 
+/** Whether a cell is hidden (`fogCellHidden`), one reading for the plan and for the pass that traces the lights' shadows (`tracedWgsl.ts`), which leaves such cells out: the program declares the frame and the furthest depth (`fogFurthest`). */
+export const FOG_HIDDEN_WGSL = wgslBlock(
+  'FOG_HIDDEN_WGSL',
+  [FOG_SURFACE_WGSL],
+  `
+/** The back of the cell, half a cell toward the eye: where the cell is wholly behind a surface if the furthest depth is nearer. */
+fn fogCellBack(cell:vec3u)->vec4f{return vec4f(fogCellPoint(cell,vec3f(0.5,0.5,-0.5)).xyz,1.0);}
+/** Whether the cell lies wholly behind the surfaces of its pixels, where the setting holds such cells hidden. */
+fn fogCellHidden(cell:vec3u)->bool{
+ if((u32(frame.medium.w)&${FOG_VOLUME_FLAG.skipHidden}u)==0u){return false;}
+ let clip=frame.depthViewProj*fogCellBack(cell);
+ let furthest=textureLoad(fogFurthest,vec2i(min(cell.xy,vec2u(frame.grid.xy)-vec2u(1u))),0).r;
+ return furthest>clip.z/clip.w;
+}`,
+)
+
 /**
  * WHAT A CELL DOES THIS IMAGE, one reading for every pass that works on its samples (`fogCellPlan`): the
  * scatter that lights them and the static term's pass that adds the baked light to them (`staticWgsl.ts`)
@@ -23,7 +39,7 @@ import { FOG_SURFACE_WGSL } from './gridWgsl.ts'
  */
 export const FOG_PLAN_WGSL = wgslBlock(
   'FOG_PLAN_WGSL',
-  [FOG_SURFACE_WGSL, ndcToUv, perspectiveDivide],
+  [FOG_HIDDEN_WGSL, ndcToUv, perspectiveDivide],
   `
 /** Where the cell at \`P\` was in the previous volume, in its texture coordinates: its place in the
  *  previous view, over the cells that image covered of the textures, held to where they end. Its depth there is
@@ -76,17 +92,11 @@ fn fogCellPlan(cell:vec3u)->FogPlan{
  let flags=u32(frame.medium.w);
  let reproject=(flags&${FOG_VOLUME_FLAG.usesHistory}u)!=0u;
  let skipHidden=(flags&${FOG_VOLUME_FLAG.skipHidden}u)!=0u;
- var back=vec4f(0.0);
- if(skipHidden){
-  back=vec4f(fogCellPoint(cell,vec3f(0.5,0.5,-0.5)).xyz,1.0);
-  let clip=frame.depthViewProj*back;
-  let furthest=textureLoad(fogFurthest,vec2i(min(cell.xy,vec2u(frame.grid.xy)-vec2u(1u))),0).r;
-  if(furthest>clip.z/clip.w){return FogPlan(true,0.0,0u,vec3f(0.0));}
- }
+ if(fogCellHidden(cell)){return FogPlan(true,0.0,0u,vec3f(0.0));}
  var historyUV=fogHistoryUV(fogCellPoint(cell,vec3f(0.5)).xyz);
  var valid=true;
  if(skipHidden&&reproject){
-  let before=frame.prevViewProj*back;
+  let before=frame.prevViewProj*fogCellBack(cell);
   let moved=fogRepairHistory(historyUV.xy,before.z/before.w);
   historyUV=vec3f(moved.uv,historyUV.z);
   valid=moved.valid;

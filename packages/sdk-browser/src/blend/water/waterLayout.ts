@@ -74,9 +74,9 @@ export const WATER_REFLECTION_CODE = {
  * read (`y`), whether the clouds shade the sun on the water (`z`); `distanceRange`, `fresnelRange` and
  * `depthRange` the refraction culling's, each the two ends of its fade (`x`, `y`; `z` 1 where it is on);
  * `tiles` the tiles across and down the target (`xy`) and its size in pixels (`zw`); `filters` whether the
- * sun's shadow on the water is the projection's (`x`, `singleLayerWaterVsmFiltering`, set for an image that
- * projects it), whether the sun is kept apart from the rest of the water's light (`y`, the separated sun) and the
- * layer of the projection's mask the forward sun is (`z`).
+ * water's own shadow of the sun is left to the projection's (`x`, `singleLayerWaterVsmFiltering`, set for an image that
+ * projects it; the distance-field mask leaves it as it is), whether the sun is kept apart from the rest of the water's light (`y`, the separated sun) and the
+ * layer of the projection's and the distance-field mask the forward sun is (`z`).
  */
 const FIELDS = [
   ['inverseViewProjection', 'mat4x4f'],

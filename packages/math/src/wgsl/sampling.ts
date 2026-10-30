@@ -231,6 +231,18 @@ export const sampleCosineHemisphere = wgslFn(
 }`,
 )
 
+/** A half vector of the GGX lobe of squared width `alpha2`, about the third axis: `e.x` turns it, `e.y` runs its cosine by the lobe's distribution. */
+export const sampleGgxHalf = wgslFn(
+  'sampleGgxHalf',
+  [PI, sinFromCosUnclamped],
+  `fn sampleGgxHalf(e:vec2f,alpha2:f32)->vec3f{
+ let phi=2.0*PI*e.x;
+ let cosTheta=sqrt((1.0-e.y)/(1.0+(alpha2-1.0)*e.y));
+ let sinTheta=sinFromCosUnclamped(cosTheta);
+ return vec3f(sinTheta*cos(phi),sinTheta*sin(phi),cosTheta);
+}`,
+)
+
 /**
  * The half vector of a GGX lobe of widths `alpha` seen from `v`, both in the surface's frame (z the
  * normal), drawn among the normals the eye sees by `e` (Dupuy and Benyoub, "Sampling Visible GGX Normals

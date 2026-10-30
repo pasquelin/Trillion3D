@@ -54,7 +54,7 @@ function readFacts(pages: readonly PageRec[], rasters: GraphRasters): RootFacts 
     always = false,
     moves = false
   for (const { material } of pages) {
-    const program = material.graph && wpoProgramOf(material, rasters.textures)
+    const program = material.graph && wpoProgramOf(material, rasters.textures, rasters.closures)
     if (!program || !rasters.offsets.includes(program)) continue
     moves = true
     most = Math.max(most, material.maxWorldPositionOffset ?? 0)

@@ -42,7 +42,7 @@ const applyLayout = oncePerDevice((device: GPUDevice) =>
 )
 
 /** The full-screen application's group 0, which it reads nothing of: an empty layout and group. */
-const emptyLayout = oncePerDevice((device: GPUDevice) =>
+export const emptyLayout = oncePerDevice((device: GPUDevice) =>
   device.createBindGroupLayout({ label: 'Trillion3D empty', entries: [] }),
 )
 export const emptyGroup = oncePerDevice((device: GPUDevice) =>

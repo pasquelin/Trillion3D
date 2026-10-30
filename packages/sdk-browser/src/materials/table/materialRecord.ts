@@ -63,8 +63,9 @@ function factors(mat: MaterialSurface, worn: boolean, clip: number | undefined) 
   scratch.set(worn ? ONE : mat.baseColor, F.baseColor)
   scratch[F.opacity] = own(mat.opacity, 1)
   scratch[F.cut] = clip ?? cutOf(worn ? NOT_CUT : mat)
-  // A blended surface composes: its coverage test is the cutout's, never the blend stage's.
-  scratch[F.alphaTest] = own(mat.transparent ? 0 : mat.alphaTest, 0)
+  // A blended surface composes: its coverage test is the cutout's, never the blend stage's; a masked
+  // sky surface keeps its cut, which its layer tests.
+  scratch[F.alphaTest] = own(mat.transparent && mat.sky !== true ? 0 : mat.alphaTest, 0)
   scratch[F.metalness] = own(mat.metalness, 1)
   scratch[F.roughness] = own(mat.roughness, 1)
   scratch[F.normalScale] = own(mat.normalScale, 1)

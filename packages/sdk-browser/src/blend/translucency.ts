@@ -294,7 +294,8 @@ export function shownTranslucencyDrawn(
   return into
 }
 
-/** Gives the targets back: the textures, the late set's and image. */
+/** Gives the targets back: the textures, the late set's and image. The buffers the sorted layers are collected in are the frame's, given back
+ *  with it (`disposeOit`): the targets alone are made again when the share changes. */
 export function disposeTranslucency(gpu: { translucency?: TranslucencyTargets }) {
   const targets = gpu.translucency
   if (!targets) return

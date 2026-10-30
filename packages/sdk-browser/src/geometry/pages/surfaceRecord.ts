@@ -37,6 +37,7 @@ import {
 import { PIXEL_MODEL, shadingModelOfName } from '../../materials/surface/pixelModel.ts'
 import type { PageSurface, SurfaceFamily } from './surface.ts'
 import type { Slot, SurfaceDeclaration, SurfaceColour } from './surfaceDeclaration.ts'
+import { wiresOutput } from '../../../../sdk-core/src/world/material/graph/closures.ts'
 import { surfaceWritten } from './surfaceWrites.ts'
 
 type Rgb = [number, number, number]
@@ -76,7 +77,7 @@ type Reading = ReturnType<typeof reading>
 /** The subsurface colour of a cloth's faces (`sheet`) or of a pixel model that holds one (`coloured`: the skin, the thin subsurface):
  *  its colour, white where its graph wires the colour (the graph gives its value per pixel), black where it has none. */
 const thinColour = (d: SurfaceDeclaration, sheet: boolean, coloured: boolean): Rgb =>
-  sheet && d.graph?.outputs.subsurfaceColor
+  sheet && d.graph && wiresOutput(d.graph, 'subsurfaceColor')
     ? [1, 1, 1]
     : colourIf(sheet || coloured, d.subsurfaceColor, 0)
 
@@ -123,6 +124,13 @@ const renderSettings = (d: SurfaceDeclaration) => ({
   allowNegativeEmissive: d.allowNegativeEmissive === true,
   opacityMaskClipValue: d.opacityMaskClipValue,
   ditherOpacityMask: d.ditherOpacityMask === true,
+  translucentShadowDensityScale: d.translucentShadowDensityScale,
+  translucentShadowStartOffset: d.translucentShadowStartOffset,
+  translucentSelfShadowDensityScale: d.translucentSelfShadowDensityScale,
+  translucentSelfShadowSecondDensityScale: d.translucentSelfShadowSecondDensityScale,
+  translucentSelfShadowSecondOpacity: d.translucentSelfShadowSecondOpacity,
+  translucentBackscatteringExponent: d.translucentBackscatteringExponent,
+  translucentMultipleScatteringExtinction: d.translucentMultipleScatteringExtinction,
   normalCurvatureToRoughness: d.normalCurvatureToRoughness === true,
   maxWorldPositionOffset: d.maxWorldPositionOffset ?? 0,
   alwaysEvaluateWorldPositionOffset: d.alwaysEvaluateWorldPositionOffset === true,

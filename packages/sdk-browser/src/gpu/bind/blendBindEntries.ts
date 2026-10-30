@@ -22,6 +22,12 @@ import { ATLAS_TEXTURE_FORMAT } from '../../lighting/lightFunction/layout.ts'
 import { FRONT_TRACED_LAYOUT } from '../../lighting/reflections/frontLayer.ts'
 import { rectAtlasLayoutEntries } from '../../lighting/rectLightAtlas/bindings.ts'
 import { SURFACE_WORDS_FORMAT } from '../../materials/surface/surfaceOutputs.ts'
+import {
+  BLEND_OBJECT_SHADOW_BINDINGS,
+  foldsProfiles,
+  readsAtlasTexture,
+  type ObjectShadowAtlasRead,
+} from '../core/objectShadowRead.ts'
 
 /** Lighting shared with the opaque resolve; deferred stand-ins cover resources not ready yet. */
 export type BlendLighting = {
@@ -68,6 +74,12 @@ export type BlendLighting = {
    *  seventeenth sampled texture (`grantsRectPictures`). */
   rectAtlas: GPUTextureView
   rectSampler: GPUSampler
+  /** What the blends of a session that reads its object's shadow bind past the rectangle lights' pictures (`BLEND_OBJECT_SHADOW_BINDINGS`): this image's, or the stand-ins that shadow nothing. */
+  objectShadow?: {
+    /** The subjects' atlas, bound by the native read alone. */
+    atlas?: GPUBindingResource
+    packed: GPUTextureView
+  }
   /** The beer map of the camera and the volumes' radiance in two layers, or the stand-in (`BlendView.volumeCamera` then says none is made). */
   volumeCamera: GPUTextureView
   /** The clouds' shade of the forward directional light, the block and the one map its vertices
@@ -183,6 +195,9 @@ const BLEND_TABLE: { readonly [name in Single]: Row } = {
   frame: ['both', { buffer: { type: 'uniform', minBindingSize: GRAPH_FRAME_BYTES } }],
 }
 const SINGLES = Object.keys(BLEND_TABLE) as Single[]
+/** The singles of a group: all but the light profiles' atlas where the programs read it from the packed table (`'folded'`), which spends the texture's place on the table. */
+const singlesOf = (objectShadow?: ObjectShadowAtlasRead) =>
+  foldsProfiles(objectShadow) ? SINGLES.filter((name) => name !== 'lightProfileAtlas') : SINGLES
 
 /** The forward materials' layout entries (`../../blend/pipelines.ts`), the view uniform at least
  *  `viewSize` bytes, and the vertex stage's reads of the clouds' shade (`BLEND_CLOUD_SHADE_BINDINGS`)
@@ -193,6 +208,7 @@ export function blendLayoutEntries(
   viewSize: number,
   vertexTextures = false,
   rectPictures = false,
+  objectShadow?: ObjectShadowAtlasRead,
 ): GPUBindGroupLayoutEntry[] {
   const stages = {
     vertex: GPUShaderStage.VERTEX,
@@ -202,7 +218,7 @@ export function blendLayoutEntries(
   // The colour atlas is read by the vertex stage where an offset reads a texture (`grantsVertexTextures`).
   const atlas = vertexTextures ? stages.both : stages.fragment
   return [
-    ...SINGLES.map((name): GPUBindGroupLayoutEntry => {
+    ...singlesOf(objectShadow).map((name): GPUBindGroupLayoutEntry => {
       const [stage, layout, sized] = BLEND_TABLE[name],
         binding = BLEND_BINDINGS[name],
         // The sampler is read by the vertex stage too where an offset reads a texture.
@@ -213,8 +229,39 @@ export function blendLayoutEntries(
     ...atlasLayoutEntries(BLEND_BINDINGS.color, atlas),
     ...atlasLayoutEntries(BLEND_BINDINGS.data),
     ...(rectPictures ? rectAtlasLayoutEntries(BLEND_RECT_BINDINGS, GPUShaderStage.FRAGMENT) : []),
+    ...(objectShadow ? objectShadowLayoutEntries(objectShadow) : []),
     ...cloudShadowLayoutEntries(BLEND_CLOUD_SHADE_BINDINGS, GPUShaderStage.VERTEX),
     ...cloudFogLayoutEntries(BLEND_CLOUD_FOG_BINDINGS, GPUShaderStage.VERTEX),
+  ]
+}
+
+/** The layout entries of the object shadow read (`BLEND_OBJECT_SHADOW_BINDINGS`): the subjects' atlas where it is sampled (`ObjectShadowAtlasRead`), and the packed table both stages read. */
+const objectShadowLayoutEntries = (read: ObjectShadowAtlasRead): GPUBindGroupLayoutEntry[] => {
+  const b = BLEND_OBJECT_SHADOW_BINDINGS
+  return [
+    ...(readsAtlasTexture(read)
+      ? [
+          {
+            binding: b.atlas,
+            visibility: GPUShaderStage.FRAGMENT,
+            ...textureLayout('float', '2d-array'),
+          },
+        ]
+      : []),
+    {
+      binding: b.packed,
+      visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+      ...textureLayout('uint', '2d-array'),
+    },
+  ]
+}
+
+/** The live entries of the object shadow read: the atlas entry only where the resources hold one. */
+const objectShadowEntries = (r: BlendBindResources, native: boolean): GPUBindGroupEntry[] => {
+  const b = BLEND_OBJECT_SHADOW_BINDINGS
+  return [
+    ...(native ? [resourceEntry(b.atlas, () => r.objectShadow?.atlas)] : []),
+    resourceEntry(b.packed, () => r.objectShadow?.packed),
   ]
 }
 
@@ -241,10 +288,14 @@ const cloudFogEntries = (r: BlendBindResources): GPUBindGroupEntry[] => {
 
 /** The unique entry list of the blend layout, live: each entry reads its resource from `r` when
  *  the group is made. */
-export function blendBindEntries(r: BlendBindResources, rectPictures = false): GPUBindGroupEntry[] {
+export function blendBindEntries(
+  r: BlendBindResources,
+  rectPictures = false,
+  objectShadow?: ObjectShadowAtlasRead,
+): GPUBindGroupEntry[] {
   const size = () => r.uniformSize
   return [
-    ...SINGLES.map((name) => {
+    ...singlesOf(objectShadow).map((name) => {
       const [, layout, sized] = BLEND_TABLE[name],
         binding = BLEND_BINDINGS[name]
       if (!layout.buffer) return resourceEntry(binding, () => r[name] as GPUBindingResource)
@@ -258,6 +309,7 @@ export function blendBindEntries(r: BlendBindResources, rectPictures = false): G
           resourceEntry(BLEND_RECT_BINDINGS.sampler, () => r.rectSampler),
         ]
       : []),
+    ...(objectShadow ? objectShadowEntries(r, readsAtlasTexture(objectShadow)) : []),
     ...cloudShadeEntries(r),
     ...cloudFogEntries(r),
   ]

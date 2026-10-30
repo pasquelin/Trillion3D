@@ -7,6 +7,7 @@ import {
   MOBILITY_CACHE_STATIC,
   MOBILITY_DEFORMS,
   MOBILITY_MOVING,
+  MOBILITY_NO_CONTACT_SHADOW,
   MOBILITY_OFFSET_ALWAYS,
   MOBILITY_OFFSET_INVALIDATES,
   MOBILITY_OFTEN_MOVING,
@@ -15,6 +16,7 @@ import {
 import { createShadowMobility } from './mobility.ts'
 import { castFlagsOf } from './castFlags.ts'
 import { CACHE_STATIC_ROOT, nodeCasting } from '../../../visibility/shader/castingMark.ts'
+import { PLACEMENT_NO_CONTACT_SHADOW } from '../../../geometry/dag/info/placementInfoLayout.ts'
 import { rootWordsTwin } from './rootWords.fixture.ts'
 
 test('a placement that casts no shadow has the shadowless bit, written again when touched', () => {
@@ -271,4 +273,19 @@ test('an updated placement is cached as dynamic from now on, unless its object p
   assert.deepEqual([mobility.invalidate(0), mobility.moves(0)], [false, true], 'already dynamic')
   assert.deepEqual([mobility.invalidate(1), mobility.moves(1)], [false, false], 'pinned')
   assert.equal(mobility.invalidate(9), false, 'no such placement')
+})
+
+test('an object that stops no contact shadow ray gives its placement the no-contact bit', () => {
+  const offsets = (bits: number) => ({
+    evaluate: true,
+    cache: 'rigid' as const,
+    worn: false,
+    always: false,
+    bits,
+  })
+  assert.equal(castFlagsOf({}, offsets(0)) & MOBILITY_NO_CONTACT_SHADOW, 0)
+  assert.equal(
+    castFlagsOf({}, offsets(PLACEMENT_NO_CONTACT_SHADOW)) & MOBILITY_NO_CONTACT_SHADOW,
+    MOBILITY_NO_CONTACT_SHADOW,
+  )
 })

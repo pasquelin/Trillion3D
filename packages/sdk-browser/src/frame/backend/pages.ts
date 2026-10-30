@@ -7,6 +7,7 @@ import { dropTaaHistory } from '../../post/taa/landing.ts'
 import { followFrameDifference } from '../render/frameDifference.ts'
 import { applySkyToRuntime } from '../render/encodeCloudsSky.ts'
 import { reflectionCaptureHosts } from '../render/reflectionCaptureState.ts'
+import { renderPlanarReflections } from '../render/encodePlanarReflection.ts'
 import { renderSkyMeshes, type PersistentViews } from '../render/encodeSkyMeshes.ts'
 import { renderCustomDepth } from '../render/encodeCustomDepth.ts'
 import { removeWebgpuView, renderWebgpuView, resizeWebgpuView } from './state/persistentView.ts'
@@ -68,7 +69,9 @@ export const webgpuPagesEngine = ((context, rt = createWebgpuPagesRuntime(contex
     ...backendSetters(rt),
     prepare: () => prepareSession(rt, context, session),
     render(camera) {
-      // The sky meshes the real-time sky capture shows in the place of the atmosphere, drawn aside before the main image.
+      // The mirrored views of the planar reflections are drawn first: the main image reads the ones of its own camera.
+      renderPlanarReflections(rt, camera)
+      // The sky meshes the real-time sky capture shows in the place of the atmosphere, drawn aside likewise.
       renderSkyMeshes(rt, camera, persistentViews)
       // The custom depth of the objects that ask for it, drawn aside likewise.
       renderCustomDepth(rt, camera, persistentViews)

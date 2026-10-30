@@ -4,6 +4,7 @@ import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute
 import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
 import { RECIPES } from '../../../../sdk-core/src/world/geometry/recipes.ts'
 import { Material } from '../../../../sdk-core/src/world/material/material.ts'
+import { WaterExclusionVolume } from '../../../../sdk-core/src/world/object/waterExclusionVolume.ts'
 import { Group, Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { Mesh, type Primitive } from '../../../../sdk-core/src/world/object/mesh.ts'
 import { Sprite } from '../../../../sdk-core/src/world/object/sprite.ts'
@@ -12,6 +13,7 @@ import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
 import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
 import { Color } from '../../../../sdk-core/src/world/math/color.ts'
 import { isHelper } from '../world/helperMark.ts'
+import type { LoadedModel } from '../world/models/loadedModel.ts'
 import {
   assertSavedScene,
   notSavable,
@@ -190,6 +192,7 @@ function readMesh(
     o = sprite
   } else o = new Mesh(geometries[geometry], matter, primitive as Primitive)
   if (physics) (o as Mesh).physics = physics
+  if (saved.waterBody) (o as Mesh).waterBody = { ...saved.waterBody }
   return o
 }
 
@@ -219,6 +222,8 @@ export async function readScene(scene: Target, json: unknown, camera?: Camera) {
   const loads: Promise<Object3D>[] = []
   /** The last visible sky light node of a version-2 scene: the sky module's sky light now. */
   let skyLight: LegacySkyLight | undefined
+  /** Every node built, by the saved node it was read from. */
+  const built = new Map<SavedNode, Object3D>()
   const node = async (saved: SavedNode): Promise<Object3D> => {
     let o: Object3D
     if (saved.mesh) {
@@ -232,7 +237,11 @@ export async function readScene(scene: Target, json: unknown, camera?: Camera) {
       const load = scene.load(saved.model.url)
       loads.push(load)
       o = await load
+    } else if (saved.waterExclusion) {
+      o = new WaterExclusionVolume()
+      ;(o as WaterExclusionVolume).mode = saved.waterExclusion.mode
     } else o = saved.kind === 'group' ? new Group() : new Object3D()
+    built.set(saved, o)
     wear(o, saved)
     const children = await Promise.all(saved.children.map(node))
     if (children.length) o.add(...children)
@@ -247,6 +256,23 @@ export async function readScene(scene: Target, json: unknown, camera?: Camera) {
     await dropLoads(loads)
     throw error
   }
+  // The bodies a volume names are ranks in the saved tree read depth first.
+  const ranked: Object3D[] = []
+  const rankAll = (saved: SavedNode) => {
+    ranked.push(built.get(saved)!)
+    saved.children.forEach(rankAll)
+  }
+  json.children.forEach(rankAll)
+  for (const [saved, o] of built)
+    if (saved.waterExclusion)
+      (o as WaterExclusionVolume).bodies = saved.waterExclusion.bodies.map((ref) => {
+        const body =
+          typeof ref === 'number'
+            ? ranked[ref]
+            : ref && (ranked[ref.model] as LoadedModel | undefined)?.getObjectByName(ref.name)
+        // A body the save could not name keeps its place in the list, as a node that is in no scene.
+        return body ?? new Object3D()
+      })
   if (before.length) scene.remove(...before)
   if (children.length) scene.add(...children)
   scene.background = json.background && new Color().setRGB(...json.background)

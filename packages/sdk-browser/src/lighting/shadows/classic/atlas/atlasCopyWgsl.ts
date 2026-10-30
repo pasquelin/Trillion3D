@@ -9,6 +9,7 @@
  * - OUT, `vsmAtlasCopyOut`: a row of groups a map, the threads of a group walking the tile's texels; each layer's depth joins the pool's slice by the same atomic maximum the raster uses,
  *   so what the voxel rows wrote to the pool meanwhile is kept. `ATLAS_LAYERS`: the layers an atlas has (the static one when 2); the texture holds them atlas after atlas.
  */
+import { wgslFn } from '../../../../../../math/src/wgsl/decl.ts'
 import { wgslProgram } from '../../../../../../math/src/wgsl/assemble.ts'
 import { VSM_CONSTANTS_WGSL } from '../../vsm/constants.ts'
 import type { VsmLayout } from '../../vsm/layout.ts'
@@ -37,14 +38,18 @@ export const atlasCopySpecs = (poolAccess: 'read' | 'atomic'): readonly VsmBindi
 ]
 
 /** The pool texel a tile texel `rel` of map `map` is at, through the page table: none (false) past the map or on a page that is not one to draw at the tile's mip. */
-const TILE_TEXEL_WGSL = `fn vsmAtlasPoolTexel(map:u32,tile:VsmAtlasTile,rel:vec2u,texel:ptr<function,vec2u>)->bool{
+const vsmAtlasPoolTexel = wgslFn(
+  'vsmAtlasPoolTexel',
+  [],
+  `fn vsmAtlasPoolTexel(map:u32,tile:VsmAtlasTile,rel:vec2u,texel:ptr<function,vec2u>)->bool{
  let at=tile.mapCorner+rel;
  if(any(at>=vec2u(vsmTexelsAtLevel(tile.mip)))){return false;}
  let entry=vsmUnpackTableEntry(vsmTableWord(vsmTableEntryOf(vsmHandleFromId(map),tile.mip,at>>vec2u(VSM_LOG2_PAGE))));
  if(!entry.thisLevelDrawable){return false;}
  *texel=entry.physicalAddress*VSM_PAGE_TEXELS+(at&vec2u(VSM_PAGE_TEXEL_MASK));
  return true;
-}`
+}`,
+)
 
 const copyDeps = (layout: VsmLayout, access: 'read' | 'atomic') => [
   VSM_CONSTANTS_WGSL,
@@ -55,6 +60,7 @@ const copyDeps = (layout: VsmLayout, access: 'read' | 'atomic') => [
   VSM_PROJECTION_DATA_WGSL,
   vsmBindingsWgsl(0, atlasCopySpecs(access), layout),
   atlasTileWgsl(0, ATLAS_COPY_ATLAS_BINDING),
+  vsmAtlasPoolTexel,
 ]
 
 /** The copy in (entries `vsmAtlasCopyVs`, `vsmAtlasCopyFs`). */
@@ -62,7 +68,6 @@ export const vsmAtlasCopyInWgsl = (layout: VsmLayout) =>
   wgslProgram(
     /* wgsl */ `
 override ATLAS_STATIC:u32=0u;
-${TILE_TEXEL_WGSL}
 struct VsmAtlasCopyOut{@builtin(position) position:vec4f,@location(0) @interpolate(flat) map:u32,}
 struct VsmAtlasCopyDepth{@builtin(frag_depth) depth:f32,}
 @vertex fn vsmAtlasCopyVs(@builtin(vertex_index) i:u32,@builtin(instance_index) map:u32)->VsmAtlasCopyOut{
@@ -88,7 +93,6 @@ export const vsmAtlasCopyOutWgsl = (layout: VsmLayout) =>
     /* wgsl */ `
 override ATLAS_LAYERS:u32=1u;
 @group(1) @binding(0) var vsmAtlasDepth:texture_depth_2d_array;
-${TILE_TEXEL_WGSL}
 @compute @workgroup_size(${ATLAS_COPY_THREADS}) fn vsmAtlasCopyOut(@builtin(global_invocation_id) id:vec3u){
  let tile=vsmAtlasTileOf(id.y);
  if(!tile.valid){return;}

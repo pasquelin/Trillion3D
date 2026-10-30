@@ -31,6 +31,7 @@ import { writeSkyLightParams } from './encodeSkyLight.ts'
 import { encodeQueuedBounce } from './encodeLights.ts'
 import { encodeLocalFog, encodeLocalFogSky } from './encodeLocalFog.ts'
 import { encodeSkyOcclusion } from './encodeSkyOcclusion.ts'
+import { encodePlanarReflections } from './encodePlanarReflection.ts'
 import { encodeCapsuleIndirectFactors } from '../../lighting/capsuleShadows/host.ts'
 import { encodeLightShaftOcclusion } from '../../modules/sky/lightShafts/frame.ts'
 import {
@@ -176,6 +177,8 @@ function encodeIndirectLight(
   const screen = screenReflectionsAsked(rt, reflects(overrides), !!reflections)
   if (screen) encodeScreenSpaceReflections(rt, device, encoder, cam)
   else traceReflections(rt, encoder, reflections)
+  // The planar reflections laid over them, winning over the rest, as the reference lays them over its screen reflections.
+  encodePlanarReflections(rt, device, encoder, cam, screen ? 'screen' : reflections && 'scene')
   // The ambient occlusion, where no global illumination is on (or, asked, over the probes' light): from the depth pyramid
   // this image built, before the lighting, which applies the texture it leaves.
   encodeAmbientOcclusion(rt, encoder, cam)

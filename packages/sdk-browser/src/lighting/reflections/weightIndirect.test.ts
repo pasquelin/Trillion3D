@@ -21,7 +21,7 @@ const near = (a: number[], b: number[], what: string) =>
 
 const N = [0, 0, 1]
 const V = [0, 0, 1]
-/** The target the last pass wrote for a base lobe flagged for the rough light (alpha −1): the rays' answer `rays`, the environment `rough`. */
+/** The target the last pass wrote for a base lobe flagged for the rough light (alpha −1): the rays' answer `rays`; `rough` the environment the sky's cube gives. */
 const texels = { rays: [1, 2, 3, -1], rough: [4, 5, 6, 0] }
 /** The sum of the lights the two lobes are given, which the weights are applied to. */
 const sumOfLobes = (lights: { base: Vec3; coat: Vec3 }) =>
@@ -37,8 +37,9 @@ const indirect = (read: boolean, only: boolean, sky = false) =>
       surfaceModel: 2,
       view: { reflection: [1, 1, 0, 0] },
       reflectionTarget: {
-        load: (_: number[], layer: number) => [texels.rays, texels.rough][layer],
+        load: (_: number[], layer: number) => [texels.rays, [0, 0, 0, 0]][layer],
       },
+      reflectionEnvironment: () => texels.rough.slice(0, 3),
       hasCoat: () => false,
       reflectionShare: sumOfLobes,
       mat2x3f: (diffuse: Vec3, rest: Vec3) => [diffuse, rest],
@@ -99,7 +100,7 @@ test('without a sky light the environment a ray reaches is black, so the occlusi
   const dark = environmentOf(false)
   near(dark.base, [0, 0, 0], 'no sky light: black')
   assert.deepEqual(asked, [], 'the sky is not even read')
-  // That black is layer 1 of the target: under any occlusion the resolve adds nothing to the rays.
+  // That black is the environment the resolve samples: under any occlusion the resolve adds nothing to the rays.
   for (const occluded of [1, 0.4, 0]) {
     const resolved = shaderRun<{ resolvedReflection: (...args: unknown[]) => Vec3 }>(
       resolvedReflectionWgsl,
@@ -111,9 +112,10 @@ test('without a sky light the environment a ray reaches is black, so the occlusi
           load: (_: number[], layer: number) =>
             [
               [1, 2, 3, -1],
-              [...dark.base, 0],
+              [0, 0, 0, 0],
             ][layer],
         },
+        reflectionEnvironment: () => dark.base,
         hasCoat: () => false,
         indirectF0: (rgb: number[]) => rgb,
         reflectionShare: sumOfLobes,

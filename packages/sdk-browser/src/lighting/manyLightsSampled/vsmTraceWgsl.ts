@@ -27,6 +27,7 @@ import { VSM_TRACE_KINDS_BOTH } from '../shadows/vsm/trace/traceWgsl.ts'
 import { SAMPLED_BINDINGS } from './bindings.ts'
 import { COMPACT_THREADS, TRACE_TEXEL_WGSL } from './compactWgsl.ts'
 import { lightSampleIndex } from './lightSamplerWgsl.ts'
+import { CLOSURE_PICK_WGSL } from './closurePickWgsl.ts'
 import { SAMPLED_PARAMS_WGSL } from './paramsWgsl.ts'
 import { JITTER_WGSL } from './samplingWgsl.ts'
 import { SAMPLE_IO_WGSL } from './screenTraceWgsl.ts'
@@ -48,8 +49,8 @@ export const VSM_TRACE_ENTRY = 'vsmTraceSamplesMain'
 /** The rays a local light's trace casts here. */
 const VSM_SAMPLE_RAYS = 1
 
-/** `classic`: the shadows are classic shadow maps (`shadowVirtualEnable` off), read by the classic filter as the translucent surfaces read them. */
-export const vsmTraceSamplesWgsl = (classic = false) =>
+/** `classic`: the shadows are classic shadow maps (`shadowVirtualEnable` off), read by the classic filter as the translucent surfaces read them. `closures`: the ray leaves the normal of the closure the sample's pixel is lit as. */
+export const vsmTraceSamplesWgsl = (classic = false, closures = false) =>
   wgslProgram(
     `
 @group(0) @binding(${SAMPLED_BINDINGS.compactData}) var<storage,read> compactData:array<u32>;
@@ -64,11 +65,12 @@ fn ${VSM_TRACE_ENTRY}(@builtin(global_invocation_id) id:vec3u){
  let down=texel/params.samples;
  let screen=min(down*params.factor+downsampleJitter(down),vec2u(view.viewport.xy)-vec2u(1u));
  let P=worldAt(vec2f(screen)+vec2f(0.5),hizOpaqueDepth(vec2i(screen)));
- let N=normalize(textureLoad(colours,vec2i(screen),${SURFACE_COLOUR_LAYERS.normal},0).xyz);
+ let N=normalize(textureLoad(colours,vec2i(screen),${closures ? 'pickedNormalLayer(vec2i(screen))' : SURFACE_COLOUR_LAYERS.normal},0).xyz);
  vsmTraceAt(vec2f(screen)+vec2f(0.5));
  completeSample(c,vsmTraceFactor(shadowSliceRecord(slice),P,N)<0.5);
 }`,
     [
+      ...(closures ? [CLOSURE_PICK_WGSL] : []),
       SAMPLED_PARAMS_WGSL,
       JITTER_WGSL,
       TRACE_TEXEL_WGSL,

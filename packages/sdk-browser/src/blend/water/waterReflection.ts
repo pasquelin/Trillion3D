@@ -60,4 +60,4 @@ const waterFront = (rt: { context: SingleLayerWaterOptions }): WaterFrontSetting
 export const waterFrontOf = (
   rt: Pick<WebgpuPagesRuntime, 'blendState' | 'context'>,
 ): WaterFrontSettings | undefined =>
-  rt.blendState.water && waterTraces(rt) ? waterFront(rt) : undefined
+  rt.blendState.waterItems.length > 0 && waterTraces(rt) ? waterFront(rt) : undefined

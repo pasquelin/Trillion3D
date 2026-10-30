@@ -73,6 +73,7 @@ export function disposeVis(rt: WebgpuPagesRuntime) {
   for (const bundles of vis.visBundles) bundles.clear()
   vis.shadeClasses = undefined
   vis.shadeCensus = undefined
+  vis.closures = undefined
   vis.shadeBins?.dispose()
   vis.shadeBins = undefined
   vis.voxelSteps?.dispose()

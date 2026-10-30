@@ -1,3 +1,4 @@
+import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import {
   type AtlasLayout,
   type AtlasRect,
@@ -33,8 +34,8 @@ const canContain = (outside: AtlasRect, inside: AtlasRect) =>
 
 /** `r` cut to the part whose origin respects `alignment`: smaller, its origin on the alignment grid. */
 function alignedRect(r: AtlasRect, alignment: number): AtlasRect {
-  const x = Math.ceil(r.origin.x / alignment) * alignment
-  const y = Math.ceil(r.origin.y / alignment) * alignment
+  const x = ceilDiv(r.origin.x, alignment) * alignment
+  const y = ceilDiv(r.origin.y, alignment) * alignment
   return rect(x, y, r.size.x + r.origin.x - x, r.size.y + r.origin.y - y)
 }
 

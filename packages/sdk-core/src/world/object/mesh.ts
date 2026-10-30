@@ -8,6 +8,7 @@ import type { PhysicsOption } from '../../physics/options.ts'
 import type { Skeleton } from '../animation/skeleton.ts'
 import type { BankTrack } from '../../scene/core/animationBanks.ts'
 import type { WaterSurface } from '../../fluids/waterSurface.ts'
+import type { WaterBodyOptions } from '../../fluids/waterBody.ts'
 
 /** How the triangles a mesh draws are read from its geometry. */
 export type Primitive =
@@ -44,6 +45,9 @@ export class Mesh<M extends object = Material> extends Object3D {
    *  point — the numbers buoyancy reads. Unset, a mesh that lies flat on the world's
    *  water at its level is carried by it, and set to it; `null`, never. */
   declare waves?: WaterSurface | null
+  /** What the camera's test against the water reads of this mesh when its material is single-layer water: its underwater material,
+   *  its overlap priority and its depth (`../../fluids/waterBody.ts`, all defaults when unset). */
+  declare waterBody?: WaterBodyOptions | null
   declare private _physics?: ObjectPhysics | null
   /** What the geometry and materials call while the mesh is in a world; made on its first entry. */
   declare private _heard?: () => void
@@ -147,6 +151,8 @@ export class Mesh<M extends object = Material> extends Object3D {
     // A copy plays the same track: one pose for every instance of it.
     if (mesh.bank) this.bank = mesh.bank
     if (mesh.waves) this.waves = mesh.waves
+    // The body's fields are its own: a copy edited does not move the original's.
+    if (mesh.waterBody) this.waterBody = { ...mesh.waterBody }
     const worn = mesh.material
     if (Array.isArray(worn) || worn !== this._material)
       this.material = Array.isArray(worn) ? worn.slice() : worn

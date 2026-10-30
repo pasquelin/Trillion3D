@@ -6,7 +6,14 @@ import { depthOffsetOf } from '../graph/pdoProgram.ts'
 import { displacementOf } from '../graph/displacementProgram.ts'
 import { altSetOf } from '../graph/state.ts'
 import { isProgram, programOf, type SurfaceProgram } from '../graph/surfaceProgram.ts'
-import { GRAPH_HEADER, MATERIAL_RECORD_TEXELS, MATERIAL_RECORD_WORDS } from './materialLayout.ts'
+import { closureCountOf } from '../closures/viewClosures.ts'
+import { limitOf } from '../closures/closureLimit.ts'
+import {
+  GRAPH_CLOSURES_WORD,
+  GRAPH_HEADER,
+  MATERIAL_RECORD_TEXELS,
+  MATERIAL_RECORD_WORDS,
+} from './materialLayout.ts'
 import { copyChanged, type MaterialSurface } from './materialRecord.ts'
 import type { MaterialEntry, MaterialRecords } from './materialState.ts'
 
@@ -62,7 +69,7 @@ export function writeGraphRecord(
   entry: MaterialEntry,
   layers: MaterialLayers,
 ) {
-  const program = programOf(mat)
+  const program = programOf(mat, undefined, limitOf(layers))
   if (!isProgram(program)) {
     freeGraphBlock(p, entry)
     return { word: 0, channels: 0, clip: undefined, changed: false }
@@ -77,6 +84,7 @@ export function writeGraphRecord(
   const { rank } = entry.graph
   const mask = maskOf(program)
   scratch[0] = program.id
+  scratch[GRAPH_CLOSURES_WORD] = closureCountOf(program.compiled) - 1
   scratch[1] =
     (mask ? GRAPH_HEADER.mask : 0) |
     (program.kind === 'blend' ? GRAPH_HEADER.blend : 0) |

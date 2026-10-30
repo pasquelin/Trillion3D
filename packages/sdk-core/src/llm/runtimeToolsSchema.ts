@@ -19,7 +19,9 @@ import { TEMPORAL_RULES } from '../contracts/temporalOptions.ts'
 import { HIZ_RULES } from '../contracts/hizOptions.ts'
 import { LIGHT_FUNCTION_RULES } from '../contracts/lightFunctionOptions.ts'
 import { LIGHT_PROFILE_RULES } from '../contracts/lightProfileOptions.ts'
+import { ORDER_INDEPENDENT_TRANSLUCENCY_RULES } from '../contracts/orderIndependentTranslucencyOptions.ts'
 import { SEPARATE_TRANSLUCENCY_RULES } from '../contracts/separateTranslucencyOptions.ts'
+import { LIGHT_SHAPE_RULES } from '../contracts/lightShapeOptions.ts'
 import { RECT_LIGHT_ATLAS_RULES } from '../contracts/rectLightAtlasOptions.ts'
 import { SIMPLE_LIGHT_RULES } from '../contracts/simpleLightOptions.ts'
 import { VOLUMETRIC_LIGHTMAP_RULES } from '../contracts/volumetricLightmapOptions.ts'
@@ -48,6 +50,7 @@ import { SCREEN_PROBE_RULES } from '../bounce/screenProbeOptions.ts'
 import { REFLECTION_RULES } from '../contracts/reflectionOptions.ts'
 import { LIGHTING_DATA_FORMAT_RULES } from '../contracts/lightingDataFormatOptions.ts'
 import { RAY_TRACING_RULES } from '../contracts/rayTracingOptions.ts'
+import { CLOSURE_RULES } from '../contracts/closureOptions.ts'
 import { MESH_DISTANCE_FIELD_TRACE_RULES } from '../contracts/meshDistanceFieldTraceOptions.ts'
 import { SCREEN_SPACE_TRACING_RULES } from '../contracts/screenSpaceTracingOptions.ts'
 import { SURFACE_CACHE_RULES } from '../contracts/surfaceCacheOptions.ts'
@@ -464,6 +467,16 @@ const SHADING_SETTING_TOOLS: Trillion3dTool[] = [
     LIGHT_PROFILE_RULES,
   ),
   /* @__PURE__ */ settingTool(
+    'trillion3d_set_light_shape',
+    "Changes from the next frame the visualization of the light shapes: whether each point, spot and rectangle light is drawn as a wireframe of its reach over the lit image (off by default), the seconds the shapes take to fade in or out, the distance and the delay that stagger the fade in (the farther shapes appear first) and the opacity of each wireframe.",
+    LIGHT_SHAPE_RULES,
+  ),
+  /* @__PURE__ */ settingTool(
+    'trillion3d_set_order_independent_translucency',
+    "Changes from the next frame how the normal and additive translucent layers are sorted per pixel (off by default; the project switch oitSortedPixels is read when the session opens): the run-time switch, the passes sorted, the fragments a pixel keeps (1 to 16, 4 by default), the method name the debug shows (1 multi-layer alpha blending, 0 k-buffer; the fragments are kept the same way), the transmittance under which a fragment behind the last one stored is dropped, and the figures of one pixel written over the image.",
+    ORDER_INDEPENDENT_TRANSLUCENCY_RULES,
+  ),
+  /* @__PURE__ */ settingTool(
     'trillion3d_set_separate_translucency',
     "Changes from the next frame the resolution the translucent layers are drawn at: the share of the resolution (100 by default, the image's size; lower draws them into smaller targets over the scene depth taken at their size), the resolution that share is of (0 the render size, 1 the display size) and how the smaller targets are scaled up (0 bilinear, 1 the nearest depth neighbour, with a share of 50 only).",
     SEPARATE_TRANSLUCENCY_RULES,
@@ -578,7 +591,7 @@ const MEDIUM_SETTING_TOOLS: Trillion3dTool[] = [
   ),
   /* @__PURE__ */ settingTool(
     'trillion3d_set_custom_depth',
-    'Changes from the next frame the custom depth: a second depth of the view, and a stencil, that holds only the objects which set renderCustomDepth, whatever stands in front of them, for an outline or a post-process material to read. Whether it is drawn and keeps its targets or writes the stencil (customDepth), when in the frame it is drawn (customDepthOrder), whether it keeps the temporal jitter and whether its target is cleared by the fast path.',
+    "Changes from the next frame the custom depth: a second depth of the view, and a stencil, that holds only the objects which set renderCustomDepth, whatever stands in front of them, for an outline or a post-process material to read. Whether it is drawn and keeps its targets or writes the stencil (customDepth), when in the frame it is drawn (customDepthOrder), whether it keeps the temporal jitter and whether its target is cleared by the fast path.",
     CUSTOM_DEPTH_RULES,
   ),
   /* @__PURE__ */ settingTool(
@@ -620,6 +633,11 @@ const MEDIUM_SETTING_TOOLS: Trillion3dTool[] = [
     'trillion3d_set_ray_tracing',
     "Changes from the next frame whether the world traces rays through the scene's triangles at all (on by default, as a new project has it). Off, every feature that casts them (the reflections, the screen probes and their radiance cache, the surface cache's direct light and radiosity, the translucency volume, the heterogeneous volumes, the scene view) marches the distance fields instead, whatever its own setting.",
     RAY_TRACING_RULES,
+  ),
+  /* @__PURE__ */ settingTool(
+    'trillion3d_set_closures',
+    'Changes from the next frame how many closures a material keeps per pixel (4 by default, 1 to 8): a material built from a closure tree that flattens to more is simplified, its deepest operators blended into one closure each, until it fits; and whether a view keeps as many as the most any material in view has (on by default) or always the maximum.',
+    CLOSURE_RULES,
   ),
   /* @__PURE__ */ settingTool(
     'trillion3d_set_mesh_distance_field_trace',

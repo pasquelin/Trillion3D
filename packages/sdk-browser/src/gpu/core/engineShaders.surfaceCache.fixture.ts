@@ -3,6 +3,7 @@
 // direct light, the traced shadows' masks and trace, the radiosity passes, the cull, the combine), the atlas view and the feedback's
 // compaction; and the translucency's composition and holdout, the programs that read its lighting volume, the
 // volume's own passes and its global illumination's.
+import { OBJECT_SHADOW_DEPTH_FOLD_WGSL } from '../../blend/objectShadow/objectShadowDepthFold.ts'
 import { blendShader } from '../../blend/shader.ts'
 import { WORD_LIGHT_FORMAT } from './lightAtlasFormat.ts'
 import { FILTER_PROGRAM } from '../../lighting/translucency/filterWgsl.ts'
@@ -162,6 +163,25 @@ export const SURFACE_CACHE_SHADERS: Record<string, string> = {
   // sets `translucencyLighting`), and the volume's own passes (`../../lighting/translucency/`).
   BLEND_TRANSLUCENCY_VOLUME: blendShader({}, { translucencyVolume: true }),
   BLEND_TRANSLUCENCY_VOLUME_LOBELESS: blendShader({ lobeless: true }, { translucencyVolume: true }),
+  // The same reading its object's shadow (`../../blend/objectShadow/objectShadowSelfWgsl.ts`): the atlas as a texture, or from the packed table where the device cannot spare the sampled one.
+  BLEND_OBJECT_SHADOW_READ: blendShader({}, { translucencyVolume: true, objectShadow: 'texture' }),
+  BLEND_OBJECT_SHADOW_READ_PACKED: blendShader(
+    {},
+    { translucencyVolume: true, objectShadow: 'packed' },
+  ),
+  BLEND_OBJECT_SHADOW_READ_FOLDED: blendShader(
+    {},
+    { translucencyVolume: true, objectShadow: 'folded' },
+  ),
+  BLEND_OBJECT_SHADOW_READ_FOLDED_DEPTH: blendShader(
+    {},
+    { translucencyVolume: true, objectShadow: 'foldedDepth', oit: true },
+  ),
+  OBJECT_SHADOW_DEPTH_FOLD: OBJECT_SHADOW_DEPTH_FOLD_WGSL,
+  BLEND_OBJECT_SHADOW_READ_LOBELESS: blendShader(
+    { lobeless: true },
+    { translucencyVolume: true, objectShadow: 'texture' },
+  ),
   TRANSLUCENCY_INJECT: INJECT_PROGRAM,
   TRANSLUCENCY_FILTER: FILTER_PROGRAM,
   // The translucency global illumination volume's passes (`../../lighting/translucencyGi/`).

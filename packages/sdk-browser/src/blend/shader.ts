@@ -28,15 +28,27 @@ import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { type WgslDecl, wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { REFLECTION_GROUP, reflectionLightViewWgsl } from '../lighting/reflections/viewLayout.ts'
 import { forwardIndirectWgsl } from '../lighting/reflections/forward.ts'
-import { translucencyVolumeReadWgsl } from '../lighting/translucency/readWgsl.ts'
+import {
+  translucencyVolumeReadWgsl,
+  translucencyVolumeSelfReadWgsl,
+} from '../lighting/translucency/readWgsl.ts'
+import {
+  foldsDepth,
+  foldsProfiles,
+  type ObjectShadowAtlasRead,
+} from '../gpu/core/objectShadowRead.ts'
+import { PROFILE_FOLDED_WGSL, selfShadowText } from './objectShadow/objectShadowSelfWgsl.ts'
+import { withWaterBody } from './water/waterBodyLane.ts'
 import { BLEND_MAPS_WGSL } from './mapsWgsl.ts'
 import { clipDirective, type Clipping } from '../gpu/core/clipDistances.ts'
 import type { SurfaceProgram } from '../materials/graph/surfaceProgram.ts'
 import { blendGraphs } from './graphWgsl.ts'
 import { NO_WPO, type WpoSet } from '../materials/graph/wpoProgram.ts'
+import type { LightAtlasFormat } from '../gpu/core/lightAtlasFormat.ts'
 import { blendFragmentWgsl } from './fragmentWgsl.ts'
 import { stageLobes, stageOptions } from './stageOptions.ts'
 import { BLEND_LIGHT_STRENGTH_WGSL } from './viewLayout.ts'
+import { withOitOrder } from './oit/oitOrder.ts'
 
 /** Whether the translucent programs light a rectangle light as a rectangle, the project switch
  *  `translucentRectLights` at its default: off. */
@@ -91,14 +103,30 @@ const blendProgram = (
   volume = false,
   sampledFront = false,
   rectPictures = false,
+  reflectScene?: LightAtlasFormat,
+  oit = false,
+  objectShadow?: ObjectShadowAtlasRead,
+  waterExcludes = false,
 ) => {
-  const options = stageOptions(
+  const plain = stageOptions(
     key,
     programs,
     reads,
     asksOfItsOwn(translucentShadow.materials ?? NO_TRANSLUCENT_MATERIAL_SHADOW),
     sampledFront,
   )
+  // A program that reads its object's shadow takes the record's lane in its vertex stage's extras and the shadowed volume read.
+  const self =
+    volume && objectShadow
+      ? selfShadowText(plain.shade, reads, objectShadow, 'translucencyGiSampler')
+      : undefined
+  const withSelf = self ? { ...plain, shade: self.shade } : plain
+  // The variant for a world that holds a water exclusion volume: the vertex stage hands the fragment the item's rank in a lane of its extras.
+  const withWater = waterExcludes
+    ? { ...withSelf, shade: withWaterBody(withSelf.shade, reads, !!self) }
+    : withSelf
+  // The program that sorts its layers per pixel takes the order of each primitive in a word of its own (`withOitOrder`).
+  const options = oit ? { ...withWater, shade: withOitOrder(withWater.shade) } : withWater
   const gi = translucentGiWgsl(BLEND_BINDINGS.translucencyGi, BLEND_BINDINGS.translucencyGiSampler)
   const graphs = programs.length ? blendGraphs(programs, stageLobes(options)) : undefined
   const bindings = {
@@ -106,12 +134,33 @@ const blendProgram = (
     trace: { ...BLEND_TRACE_BINDINGS, subgroups },
     fog: { ...BLEND_FOG_BINDINGS, localFog },
     lightFunction: BLEND_LIGHT_FUNCTION_BINDINGS,
-    lightProfile: rectPictures ? BLEND_LIGHT_PROFILE_RECT_BINDINGS : BLEND_LIGHT_PROFILE_BINDINGS,
+    // Where the layout holds no profile atlas (the folded read) the profiles are read from the packed table.
+    lightProfile: {
+      ...(rectPictures ? BLEND_LIGHT_PROFILE_RECT_BINDINGS : BLEND_LIGHT_PROFILE_BINDINGS),
+      ...(foldsProfiles(objectShadow) && { folded: PROFILE_FOLDED_WGSL }),
+    },
     // The clouds' shade, read per vertex (`blendVertexWgsl`), where the program reads the clouds.
     ...(reads.clouds && { cloudShadow: BLEND_CLOUD_SHADE_BINDINGS }),
   }
+  // The labels of the options that vary the program, from one list.
+  const variantLabels = (
+    [
+      [volume, ', translucency volume'],
+      [sampledFront, ', sampled front light'],
+      [rectPictures, ', rectangle pictures'],
+      [!!reflectScene, `, scene reflection ${reflectScene}`],
+      [oit, ', sorted pixels'],
+      [!!self, `, object shadow ${objectShadow}`],
+      [foldsProfiles(objectShadow) && !self, ', folded profiles'],
+      [oit && foldsDepth(objectShadow), ', folded sorted depth'],
+      [waterExcludes, ', water exclusion lane'],
+    ] as const
+  )
+    .filter(([on]) => on)
+    .map(([, text]) => text)
+    .join('')
   return wgslBlock(
-    `blendProgram(${variantLabel(key)}, ${subgroups}${clipping ? `, ${clipping}` : ''}${graphs ? `, ${graphs.key}` : ''}${options.shade.key}${localFog ? '' : ', no local fog volumes'}${translucentShadowLabel(translucentShadow)}${volume ? ', translucency volume' : ''}${sampledFront ? ', sampled front light' : ''}${rectPictures ? ', rectangle pictures' : ''})`,
+    `blendProgram(${variantLabel(key)}, ${subgroups}${clipping ? `, ${clipping}` : ''}${graphs ? `, ${graphs.key}` : ''}${options.shade.key}${localFog ? '' : ', no local fog volumes'}${translucentShadowLabel(translucentShadow)}${variantLabels})`,
     [
       blendVertexWgsl(stageLobes(options), clipping, options.shade, offsets),
       STANDARD_LIGHTING_WGSL,
@@ -119,13 +168,36 @@ const blendProgram = (
       declaredLightingWgsl(bindings, key, translucentShadow),
       gi,
       blendSurfaceWgsl(stageLobes(options), graphs),
-      forwardIndirectWgsl(REFLECTION_GROUP, stageLobes(options), BLEND_BINDINGS.frontTraced, gi),
+      forwardIndirectWgsl(
+        REFLECTION_GROUP,
+        stageLobes(options),
+        BLEND_BINDINGS.frontTraced,
+        gi,
+        reflectScene,
+      ),
       reflectionLightViewWgsl(REFLECTION_GROUP),
       ...(stageLobes(options) ? [BLEND_PHYSICAL_WGSL] : []),
       ...(volume
-        ? [translucencyVolumeReadWgsl(BLEND_BINDINGS.translucencyVolume, 'translucencyGiSampler')]
+        ? [
+            self
+              ? translucencyVolumeSelfReadWgsl(
+                  BLEND_BINDINGS.translucencyVolume,
+                  'translucencyGiSampler',
+                  self.fragment,
+                )
+              : translucencyVolumeReadWgsl(
+                  BLEND_BINDINGS.translucencyVolume,
+                  'translucencyGiSampler',
+                ),
+          ]
         : []),
-      blendFragmentWgsl({ ...options, volume }),
+      blendFragmentWgsl({
+        ...options,
+        volume,
+        oit,
+        selfShadow: !!self,
+        foldedDepth: foldsDepth(objectShadow),
+      }),
       BLEND_MAPS_WGSL,
     ],
     `@group(0) @binding(${BLEND_BINDINGS.directLights}) var<storage,read> directLights:DirectLights;
@@ -176,7 +248,11 @@ export const blendShader = (
     scene = DEFAULT_TRANSLUCENT_SCENE,
     translucencyVolume = false,
     rectPictures = false,
+    reflectScene,
+    oit = false,
+    objectShadow,
     water,
+    waterExcludes = false,
   }: {
     stage?: WgslDecl
     diagnostic?: WgslDecl
@@ -197,8 +273,16 @@ export const blendShader = (
     translucencyVolume?: boolean
     /** Whether it reads the rectangle lights' pictures (`grantsRectPictures`); else a rectangle is plain. */
     rectPictures?: boolean
+    /** The format the radiance cache's final maps are read in where the forward fragments reflect the scene (`grantsTranslucentReflection`); else they reflect the environment. */
+    reflectScene?: LightAtlasFormat
+    /** Whether it holds the stage that collects the layers a pixel sorts (`./oit/oitWgsl.ts`), the project switch `oitSortedPixels` on a device that grants it. */
+    oit?: boolean
+    /** How it reads its object's shadow in the volume read (`objectShadowAtlasRead`), none by default: the program holds none of that code (`selfShadowText`). */
+    objectShadow?: ObjectShadowAtlasRead
     /** The single-layer water's stage (`./water/waterStageWgsl.ts`), of a scene that holds some. */
     water?: WgslDecl
+    /** Whether the world holds a water exclusion volume (`waterExclusionVolumes`): the vertex stage carries the item's rank for the water's cut (`withWaterBody`); `water` is then the variant. */
+    waterExcludes?: boolean
   } = {},
 ) => {
   const code = wgslModule(
@@ -214,6 +298,10 @@ export const blendShader = (
       translucencyVolume,
       !!scene.sampledFront,
       rectPictures,
+      reflectScene,
+      oit,
+      objectShadow,
+      waterExcludes,
     ),
     ...(dual ? [DUAL_SOURCE_WGSL] : []),
     ...clipDirective(clipping),

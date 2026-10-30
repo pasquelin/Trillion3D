@@ -58,6 +58,23 @@ export interface CloudShown {
   readonly frame: number
 }
 
+/** A composition held back for a stage of the frame (`CloudViewGpu.deferred`). */
+export type CloudDeferred =
+  | {
+      readonly stage: 'water'
+      readonly compose: (water?: GPUTextureView) => void
+      /** The clouds laid into the water's scene copy `target` (`width` by `height` texels, `factor` times fewer pixels a side than the image),
+       *  `depth` the water pass's linear copy of the scene's depth, of the same size. */
+      readonly behindWater: (
+        target: GPUTextureView,
+        depth: GPUTextureView,
+        width: number,
+        height: number,
+        factor: number,
+      ) => void
+    }
+  | { readonly stage: 'translucency'; readonly compose: () => void }
+
 /** The scene's depth range textures: the half-size one, and the quarter-size one with two
  *  surfaces. */
 export interface CloudDepthRange {
@@ -247,14 +264,17 @@ export function createCloudViewGpu(device: GPUDevice) {
     imageSlot(device, `reconstructed ${slot}`, RENDER_ATTACHMENT | TEXTURE_BINDING, true),
   )
   const fogged = imageSlot(device, 'fogged', RENDER_ATTACHMENT | TEXTURE_BINDING, false)
+  const holdout = imageSlot(device, 'holdout', STORAGE_BINDING | TEXTURE_BINDING, false)
   const table = emptySpaceTableSlot(device)
-  const all = [range, traced, raw, ...rebuilt, fogged, table]
+  const all = [range, traced, raw, ...rebuilt, fogged, holdout, table]
   return {
     state: createCloudViewState(),
     /** What the last image left for the translucent surfaces; none before an image that draws. */
     shown: undefined as CloudShown | undefined,
-    /** The composition of the last image where it waits for the single-layer water to be shaded (`encodeCloudView`'s `deferred`); none else. */
-    pending: undefined as ((water?: GPUTextureView) => void) | undefined,
+    /** The composition of the last image where it waits for its stage (`encodeCloudView`'s `deferred`): the single-layer
+     *  water to be shaded, which gives the texture whose alpha marks the water's pixels, or, for a debug view of the
+     *  tracing (`cloudDebugView`), the translucent surfaces to be drawn; none else. */
+    deferred: undefined as CloudDeferred | undefined,
     last: emptyLast(),
     /** The depth range textures for a view of `view` pixels drawn in a target allocated at
      *  `allocated`; with `quarter`, the quarter-size texture of two surfaces as well. */
@@ -270,6 +290,8 @@ export function createCloudViewGpu(device: GPUDevice) {
     /** The reconstructed image with the fog laid on it, of `size` texels (colour alone): what the
      *  translucent surfaces read where the setup asks for it (`lateFogOnTranslucent`). */
     fogged: (size: Size) => fogged.get(size, false),
+    /** The alpha holdout's coverage a trace of `size` texels writes, in the first channel: made on the first ask. */
+    holdout: (size: Size) => holdout.get(size, false),
     /** The reconstructed image `slot` as it stands: none before an image made it. */
     reconstructedAt: (slot: 0 | 1) => rebuilt[slot].held,
     /** The empty-space table the tracing starts its march by, made on the first ask. */

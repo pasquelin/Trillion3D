@@ -148,6 +148,9 @@ export class Object3D extends TransformNode {
   /** Whether the object's `shadowCapsules` cast a soft shadow on the scene from the lights
    *  (`capsuleDirectShadows`); `false` by default. Needs a dynamic shadow. */
   declare castCapsuleDirectShadow: boolean
+  /** Whether the object casts a volumetric translucent shadow, a shadow of its translucent surfaces' opacity into the classic shadow maps of the
+   *  lights that let translucent surfaces cast (`translucentObjectShadows`); `false` by default. Needs a dynamic shadow. */
+  declare castVolumetricTranslucentShadow: boolean
   /** Whether the object's `shadowCapsules` cast a soft shadow on the sky and the indirect light
    *  (`capsuleIndirectShadows`); `false` by default. */
   declare castCapsuleIndirectShadow: boolean

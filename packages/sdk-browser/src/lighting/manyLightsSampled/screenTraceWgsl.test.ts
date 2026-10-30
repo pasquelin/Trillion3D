@@ -24,3 +24,15 @@ test('the software trace marches the global field from where the screen left the
   assert.ok(code.includes('fn gdfTrace('), 'the engine’s march, not a copy')
   assert.ok(code.includes('lightSampleRayDistance(ray)'))
 })
+
+test('the screen trace of several closures offsets its rays along the normal of the closure the pixel is lit as; one closure keeps the text', () => {
+  const several = screenTraceWgsl(true)
+  assert.ok(
+    several.includes('let N=normalize(textureLoad(colours,pixel,pickedNormalLayer(pixel),0).xyz);'),
+  )
+  assert.ok(several.includes('var blueNoiseMask'), 'the blue noise the pick reads')
+  assert.ok(several.includes('fn pickedClosure('))
+  const one = screenTraceWgsl()
+  assert.ok(!/pickedClosure|blueNoiseMask|closuresHeld/.test(one))
+  assert.equal(one, screenTraceWgsl(false))
+})

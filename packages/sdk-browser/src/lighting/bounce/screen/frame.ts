@@ -1,6 +1,7 @@
 import { meshStageOf, meshTraceSettingsOf, wantsMeshStage } from './meshStage.ts'
 import { isPending, isReady } from '../../rays/sceneTrace/sceneMaskHold.ts'
 import { imagesSinceChange } from '../../../frame/render/noiseFrame.ts'
+import { INDIRECT_DIFFUSE_LIGHT_VIEW, lightViewCode } from '../../../visibility/shader/shadeMode.ts'
 import { skyLightReadOf } from '../../../frame/render/skyLightState.ts'
 import { sameValues } from '../../../../../math/src/matrix/matrixElements.ts'
 import { invertMatrix4 } from '../../../../../math/src/matrix/matrix4Inverse.ts'
@@ -26,6 +27,8 @@ import { sceneRaysOf, type SceneRays } from '../../surfaceCache/lighting/surface
 import type { MarkProbes } from '../pool/pool.ts'
 import { lightingPhase } from '../../surfaceCache/lighting/phase.ts'
 import { bounceHitLightingOf } from '../../../frame/render/bounceHitLighting.ts'
+import { preExposureOf } from '../../../post/exposure/pre.ts'
+import { mostClosures } from '../../../frame/prepare/closures.ts'
 import { singleBounceLightWord } from '../../reflections/hitLighting/listPasses.ts'
 import { probeHitLitOf, releaseProbeHitLit } from './hitLitStage.ts'
 import { castsThroughTriangles, screenProbesCast, screenProbesCut } from './cast.ts'
@@ -52,9 +55,10 @@ import {
 import { createScreenProbeGroups, type ScreenProbeGroups } from './groups.ts'
 import { passRanks, type ScreenProbeInputs } from './groupParts.ts'
 import { createScreenProbeStore, type ScreenProbeStore } from './store.ts'
-import type { ScreenProbeGeometry } from './screenProbeLayout.ts'
+import { SCREEN_CLOSURES_GATHERED, type ScreenProbeGeometry } from './screenProbeLayout.ts'
 import { ensureScreenProbeView, imageGeometry, type ScreenProbeView } from './view.ts'
 import { screenProbeVectors } from './vectorSource.ts'
+import { closureTilesOf } from '../../../visibility/closureTiles/closureTiles.ts'
 
 /** The metrics of an image of `settings`: what it cast — `geometry`, with what it read — or, with none, why it cast none. */
 function metricsOf(
@@ -158,6 +162,8 @@ function inputsOf(
   const inputs = (store.inputs ??= {} as ScreenProbeInputs)
   inputs.normals = frames[NORMALS_VIEW]
   inputs.flags = frames[FLAGS_VIEW]
+  inputs.closureNormals = surfaces.closureNormals
+  inputs.closureTiles = closureTilesOf(rt)
   inputs.base = frames[BASE_VIEW]
   inputs.emissiveAo = frames[EMISSIVE_AO_VIEW]
   inputs.lobes = surfaces.lobesView
@@ -237,11 +243,19 @@ function handOver(
     needed.deferred,
     settings,
     (settings.backfaceDiffuse ? 0 : 2) +
-      (settings.occlusion && settings.values.screenProbeShortRangeAOApplyDuringIntegration ? 4 : 0),
+      (settings.occlusion && settings.values.screenProbeShortRangeAOApplyDuringIntegration
+        ? 4
+        : 0) +
+      (state.closures > 1 ? SCREEN_CLOSURES_GATHERED : 0),
   )
+  const { closures } = state.resources
   state.indirect = state.resources.history[state.turn]
+  state.indirectClosures = closures?.history[state.turn]
   state.shortRangeGi = settings.shortRangeGi
     ? state.resources.shortRangeGiHistory[state.turn]
+    : undefined
+  state.shortRangeGiClosures = settings.shortRangeGi
+    ? closures?.shortRangeGi[state.turn]
     : undefined
   state.viewProjection.set(needed.reflection.frame.viewProjection)
   state.turn = (1 - state.turn) as 0 | 1
@@ -306,7 +320,7 @@ function writeImageParameters(
     exactLight: settings.cache.light !== 'r11g11b10',
     rays,
     hitLight,
-    exposure: reflection.frame.exposure ?? 1,
+    exposure: preExposureOf(rt).exposure,
   })
 }
 
@@ -442,11 +456,13 @@ function runOf(
     reflection: reflectionGroup(reflection, depth, lightView, skyLightReadOf(rt)),
     sceneReflection: reflectionSceneGroup(reflection, lightView, skyLightReadOf(rt)),
     settings,
+    closures: Math.min(state.resources.closures?.held ?? 1, mostClosures(rt)),
     cache: rt.bounce.probes?.cache,
     traced: traced?.traced,
     hitLit: traced?.hitLit,
     occlusionTriangles,
     meshes,
+    closureTiles: store.inputs?.closureTiles,
     stage: stageOf(rt, store, device, settings, kernels),
   }
 }
@@ -466,7 +482,7 @@ function placeProbes(
   kernels: NonNullable<ScreenProbeView['kernels']>,
   settings: ScreenProbeSettings,
 ) {
-  const { device, reflection, depth, lightView } = needed
+  const { device, reflection } = needed
   // The rays marched through the field read the surface cache at their hits: it is made for the images to come.
   if (settings.values.screenProbeSceneTraces) demandSurfaceCache(rt)
   const vectors = screenProbeVectors(rt)
@@ -474,7 +490,11 @@ function placeProbes(
   const { held } = reflection.lit
   const geometry = imageGeometry(state, rt.gpu.targetSize, settings)
   const history = historyKept(rt, state, settings, geometry, reflection)
-  const screen = reflection.frame.depthDrawn && held.valid
+  // The view of the indirect diffuse light alone traces no screen (the reference skips it for that view): the rays all go to the scene stage.
+  const screen =
+    reflection.frame.depthDrawn &&
+    held.valid &&
+    lightViewCode(rt.run.diagnostic) !== INDIRECT_DIFFUSE_LIGHT_VIEW
   const velocity = history && !!vectors
   const bound = groups(state.turn, inputsOf(rt, needed, store, vectors, kernels.features.light))
   const lobes = reflection.settings(rt.context, waterFrontOf(rt))
@@ -507,6 +527,7 @@ function placeProbes(
     device,
     settings,
     bound.occlusionTriangles,
+    bound.closures.map((closure) => closure.occlusionTriangles),
   )
   const run = runOf(
     rt,
@@ -680,7 +701,9 @@ export function placeScreenProbes(
     leaveToSkyLight(rt, settings)
     if (gpu.screenProbes) {
       gpu.screenProbes.indirect = undefined
+      gpu.screenProbes.indirectClosures = undefined
       gpu.screenProbes.shortRangeGi = undefined
+      gpu.screenProbes.shortRangeGiClosures = undefined
       gpu.screenProbes.history = false
     }
     store.metrics = metricsOf(
@@ -697,6 +720,7 @@ export function placeScreenProbes(
     needed.device,
     settings,
     cacheLightOf(rt, needed.device, settings),
+    needed.surfaces.closures > 1,
   )
   if (!kernels) return skip(store.reason ?? 'the screen probes are compiling')
   const { view, why } = ensureScreenProbeView(
@@ -704,6 +728,7 @@ export function placeScreenProbes(
     needed.device,
     gpu.allocatedSize,
     settings,
+    needed.surfaces.closures,
   )
   gpu.screenProbes = view
   if (!view) return skip(why!)
@@ -762,7 +787,12 @@ export function askScreenProbes(rt: WebgpuPagesRuntime, device: GPUDevice) {
   if (!screenProbesCast(rt)) return
   const store = (rt.bounce.screen ??= createScreenProbeStore())
   const settings = store.read(rt.context)
-  store.kernelsFor(device, settings, cacheLightOf(rt, device, settings))
+  store.kernelsFor(
+    device,
+    settings,
+    cacheLightOf(rt, device, settings),
+    (rt.gpu.surfaces?.closures ?? 1) > 1,
+  )
 }
 
 /** Whether the view's screen probes still build their history: the last image cast them, the history is temporal, and fewer

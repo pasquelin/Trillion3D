@@ -63,8 +63,11 @@ fn cloudShell(r:ptr<function,CloudRay>)->bool{
 }`
 
 /** The longest march, the mean depth of the cloud a ray met, the haze and fog laid over its colour,
- *  and the march itself. */
-export const CLOUD_MARCH_WGSL = `/** The longest march, from the layer's entry or from the eye; false where nothing is left to trace. */
+ *  and the march itself. A debug view of the tracing (`debug`) marches every sample, skipping none over
+ *  empty air and ending none at the opacity limit, and counts the empty ones. */
+export const cloudMarchWgsl = (
+  debug: boolean,
+) => `/** The longest march, from the layer's entry or from the eye; false where nothing is left to trace. */
 fn cloudMaxDistance(r:ptr<function,CloudRay>,depthCm:f32)->bool{
  let longest=cloudTrace.reach.z;
  if(cloudTrace.reach.w==0.0){
@@ -155,19 +158,45 @@ fn cloudMarch(r:CloudRay,closestCm:f32,p:vec2u)->CloudMarched{
   let rel=r.dir*t;
   cloudFootprint(t,r.dir,rayX,rayY);
   let probe=cloudProbeAt(rel);
-  if(!cloudProbeDense(probe)){
+${
+  debug
+    ? '  if(cloudDebugEmpty(rel,probe)){cloudDebugZero++;}\n'
+    : `  if(!cloudProbeDense(probe)){
    i+=onEmpty;
    t+=f32(onEmpty)*stepT;
    continue;
   }
-  if(probe.norm<=0.0||probe.norm>=1.0){continue;}
+`
+}  if(probe.norm<=0.0||probe.norm>=1.0){continue;}
   let here=cloudPointOf(probe,rel);
   cloudSampleStep(rel,t,here.norm,here.spot,lights,octaves,stepT*CLOUD_CM_TO_M,closestCm,&m);
-  if(all(m.seen.transmittance<vec3f(cloudTrace.layer.w))){break;}
-  continuing{
+${debug ? '' : '  if(all(m.seen.transmittance<vec3f(cloudTrace.layer.w))){break;}\n'}  continuing{
    i++;
    t+=stepT;
   }
  }
- return m;
+ ${debug ? 'cloudDebugValue=cloudDebugOf(f32(steps),cloudStartCm(p));\n ' : ''}return m;
+}`
+
+/** The alpha holdout's coverage of a ray (`CloudTraceKey.holdout`), a trace's own text beside the march: what the
+ *  ray did not let through, the clouds' own where they hold out (`alphaHole`), let through by the haze
+ *  in front of them (where it lies on the clouds) and by the fog; and, for the haze that holds out
+ *  (`frame.hidden.y`) and the fog that does (`fogHoldout`), their own coverage of the cloud's, added behind
+ *  what is in front of it. The haze and the fog are read at the mean distance `meanDepth` as `cloudFinish`
+ *  reads them. */
+export const CLOUD_HOLDOUT_WGSL = `fn cloudHoldout(a:CloudAccum,meanDepth:f32,dir:vec3f,pixel:vec2f)->f32{
+ let coverage=saturate(1.0-dot(a.transmittance,vec3f(1.0/3.0)));
+ if(coverage<=0.0){return 0.0;}
+ let eye=cloudOrigin;
+ let there=eye+dir*(meanDepth*CLOUD_CM_TO_M);
+ var kept=select(0.0,coverage,cloudTrace.local.y!=0.0);
+ var above=0.0;
+ if(cloudTrace.local.w==1.0){
+  let air=cloudAir(there,eye,dir,meanDepth).a;
+  kept*=air;
+  above=select(0.0,coverage*(1.0-air),frame.hidden.y!=0.0);
+ }
+ let fog=fogOverNoHaze(there,eye,pixel).a;
+ above=above*fog+select(0.0,coverage*(1.0-fog),fogHoldout());
+ return kept*fog+above;
 }`

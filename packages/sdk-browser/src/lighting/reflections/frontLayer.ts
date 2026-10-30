@@ -48,7 +48,13 @@ import { texelBytesOf } from '../../gpu/core/textureBytes.ts'
 import { HIZ_LEVEL0_FORMAT } from '../../visibility/hiz/gpu/level0.ts'
 import { retire } from '../../gpu/core/frameRetire.ts'
 import { TRANSPARENT_FRONT_PASS } from '../../diagnostic/stage/passLabels.ts'
-import { createKernelTexture, createReflectionGrids, gridBytes } from './grids.ts'
+import {
+  REFLECTION_GRID_FORMAT,
+  createKernelTexture,
+  createReflectionGrids,
+  gridBytes,
+  resolvedBytes,
+} from './grids.ts'
 import { storageTextureLayout } from '../../gpu/core/computeBindings.ts'
 import { createFrontTiles, frontTileBytes, type FrontTiles } from './frontTiles.ts'
 
@@ -103,6 +109,8 @@ type FrontHeld = {
   normals: GPUTexture
   lobes: GPUTexture
   traced: GPUTexture
+  /** The front surface's own resolved pixels (`resolvedView`), made at the view's size with its normals: the opaque surface's accumulation reads its own after the front's resolve ran. */
+  resolved?: GPUTexture
   /** The surface buffer the sampled lighting reads the layer as (`FrontSurface`), made at the view's size the first time a pass writes the base colour. */
   surface?: FrontSurface
   /** The tiles the layer lights (`FrontTiles`), made with the surface. */
@@ -114,6 +122,8 @@ type FrontHeld = {
     normals: GPUTextureView
     lobes: GPUTextureView
     traced: GPUTextureView
+    /** The front surface's resolved pixels, none until it first reflects: the opaque surface's are bound for it until then. */
+    resolved?: GPUTextureView
   }
 }
 
@@ -232,6 +242,11 @@ function growFrontHeld(
       t = growFront(device, tracedSize, held.traced, () =>
         createFrontTraced(device, [tracedSize.width, tracedSize.height]),
       )
+    if (!held.resolved) {
+      held.resolved = createKernelTexture(device, LABEL, [width, height], REFLECTION_GRID_FORMAT)
+      views.resolved = held.resolved.createView()
+      bytes.targetBytes += resolvedBytes(width, height)
+    }
     if (n.texture !== held.normals) views.normals = (held.normals = n.texture).createView()
     if (t.texture !== held.traced) views.traced = (held.traced = t.texture).createView()
     bytes.targetBytes += n.bytes + t.bytes
@@ -328,6 +343,7 @@ function copyIntoSurface(encoder: GPUCommandEncoder, held: FrontHeld, surface: F
 function destroyHeld(held: FrontHeld) {
   for (const texture of [held.depth, held.flags, held.normals, held.lobes, held.traced])
     texture.destroy()
+  held.resolved?.destroy()
   held.surface?.colours.destroy()
   held.surface?.words.destroy()
   held.tiles?.destroy()

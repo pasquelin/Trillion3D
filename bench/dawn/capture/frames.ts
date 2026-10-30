@@ -149,6 +149,11 @@ export async function settleLoading(rig: FrameRig, clock: BenchClock, timeoutMs:
   }
 }
 
+/** BENCH_FED: two frames in flight, so the GPU is fed while the main thread encodes the next, as a page's loop feeds it. */
+export const FED = Boolean(process.env.BENCH_FED)
+/** The frames a fed run lets be outstanding at once. */
+const IN_FLIGHT_FRAMES = 2
+
 const turn = () => new Promise((done) => setImmediate(done))
 
 /** Draws `count` frames, `before(i)` playing the scenario's input ahead of the `i`-th. Yields to the
@@ -180,12 +185,26 @@ export async function runFrames(
   })
   const device = rig.gpu.held.device!
   let open: { record: FrameRecord; start: number; elu: EventLoopUtilization } | null = null
+  /** The frames of a fed run encoded and submitted, their GPU work not yet read back. */
+  const flying: Promise<void>[] = []
   /** Ends the open window: its GPU work done, its main thread's time read, its passes read back. */
   const close = async () => {
     if (!open) return
     const { record, start, elu } = open
     open = null
     record.counts = rig.gpu.take()
+    if (FED) {
+      // The main thread's time is the frame's own, read now; the GPU's and the timer's come when its work is done, while the next frame encodes.
+      record.cpuMs = loop.eventLoopUtilization(elu).active
+      const handle = rig.gpu.timer.close()
+      flying.push(
+        Promise.all([device.queue.onSubmittedWorkDone(), handle]).then(([, gpu]) => {
+          record.gpu = gpu
+          record.wallMs = performance.now() - start
+        }),
+      )
+      return
+    }
     // The timer's read back queues behind the frame's work: both done in one wait.
     ;[, record.gpu] = await Promise.all([device.queue.onSubmittedWorkDone(), rig.gpu.timer.close()])
     record.cpuMs = loop.eventLoopUtilization(elu).active
@@ -195,7 +214,9 @@ export async function runFrames(
     await device.queue.onSubmittedWorkDone()
     rig.gpu.take() // what came before the first frame is no frame's
     for (let i = 0; i < count; i++) {
-      await close()
+      // A fed run waits only when its frames in flight are all outstanding; the frame just encoded was closed at the end of its turn.
+      if (FED) while (flying.length >= IN_FLIGHT_FRAMES) await flying.shift()
+      else await close()
       // The workers answer the last frame before the next begins: the same frame, the same
       // answers, and their work counts in no frame's window.
       await settleWorkers()
@@ -229,8 +250,10 @@ export async function runFrames(
       records.push(record)
       tickClock(clock)
       await turn()
+      if (FED) await close()
     }
     await close()
+    await Promise.all(flying)
   } finally {
     off()
   }

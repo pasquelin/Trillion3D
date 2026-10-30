@@ -597,7 +597,7 @@ function eyesOf(rt: WebgpuPagesRuntime, cam: EngineCamera, state: SurfaceCacheFr
   origins.length = 1
   streamingOrigins.length = 0
   rt.views.persistent.forEach((view, at) => {
-    if (view.drawnBeside === undefined) return
+    if (view.drawnBeside === undefined || view.parked) return
     const slot = (streamingSlots[at] ??= [0, 0, 0])
     for (let k = 0; k < 3; k++) slot[k] = view.cam.eye[k] * CM
     streamingOrigins.push(slot)
@@ -608,7 +608,8 @@ function eyesOf(rt: WebgpuPagesRuntime, cam: EngineCamera, state: SurfaceCacheFr
     settings.surfaceCacheViewOriginDistanceThreshold,
   )
   keptView = rt.views.persistent.find(
-    (view, at) => view.drawnBeside !== undefined && origins.includes(streamingSlots[at]!),
+    (view, at) =>
+      view.drawnBeside !== undefined && !view.parked && origins.includes(streamingSlots[at]!),
   )?.cam
   return origins
 }

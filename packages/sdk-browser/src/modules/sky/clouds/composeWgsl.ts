@@ -4,7 +4,6 @@ import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { fieldLayout } from '../../../gpu/core/fieldLayout.ts'
 import { FULLSCREEN_VERTEX } from '../../../gpu/shader/fullscreenTriangle.ts'
 import { fogBlockOf } from '../../../lighting/fog/readWgsl.ts'
-import { AIR_SHOWN } from '../../../lighting/fogBlockAccess.ts'
 import { preExposedWgsl } from '../../../post/exposure/preWgsl.ts'
 import {
   AIR_FOG_BINDINGS,
@@ -12,7 +11,7 @@ import {
   type AirBindings,
 } from '../../../lighting/atmosphere/programs.ts'
 import type { CloudSetup } from './cloudModes.ts'
-import { MIN_MAX_BILATERAL, PLAIN_BILATERAL } from './composeBilateralWgsl.ts'
+import { MIN_MAX_BILATERAL, PLAIN_BILATERAL, UNDER_BILATERAL } from './composeBilateralWgsl.ts'
 import {
   BILINEAR_UPSAMPLING,
   DIRECT_COMPOSE,
@@ -55,14 +54,14 @@ const B = COMPOSE_BINDING
 /** What every program declares: the uniform, the cloud images (the secondary one with two
  *  surfaces), the scene's depth, the sampler and the water's surface (\`waterFlag\`: its alpha is 1 where the
  *  single-layer water was shaded over the pixel, 0 or a texture of one texel where no water was). */
-const composeDeclarations = (minMax: boolean) => `
+const composeDeclarations = (minMax: boolean, under: boolean) => `
 ${COMPOSE_VIEW.wgsl}
 @group(1) @binding(${B.view}) var<uniform> view:ComposeView;
 @group(1) @binding(${B.colour}) var cloudColour:texture_2d<f32>;${
   minMax ? `\n@group(1) @binding(${B.secondary}) var cloudSecondary:texture_2d<f32>;` : ''
 }
 @group(1) @binding(${B.depth}) var cloudDepth:texture_2d<f32>;
-@group(1) @binding(${B.sceneDepth}) var sceneDepth:texture_depth_2d;
+@group(1) @binding(${B.sceneDepth}) var sceneDepth:${under ? 'texture_2d<f32>' : 'texture_depth_2d'};
 @group(1) @binding(${B.sampler}) var linearSampler:sampler;
 @group(1) @binding(${B.water}) var waterFlag:texture_2d<f32>;
 /** Whether the single-layer water was shaded over the pixel: the image's own pixels, a texture smaller than them holding none. */
@@ -130,43 +129,17 @@ fn fogFromUv(uv:vec2f,cloud:vec4f)->vec4f{
 }
 `
 
-/** The alpha holdout of clouds (`CloudViewFrame.holdout`): whether the clouds hold their light out
- *  themselves (`alphaHole`), or only the sky's haze and the fog in front of them hold theirs. */
-export interface HeldClouds {
-  readonly cloud: boolean
-}
-
 /**
- * THE ALPHA HOLDOUT'S COVERAGE of a cloud sample at the front depth `depthKm` of the pixel `pixel`'s ray:
- * the clouds' own coverage, one minus their transmittance, let through by the haze in front of them
- * and by the fog, where the clouds hold out; and, for the haze that holds out (\`frame.hidden.y\`) and the
- * fog that does (\`fogHoldout\`), their own coverage of the cloud's, added behind what is in front of it.
- * The composition's ways enlarge it as they enlarge the cloud, the program's \`fogAtPixel\`,
- * \`fogOnCloud\` and \`fogFromUv\` giving it in place of the fogged cloud, in the alpha.
+ * THE ALPHA HOLDOUT'S SECOND DRAW: the trace wrote the coverage the clouds, the haze and the fog in
+ * front of them hold out in an image of its own (\`CloudTraceKey.holdout\`, its first channel), which
+ * this program reads in place of the cloud colour, through the same way of enlarging; each sample
+ * gives that coverage as its alpha, no light. The composition's ways enlarge it as they enlarge the
+ * cloud, the program's \`fogAtPixel\`, \`fogOnCloud\` and \`fogFromUv\` giving it in place of the fogged cloud.
  */
-const heldFog = (held: HeldClouds) => `
-const CLOUD_HOLDS:bool=${held.cloud};
-fn holdoutAt(pixel:vec2f,depthKm:f32,cloud:vec4f)->f32{
- let coverage=saturate(1.0-cloud.a);
- if(coverage<=0.0){return 0.0;}
- let ndc=pixelToNdc(pixel,frame.size.xy);
- let dir=normalize(unprojectPoint(frame.inverseViewProj,vec3f(ndc,0.5))-frame.eye.xyz);
- let there=frame.eye.xyz+dir*(depthKm*1000.0);
- var air=1.0;
- if(${AIR_SHOWN}){air=aerialPerspective(there,frame.eye.xyz).a;}
- let fog=fogOverNoHaze(there,frame.eye.xyz,pixel).a;
- var kept=select(0.0,coverage*air*fog,CLOUD_HOLDS);
- var above=select(0.0,coverage*(1.0-air),frame.hidden.y!=0.0);
- above=above*fog+select(0.0,coverage*(1.0-fog),fogHoldout());
- return kept+above;
-}
-fn fogAtPixel(pixel:vec2f,depthKm:f32,cloud:vec4f)->vec4f{return vec4f(0.0,0.0,0.0,holdoutAt(pixel,depthKm,cloud));}
-fn fogOnCloud(uv:vec2f,depthKm:f32,cloud:vec4f)->vec4f{
- return fogAtPixel(uv*view.textureSize.xy/view.scale.x,depthKm,cloud);
-}
-fn fogFromUv(uv:vec2f,cloud:vec4f)->vec4f{
- return fogOnCloud(uv,sampleBounded(cloudDepth,view.bounds,uv).x,cloud);
-}
+const HELD_COVERAGE = `
+fn fogAtPixel(pixel:vec2f,depthKm:f32,cloud:vec4f)->vec4f{return vec4f(0.0,0.0,0.0,cloud.r);}
+fn fogOnCloud(uv:vec2f,depthKm:f32,cloud:vec4f)->vec4f{return vec4f(0.0,0.0,0.0,cloud.r);}
+fn fogFromUv(uv:vec2f,cloud:vec4f)->vec4f{return vec4f(0.0,0.0,0.0,cloud.r);}
 `
 
 /** The pixel's distance from the eye, from the scene's depth: under the cloud's start distance it
@@ -178,11 +151,28 @@ const SCENE = `
  let pixelKm=length(frame.eye.xyz-scene)*0.001;
  if(pixelKm<view.distances.x){discard;}`
 
+/** The distance of the pixel for the scene copy behind the water (`under`), which is `view.scale.w` times smaller a side than the image: the
+ *  copy's pixel stands for the block of the image's, whose furthest depth the water pass kept in its linear copy (`sceneDepth` here, the
+ *  clip w, one load); the rest of the program reads the block's centre as the pixel. As the copy is read, the depth is taken along the
+ *  normalised direction of the pixel's ray, the point is brought to the clip and its device depth is unprojected again at the pixel, the
+ *  distance being that of this point. */
+const UNDER_SCENE = `
+ let pixel=vec2i(position.xy);
+ let linear=textureLoad(sceneDepth,vec2i(coarse.xy),0).r;
+ let ndcAt=pixelToNdc(position.xy,frame.size.xy);
+ let ray=normalize(unprojectPoint(frame.inverseViewProj,vec3f(ndcAt,0.5))-frame.eye.xyz);
+ let clipAt=frame.viewProj*vec4f(frame.eye.xyz+ray*linear,1.0);
+ let deviceZ=max(DEVICE_DEPTH_FLOOR,clipAt.z/clipAt.w);
+ let scene=unprojectPoint(frame.inverseViewProj,vec3f(ndcAt,deviceZ));
+ let pixelKm=length(frame.eye.xyz-scene)*0.001;
+ if(pixelKm<view.distances.x){discard;}`
+
 /** What a setup composes with: the way (an index of `CLOUD_UPSAMPLINGS`) and whether the cloud
  *  images hold two surfaces. */
 export type ComposeVariant = Pick<CloudSetup, 'upsampling' | 'minMaxDepth' | 'direct'>
 
-function bodyOf({ upsampling, minMaxDepth, direct }: ComposeVariant) {
+function bodyOf({ upsampling, minMaxDepth, direct }: ComposeVariant, under: boolean) {
+  const scene = under ? UNDER_SCENE : SCENE
   if (direct) return DIRECT_COMPOSE
   switch (upsampling) {
     case 0:
@@ -190,11 +180,11 @@ function bodyOf({ upsampling, minMaxDepth, direct }: ComposeVariant) {
     case 1:
       return JITTER_UPSAMPLING
     case 2:
-      return `${SCENE}${NEAREST_UPSAMPLING}`
+      return `${scene}${NEAREST_UPSAMPLING}`
     case 3:
-      return `${SCENE}${JITTER_DEPTH_UPSAMPLING}`
+      return `${scene}${JITTER_DEPTH_UPSAMPLING}`
     default:
-      return `${SCENE}${minMaxDepth ? MIN_MAX_BILATERAL : PLAIN_BILATERAL}`
+      return `${scene}${under ? UNDER_BILATERAL : minMaxDepth ? MIN_MAX_BILATERAL : PLAIN_BILATERAL}`
   }
 }
 
@@ -230,18 +220,26 @@ const programs = new Map<string, string>()
  * The fog lies on a sample at the cloud's front depth (`fogOnCloud`): the ray of the sample's pixel,
  * the fog along it, the haze apart.
  *
- * With `held`, the program of the alpha holdout's second draw (`heldFog`): the same ways, each sample
+ * With `under`, the program that composes into the scene copy behind the water (`UNDER_SCENE`, `UNDER_BILATERAL`), drawn at `view.scale.w`
+ * times fewer pixels a side than the image.
+ *
+ * With `held`, the program of the alpha holdout's second draw (`HELD_COVERAGE`): the same ways, each sample
  * giving, in place of its light, the coverage it adds to the image's alpha.
  */
-export function composeProgram(variant: ComposeVariant, localFog = true, held?: HeldClouds) {
-  const key = `${variant.direct ? 'd' : variant.upsampling}${variant.minMaxDepth}${localFog}${held ? `|held ${held.cloud}` : ''}`
+export function composeProgram(
+  variant: ComposeVariant,
+  localFog = true,
+  held = false,
+  under = false,
+) {
+  const key = `${variant.direct ? 'd' : variant.upsampling}${variant.minMaxDepth}${localFog}${held ? '|held' : ''}${under ? '|under' : ''}`
   let code = programs.get(key)
   if (code === undefined) {
     code = airProgram(
       COMPOSE_AIR_BINDINGS,
-      `${composeDeclarations(variant.minMaxDepth)}${PLACES}${held ? heldFog(held) : COMPOSE_FOG}
-@fragment fn composeMain(@builtin(position) position:vec4f)->@location(0) vec4f{
-${variant.direct ? '' : ' if(frame.eye.w==0.0){discard;}'}${bodyOf(variant)}
+      `${composeDeclarations(variant.minMaxDepth, under)}${PLACES}${held ? HELD_COVERAGE : COMPOSE_FOG}
+@fragment fn composeMain(@builtin(position) ${under ? 'coarse' : 'position'}:vec4f)->@location(0) vec4f{${under ? '\n let position=vec4f(coarse.xy*view.scale.w,coarse.zw);' : ''}
+${variant.direct ? '' : ' if(frame.eye.w==0.0){discard;}'}${bodyOf(variant, under)}
 }
 `,
       composeBlocks(localFog),

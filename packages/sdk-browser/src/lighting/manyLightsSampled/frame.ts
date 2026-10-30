@@ -11,6 +11,7 @@ import { reflectionGroup, reflectionLightView } from '../reflections/group.ts'
 import { skyLightReadOf } from '../../frame/render/skyLightState.ts'
 import { SHADOW_RULES } from '../../../../sdk-core/src/contracts/shadowOptions.ts'
 import { readSetting } from '../../../../sdk-core/src/contracts/settingRules.ts'
+import { readClosureSetting } from '../../../../sdk-core/src/contracts/closureOptions.ts'
 import { readRectLightAtlasSetting } from '../../../../sdk-core/src/contracts/rectLightAtlasOptions.ts'
 import { surfaceHitReads } from '../surfaceCache/frame.ts'
 import { blueNoiseNow } from '../../gpu/noise/blueNoiseTextures.ts'
@@ -162,6 +163,8 @@ function sampledInputs(
       previousViewProjection: (previousCameraOf(rt).image > 0 ? previousCameraOf(rt) : NO_CAMERA)
         .viewProjection,
       key,
+      stochasticClosures:
+        key.closures === true && readClosureSetting(rt, 'stochasticClosureLighting'),
       settings: values,
       input: target ? ('frontTranslucency' as const) : ('surface' as const),
       width,

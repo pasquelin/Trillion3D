@@ -88,6 +88,9 @@ export interface DirectLightResources extends Partial<ContractKey> {
   screenIndirect?: GPUTextureView
   /** The short-range global illumination the screen probes gathered this image (`../bounce/screen/occlusionWgsl.ts`), a read-only storage texture the bounce program reads by load; absent, the black stand-in. */
   screenShortRangeGi?: GPUTextureView
+  /** The same two of every closure a pixel holds, an array with a layer each (`ScreenProbeView.indirectClosures`, `shortRangeGiClosures`), where the probes gathered them; absent, the one-layer stand-ins. */
+  screenIndirectClosures?: GPUTextureView
+  screenShortRangeGiClosures?: GPUTextureView
   /** The screen-space ambient occlusion this image drew (`../ao/frame.ts`): a texture of one byte a pixel the opaque
    *  resolve reads by load, where its view's word says to apply it; absent, the stand-in. */
   ambientOcclusion?: GPUTextureView

@@ -1,6 +1,6 @@
 import { postSamplers } from '../../../gpu/core/postSamplers.ts'
 import { preparedPipeline } from '../../../lighting/deferred/fullscreen.ts'
-import { retire } from '../../../gpu/core/frameRetire.ts'
+import { commitOnSubmit, retire } from '../../../gpu/core/frameRetire.ts'
 import { createCachedGroup } from '../../../gpu/bind/cachedGroup.ts'
 import { drawFullscreenTriangle, FULLSCREEN_ENTRY } from '../../../gpu/shader/fullscreenTriangle.ts'
 import { CUBE_FACES, SKY_LIGHT_CUBE_FORMAT } from './layout.ts'
@@ -183,10 +183,12 @@ export function createSkyMeshes(device: GPUDevice, width: number, depthBuffer: b
             { binding: 3, resource: depthImage },
             blockEntry(face),
           ]))
-      if (copied && depthCopied) {
-        written |= 1 << face
-        revision++
-      }
+      // The face is held once the encoder that copies it is submitted: one dropped leaves the cube as it was.
+      if (copied && depthCopied)
+        commitOnSubmit(encoder, () => {
+          written |= 1 << face
+          revision++
+        })
     },
     depthLayer: (face) => depthLayers?.[face],
     drawFace(encoder, target, face, preExposure) {

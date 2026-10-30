@@ -76,6 +76,7 @@ import {
   cubeMaxLuminanceShader,
 } from '../../modules/sky/skyLight/cubePeakWgsl.ts'
 import { perLightPassWgsl } from '../../lighting/deferred/perLightPassWgsl.ts'
+import { lightShapeShader } from '../../lighting/lightShape/lightShapeWgsl.ts'
 import { FULL_CONTRACT } from '../../lighting/deferred/contractCuts.ts'
 import { TILE_CLASS_NAMES, TILE_CLASSES } from '../../lighting/deferred/tileClass.ts'
 
@@ -123,6 +124,9 @@ function lightPassShaders() {
   // The lobed class (`lobesWgsl.ts`), and the sky light under the distance fields' occlusion.
   named('DIRECT_LOBES', false, {})
   named('BOUNCE_LOBES', true, {})
+  // The view's pixels hold several closures (`ContractKey.closures`): each pass loops them and sums them by coverage.
+  named('DIRECT_CLOSURES', false, { lobeless: true, closures: true })
+  named('BOUNCE_CLOSURES', true, { lobeless: true, closures: true })
   named('DIRECT_SKY_SHADOWING', false, { lobeless: true }, true)
   named('DIRECT_SKY_SHADOWING_LOBES', false, {}, true)
   // Each class of tile: the code its pixels need and no more.
@@ -130,6 +134,8 @@ function lightPassShaders() {
     const name = TILE_CLASS_NAMES[tileClass]
     Object.assign(out, {
       [`SUN_CLASS_${name}`]: wgslModule(sunPassWgsl(FULL_CONTRACT, tileClass)),
+      // The shading furnace test (`shadingFurnaceTest`): the sun's bindings, its entries in place of the sun's.
+      [`FURNACE_CLASS_${name}`]: wgslModule(sunPassWgsl(FULL_CONTRACT, tileClass, true)),
       [`LOCAL_CLASS_${name}`]: wgslModule(localPassWgsl(FULL_CONTRACT, tileClass)),
       // The per-light path (`shadowOnePassProjection` or `clusteredDeferredShading` false): the local lights' pass without the shadowed lights, the
       // draw of one (its mask the light's layer), and the local lights' pass for one light (its shadow its lane of the packed mask).
@@ -140,6 +146,9 @@ function lightPassShaders() {
         localPassWgsl(FULL_CONTRACT, tileClass, { loop: 'one' }),
       ),
       [`PER_LIGHT_CLASS_${name}`]: wgslModule(perLightPassWgsl(FULL_CONTRACT, tileClass)),
+      [`PER_LIGHT_CLOSURES_CLASS_${name}`]: wgslModule(
+        perLightPassWgsl(CLOSURES_CONTRACT, tileClass),
+      ),
       [`INDIRECT_CLASS_${name}`]: wgslModule(
         indirectPassWgsl({ bounce: true, skyShadowing: false, tileClass }),
       ),
@@ -159,6 +168,9 @@ function lightPassShaders() {
   }
   return out
 }
+
+/** The key of the program that lights each closure of a pixel. */
+const CLOSURES_CONTRACT = { ...FULL_CONTRACT, closures: true }
 
 /** The key of the program that writes the toon data. */
 const TOON_DATA_CONTRACT = { ...FULL_CONTRACT, toonData: true }
@@ -254,6 +266,11 @@ export const LIGHTING_SHADERS: Record<string, string> = {
   // The ambient cubemap's mip chain: the box filter and the angular filter (`../../lighting/deferred/ambientCubemapBuild.ts`).
   AMBIENT_CUBEMAP_AVERAGE: cubeAverageShader(),
   AMBIENT_CUBEMAP_FILTER: cubeFilterShader(),
+  // The specified cubemap's brightest channel reduced on the GPU (`../../modules/sky/skyLight/cubePeak.ts`).
+  CUBE_PEAK_DOWNSAMPLE: cubeDownsampleMaxShader(),
+  CUBE_PEAK_LAST_MIP: cubeMaxLuminanceShader(),
+  // The light shapes' wireframes over the lit image (`../../lighting/lightShape/frame.ts`).
+  LIGHT_SHAPES: lightShapeShader(),
   // The primed depth pyramid's kernel (`../../visibility/hiz/gpu/pipelines.ts`).
   HIZ_PRIMED_SHADER,
   LIGHT_GRID_DEBUG_WGSL,

@@ -11,7 +11,13 @@ import {
   FEEDBACK_FORMAT,
   HDR_FORMAT,
 } from '../../scene/targetFormats.ts'
-import { SURFACE_OUTPUTS } from './surfaceOutputs.ts'
+import {
+  SURFACE_OUTPUTS,
+  SURFACE_COLOURS_FORMAT,
+  SURFACE_WORDS_FORMAT,
+  closureColourLayers,
+  closureWordLayers,
+} from './surfaceOutputs.ts'
 
 /** Bytes of one texel of each of `formats`, summed (`texelBytesOf`). */
 const texelSum = (...formats: GPUTextureFormat[]) =>
@@ -83,6 +89,10 @@ export interface SurfaceBuffer {
   readonly lobes: GPUTexture
   /** The view of `lobes` the resolve writes and the lighting reads. */
   readonly lobesView: GPUTextureView
+  /** The closures a pixel holds: one, or the view's most where the record holds the closure slices (`SURFACE_CLOSURES`). */
+  readonly closures: number
+  /** The normal and roughness of each closure past the first, one view each in the order of the closures (`closureNormalLayer`): none for a record of one closure. They are the pixel data the screen probes read of a closure, cleared with the slices (`closureClears`), so that a pixel that holds no such closure is no lit surface to them. */
+  readonly closureNormals: readonly GPUTextureView[]
   /** Whether the emission-and-occlusion layer has its pixels; a 1×1 `(0, 0, 0, 1)` otherwise. */
   readonly hasEmissiveAo: boolean
   /** Whether the thin transmission has its pixels. */
@@ -112,6 +122,13 @@ export function checkSurfaceSize(
   if (!Number.isSafeInteger(bytes)) throw new Error('INVALID_SURFACE_SIZE')
   return bytes
 }
+/** The bytes the closure slices of a record holding `closures` closures a pixel take: none for one. */
+export const closureBytes = (width: number, height: number, closures: number) =>
+  width *
+  height *
+  (closureColourLayers(closures) * texelBytesOf(SURFACE_COLOURS_FORMAT) +
+    closureWordLayers(closures) * texelBytesOf(SURFACE_WORDS_FORMAT))
+
 /** What the frame takes of the emission-and-occlusion layer: its pixels, or its 1×1 stand-in. */
 export const emissiveAoBytes = (width: number, height: number, layer: boolean) =>
   wantedTargetBytes(width, height, layer, EMISSIVE_AO_BYTES)

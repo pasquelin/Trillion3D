@@ -41,6 +41,7 @@ import {
   type SceneHeightFog,
   type SceneSkyLightScattering,
 } from './fogHeight.ts'
+import { validateFogScreenSpaceScattering } from './fogScreenSpace.ts'
 import { validateSecondLayer } from './fogSecond.ts'
 import { validateVolumetricFog } from './fogVolumetric.ts'
 
@@ -162,6 +163,8 @@ function validateHeightFog(fog: SceneHeightFog): SceneHeightFog {
   if (fog.secondLayer !== undefined) out.secondLayer = validateSecondLayer(fog.secondLayer, fog)
   if (fog.cubemap !== undefined) out.cubemap = validateFogCubemap(fog.cubemap, fog)
   if (fog.volumetric !== undefined) out.volumetric = validateVolumetricFog(fog.volumetric, fog)
+  if (fog.screenSpaceScattering !== undefined)
+    out.screenSpaceScattering = validateFogScreenSpaceScattering(fog.screenSpaceScattering, fog)
   for (const name of VIEW_SWITCHES)
     if (fog[name] !== undefined) out[name] = booleanOf(fog[name], name, fog)
   if (fog.skyLightScattering !== undefined)
@@ -303,6 +306,7 @@ const viewNumbers = (h: ResolvedHeightFog | undefined): number[] =>
         h.holdout ? 1 : 0,
         h.skyLightScattering.strength,
         h.skyLightScattering.roughness,
+        ...(h.screenSpaceScattering ? Object.values(h.screenSpaceScattering) : [-1]),
       ]
     : []
 

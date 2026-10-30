@@ -21,6 +21,7 @@ import { DAG_CLUSTER_TRIANGLES } from '../../../../sdk-core/src/page/format.ts'
 import { clippingFor } from '../../gpu/core/clipDistances.ts'
 import { VOLUMETRIC_FOG_RULES } from '../../../../sdk-core/src/contracts/volumetricFogOptions.ts'
 import { SHADOW_RULES } from '../../../../sdk-core/src/contracts/shadowOptions.ts'
+import { ORDER_INDEPENDENT_TRANSLUCENCY_RULES } from '../../../../sdk-core/src/contracts/orderIndependentTranslucencyOptions.ts'
 import { REFLECTION_RULES } from '../../../../sdk-core/src/contracts/reflectionOptions.ts'
 import { readSetting } from '../../../../sdk-core/src/contracts/settingRules.ts'
 
@@ -60,6 +61,9 @@ function projectSwitches(context: EngineContext) {
      *  `translucentRectLights` (off, a point light at its centre): read once, here, as
      *  `translucentShadow` is (`../../blend/pipelines.ts`). */
     translucentRectLights: readSetting(SHADOW_RULES, context, 'translucentRectLights'),
+    /** Whether the translucent programs hold the stage that collects the layers a pixel sorts, the project switch `oitSortedPixels` (off): read once, here, as
+     *  `translucentRectLights` is (`../../blend/pipelines.ts`). */
+    oitSortedPixels: readSetting(ORDER_INDEPENDENT_TRANSLUCENCY_RULES, context, 'oitSortedPixels'),
   }
 }
 

@@ -4,21 +4,40 @@ import {
   DOMAIN_OUTPUTS,
   type GraphBlend,
   type GraphOutput,
+  type GraphReading,
 } from '../../../../sdk-core/src/world/material/graph/outputs.ts'
 import { validateGraph } from '../../../../sdk-core/src/world/material/graph/validate.ts'
+import {
+  flattenClosures,
+  type FlatClosures,
+} from '../../../../sdk-core/src/world/material/graph/closureFlatten.ts'
+import {
+  CLOSURE_OUTPUTS,
+  closureOutputs,
+  primarySlab,
+  type ClosureNode,
+  type ClosureOutput,
+} from '../../../../sdk-core/src/world/material/graph/closures.ts'
+import { clampClosureLimit } from '../closures/closureLimit.ts'
+import { graphError } from '../../../../sdk-core/src/world/material/graph/valueType.ts'
 import { Slots } from './layout.ts'
+import { blendBody } from './closureBlend.ts'
 import {
   askFunction,
   askText,
   compileAsk,
+  compileOperand,
+  compiledFunction,
+  fallbackOf,
   compileOutput,
+  operandKey,
   isCompiled,
-  outputFunction,
   outputText,
   programBlock,
   valuesStruct,
   type CompiledOutput,
   type Compilation,
+  isInternalOutput,
 } from './program.ts'
 import { mergeUses, noUses, type Derivatives, type SampleRead, type Uses } from './state.ts'
 
@@ -51,8 +70,24 @@ export interface CompileOptions {
   /** Names them by the graph's own hash (`CompiledGraph.hash`), the suffix a program that holds
    *  several graphs gives each: found from the one compile. */
   readonly named?: boolean
+  /** The most closures a surface with a closure tree keeps (the project's `closuresPerPixel`), held between one and the format's most;
+   *  the setting's default where not given or no number. */
+  readonly closureLimit?: number
   /** Whether the `shadingModel` output decides the pixels' model: only where the material says `fromMaterialExpression`. True by default. */
   readonly modelFromGraph?: boolean
+}
+
+/** The closures of a surface with a closure tree, compiled: what flattening it gave, and the functions of every slab. */
+export interface CompiledClosures {
+  readonly flat: FlatClosures
+  /** The slab the single-closure readers shade (`functions` are its attributes). */
+  readonly primary: number
+  /** The function of each attribute of each slab the closures use, by slab rank. */
+  readonly slabs: ReadonlyMap<number, Partial<Record<ClosureOutput, string>>>
+  /** The function of each scalar the closures' terms read, by `operandKey`. */
+  readonly operands: ReadonlyMap<string, string>
+  /** The function that blends the closure whose subtree is rooted at a node (`blendBody`), by that node's rank. */
+  readonly blends: ReadonlyMap<number, string>
 }
 
 /** A graph compiled: the block to put in a program, the function of each wired output, the layout
@@ -88,6 +123,8 @@ export interface CompiledGraph {
    *  was compiled with `request`. */
   readonly reads: number
   readonly ask?: string
+  /** The closures of a graph with a closure tree, none for a graph of one closure: its text and key are then those of a graph without the feature. */
+  readonly closures?: CompiledClosures
 }
 
 /** A word naming `text`, sixty-four bits: two sums of its characters that mix them differently, in
@@ -141,8 +178,10 @@ export function compileGraph(graph: MaterialGraph, options: CompileOptions): Com
   const lit = options.lit !== false
   const translucent = options.translucent !== false
   const slots = new Slots()
+  const outputs = closureOutputs(graph)
   const c: Compilation = {
     graph,
+    outputs,
     domain,
     slots,
     derivatives: options.derivatives,
@@ -156,16 +195,22 @@ export function compileGraph(graph: MaterialGraph, options: CompileOptions): Com
         name,
         { blend, lit, translucent },
         options.modelFromGraph !== false,
+        outputs,
       ),
     )
     .map((name) => compileOutput(c, name))
+  const closures =
+    graph.closureRoot === undefined
+      ? undefined
+      : compileClosures(c, { blend, lit, translucent }, options, compiled)
   const uses = usedBy(compiled)
   const reads = readsOf(compiled)
   const request = options.request && reads.length ? options.request : undefined
   const ask = request ? compileAsk(c, reads) : undefined
   const text = `${compiled.map((o) => outputText(o, '')).join('\n')}${ask ? askText(ask, '') : ''}`
   const negativeEmissive = options.negativeEmissive === true
-  const key = `${text}|${slots.vectors.length}|${slots.textures.length}|${readingKey({ negativeEmissive, lit, translucent, modelFromGraph: options.modelFromGraph !== false })}`
+  const tree = closures ? `|${JSON.stringify(closures.flat.closures)}` : ''
+  const key = `${text}|${slots.vectors.length}|${slots.textures.length}|${readingKey({ negativeEmissive, lit, translucent, modelFromGraph: options.modelFromGraph !== false })}${tree}`
   const hash = hashOf(key)
   const suffix = options.suffix ?? (options.named ? `_${hash}` : '')
   const block = programBlock({
@@ -184,7 +229,11 @@ export function compileGraph(graph: MaterialGraph, options: CompileOptions): Com
     key,
     negativeEmissive,
     lit,
-    functions: Object.fromEntries(compiled.map((o) => [o.name, outputFunction(o.name, suffix)])),
+    functions: Object.fromEntries(
+      compiled
+        .filter((o) => o.slab === undefined && !isInternalOutput(o.name))
+        .map((o) => [o.name, compiledFunction(o, suffix)]),
+    ),
     outputs: compiled,
     slots,
     uses,
@@ -192,5 +241,90 @@ export function compileGraph(graph: MaterialGraph, options: CompileOptions): Com
     values: valuesStruct(suffix),
     reads: reads.length,
     ask: ask ? askFunction(suffix) : undefined,
+    closures: closures && namedClosures(closures, suffix, compiled),
   }
+}
+
+/** What compiling the closure tree adds: the attributes of the slabs other than the primary (`compiled` holds the primary's with the graph's
+ *  own outputs) and the scalars the closures' terms read, appended to `compiled`; the flattened closures with the slabs they use. */
+function compileClosures(
+  c: Compilation,
+  reading: GraphReading,
+  options: CompileOptions,
+  compiled: CompiledOutput[],
+) {
+  const { graph, domain } = c
+  const nodes = graph.closureNodes
+  for (const name of CLOSURE_OUTPUTS)
+    if (graph.outputs[name])
+      throw graphError(`the ${name} output of a graph with closures is wired on its slabs`)
+  const flat = flattenClosures(nodes, graph.closureRoot!, clampClosureLimit(options.closureLimit))
+  const primary = primarySlab(nodes, graph.closureRoot!).id
+  const slabs = new Set<number>()
+  for (const closure of flat.closures) for (const member of closure.members) slabs.add(member.slab)
+  for (const slab of slabs) {
+    if (slab === primary) continue
+    const node = nodes[slab]
+    if (node.kind !== 'slab') continue
+    const outputs = { ...graph.outputs, ...node.attributes }
+    for (const name of CLOSURE_OUTPUTS)
+      if (isCompiled(graph, domain, name, reading, options.modelFromGraph !== false, outputs))
+        compiled.push(compileOutput(c, name, node.attributes[name], slab))
+  }
+  const operands = new Set<string>()
+  const terms = flat.closures.flatMap((cl) => [...cl.terms, ...cl.members.flatMap((m) => m.terms)])
+  for (const { value } of terms) {
+    if (typeof value === 'number' || operands.has(operandKey(value))) continue
+    operands.add(operandKey(value))
+    compiled.push(compileOperand(c, value))
+  }
+  for (const closure of flat.closures)
+    if (closure.members.length > 1)
+      compiled.push(compileBlend(nodes, closure.root, primary, [...compiled]))
+  return { flat, primary, slabs }
+}
+
+/** The function that mixes the subtree rooted at `root` into one closure: it calls the functions `made` holds for the slabs and operands. */
+function compileBlend(
+  nodes: readonly ClosureNode[],
+  root: number,
+  primary: number,
+  made: readonly CompiledOutput[],
+): CompiledOutput {
+  const of = (suffix: string) =>
+    blendBody(
+      nodes,
+      root,
+      {
+        attribute(slab, name) {
+          const o = made.find((x) => x.name === name && (x.slab ?? primary) === slab)
+          return o ? `${compiledFunction(o, suffix)}(ctx,g)` : fallbackOf(name).code
+        },
+        operand(pin) {
+          const o = made.find((x) => x.operand === operandKey(pin))!
+          return `${compiledFunction(o, suffix)}(ctx,g)`
+        },
+      },
+      suffix,
+    )
+  return { name: 'closureBlend', root, body: of(''), bodyOf: of, uses: noUses(), samples: [] }
+}
+
+/** The closures with the names of the functions compiled for them, declared with `suffix`. */
+function namedClosures(
+  { flat, primary, slabs }: { flat: FlatClosures; primary: number; slabs: Set<number> },
+  suffix: string,
+  compiled: readonly CompiledOutput[],
+): CompiledClosures {
+  const bySlab = new Map<number, Partial<Record<ClosureOutput, string>>>()
+  for (const slab of slabs) bySlab.set(slab, {})
+  const operands = new Map<string, string>()
+  const blends = new Map<number, string>()
+  for (const o of compiled) {
+    if (o.name === 'closureOperand') operands.set(o.operand!, compiledFunction(o, suffix))
+    else if (o.name === 'closureBlend') blends.set(o.root!, compiledFunction(o, suffix))
+    else if (CLOSURE_OUTPUTS.includes(o.name as ClosureOutput))
+      bySlab.get(o.slab ?? primary)![o.name as ClosureOutput] = compiledFunction(o, suffix)
+  }
+  return { flat, primary, slabs: bySlab, operands, blends }
 }

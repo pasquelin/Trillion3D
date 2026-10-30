@@ -9,7 +9,7 @@ import {
 } from '../materials/surface/surfaceModelWord.ts'
 import { cloudFogReadWgsl } from '../modules/sky/clouds/translucentRead.ts'
 import { blendLit } from './shaderSurface.ts'
-import { allocateExtras, extraRead, extraWrite } from './vertexExtras.ts'
+import { allocateExtras, extraRead, extraWrite, type ExtraAsk } from './vertexExtras.ts'
 import { MATERIAL_FLAG } from '../materials/table/materialLayout.ts'
 import { materialFlagOf } from './vertexReadsWgsl.ts'
 
@@ -65,6 +65,8 @@ export interface CloudVertexText {
   /** The statements a thin layer runs on its `fog` (a `vec4f`): the cloud layer over it, as `apply`; none
    *  without the clouds. */
   readonly cloudOver: string
+  /** The stage's `words` hold a fourth word, the order of the fragment's primitive in the pass (`withOitOrder`); false without it. */
+  readonly ordered?: boolean
 }
 
 /** What the vertex stage hands over beside the fog: nothing, a stage that reads no fog (the front stage). */
@@ -139,6 +141,13 @@ const layerLanes = (fog: boolean, clouds: boolean) => {
 /** Whether the material of `flags` takes the cloud layer over a fog the fragment lays itself. */
 const CLOUD_PER_PIXEL = `(flags&${CLOUD_FOG_MODEL_BIT << MODEL_SHIFT}u)!=0u&&!fogVertexed(in)`
 
+/** What the vertex stage asks of the extras (`vertexExtras.ts`) where the program reads the clouds or the fog per vertex: the fog layer, then
+ *  the clouds' shade; a lane another feature asks for comes after them (`withWaterBody`, `selfShadowText`). */
+export const vertexAsks = ({ clouds, fog }: VertexReads): ExtraAsk[] =>
+  clouds || fog
+    ? [{ name: 'fogLayer', lanes: 4 }, ...(clouds ? [{ name: 'shade', lanes: 1 } as const] : [])]
+    : []
+
 const texts = new Map<string, CloudVertexText>()
 
 /** The words of the stages of a program that reads the clouds per vertex where `reads.clouds` and the fog per vertex where
@@ -152,10 +161,7 @@ export function cloudVertexText({ clouds, fog }: VertexReads): CloudVertexText {
 
 function buildText(clouds: boolean, fog: boolean, key: string): CloudVertexText {
   if (!clouds && !fog) return { ...NO_VERTEX_WORDS, key, declared: [FOG_PIXEL_FRAGMENT] }
-  const extras = allocateExtras([
-    { name: 'fogLayer', lanes: 4 },
-    ...(clouds ? [{ name: 'shade', lanes: 1 } as const] : []),
-  ])
+  const extras = allocateExtras(vertexAsks({ clouds, fog }))
   const layer = extraRead(extras.places.fogLayer)
   const write = extraWrite(extras.places.fogLayer, 'fogLayer')
   const fogFragment = fog ? FOG_VERTEX_FRAGMENT(layer) : FOG_PIXEL_FRAGMENT

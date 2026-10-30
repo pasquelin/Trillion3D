@@ -29,7 +29,7 @@ export type ShadeBinningMode = (typeof SHADE_BINNING_MODES)[number]
 
 /** The shading's settings by field, each with the reference's default: the bins' mode as the
  *  classes ask, the eye's iris lit by the iris direction
- *  the `tangent` output gives, not by an iris normal beside the surface's (`irisNormal` false), the clear coat sharing its base's normal (`clearCoatNormal` false), the surfaces' diffuse light rough (`shadingRoughDiffuse` true: the energy-preserving rough diffuse of a new project, which the roughness darkens at grazing angles and brightens against the light, Lambert's where false), the visibility of the surfaces' specular lobes exact (`shadingAccurate` true: the joint Smith visibility of the GGX lobe, a desktop project's; false, its approximation), the toon surfaces' diffuse ramp applied once to the sum of every light (`toonUnifiedDiffuse` false: each light applies the ramp to its own diffuse term), the toon surfaces' reflections quantised by their profile's specular indirect ramp (`toonReflectionQuantization` false: left as they are), the resolution the toon profiles' ramps and patterns are baked at (`toonProfileResolution` 64, from 64 to 512, rounded up to a multiple of 8), and the curve a material's `normalCurvatureToRoughness` takes its roughness by:
+ *  the `tangent` output gives, not by an iris normal beside the surface's (`irisNormal` false), the clear coat sharing its base's normal (`clearCoatNormal` false), the surfaces' diffuse light rough (`shadingRoughDiffuse` true: the energy-preserving rough diffuse of a new project, which the roughness darkens at grazing angles and brightens against the light, Lambert's where false), the visibility of the surfaces' specular lobes exact (`shadingAccurate` true: the joint Smith visibility of the GGX lobe, a desktop project's; false, its approximation), the furnace test of the shading (`shadingFurnaceTest` false, run only where `shadingFurnaceTestEnableForProject` is true, off by default: every pixel of the image is replaced by the light its surface returns in a uniform environment of radiance 0.5, sampled `shadingFurnaceTestSampleCount` times (64, from 16 to 2048) by each of three distributions), the toon surfaces' diffuse ramp applied once to the sum of every light (`toonUnifiedDiffuse` false: each light applies the ramp to its own diffuse term), the toon surfaces' reflections quantised by their profile's specular indirect ramp (`toonReflectionQuantization` false: left as they are), the resolution the toon profiles' ramps and patterns are baked at (`toonProfileResolution` 64, from 64 to 512, rounded up to a multiple of 8), and the curve a material's `normalCurvatureToRoughness` takes its roughness by:
  *  the change of the vertex normal across a pixel, raised to `normalCurvatureExponent`, times `normalCurvatureScale`, plus
  *  `normalCurvatureBias`, and the GPU timing's detail (`gpuTimingDetail` false): true, a sampled frame times the
  *  material pass's bins and each class's shading apart, as passes of their own, and the diagnostic stage of the shading kernel
@@ -44,6 +44,9 @@ export const SHADING_RULES = /* @__PURE__ */ (() =>
     flag('clearCoatNormal', false),
     flag('shadingRoughDiffuse', true),
     flag('shadingAccurate', true),
+    flag('shadingFurnaceTest', false),
+    flag('shadingFurnaceTestEnableForProject', false),
+    integer('shadingFurnaceTestSampleCount', 64, [16, 2048]),
     flag('toonUnifiedDiffuse', false),
     flag('toonReflectionQuantization', false),
     integer('toonProfileResolution', TOON_PROFILE_RESOLUTION, [TOON_PROFILE_RESOLUTION, 512]),

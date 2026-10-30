@@ -181,3 +181,9 @@ test('the compaction depth is the setting, or the last bounce for a value under 
   assert.equal(compactionDepthOf(-1, 32), 32)
   assert.equal(compactionDepthOf(40, 32), 32)
 })
+
+test('the budget counts the hit slot of the layout in use: sixteen bytes a path more only for a view of several closures', () => {
+  const one = pathTracingBytes([640, 480], 64, 8, 80, 256, 8, 8, 256)
+  assert.equal(pathTracingBytes([640, 480], 64, 8, 80, 256, 8, 8, 256, 0, false), one)
+  assert.equal(pathTracingBytes([640, 480], 64, 8, 80, 256, 8, 8, 256, 0, true), one + 64 * 64 * 16)
+})

@@ -22,14 +22,19 @@ import type { BlendGpuItem } from '../../blend/state.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { limitOf, stageBindingCounts } from '../../../../../tests/kit/fakeDevice/limitRules.ts'
 import { BLEND_BINDINGS } from '../bind/bindLayout.ts'
+import { BLEND_TEXTURE_FEATURES } from './stageStorage.ts'
 import { withinDefaults } from './stageLimits.fixture.ts'
 
 test('the engine asks no more sampled textures a stage than WebGPU guarantees', () => {
-  // Sixteen everywhere; the seventeenth only where the blends read the rectangle lights' pictures (`blend/rectPictures.test.ts`).
+  // Sixteen everywhere; the seventeenth only where the blends read the rectangle lights' pictures (`blend/rectPictures.test.ts`), and six more where the
+  // forward programs reflect the scene (`grantsTranslucentReflection`), then the packed table and the atlas of the blends' own object shadow and the depth texture of the sorted
+  // translucency's collect group (`objectShadowRead.ts`).
   assert.equal(
     WEBGPU_REQUIRED_LIMITS.maxSampledTexturesPerShaderStage,
-    limitOf('maxSampledTexturesPerShaderStage') + 1,
+    limitOf('maxSampledTexturesPerShaderStage') +
+      BLEND_TEXTURE_FEATURES.reduce((sum, { count }) => sum + count, 0),
   )
+  assert.equal(WEBGPU_REQUIRED_LIMITS.maxSampledTexturesPerShaderStage, 26)
 })
 
 /** Every key a frame can ask the lighting's passes for: both list widths, each set of the six cuts of the lights and each state of the

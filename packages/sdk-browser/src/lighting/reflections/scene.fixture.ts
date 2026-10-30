@@ -132,7 +132,12 @@ export function viewOf(
         trace.radianceCacheStochastic ? 1 : 0,
         0,
       ],
-      translucent: [0, 0, hitLightFlags(trace.hit), hitLightWord(trace.hit)],
+      translucent: [
+        trace.translucencyScreenQuality,
+        trace.translucencyCache ? 1 : 0,
+        hitLightFlags(trace.hit),
+        hitLightWord(trace.hit),
+      ],
     },
     view: {
       inverseViewProjection: new Mat([...inverse]),

@@ -37,7 +37,8 @@ function noteSample(timing: WebgpuView['timing'], sample: GpuTimingSample) {
 function besideMs(rt: WebgpuPagesRuntime) {
   let ms = 0
   for (const view of rt.views.persistent)
-    ms += (viewGroup(rt, view, 'timing').lastGpuFrameMs ?? 0) / Math.max(1, view.every ?? 1)
+    if (!view.parked)
+      ms += (viewGroup(rt, view, 'timing').lastGpuFrameMs ?? 0) / Math.max(1, view.every ?? 1)
   return ms
 }
 

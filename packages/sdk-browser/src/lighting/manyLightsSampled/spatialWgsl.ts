@@ -8,12 +8,13 @@
  *   once the history can be trusted to be long (the shading confidence allows 8 images) or noisy;
  * - the neighbours: `sampledLightsSpatialSamples` points of a scrambled Hammersley set on the disk of `sampledLightsSpatialRadius` pixels (twice as many on a disocclusion),
  *   weighed by the depth against the pixel's plane, the angle of their normals (the specular within its lobe's half angle) and the difference of their luminances over the
- *   deviation. Every pixel of the reference allows the filter: only a Substrate glint turns it off (`MegaLightsMaterial.ush:370`), a material the engine has not;
+ *   deviation. Every pixel of the reference allows the filter: only a glint closure of the reference turns it off, a material the engine has not;
  * - the composition: the pixel is read as the lit passes read it (`litPixelStatements`, every class's cut), so its base colour, its model and its checkerboard are the
  *   shading's; the filtered light times the demodulation factors, the diffuse's the colour itself where the pixel scatters (the scattering takes the colour out
  *   by itself), diffuse and specular summed. A pixel with no history adds nothing (zero).
  */
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
+import { octEncode } from '../../../../math/src/wgsl/octahedral.ts'
 import {
   hammersley16,
   rand3dPcg16,
@@ -37,6 +38,7 @@ import { LOBES_TARGET_WGSL } from '../direct/lobesWgsl.ts'
 import { SAMPLED_BINDINGS } from './bindings.ts'
 import { SAMPLED_GROUP } from './layout.ts'
 import { SAMPLED_PARAMS_WGSL } from './paramsWgsl.ts'
+import { CLOSURE_TONE_WGSL, SAMPLED_CLOSURE_WGSL, closureStatements } from './closurePickWgsl.ts'
 import { SAMPLING_BINDINGS } from './samplingWgsl.ts'
 import { DEBUG_EMPTY, withDebugPixels } from './spatialDebugWgsl.ts'
 
@@ -195,12 +197,38 @@ const SPATIAL_B_PART_5 = `     centreMoments+=moments[u32(i32(ly+2u)+oy)*SIDE+u3
    if(params.spatialU.z!=0u){noisy=historyDeviation(lx,ly)>vec2f(params.spatial.w);}
 ${SPATIAL_PART_2}${SPATIAL_PART_3}`
 
-export const spatialWgsl = (debug = false) => {
+/** The reads of the spatial filter that a view of several closures changes: the neighbours' normals are their picked closures', and the colours the light is put back by are the pixel's closure (or the closures' sums, `closureTone`). */
+const NEIGHBOUR_NORMAL = `     let nn=normalize(textureLoad(colours,c,${SURFACE_COLOUR_LAYERS.normal},0).xyz);`
+const PUT_BACK = ` let NoV=saturate(dot(N,V));
+ let diffuseColour=base.rgb*(1.0-base.a);
+ let f0=mix(vec3f(0.08*surfaceSpecular),base.rgb,base.a);
+ let environment=environmentBrdf(f0,saturate(50.0*f0.g),normal.a,NoV);`
+
+/** The text of the filter for a view of several closures: `body` with the two reads above replaced. */
+function withClosures(body: string) {
+  if (!body.includes(NEIGHBOUR_NORMAL) || !body.includes(PUT_BACK))
+    throw new Error('SPATIAL_CLOSURE_READS_MOVED')
+  return body
+    .replace(
+      NEIGHBOUR_NORMAL,
+      '     let nn=normalize(textureLoad(colours,c,pickedNormalLayer(c),0).xyz);',
+    )
+    .replace(
+      PUT_BACK,
+      ` let tone=closureTone(coord,base.rgb,base.a,normal.a,N,V,false);
+ let diffuseColour=tone.diffuse;
+ let f0=surfaceF0(base.rgb,base.a);
+ let environment=tone.environment;`,
+    )
+}
+
+export const spatialWgsl = (debug = false, closures = false) => {
   const cut = { ...CLASS_CUTS[TILE_CLASS.complex], channels: false }
-  const statements = litPixelStatements(
+  const lit = litPixelStatements(
     cut,
     `${debug ? DEBUG_EMPTY : ''}textureStore(composite,vec2i(screen),vec4f(0.0));return;`,
   )
+  const statements = closures ? closureStatements(lit) : lit
   const body = `${SPATIAL_PART_1} let centreDiffuse=textureLoad(filteredDiffuse,vec2i(screen),0);
  let centreSpecular=textureLoad(filteredSpecular,vec2i(screen),0);
  // A pixel that is no lit surface, or that holds no frames, adds nothing.
@@ -227,7 +255,10 @@ export const spatialWgsl = (debug = false) => {
     for(var ox=-2;ox<=2;ox++){
      let w=exp2(-2.0*f32(ox*ox+oy*oy)/9.0);
 ${SPATIAL_B_PART_5}`
-  return wgslProgram(debug ? withDebugPixels(body) : body, [
+  const text = closures ? withClosures(body) : body
+  return wgslProgram(debug ? withDebugPixels(text) : text, [
+    ...(debug ? [octEncode] : []),
+    ...(closures ? [SAMPLED_CLOSURE_WGSL, CLOSURE_TONE_WGSL] : []),
     lightingBase(SAMPLING_BINDINGS, SPATIAL_KEY, { environment: false, slices: false, cut }),
     SAMPLED_PARAMS_WGSL,
     hammersley16,

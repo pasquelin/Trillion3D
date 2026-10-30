@@ -6,6 +6,7 @@ import { DEFAULT_AIR_SHAPE } from '../../../lighting/atmosphere/shape.ts'
 import { fogFaceProgram } from './faceWgsl.ts'
 import { SKY_MESH_CODE, SKY_MESH_DEPTH_ENTRY, SKY_MESH_ENTRY } from './skyMeshWgsl.ts'
 import { createSkyMeshes } from './skyMeshes.ts'
+import { commitSubmitted, dropSubmitted } from '../../../gpu/core/frameRetire.ts'
 import { CUBE_FACES } from './layout.ts'
 import { gatedDevice } from '../../../lighting/deferred/gatedDevice.fixture.ts'
 import { fakeDevice } from '../../../../../../tests/kit/fakeDevice/fakeDevice.ts'
@@ -49,25 +50,37 @@ async function armed(depthBuffer: boolean) {
     meshes.copyIn(encoder, face, lit, [16, 16], [16, 16], depth)
   copyIn(0, depthImage)
   await gpu.land()
-  return { ...gpu, meshes, copyIn }
+  return { ...gpu, meshes, copyIn, encoder }
 }
 
 test('with the depth buffer the cube keeps a depth layer a face, and a face is held once its image and its depth are', async () => {
-  const { meshes, copyIn } = await armed(true)
+  const { meshes, copyIn, encoder } = await armed(true)
   assert.equal(meshes.depthBuffer, true)
   for (let face = 0; face < CUBE_FACES; face++) assert.ok(meshes.depthLayer(face), `layer ${face}`)
   for (let face = 0; face < CUBE_FACES; face++) copyIn(face)
   assert.equal(meshes.ready, false, 'the image alone does not hold a face when its depth is asked')
   for (let face = 0; face < CUBE_FACES; face++) copyIn(face, depthImage)
+  assert.equal(meshes.ready, false, 'a face is held once its encoder is submitted')
+  commitSubmitted(encoder)
   assert.equal(meshes.ready, true)
 })
 
 test('without it the cube keeps no depth and a face is held by its image alone', async () => {
-  const { meshes, copyIn } = await armed(false)
+  const { meshes, copyIn, encoder } = await armed(false)
   assert.equal(meshes.depthBuffer, false)
   assert.equal(meshes.depthLayer(0), undefined)
   for (let face = 0; face < CUBE_FACES; face++) copyIn(face)
+  commitSubmitted(encoder)
   assert.equal(meshes.ready, true)
+})
+
+test('a face copied by an encoder that is dropped is not held', async () => {
+  const { meshes, copyIn, encoder } = await armed(false)
+  for (let face = 0; face < CUBE_FACES; face++) copyIn(face)
+  const revision = meshes.revision
+  dropSubmitted(encoder)
+  assert.equal(meshes.ready, false)
+  assert.equal(meshes.revision, revision)
 })
 
 /** The six faces of a capture that shows ready sky meshes, drawn with the fog shown: the draws it made. */
@@ -85,6 +98,7 @@ async function fogged(depthBuffer: boolean, atmosphere = true) {
   await Promise.all([...Array(3)].map(() => new Promise((done) => setImmediate(done))))
   for (let face = 0; face < CUBE_FACES; face++)
     meshes.copyIn(encoder, face, lit, [8, 8], [8, 8], depthBuffer ? depthImage : undefined)
+  commitSubmitted(encoder)
   assert.equal(meshes.ready, true)
   const view = device
     .createTexture({

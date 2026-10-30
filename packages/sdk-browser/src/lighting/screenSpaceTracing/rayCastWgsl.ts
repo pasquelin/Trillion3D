@@ -161,6 +161,42 @@ export const SS_FURTHEST_WGSL = wgslBlock(
 }`,
 )
 
+/** The factor that clips the step of a screen ray from start at the screen's border (above 1 when the step ends inside it): the one declaration the march's rays and the clip points' rays (ssRayOfClip) share. */
+export const SS_STEP_FACTOR_WGSL = wgslBlock(
+  'SS_STEP_FACTOR_WGSL',
+  [],
+  `
+/** The factor that clips the step of a ray from start at the screen's border. */
+fn ssStepFactor(start:vec2f,step:vec2f)->f32{
+ let inverse=0.5*length(step);
+ let s=vec2f(1.0)-max(abs(step+start*inverse)-vec2f(inverse),vec2f(0.0))/abs(step);
+ return min(s.x,s.y)/inverse;
+}`,
+)
+
+/**
+ * The screen ray through two clip points of a view (`ssRayOfClip`), from `startClip` to `endClip`: the step taken to the screen's border (`extend`: stretched to it, else held
+ * inside it, the ray then `clipped` when the border or `limited` — its length cut by the depth — ended it), its tolerance the greater of its own depth step and `slope` times the
+ * depth the start gains over the ray (`deeper`, the device depth at its end), in a perspective; that gain alone in an orthographic view. The translucent surfaces' reflection trace makes its rays by it; the march's own `ssRayFromWorld` (`SCREEN_SPACE_CAST_WGSL`) does the same sum in its own text, which the default programs keep as it is, and both take `ssStepFactor` from the one block.
+ */
+export const SS_RAY_OF_CLIP_WGSL = wgslBlock(
+  'SS_RAY_OF_CLIP_WGSL',
+  [CAST_STRUCTS_WGSL, SS_STEP_FACTOR_WGSL],
+  `fn ssRayOfClip(startClip:vec4f,endClip:vec4f,deeper:f32,slope:f32,perspective:bool,extend:bool,limited:bool)->SsRay{
+ let start=startClip.xyz/startClip.w;
+ var step=endClip.xyz/endClip.w-start;
+ var factor=ssStepFactor(start.xy,step.xy);
+ var clipped=true;
+ if(!extend){
+  clipped=factor<1.0||limited;
+  factor=min(factor,1.0);
+ }
+ step=step*factor;
+ let gain=(start.z-deeper)*slope;
+ return SsRay(start,step,select(max(0.0,gain),max(abs(step.z),gain),perspective),clipped);
+}`,
+)
+
 /**
  * The march of a screen-space ray, the one both traces share. A ray is its start and its step in the screen (x, y in −1..1, z the
  * device depth) and the tolerance a sample may lie from the surface by. ssRayFromWorld makes it from a world ray, clipped at the
@@ -173,15 +209,14 @@ export const SS_FURTHEST_WGSL = wgslBlock(
 export const SCREEN_SPACE_CAST_WGSL = wgslVariants((indirect: boolean) =>
   wgslBlock(
     `SCREEN_SPACE_CAST_WGSL(${indirect})`,
-    [SCREEN_SPACE_INPUTS_WGSL, CAST_STRUCTS_WGSL, castFunctionWgsl(indirect), SS_FURTHEST_WGSL],
-    `
-/** The factor that clips the step of a ray from start at the screen's border. */
-fn ssStepFactor(start:vec2f,step:vec2f)->f32{
- let inverse=0.5*length(step);
- let s=vec2f(1.0)-max(abs(step+start*inverse)-vec2f(inverse),vec2f(0.0))/abs(step);
- return min(s.x,s.y)/inverse;
-}
-fn ssRayFromWorld(origin:vec3f,dir:vec3f,tMax:f32,sceneDepth:f32,slope:f32,extend:bool)->SsRay{
+    [
+      SCREEN_SPACE_INPUTS_WGSL,
+      CAST_STRUCTS_WGSL,
+      castFunctionWgsl(indirect),
+      SS_FURTHEST_WGSL,
+      SS_STEP_FACTOR_WGSL,
+    ],
+    `fn ssRayFromWorld(origin:vec3f,dir:vec3f,tMax:f32,sceneDepth:f32,slope:f32,extend:bool)->SsRay{
  let limit=min(tMax,10000.0);
  let viewDir=(ssView.worldToView*vec4f(dir,0.0)).xyz;
  let endDistance=select(limit,min(-0.95*sceneDepth/viewDir.z,limit),viewDir.z<0.0);

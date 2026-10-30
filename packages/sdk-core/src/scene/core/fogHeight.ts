@@ -23,10 +23,11 @@
  * · the sun's illuminance on the ground) · max(0, ray · sun)^exponent / 4π`, through the density
  * met past `directional.startDistance`.
  *
- * Four more things, each off by default (a fog that names none of them is the fog above): a second
+ * Five more things, each off by default (a fog that names none of them is the fog above): a second
  * layer (`fogSecond.ts`) whose integral adds to the first's; an end distance past which, on the
  * horizontal, the ray stops integrating; a cubemap (`fogCubemap.ts`) the colour is read from by
- * direction; a volume (`fogVolumetric.ts`) that scatters the lights in beams.
+ * direction; a volume (`fogVolumetric.ts`) that scatters the lights in beams; a screen-space
+ * scattering (`fogScreenSpace.ts`) that blurs the fog and the image behind it.
  *
  * Where it is drawn. Three switches, each on by default, say in which views the fog shows:
  * `inMainView`, the views the page draws (the camera's and the extra views of the page);
@@ -49,6 +50,11 @@ import {
   type ResolvedSecondLayer,
   type SceneSecondLayer,
 } from './fogSecond.ts'
+import {
+  resolveFogScreenSpaceScattering,
+  type ResolvedFogScreenSpaceScattering,
+  type SceneFogScreenSpaceScattering,
+} from './fogScreenSpace.ts'
 import {
   resolveVolumetricFog,
   type ResolvedVolumetricFog,
@@ -103,6 +109,9 @@ export interface SceneHeightFog {
   /** The volume that scatters the lights in beams (`SceneVolumetricFog`): `true` for its defaults;
    *  off by default. */
   volumetric?: boolean | SceneVolumetricFog
+  /** The fog blurred in the plane of the screen to stand for its multiple scattering
+   *  (`SceneFogScreenSpaceScattering`): `true` for its defaults; off by default. */
+  screenSpaceScattering?: boolean | SceneFogScreenSpaceScattering
   /** Whether the views the page draws show the fog; true by default. */
   inMainView?: boolean
   /** Whether the distant fog is laid over the sky of the sky light's real-time capture, and so
@@ -149,6 +158,8 @@ export interface ResolvedHeightFog {
   cubemap?: ResolvedFogCubemap
   /** Absent where the volume is off. */
   volumetric?: ResolvedVolumetricFog
+  /** Absent where the screen-space scattering is off. */
+  screenSpaceScattering?: ResolvedFogScreenSpaceScattering
   inMainView: boolean
   inSkyCapture: boolean
   inReflectionCaptures: boolean
@@ -238,6 +249,7 @@ export function heightFogOf(fog: SceneExponentialFog | SceneHeightFog): Resolved
     horizontalLimit: fog.horizontalLimit ?? d.horizontalLimit,
     cubemap: fog.cubemap && resolveFogCubemap(fog.cubemap),
     volumetric: resolveVolumetricFog(fog.volumetric),
+    screenSpaceScattering: resolveFogScreenSpaceScattering(fog.screenSpaceScattering),
     inMainView: fog.inMainView ?? d.inMainView,
     inSkyCapture: fog.inSkyCapture ?? d.inSkyCapture,
     inReflectionCaptures: fog.inReflectionCaptures ?? d.inReflectionCaptures,

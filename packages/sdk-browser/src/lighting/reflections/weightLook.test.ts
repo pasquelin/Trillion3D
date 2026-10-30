@@ -110,8 +110,9 @@ function resolved(reflection: number[], ray: number, rough: number, left: number
       surfaceModel: 2,
       reflectionTarget: {
         load: (_: number[], layer: number) =>
-          layer === 0 ? [ray, ray, ray, 1 - left] : [rough, rough, rough, 0],
+          layer === 0 ? [ray, ray, ray, 1 - left] : [0, 0, 0, 0],
       },
+      reflectionEnvironment: () => [rough, rough, rough],
       hasCoat: () => false,
       indirectF0: (rgb: number[]) => rgb,
     },

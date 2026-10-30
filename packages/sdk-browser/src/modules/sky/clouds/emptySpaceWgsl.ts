@@ -5,7 +5,11 @@ import { DEFAULT_AIR_SHAPE, type AirShape } from '../../../lighting/atmosphere/s
 import { CLOUD_MATERIAL_EMPTY_SPACE_WGSL, cloudMaterialBindings } from './materialWgsl.ts'
 import { CLOUD_RAY_WGSL } from './traceMarchWgsl.ts'
 import { CLOUD_TRACE_BINDING as B, CLOUD_TRACE_LAYOUT } from './traceLayout.ts'
-import { CLOUD_EMPTY_SPACE_SIDE, CLOUD_EMPTY_SPACE_SLICES } from './traceOptions.ts'
+import {
+  CLOUD_EMPTY_SPACE_DIAGONAL,
+  CLOUD_EMPTY_SPACE_SIDE,
+  CLOUD_EMPTY_SPACE_SLICES,
+} from './traceOptions.ts'
 import { CLOUD_TRACE_AIR } from './traceWgsl.ts'
 import { CLOUD_POINT_WGSL } from './traceLightWgsl.ts'
 
@@ -42,8 +46,7 @@ const emptySpaceOwn = (corners: boolean) => `${CLOUD_TRACE_LAYOUT.wgsl}
 const EMPTY_SPACE_CORNERS:bool=${corners};
 const EMPTY_SPACE_SIDE:u32=${CLOUD_EMPTY_SPACE_SIDE}u;
 const EMPTY_SPACE_SLICES:u32=${CLOUD_EMPTY_SPACE_SLICES}u;
-/** The diagonal of a unit cube: a froxel's bounding sphere is half of it across. */
-const EMPTY_SPACE_DIAGONAL:f32=1.73;
+const EMPTY_SPACE_DIAGONAL:f32=${CLOUD_EMPTY_SPACE_DIAGONAL};
 var<workgroup> frontKm:array<f32,${CLOUD_EMPTY_SPACE_SLICES}>;
 /** The material's empty-space output at the point \`offset\` into the froxel of slice \`slice\` of the
  *  table's texel \`texel\`: the point at the froxel's distance on the ray through the texel. */

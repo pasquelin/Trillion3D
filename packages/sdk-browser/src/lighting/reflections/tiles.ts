@@ -12,6 +12,43 @@ import { REFLECTION_TILES_WGSL, REFLECTION_TRACE_BINDINGS as B } from './trace/t
 const CLASSIFY_BLOCK = 8
 
 /**
+ * The rest of the classification of a tracing tile `tile` (a workgroup-wide value inside the grid): the pixels its texels' blocks hold that trace, the mask of the resolve tiles they are in, and the tile
+ * appended to its lists. Shared by the classification over the whole grid (`classifyTiles`) and the one over the tiles listed for a closure past the first (`classifyClosureTiles`,
+ * `trace/closureTilesWgsl.ts`), which differ in where the tile comes from alone.
+ */
+export const CLASSIFY_TILE_STATEMENTS = ` let coord=tile*${REFLECTION_SIDE}u+local.xy;
+ let inside=all(coord<reflectionGridSize());
+ let viewport=reflectionViewport();
+ var mask=0u;
+ for(var k=0u;inside&&k<reflectionBlock().x*reflectionBlock().y;k++){
+  let pixel=reflectionBlockPixel(coord,k);
+  if(any(pixel>=viewport)){continue;}
+  let flags=surfaceFlagsAt(vec2i(pixel));
+  if(surfaceReflects(flags)&&reflectionPixelTraces(vec2i(pixel),flags)){mask|=1u<<k;}
+ }
+ // The resolve tiles of pixels this tracing tile of texels covers, \`resolves\` across and down: the texels a resolve tile holds, \`texels\` across and down.
+ let resolves=reflectionBlock();
+ let texels=vec2u(${REFLECTION_SIDE}u)/resolves;
+ let resolve=local.xy/texels;
+ if(mask!=0u){atomicOr(&tileTraces,1u<<(resolve.x+resolves.x*resolve.y));}
+ workgroupBarrier();
+ let traced=atomicLoad(&tileTraces);
+ if(lane==0u){
+  let entry=tile.x|(tile.y<<16u);
+  if(traced!=0u){tracingOut.entries[tracingOutAppend(1u,1u)]=entry;}
+  else{clearTracingOut.entries[clearTracingOutAppend(1u,1u)]=entry;}
+ }
+ if(lane<resolves.x*resolves.y){
+  let resolveTile=tile*resolves+vec2u(lane%resolves.x,lane/resolves.x);
+  if(all(resolveTile*${REFLECTION_SIDE}u<viewport)){
+   let entry=resolveTile.x|(resolveTile.y<<16u);
+   if(((traced>>lane)&1u)!=0u){resolveOut.entries[resolveOutAppend(1u,1u)]=entry;}
+   else{clearOut.entries[clearOutAppend(1u,1u)]=entry;}
+  }
+ }
+}`
+
+/**
  * THE TILES A SURFACE'S REFLECTIONS RUN OVER, classified on the GPU every image (`classifyTiles`)
  * into four lists, so every later kernel runs only where it has work: a workgroup a TRACING tile of
  * `REFLECTION_SIDE`² grid texels (`grids.ts`), each thread a texel, reads its block's pixels — their
@@ -70,37 +107,7 @@ fn classifyTiles(@builtin(workgroup_id) group:vec3u,@builtin(num_workgroups) gro
  let across=groups.x/${CLASSIFY_BLOCK}u;
  let tile=vec2u((block%across)*${CLASSIFY_BLOCK}u,(block/across)*${CLASSIFY_BLOCK}u)+inBlock;
  if(any(tile*${REFLECTION_SIDE}u>=reflectionGridSize())){return;}
- let coord=tile*${REFLECTION_SIDE}u+local.xy;
- let inside=all(coord<reflectionGridSize());
- let viewport=reflectionViewport();
- var mask=0u;
- for(var k=0u;inside&&k<reflectionBlock().x*reflectionBlock().y;k++){
-  let pixel=reflectionBlockPixel(coord,k);
-  if(any(pixel>=viewport)){continue;}
-  let flags=surfaceFlagsAt(vec2i(pixel));
-  if(surfaceReflects(flags)&&reflectionPixelTraces(vec2i(pixel),flags)){mask|=1u<<k;}
- }
- // The resolve tiles of pixels this tracing tile of texels covers, \`resolves\` across and down: the texels a resolve tile holds, \`texels\` across and down.
- let resolves=reflectionBlock();
- let texels=vec2u(${REFLECTION_SIDE}u)/resolves;
- let resolve=local.xy/texels;
- if(mask!=0u){atomicOr(&tileTraces,1u<<(resolve.x+resolves.x*resolve.y));}
- workgroupBarrier();
- let traced=atomicLoad(&tileTraces);
- if(lane==0u){
-  let entry=tile.x|(tile.y<<16u);
-  if(traced!=0u){tracingOut.entries[tracingOutAppend(1u,1u)]=entry;}
-  else{clearTracingOut.entries[clearTracingOutAppend(1u,1u)]=entry;}
- }
- if(lane<resolves.x*resolves.y){
-  let resolveTile=tile*resolves+vec2u(lane%resolves.x,lane/resolves.x);
-  if(all(resolveTile*${REFLECTION_SIDE}u<viewport)){
-   let entry=resolveTile.x|(resolveTile.y<<16u);
-   if(((traced>>lane)&1u)!=0u){resolveOut.entries[resolveOutAppend(1u,1u)]=entry;}
-   else{clearOut.entries[clearOutAppend(1u,1u)]=entry;}
-  }
- }
-}
+${CLASSIFY_TILE_STATEMENTS}
 /** The clear of an unused tracing tile (\`clearTracingOut\`): its texels' depths set to none (\`REFLECTION_NO_RAY_DEPTH\`), so no
  *  kernel reads a ray of an earlier image there. */
 @compute @workgroup_size(${REFLECTION_SIDE},${REFLECTION_SIDE})

@@ -10,6 +10,8 @@ import { SHADE_SHADER } from '../visibility/shader/shadeWgsl.ts'
 import { BLEND_SHADER, DIRECT_LIGHTING_SHADER } from '../gpu/core/shaderTexts.fixture.ts'
 import { surfaceWritten } from '../geometry/pages/surfaceWrites.ts'
 import { FOG_PROGRAMS, fogGraphProgram } from './fog/programs.ts'
+import { FOG_VOLUME_FLAG } from './fog/frame.ts'
+import { CAM, frameScope, image } from './fogVolumeRun.fixture.ts'
 import { createGraphValues, voxelGraphSet } from './fog/voxelGraph.ts'
 import { createFogVolumeResources } from './fog/resources.ts'
 import { takeGraphRefusals } from '../materials/graph/kept.ts'
@@ -246,4 +248,17 @@ test('the voxelisation reads the image’s clocks, the world’s time and the wa
   )
   assert.equal(words[FOG_VOXEL_FRAME.at.passes + 3], 7.5, 'the world’s time, the passes’ last')
   assert.equal(words[FOG_VOXEL_FRAME.at.realTime], 19.25, 'the wall clock beside it')
+})
+
+test('the lighting view voxelises every object with its diffuse colour, the frame telling it by a flag', () => {
+  const flags = (lightingOnly: boolean) =>
+    frameScope(image(CAM, true, {}, { lightingOnly })).medium[3]!
+  assert.equal(flags(false) & FOG_VOLUME_FLAG.lightingOnly, 0)
+  assert.equal(flags(true) & FOG_VOLUME_FLAG.lightingOnly, FOG_VOLUME_FLAG.lightingOnly)
+  const code = FOG_PROGRAMS.voxelize
+  assert.match(
+    code,
+    /fn voxelAlbedo\(albedo:vec3f\)->vec3f\{\s*return select\(albedo,vec3f\(0\.3\),/,
+  )
+  assert.match(code, /voxelAlbedo\(object\.albedo\.rgb\)\*object\.albedo\.w/)
 })

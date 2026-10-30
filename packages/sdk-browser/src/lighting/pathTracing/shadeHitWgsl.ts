@@ -57,20 +57,36 @@ import {
   SURFACE_TAIL,
   type ShadeOptions,
 } from '../../visibility/shader/shadeWgsl.ts'
-import { shadeGraph } from '../../visibility/shader/shadeGraphWgsl.ts'
+import { shadeGraph, type ShadeGraph } from '../../visibility/shader/shadeGraphWgsl.ts'
 import { heldOutputs, outputCall } from '../../materials/graph/outputsOf.ts'
 import { CHANNEL_SETS_WGSL, physicalCoreWgsl } from '../../visibility/shader/physicalWgsl.ts'
 import {
   PT_HIT_MATERIAL_VECS,
+  ptHitMaterialStride,
   PT_HIT_MATERIAL_WGSL,
   PT_IOR_RANGE,
   PT_MATERIAL_FLAG,
 } from './hitMaterialWgsl.ts'
 import { PT_HIT_KIND, PT_HIT_WGSL } from './hitRecordWgsl.ts'
+import { PT_RIS_WGSL } from './risWgsl.ts'
+import { strongIntegerHash } from '../sobolScramblingWgsl.ts'
 import { PT_QUEUE_WGSL } from './queueWgsl.ts'
+import { PT_LIGHT_STRUCT_WGSL } from './lightsWgsl.ts'
+import { PT_LIGHT_TABLE_STRUCT } from './lightTable.ts'
+import { PT_SHADING_ENERGY_WGSL } from './thinGlassWgsl.ts'
+import { SURFACE_F0_WGSL } from '../../materials/surface/surfaceSpecular.ts'
+import { luminance } from '../../../../math/src/wgsl/color.ts'
 
 /** The bindings of the hits' shade in its group 1: the path tracer's parameters, the queue of paths, the hits it reads and the materials it writes. */
-export const PT_SHADE_PATHS = { view: 0, queue: 1, hits: 2, materials: 3 } as const
+export const PT_SHADE_PATHS = {
+  view: 0,
+  queue: 1,
+  hits: 2,
+  materials: 3,
+  /** Only where the hit chooses among closures: the paths' states (the ray's direction) and the lights' buffer (the energy table). */
+  states: 4,
+  lights: 5,
+} as const
 
 export const PT_SHADE_ENTRY = 'ptShadeHits'
 
@@ -159,6 +175,7 @@ fn shadeHit(h:PtHit,pixel:vec2f)->SurfaceOut{
 /** The conversion of the resolve's surface to the path tracer's material record, and the entry that shades the hits of one class. */
 const hitEntry = (
   opacity: string,
+  weighted: boolean,
 ) => `fn ptMaterialOfSurface(s:SurfaceOut,model:u32)->PtHitMaterial{
  var m:PtHitMaterial;
  let flags=s.flags;
@@ -199,10 +216,22 @@ fn ${PT_SHADE_ENTRY}(@builtin(workgroup_id) wg:vec3u,@builtin(num_workgroups) n:
  let h=ptUnpackHit(array<vec4u,6>(ptHits[index*6u],ptHits[index*6u+1u],ptHits[index*6u+2u],ptHits[index*6u+3u],ptHits[index*6u+4u],head));
  let pixel=vec2f(ptView.tile.xy+vec2u(index%ptView.tile.z,index/ptView.tile.z));
  thinOut=vec3f(0.0);
- thinOpacity=0.0;
+ thinOpacity=0.0;${
+   weighted
+     ? `
+ hitSlabView=-ptStates[index*8u+3u].xyz;
+ // The draw that chooses the slab: a hash of the path's place, the sample and the bounce, the round included (a ray that went through a surface chooses again).
+ hitSlabRand=f32(strongIntegerHash(strongIntegerHash(index+ptView.seeds.x*0x9e3779b1u)^(bounce*0x85ebca6bu+u32(ptView.sampling.z)*0xc2b2ae35u)))*2.3283064e-10;
+ hitSlabWeight=1.0;`
+     : ''
+ }
  let surface=shadeHit(h,pixel);
 ${opacity} let packed=ptPackHitMaterial(ptMaterialOfSurface(surface,pixelModelOf(surface.flags)));
- for(var k=0u;k<${PT_HIT_MATERIAL_VECS}u;k++){ptMaterials[index*${PT_HIT_MATERIAL_VECS}u+k]=packed[k];}
+ for(var k=0u;k<${PT_HIT_MATERIAL_VECS}u;k++){ptMaterials[index*${ptHitMaterialStride(weighted)}u+k]=packed[k];}${
+   weighted
+     ? `\n ptMaterials[index*${ptHitMaterialStride(weighted)}u+${PT_HIT_MATERIAL_VECS}u]=vec4u(bitcast<u32>(hitSlabWeight),0u,0u,0u);`
+     : ''
+ }
 }`
 
 /** The declarations of the hits' shade: the bindings of the resolve it keeps (the maps' pools, sampler, uniform and the surfaces' records), the paths' own, and the class's overrides. */
@@ -238,18 +267,64 @@ ${tileDeclarations(SHADE_BINDINGS.data, 'data')}
   )
 
 /**
+ * What the hit's choice of a slab among the closures of its material reads and gives: the random number it draws by, the direction to the eye the ray came along, and the weight of the one chosen (the light of
+ * the slab is multiplied by it; one where the material has one closure). A slab is chosen by the coverage the tops leave it times the colour it sends back (`hitSlabAlbedo`, its diffuse colour under what the
+ * specular lobe keeps, plus the specular lobe's albedo at the angle of the ray, summed over the channels), as the reference weighs the slabs it chooses among.
+ */
+const SLAB_CHOICE_WGSL = wgslBlock(
+  'SLAB_CHOICE_WGSL',
+  [
+    PT_RIS_WGSL,
+    strongIntegerHash,
+    PT_LIGHT_STRUCT_WGSL,
+    PT_SHADING_ENERGY_WGSL,
+    SURFACE_F0_WGSL,
+    luminance,
+  ],
+  `${PT_LIGHT_TABLE_STRUCT}
+@group(1) @binding(${PT_SHADE_PATHS.states}) var<storage,read> ptStates:array<vec4f>;
+@group(1) @binding(${PT_SHADE_PATHS.lights}) var<storage,read> directLights:PtLightTable;
+var<private> hitSlabRand:f32;
+var<private> hitSlabWeight:f32;
+var<private> hitSlabView:vec3f;
+fn hitSlabAlbedo(rgb:vec3f,metal:f32,rough:f32,n:vec3f,specular:f32)->f32{
+ surfaceSpecular=specular;
+ let f0=surfaceF0(rgb,metal);
+ let f90=saturate(dot(f0,vec3f(1.0/3.0))*50.0);
+ let e=shadingEnergyPair(rough,saturate(dot(n,hitSlabView)));
+ let spec=f0*e.x+(vec3f(f90)-f0)*e.y;
+ let colour=(1.0-luminance(spec))*rgb*(1.0-metal)+spec;
+ return colour.x+colour.y+colour.z;
+}`,
+)
+
+/** A hit keeps no closure target: in place of the closure writer's coverages and stores it adds the emission of the closures past the first. */
+const withoutClosureTail = (g: ShadeGraph, weighted: boolean): ShadeGraph =>
+  g.closures
+    ? {
+        ...g,
+        closures: {
+          ...g.closures,
+          after: weighted ? g.closures.choice : g.closures.emission,
+          store: '',
+        },
+      }
+    : g
+
+/**
  * THE SHADE OF THE HITS OF ONE CLASS OF SURFACES (`ptShadeHits`): the resolve's own text — its maps, factors, graph, normal map and lobes, in its order — run at a hit of a ray
  * in place of a pixel of the image (`shadeHit`: the head that makes the resolve's locals from `PtHit`, then `SURFACE_READS`, `SURFACE_NORMALS` and `SURFACE_TAIL` of `shadeWgsl.ts`), and its surface
  * stored as the path tracer's material record (`ptMaterialOfSurface`, `PtHitMaterial`). The hit sees the surface as the resolve would see it with the texture coordinate and the vertex
  * colour interpolated at the hit, no derivative (the texture is read at its finest, as the reference's path tracer reads it), the shading normal the triangle carries (turned to the ray's side, so the resolve's face test is one), and a
  * normal map's frame built from the texture coordinates (no tangents are stored). The pass runs over the paths of the bounce (the queue's list) and shades those whose hit is a surface of its class
- * (HIT_CLASS, its class key); the features of the class are the resolve's overrides (CLASS_KEY), the graph's program, if any, its own module.
+ * (HIT_CLASS, its class key); where the view's pixels hold several closures (`weighted`) a material of several has the hit choose one of them by resampling on their weights and the record carries the weight of the choice (`ptHitMaterialStride`); the features of the class are the resolve's overrides (CLASS_KEY), the graph's program, if any, its own module.
  */
-export const shadeHitProgram = (graph?: CompiledGraph) => {
+export const shadeHitProgram = (graph?: CompiledGraph, weighted = false) => {
   const o: ShadeOptions = {
     voxel: false,
     displaced: false,
-    graph: graph && shadeGraph(graph),
+    // A hit shades the first closure of a material of several (its blend and normal stay, the closure writer's coverages and stores, which need the resolve's own locals and declarations, do not) and adds the emission of the others, as the reference's hit sums the emission of every BSDF weighed by its coverage (PathTracingMaterialHitShader.usf:385-389).
+    graph: graph && withoutClosureTail(shadeGraph(graph), weighted),
     screenFace: '1.0',
   }
   const body = HIT_HEAD() + SURFACE_READS(o) + SURFACE_NORMALS(o) + SURFACE_TAIL(o)
@@ -257,7 +332,8 @@ export const shadeHitProgram = (graph?: CompiledGraph) => {
   const opacity = graph?.functions.opacity
     ? ` hitVolume.w=${heldOutputs(graph, outputCall(graph, 'mgPixel,mgGiven')).opacity};\n`
     : ''
-  return wgslProgram(`${body}\n${hitEntry(opacity)}`, [
+  return wgslProgram(`${body}\n${hitEntry(opacity, weighted)}`, [
+    ...(weighted ? [SLAB_CHOICE_WGSL] : []),
     shadeHitDecl(o.graph ? o.graph.request : SHADE_REQUEST_WGSL),
     ...(o.graph ? [o.graph.decl] : []),
     NORMAL_VIEW_COLOR_WGSL,

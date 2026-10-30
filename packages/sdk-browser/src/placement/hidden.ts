@@ -59,6 +59,13 @@ export function settleRoot<T>(
 /** The node a see-through draw comes from. */
 export const blendSource = (item: { drawSource?: { node?: Object3D } }) => item.drawSource?.node
 
+/** The node that draws a see-through item: its source, or the node its row belongs to (`PlacementRows.sources`). */
+export const blendNodeOf = (item: {
+  drawSource?: { node?: Object3D }
+  placement?: PlacementOf
+}): Object3D | undefined =>
+  blendSource(item) ?? item.placement?.rows.sources?.[item.placement.index] ?? undefined
+
 /** The entries to read of a list, `ranks[0 .. count)`: those under the nodes the host flipped. */
 export type Subset = { readonly ranks: ArrayLike<number>; readonly count: number }
 

@@ -3,6 +3,8 @@ import { ComputeRun } from '../../gpu/core/lazyComputePass.ts'
 import { invertMatrix4 } from '../../../../math/src/matrix/matrix4Inverse.ts'
 import { clearValueOf } from '../../../../sdk-core/src/world/math/packedColour.ts'
 import { directTiles, encodeDirectLights } from './encodeLights.ts'
+import { encodeShadingFurnace } from '../../lighting/deferred/furnaceFrame.ts'
+import { encodeLightShapes } from '../../lighting/lightShape/frame.ts'
 import { prepareLocalFog } from './encodeLocalFog.ts'
 import { finishVsmFrame } from '../../lighting/shadows/vsm/frame/vsmFrameEnd.ts'
 import { composesOffscreen } from '../../diagnostic/gpuVariant.ts'
@@ -47,6 +49,7 @@ import { encodeSubsurfaceDebug } from '../../lighting/subsurface/visualize.ts'
 import { encodeRectLightAtlasDebug } from '../../lighting/rectLightAtlas/debug.ts'
 import { encodeLightProfileDebug } from '../../lighting/lightProfile/debug.ts'
 import { encodeShadowCasterBounds } from '../../lighting/shadows/vsm/debug/casterBounds.ts'
+import { encodeOitDebug } from '../../blend/oit/oitDebug.ts'
 import { encodeClipmapStats } from '../../lighting/shadows/vsm/debug/clipmapStats.ts'
 import { encodeLightGridDebug } from '../../lighting/tiles/debug/gridDebug.ts'
 import { encodeTranslucencyVolumeDebug } from '../../lighting/translucency/debug.ts'
@@ -336,6 +339,8 @@ function composeImage(
   encodeClipmapVirtualSpace(rt, device, encoder)
   encodeVsmVisualizeView(rt, device, encoder, cam)
   encodeClipmapStats(rt, device, encoder, cam)
+  // The sorted translucency's figures of the pixel under the cursor, over the image when asked.
+  encodeOitDebug(rt, device, encoder, cam)
   encodeClusterStats(rt, device, encoder, cam)
   // The clouds' shadow and sky occlusion maps, over the image when asked.
   encodeCloudShadowDebug(rt, device, encoder, cam)
@@ -463,6 +468,9 @@ export function encodeSurfaceLighting(
   if (!volumesFirst) encodeHeterogeneousVolumes(rt, device, encoder, cam)
   // The translucency volume's spheres, over the lit image once the transparents, the volumes and the clouds are on it, just before the resolve (`translucencyVolumeVisualize`).
   encodeTranslucencyVolumeSpheres(rt, device, encoder, cam)
+  // The light shapes are laid over the lit image once the scene is on it, and the shading furnace test replaces it after them.
+  encodeLightShapes(rt, device, encoder, cam)
+  encodeShadingFurnace(rt, encoder)
   if (!overrides.post) return finishUncomposed(rt, encoder, overrides, filter)
   // Composition reads the temporal result, or the lit image without accumulation.
   const asIs = readsAsIs(rt)

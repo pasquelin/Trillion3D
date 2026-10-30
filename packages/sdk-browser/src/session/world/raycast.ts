@@ -28,8 +28,7 @@ export interface RaycastOptions {
   objects?: readonly Object3D[]
   /** The `helper` marks are met too — a transform control's handles —; passed by otherwise. */
   helpers?: boolean
-  /** How near a line the ray must pass to hit it, in world units, as three.js's
-   *  `Raycaster.params.Line.threshold`: 1 by default, 0 never hits a line. */
+  /** How near a line the ray must pass to hit it, in world units: 1 by default, 0 never hits a line. */
   lineThreshold?: number
 }
 

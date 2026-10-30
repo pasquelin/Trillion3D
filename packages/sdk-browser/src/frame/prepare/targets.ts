@@ -8,6 +8,8 @@ import {
   hdrTargetDescriptor,
 } from '../../scene/targetFormats.ts'
 import { createSurfaceBuffer } from '../../materials/surface/surfaceAllocation.ts'
+import { viewClosureMax } from './closures.ts'
+import { closuresHeld } from '../../materials/surface/surfaceOutputs.ts'
 import { createBackdrop, holdsRefraction } from '../../blend/transparent/transmission.ts'
 import {
   createTranslucency,
@@ -19,6 +21,7 @@ import {
   askLatePipeline,
   upsamplePipelinesOf,
 } from '../../blend/translucencyCompose.ts'
+import { disposeOit } from '../../blend/oit/oitResources.ts'
 import { chainCompiled } from '../../lighting/deferred/fullscreen.ts'
 import { readSeparateTranslucencySetting } from '../../../../sdk-core/src/contracts/separateTranslucencyOptions.ts'
 import { readFilmSetting } from '../../../../sdk-core/src/contracts/filmOptions.ts'
@@ -77,6 +80,8 @@ export function releaseTargets(rt: WebgpuPagesRuntime, keepHistory = false) {
   const { gpu, vis, capture } = rt
   dropAside(rt)
   releaseSet(gpu, vis)
+  // The targets go, and with them the buffers the sorted layers were collected in, given back whole only here.
+  if (gpu.device) disposeOit(gpu.device, gpu)
   forgetCapturedImage(capture)
   if (!keepHistory) gpu.temporal?.release()
 }
@@ -177,6 +182,7 @@ function makeRenderTargets(
     subsurface: wantsSubsurface(rt),
     emissiveAo: vis.writesEmissiveAo,
     lobes: wantsPhysicalLobes(rt),
+    closures: viewClosureMax(rt),
   })
   if (wantsResponsive(rt)) makeResponsive(rt, device, width, height)
 }
@@ -218,6 +224,7 @@ function makeBlendTargets(rt: WebgpuPagesRuntime, device: GPUDevice, size: Frame
     height,
     sceneBlends(rt),
     rt.setup.reflectionStatistics,
+    closuresHeld(viewClosureMax(rt)),
   )
 }
 

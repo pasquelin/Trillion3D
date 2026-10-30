@@ -93,13 +93,22 @@ type PixelSettings = Pick<
   | 'shortRangeGi'
 >
 
+/** The history a closure's textures of the pixels are made over, where it is a layer of a texture shared by the closures (`closureTextures`): the words, and the short-range global illumination. */
+interface PixelHistory {
+  history: Turn<GPUTextureView>
+  shortRangeGiHistory: Turn<GPUTextureView>
+}
+
 /** The textures of the pixels: the history's words, the shading and the depth it was found at, what the integration leaves for the temporal pass (the light, the
  *  rough specular and the back, a texel for each pixel the integration runs at: one in `integrateDownsample` along each side), where the temporal pass reads them
- *  from (`offsets`, a pixel each, where the integration is downsampled), the occlusion (with the bent normal where the level keeps it). */
+ *  from (`offsets`, a pixel each, where the integration is downsampled), the occlusion (with the bent normal where the level keeps it). With `layers`, the history
+ *  of the words and of the short-range illumination are those layers (the closure's own), not textures of their own; `tag` names the closure in the labels. */
 function pixelTextures(
   a: ResourceAllocator,
   { width, height }: ScreenProbeGeometry,
   settings: PixelSettings,
+  layers?: PixelHistory,
+  tag = '',
 ) {
   const downsample = settings.occlusionDownsample
   const integrated: [number, number] = [
@@ -108,33 +117,84 @@ function pixelTextures(
   ]
   const pair = <T>(make: (side: number) => T): Turn<T> => [make(0), make(1)]
   return {
-    history: pair((side) => a.texture(`history ${side}`, [width, height], F.history)),
-    shading: pair((side) => a.texture(`history shading ${side}`, [width, height], F.shading)),
-    keptDepth: pair((side) => a.texture(`history depth ${side}`, [width, height], F.keptDepth)),
-    light: a.texture('integrated light', integrated, F.light),
-    rough: a.texture('integrated rough specular', integrated, F.rough),
-    back: a.texture('integrated back', integrated, F.back),
+    history:
+      layers?.history ?? pair((side) => a.texture(`history ${side}`, [width, height], F.history)),
+    shading: pair((side) => a.texture(`history shading ${side}${tag}`, [width, height], F.shading)),
+    keptDepth: pair((side) =>
+      a.texture(`history depth ${side}${tag}`, [width, height], F.keptDepth),
+    ),
+    light: a.texture(`integrated light${tag}`, integrated, F.light),
+    rough: a.texture(`integrated rough specular${tag}`, integrated, F.rough),
+    back: a.texture(`integrated back${tag}`, integrated, F.back),
     offsets: a.texture(
-      'integration offsets',
+      `integration offsets${tag}`,
       settings.integrateDownsample > 1 ? [width, height] : [1, 1],
       F.offsets,
     ),
     occlusion: a.texture(
-      'occlusion',
+      `occlusion${tag}`,
       [ceilDiv(width, downsample), ceilDiv(height, downsample)],
       settings.bentNormal ? F.bentOcclusion : F.occlusion,
     ),
     shortRangeGi: a.texture(
-      'short-range global illumination',
+      `short-range global illumination${tag}`,
       settings.shortRangeGi ? [ceilDiv(width, downsample), ceilDiv(height, downsample)] : [1, 1],
       F.shortRangeGi,
     ),
-    shortRangeGiHistory: pair((side) =>
-      a.texture(
-        `short-range global illumination history ${side}`,
-        settings.shortRangeGi ? [width, height] : [1, 1],
-        F.shortRangeGi,
+    shortRangeGiHistory:
+      layers?.shortRangeGiHistory ??
+      pair((side) =>
+        a.texture(
+          `short-range global illumination history ${side}`,
+          settings.shortRangeGi ? [width, height] : [1, 1],
+          F.shortRangeGi,
+        ),
       ),
+  }
+}
+
+/** The textures of the pixels of one closure. */
+export type PixelTextures = ReturnType<typeof pixelTextures>
+
+/**
+ * THE PIXEL DATA OF THE CLOSURES past the first, for a view whose pixels hold `closures` of them (the reference's screen probe gather runs its integration and its
+ * temporal pass for the overflow tiles with the closure's index and keeps the diffuse, rough specular and back light history as layers by closure,
+ * `LumenScreenProbeGather.cpp:1838-1861`): the words the lighting reads and the short-range illumination are the layers of one texture each — the
+ * closure `k`'s in layer `k`, the first closure's in layer 0 (`first`) — read together as an array by the lighting, and each closure past the first has the
+ * other textures of the pixels of its own (`sets`, in the order of the closures from the second), the probes being those of the first. The shading and the depth it was found at are
+ * kept apart by closure, as the history of a pixel's surface is the closure's.
+ */
+function closureTextures(
+  a: ResourceAllocator,
+  geometry: ScreenProbeGeometry,
+  settings: PixelSettings,
+  closures: number,
+) {
+  const { width, height } = geometry
+  const pair = <T>(make: (side: number) => T): Turn<T> => [make(0), make(1)]
+  const words = pair((side) => a.layered(`history ${side}`, [width, height], F.history, closures))
+  const gi = pair((side) =>
+    a.layered(
+      `short-range global illumination history ${side}`,
+      settings.shortRangeGi ? [width, height] : [1, 1],
+      F.shortRangeGi,
+      closures,
+    ),
+  )
+  const layersOf = (k: number): PixelHistory => ({
+    history: pair((side) => words[side].layers[k]!),
+    shortRangeGiHistory: pair((side) => gi[side].layers[k]!),
+  })
+  return {
+    held: closures,
+    /** Every closure's layer of the history and of the short-range illumination, to read together. */
+    history: pair((side) => words[side].all),
+    shortRangeGi: pair((side) => gi[side].all),
+    /** The first closure's layers. */
+    first: layersOf(0),
+    /** The pixels' textures of each closure from the second. */
+    sets: Array.from({ length: closures - 1 }, (_, at) =>
+      pixelTextures(a, geometry, settings, layersOf(at + 1), ` closure ${at + 1}`),
     ),
   }
 }
@@ -151,16 +211,20 @@ export function createScreenProbeResources(
   a: ResourceAllocator,
   capacity: ScreenProbeGeometry,
   settings: ProbeSettings & PixelSettings,
+  closures = 1,
 ) {
   const { tilesX, tilesY, uniform, maxAdaptive, samplesX, samplesY, tracing } = capacity
   const maxProbes = uniform + maxAdaptive
   const rays = maxProbes * tracing * tracing
   const storage = (label: string, words: number) => a.buffer(label, words, 'storage')
+  const held = closures > 1 ? closureTextures(a, capacity, settings, closures) : undefined
   return {
     geometry: capacity,
     params: a.buffer('parameters', SCREEN_PROBE_PARAMS_BYTES / 4, 'uniform'),
     ...probeTextures(a, capacity, settings),
-    ...pixelTextures(a, capacity, settings),
+    ...pixelTextures(a, capacity, settings, held?.first),
+    /** The pixel data of the closures past the first (`closureTextures`): none for a view of one closure, whose resources are the single-closure ones. */
+    closures: held,
     pixels: storage('probe pixels', maxProbes),
     brdf: storage('cosine lobes', maxProbes * PDF_LOBE_WORDS),
     disocclusion: storage('disocclusion', maxProbes),
@@ -170,11 +234,16 @@ export function createScreenProbeResources(
     indices: storage('tile probe numbers', tilesX * tilesY * samplesX * samplesY),
     counts: a.buffer('adaptive count', 1, 'counter'),
     args: a.buffer('arguments', SCREEN_PROBE_ARGS.words, 'args'),
-    // The lists of the integration's tiles, one for each mode, and their arguments: a word each where the tiles are not classified.
+    // The lists of the integration's tiles, one for each mode, and their arguments: a word each where the tiles are not classified. The closures past the first list the tiles of
+    // their pixels by the closure tiles' side (`integrateTiles` at no reduction), which is what their lists hold at most, whatever the integration's reduction.
     tileList: storage(
       'integrate tiles',
       settings.tileClassification
-        ? INTEGRATE_TILE_MODE_COUNT * integrateTiles(capacity, settings.integrateDownsample)
+        ? INTEGRATE_TILE_MODE_COUNT *
+            Math.max(
+              integrateTiles(capacity, settings.integrateDownsample),
+              closures > 1 ? integrateTiles(capacity, 1) : 0,
+            )
         : 1,
     ),
     tileArgs: a.buffer(
@@ -195,8 +264,9 @@ export type ScreenProbeResources = ReturnType<typeof createScreenProbeResources>
 export function screenProbeBytes(
   capacity: ScreenProbeGeometry,
   settings: ProbeSettings & PixelSettings,
+  closures = 1,
 ) {
   const counting = countingAllocator()
-  createScreenProbeResources(counting, capacity, settings)
+  createScreenProbeResources(counting, capacity, settings, closures)
   return counting.bytes()
 }

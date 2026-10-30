@@ -105,6 +105,10 @@ function itemsGroup(rt: WebgpuPagesRuntime, device: GPUDevice, state: ReturnType
   }))
 }
 
+/** The items group of the passes that draw the runs on the mark stage's layout, over the runtime's resources (`itemsGroup`). */
+export const radianceMarkItemsGroup = (rt: WebgpuPagesRuntime, device: GPUDevice) =>
+  itemsGroup(rt, device, stateOf(rt, device))
+
 /** The mark group over the levels' uniform `grid`, the bitmap `marks`, the depth `depth` and the volume's marks `volume`, made again when one of them
  *  is not the one it was made over. */
 function markGroup(

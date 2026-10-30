@@ -34,7 +34,7 @@ import {
  * `cloudMaterialLayoutEntries`), the trace's block (`writeCloudTrace`), the blue noise,
  * the scene's depth (`CloudTraceKey.depth`: the range, the half-size checkerboard, or the depth
  * itself) and the traced images, written (`reconstructLayout.ts`): three with two surfaces, the
- * colour and the depth without. A frame that asks for the empty-space table, the sun's opaque
+ * colour and the depth without, and the alpha holdout's coverage where the clouds hold out. A frame that asks for the empty-space table, the sun's opaque
  * shadow, the lamps or the sky light's harmonics (`CloudTraceKey`) has a third group, 2, for their
  * inputs (`traceExtraLayout.ts`), and a pipeline of its own.
  */
@@ -48,6 +48,7 @@ function cloudTraceLayoutEntries(key: CloudTraceKey): GPUBindGroupLayoutEntry[] 
     ...(key.minMaxDepth ? [computeStorageTextureEntry(B.secondary, CLOUD_FORMAT)] : []),
     computeStorageTextureEntry(B.depth, CLOUD_FORMAT),
     ...(key.closestDepth ? [computeStorageTextureEntry(B.closest, CLOUD_FORMAT)] : []),
+    ...(key.holdout ? [computeStorageTextureEntry(B.holdout, CLOUD_FORMAT)] : []),
   ]
 }
 

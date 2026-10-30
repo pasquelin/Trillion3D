@@ -1,6 +1,6 @@
 // The opaque resolve's reflection (`resolvedReflection`, `resolvedReflectionOccluded`) on the target the last pass wrote: layer 0 what the
-// rays answer, the radiance of the lobe they serve, with the base lobe's share in its alpha, layer 1 the environment through the base lobe, the rough
-// light of both lobes, with the coat's left share in its alpha. The rough light is the same for both lobes and goes under the specular occlusion
+// rays answer, the radiance of the lobe they serve, with the base lobe's share in its alpha, layer 1 the coat's left share in its alpha, the rough
+// light of both lobes being the environment the sky's cube gives, sampled by the resolve. The rough light is the same for both lobes and goes under the specular occlusion
 // for both. The lights each lobe is given are read here (`reflectionShare` stands for their look and weight, `weightLook.test.ts`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -31,8 +31,10 @@ const target = (texels: Texels) => ({
   view: { reflection: [1, 1, 0, 0] },
   reflectionTarget: {
     load: (_: number[], layer: number) =>
-      layer === 0 ? texels.rays : [...(texels.rough ?? [0, 0, 0]), texels.coatLeft ?? 0],
+      layer === 0 ? texels.rays : [0, 0, 0, texels.coatLeft ?? 0],
   },
+  // The environment through the base lobe is the sky's cube, sampled where the rough light is blended.
+  reflectionEnvironment: () => texels.rough ?? [0, 0, 0],
   hasCoat: () => texels.coatLeft !== undefined,
   indirectF0: (rgb: number[]) => rgb,
   reflectionShare: (lights: Lights) => {
@@ -80,7 +82,7 @@ test('a pixel the rays answer whole adds nothing of the rough light, its coat’
   assert.deepEqual(sky({ rays: [1, 2, 3, 1], coatLeft: 0 }, 0.25, [1, 1, 1]), [1, 2, 3])
 })
 
-test('a base lobe flagged for the rough light takes the environment of layer 1 and keeps the rays’ answer', () => {
+test('a base lobe flagged for the rough light takes the environment of the sky and keeps the rays’ answer', () => {
   // Flagged (alpha −1): the whole of the base lobe is the rough light, and the colour, the rays' answer, is added to it.
   near(plain({ rays: [1, 2, 3, -1], rough: [4, 5, 6] }), [5, 7, 9], 'bare')
   near(plain({ rays: [1, 2, 3, -1], rough: [4, 5, 6] }, 0), [1, 2, 3], 'occluded away')

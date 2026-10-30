@@ -29,6 +29,10 @@ import {
   diffuseReconstructWgsl,
   diffuseTemporalWgsl,
 } from '../../lighting/shadows/denoise/diffuseDenoiseWgsl.ts'
+import {
+  objectShadowLocalShader,
+  objectShadowSunShader,
+} from '../../lighting/shadows/perObject/objectShadowProjectWgsl.ts'
 import { selfShadowMergeProgram } from '../../lighting/shadows/firstPerson/selfShadowWgsl.ts'
 import { rayTracedAoProgram } from '../../lighting/ao/rayTraced/rayTracedAoWgsl.ts'
 import {
@@ -80,4 +84,10 @@ export const CAPSULE_SHADOW_SHADERS: Record<string, string> = {
   DIFFUSE_DENOISE_TEMPORAL: diffuseTemporalWgsl(),
   DIFFUSE_DENOISE_POST_FILTER: diffusePostFilterWgsl(),
   DIFFUSE_DENOISE_OUTPUT: diffuseFinalWgsl(),
+  FIELD_SHADOW_TRACE: fieldShadowTraceProgram(),
+  FIELD_SHADOW_UPSAMPLE: fieldShadowUpsampleProgram(),
+  FIELD_SHADOW_TRACE_WATER: fieldShadowTraceProgram('water'),
+  FIELD_SHADOW_UPSAMPLE_WATER: fieldShadowUpsampleProgram('water'),
+  TRANSLUCENT_OBJECT_SHADOW_LOCAL: objectShadowLocalShader(),
+  TRANSLUCENT_OBJECT_SHADOW_SUN: objectShadowSunShader(),
 }

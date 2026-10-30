@@ -351,6 +351,11 @@ export const SCENE_RAY_WORDS = 1
 
 /** The side of the tiles of pixels the integration is classified and dispatched in. */
 export const INTEGRATE_TILE_SIDE = 8
+
+/** The bit of the lighting's screen probes word (`view.screenProbes.w`, `tellLighting`) that says the probes gathered the pixels of every closure a pixel holds, not the first alone:
+ *  the lighting then reads a closure past the first from its layer of the history (`SCREEN_INDIRECT_CLOSURES_WGSL`). */
+export const SCREEN_CLOSURES_GATHERED = 8
+
 /** The tiles of a view of the geometry's size whose integration runs at the reduction `downsample`: a list of the integration holds that many for each of its three modes. */
 export const integrateTiles = (
   g: Pick<ScreenProbeGeometry, 'width' | 'height'>,

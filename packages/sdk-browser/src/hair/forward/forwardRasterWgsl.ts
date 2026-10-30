@@ -96,8 +96,7 @@ var<workgroup> sampleDepth:array<f32,${SEGMENTS * FORWARD_RASTER_TILE}>;`,
 export const forwardRasterWgsl = (color: boolean) => {
   const o = outputs(color)
   return wgslProgram(
-    `${FORWARD_BINDINGS_WGSL}
-@group(0) @binding(${B.points}) var<storage,read> points:array<vec4f>;
+    `@group(0) @binding(${B.points}) var<storage,read> points:array<vec4f>;
 @group(0) @binding(${B.prims}) var<storage,read> prims:array<u32>;
 @group(0) @binding(${B.tiles}) var<storage,read> tiles:array<u32>;
 @group(0) @binding(${B.work}) var<storage,read> work:array<vec2u>;
@@ -267,6 +266,13 @@ fn allComplete()->bool{return atomicLoad(&completeMask[0])==INVALID&&atomicLoad(
   groupSync();
  }
 }`,
-    [FORWARD_PARAMS_WGSL, FORWARD_CONSTANTS_WGSL, forwardPacking, groupSync, forwardShade],
+    [
+      FORWARD_BINDINGS_WGSL,
+      FORWARD_PARAMS_WGSL,
+      FORWARD_CONSTANTS_WGSL,
+      forwardPacking,
+      groupSync,
+      forwardShade,
+    ],
   )
 }

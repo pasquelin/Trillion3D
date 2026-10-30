@@ -50,6 +50,82 @@ test('the sun and a local light shadow the fog only where their flag says so, by
   near([lit({ lights: [flagged], shade: 0 })], [0], 'in shadow', 0)
 })
 
+test('the lights whose ray traced shadow the volume holds take the cell’s bit of it: the sun multiplied by it, a local light shadowed by it in the place of its map', () => {
+  const lamp = lampAt(pointOf(CELL))
+  const flagged = { ...lamp, params: [kindLane(LIGHT_FLAG.shadowsFog), 3, 1, -2] }
+  const whole = lit({ lights: [flagged] })
+  const sun = lit({ lights: [SUN], sunRank: 0 })
+  // The sun (rank 0) is seen where its bit is set and in shadow where it is clear; the other bits do not matter.
+  near(
+    [lit({ lights: [SUN], sunRank: 0, traced: { lights: 1, seen: 1 } })],
+    [sun],
+    'sun seen',
+    1e-6,
+  )
+  near(
+    [lit({ lights: [SUN], sunRank: 0, traced: { lights: 1, seen: 0xfffffffe } })],
+    [0],
+    'sun hit',
+    0,
+  )
+  near(
+    [lit({ lights: [SUN], sunRank: 0, traced: { lights: 2, seen: 0 } })],
+    [sun],
+    'not traced',
+    1e-6,
+  )
+  // Its other shadows stand: the map's share times the ray's.
+  near(
+    [lit({ lights: [SUN], sunRank: 0, shade: 0.25, traced: { lights: 1, seen: 1 } })],
+    [sun / 4],
+    'maps too',
+    1e-6,
+  )
+  // A lamp the volume traces is shadowed by its bit alone: its map is not read.
+  const reads: number[] = []
+  near(
+    [lit({ lights: [flagged], shade: 0.25, shadowReads: reads, traced: { lights: 1, seen: 1 } })],
+    [whole],
+    'lamp seen',
+    1e-6,
+  )
+  assert.deepEqual(reads, [], 'the map of a traced light is not read')
+  near([lit({ lights: [flagged], traced: { lights: 1, seen: 0 } })], [0], 'lamp hit', 0)
+  // A lamp the volume does not name keeps its map.
+  near(
+    [lit({ lights: [flagged], shade: 0.25, traced: { lights: 2, seen: 0 } })],
+    [whole * 0.25],
+    'map kept',
+    1e-6,
+  )
+})
+
+test('a light past the first 32 ranks has its bit in the next word of the cell, read as the first ones', () => {
+  const lamp = lampAt(pointOf(CELL))
+  const flagged = { ...lamp, params: [kindLane(LIGHT_FLAG.shadowsFog), 3, 1, -2] }
+  // 32 lamps with no share, then the flagged one: rank 32, the first bit of the second word.
+  const lights = [
+    ...Array.from({ length: 32 }, () => ({ ...lamp, params: [0, -1, 0, -2] })),
+    flagged,
+  ]
+  const whole = lit({ lights: [flagged] })
+  const reads: number[] = []
+  near(
+    [lit({ lights, shade: 0.25, shadowReads: reads, traced: { lights: [0, 1], seen: [0, 1] } })],
+    [whole],
+    'seen',
+    1e-6,
+  )
+  assert.deepEqual(reads, [], 'the map of a traced light is not read')
+  near([lit({ lights, traced: { lights: [0, 1], seen: [0xffffffff, 0xfffffffe] } })], [0], 'hit', 0)
+  near(
+    [lit({ lights, shade: 0.25, traced: { lights: [0xffffffff], seen: 0 } })],
+    [whole * 0.25],
+    'not named, map kept',
+    1e-6,
+  )
+})
+
 test('a rectangle that casts and shadows the fog, as the contract admits it, takes the share its slot lets through', () => {
   const P = pointOf(CELL)
   const centre = [P[0] + 1, P[1] + 3, P[2] + 0.5]

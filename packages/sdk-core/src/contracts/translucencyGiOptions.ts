@@ -3,6 +3,7 @@ import {
   choiceSetting as choice,
   countSetting as count,
   flagSetting as flag,
+  gatedFlagSetting as gatedFlag,
   integerSetting as integer,
   nonNegativeSetting as nonNegative,
   numberSetting as number,
@@ -79,7 +80,7 @@ export const TRANSLUCENCY_GI_RULES = /* @__PURE__ */ (() =>
   rulesOf([
     flag('translucencyGi', true),
     flag('translucencyGiTraceFromVolume', true),
-    flag('translucencyGiHardwareRayTracing', true),
+    gatedFlag('translucencyGiHardwareRayTracing', true, 'rayTracingEnable'),
     flag('translucencyGiRadianceCache', true),
     flag('translucencyGiShareRadianceCacheWithOpaque', false),
     count('translucencyGiRadianceCacheClipmapBias', 3, 0),

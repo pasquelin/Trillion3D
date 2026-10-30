@@ -1,4 +1,6 @@
 import { createWebgpuBindIdentity } from '../../../gpu/bind/bindIdentity.ts'
+import type { ClosureTiles } from '../../../visibility/closureTiles/closureTiles.ts'
+import { closureRegionOf } from '../../../visibility/closureTiles/closureTilesWgsl.ts'
 import { namedEntries } from '../../../gpu/core/computeBindings.ts'
 import { buffers, groupOf, type GroupParts, type ScreenProbeInputs } from './groupParts.ts'
 import { RAYS_BINDINGS, RAYS_PROBES } from './importanceWgsl.ts'
@@ -8,6 +10,15 @@ import type { ScreenProbeResources } from './resources.ts'
 import { SCREEN_DATA_BINDINGS } from './screenDataWgsl.ts'
 import { filterGroups, pixelGroups, traceGroups } from './traceGroups.ts'
 import { occlusionTrianglesBinder } from './occlusionTriangles.ts'
+
+/** The binding of the region of the closure `closure` of the closure tiles `tiles` (`closureRegionOf`), none where the view lists none. */
+function regionBinding(
+  tiles: ClosureTiles | undefined,
+  closure: number,
+): GPUBufferBinding | undefined {
+  if (!tiles || closure >= tiles.closures) return undefined
+  return { buffer: tiles.list, ...closureRegionOf(tiles.tiles, closure) }
+}
 
 /** The bind groups of every kernel for one parity of the history's turn about. */
 export type ScreenProbeGroups = ReturnType<typeof createGroups>
@@ -110,6 +121,21 @@ function createGroups(
     ...pixelGroups(parts, kernels),
     /** The binder of the groups of the short-range occlusion cast through the scene's triangles (`occlusionTrianglesStageOf`). */
     occlusionTriangles: occlusionTrianglesBinder(parts),
+    /** The groups of the pixels of each closure past the first: the same kernels over the closure's own textures and its normals (`closureTextures`). */
+    closures: (r.closures?.sets ?? []).map((set, at) => {
+      const own: GroupParts = {
+        ...parts,
+        r: { ...r, ...set },
+        surface: { normals: inputs.closureNormals[at]!, flags: inputs.flags },
+        closure: at + 1,
+        overflow: regionBinding(inputs.closureTiles, at + 1),
+      }
+      return {
+        ...pixelGroups(own, kernels),
+        // The pass through the scene's triangles over the closure's overflow tiles, once its region of the closure tiles is there.
+        occlusionTriangles: own.overflow ? occlusionTrianglesBinder(own) : undefined,
+      }
+    }),
     /** The groups of the kernels over the probes. */
     cast: {
       ...placeGroups(parts, cast),
@@ -120,9 +146,12 @@ function createGroups(
   }
 }
 
-/** The inputs that are one resource each, those of `ScreenProbeInputs` but the field and the hit's, which name several: a field added to the
+/** The inputs that are one resource each, those of `ScreenProbeInputs` but the field, the hit's and the closures' normals, which name several: a field added to the
  *  inputs and left out of this table fails the compile. The identity names them in this order. */
-const INPUT_SLOT: Record<Exclude<keyof ScreenProbeInputs, 'field' | 'hit' | 'fog'>, true> = {
+const INPUT_SLOT: Record<
+  Exclude<keyof ScreenProbeInputs, 'field' | 'hit' | 'fog' | 'closureNormals' | 'closureTiles'>,
+  true
+> = {
   normals: true,
   flags: true,
   lobes: true,
@@ -166,6 +195,9 @@ export function createScreenProbeGroups(
     next[at++] = inputs.fog.sampler
     next[at++] = inputs.field.readGeneration
     for (const key of HIT_KEYS) next[at++] = inputs.hit[key]
+    for (const normals of inputs.closureNormals) next[at++] = normals
+    next[at++] = inputs.closureTiles?.list
+    next.length = at
     if (identity.moved()) sets[0] = sets[1] = undefined
     return (sets[turn] ??= createGroups(device, kernels, resources, inputs, turn, ranks))
   }

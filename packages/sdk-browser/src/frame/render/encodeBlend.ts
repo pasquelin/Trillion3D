@@ -14,7 +14,8 @@ import { encodeTransparentInstances } from '../../blend/transparent/draw.ts'
 import { encodeDistortion } from '../../blend/distortion.ts'
 import { encodeWater, encodeWaterDepth } from '../../blend/water/waterPass.ts'
 import { waterTargetsOf } from '../../blend/water/waterTargets.ts'
-import { encodeAfterWater } from './encodeClouds.ts'
+import { waterViewOf } from '../../blend/water/waterView.ts'
+import { encodeAfterWater, encodeCloudDebugView } from './encodeClouds.ts'
 import { encodeFrontPass } from '../../blend/frontPass.ts'
 import {
   drawsFrontBeforeMarking,
@@ -248,6 +249,46 @@ function traceTransparentEncoding(rt: WebgpuPagesRuntime) {
     )
 }
 
+/** The layers of an image, drawn at the place `encodeBlend` gives them: `before` the water (the camera under it; the layers go into the
+ *  image at once) or after it, where `waterDrawn` is what the water drew. After the water, what the image held back for it is laid first. */
+function drawLayers(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  encoder: GPUCommandEncoder,
+  contract: Partial<ContractKey> | undefined,
+  tone: ArrayLike<number> | undefined,
+  draws: ReturnType<typeof layerDraws>,
+  before: boolean,
+  waterDrawn: number,
+) {
+  const { vis, gpu, blendState } = rt
+  const main = gpu.translucency
+  // The layers drawn smaller than the image: their size, once the water has written its depth: the scene's depth at it is taken at the first pass that draws (`layersReady`).
+  beginTranslucencyScale(rt, device)
+  // The sky, the fog, the haze and the clouds the image held back, over the water now shaded, before any layer is drawn over them.
+  if (!before)
+    encodeAfterWater(rt, waterDrawn ? waterTargetsOf(rt, device).views.specular : undefined)
+  // The strands, over the sky and the fog laid, before any layer is drawn when the setting puts them there.
+  composeHairStrands(rt, device, encoder, 'beforeTranslucent')
+  if (contract)
+    countBlendDraws(rt, encodeDistortion(rt, device, encoder, vis.blendPipelines?.transmission))
+  // The see-through surfaces drawn by rays in the lit image, where the image can trace them: the raster draws of the transparents are left out then (particles are still drawn).
+  const traced = encodeTracedTranslucency(rt, device, encoder)
+  for (const { at, active, only } of draws) {
+    if (!active) continue
+    // The late layers draw into their own targets, which the draws read as the translucency target; under the water there are none.
+    if (at === 2 && !before) gpu.translucency = main!.late
+    if (contract && !traced) drawBlendPass(rt, device, encoder, contract, blendState.drawViews[at])
+    if (tone) drawParticles(rt, encoder, tone, only || undefined)
+    gpu.translucency = main
+    if (at === 0 || before) {
+      composeOnto(rt, device, encoder, gpu.hdrView!)
+      // What the temporal pass reads of the translucency is that of the later pass.
+      if (main) forget(main)
+    }
+  }
+}
+
 /** Draws the translucent layers of an image — the transparents bound by `bindBlend`, lit with the
  *  lights' key `contract` it returned (none where they were not prepared), then the particles `tone`
  *  shows (none: not drawn) — after the distortion of the opaque scene, so refraction bends only
@@ -266,7 +307,7 @@ export function encodeBlend(
   contract: Partial<ContractKey> | undefined,
   tone?: ArrayLike<number>,
 ) {
-  const { timing, vis, gpu, blendState } = rt
+  const { timing, gpu } = rt
   // The translucency targets hold nothing of this image until a pass draws (`drawBlendPass`).
   const main = gpu.translucency
   if (main) forget(main)
@@ -276,34 +317,18 @@ export function encodeBlend(
   const prepared = cpuNow()
   // The draws of the layers (`layerDraws`): each expands and draws the items of its own passes alone.
   const draws = layerDraws(rt)
+  // The camera under the water has the layers drawn before the water, composed at once into the image the water is shaded over (the
+  // reference's under-water translucency view); the others have the water first, then the layers.
+  const before = waterViewOf(rt).stage === 'before'
+  if (before) drawLayers(rt, device, encoder, contract, tone, draws, true, 0)
   // The single-layer water, over the scene without it, before the layers that refract or blend it.
   const waterDrawn = contract ? encodeWater(rt, device, encoder, contract) : 0
   if (contract) countBlendDraws(rt, waterDrawn)
-  // The layers drawn smaller than the image: their size, once the water has written its depth: the scene's depth at it is taken at the first pass that draws (`layersReady`).
-  beginTranslucencyScale(rt, device)
-  // The sky, the fog, the haze and the clouds the image held back, over the water now shaded, before any layer is drawn over them.
-  encodeAfterWater(rt, waterDrawn ? waterTargetsOf(rt, device).views.specular : undefined)
-  // The strands, over the sky and the fog laid, before any layer is drawn when the setting puts them there.
-  composeHairStrands(rt, device, encoder, 'beforeTranslucent')
-  if (contract)
-    countBlendDraws(rt, encodeDistortion(rt, device, encoder, vis.blendPipelines?.transmission))
-  // The see-through surfaces drawn by rays in the lit image, where the image can trace them: the raster draws of the transparents are left out then (particles are still drawn).
-  const traced = encodeTracedTranslucency(rt, device, encoder)
-  for (const { at, active, only } of draws) {
-    if (!active) continue
-    // The late layers draw into their own targets, which the draws read as the translucency target.
-    if (at === 2) gpu.translucency = main!.late
-    if (contract && !traced) drawBlendPass(rt, device, encoder, contract, blendState.drawViews[at])
-    if (tone) drawParticles(rt, encoder, tone, only || undefined)
-    gpu.translucency = main
-    if (at === 0) {
-      composeOnto(rt, device, encoder, gpu.hdrView!)
-      // What the temporal pass reads of the translucency is that of the later pass.
-      if (main) forget(main)
-    }
-  }
+  if (!before) drawLayers(rt, device, encoder, contract, tone, draws, false, waterDrawn)
   // The strands, over the layers composed in the lit image, before the translucency composed after the depth of field.
   composeHairStrands(rt, device, encoder, 'afterTranslucent')
+  // The debug view of the cloud tracing replaces the clouds, over the translucent layers drawn.
+  encodeCloudDebugView(rt)
   if (!contract) return
   encodeAlphaHoldout(rt, device, encoder, contract, tone)
   timing.transparentDrawMs += cpuNow() - prepared

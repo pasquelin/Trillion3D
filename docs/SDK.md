@@ -55,7 +55,7 @@ Each section lives in its own file under [`sdk/`](sdk); read only the one you ne
 [sdk/page-materials.md](sdk/page-materials.md)
 
 ## Material graph
-[sdk/material-graph.md](sdk/material-graph.md): [making-a-graph](sdk/material-graph/making-a-graph.md) · [outputs-and-types](sdk/material-graph/outputs-and-types.md) · [nodes](sdk/material-graph/nodes.md) · [surface](sdk/material-graph/surface.md) · [opacity-mask](sdk/material-graph/opacity-mask.md) · [world-position-offset](sdk/material-graph/world-position-offset.md) · [shading-model](sdk/material-graph/shading-model.md) · [depth-and-displacement](sdk/material-graph/depth-and-displacement.md) · [thin-translucent](sdk/material-graph/thin-translucent.md) · [volume-and-light-function](sdk/material-graph/volume-and-light-function.md) · [refusals](sdk/material-graph/refusals.md)
+[sdk/material-graph.md](sdk/material-graph.md): [making-a-graph](sdk/material-graph/making-a-graph.md) · [outputs-and-types](sdk/material-graph/outputs-and-types.md) · [nodes](sdk/material-graph/nodes.md) · [surface](sdk/material-graph/surface.md) · [opacity-mask](sdk/material-graph/opacity-mask.md) · [world-position-offset](sdk/material-graph/world-position-offset.md) · [shading-model](sdk/material-graph/shading-model.md) · [depth-and-displacement](sdk/material-graph/depth-and-displacement.md) · [thin-translucent](sdk/material-graph/thin-translucent.md) · [closures](sdk/material-graph/closures.md) (`closuresPerPixel`, `closureCountFromMaterial`, `stochasticClosureLighting`) · [volume-and-light-function](sdk/material-graph/volume-and-light-function.md) · [refusals](sdk/material-graph/refusals.md)
 
 ## Lights
 [sdk/lights.md](sdk/lights.md): Sky module · Height fog part · Atmosphere part · Clouds part · Declared lights · Simple lights · Rectangle lights' pictures · Light functions · …
@@ -125,6 +125,9 @@ Each section lives in its own file under [`sdk/`](sdk); read only the one you ne
 
 ## Resolution of the translucent layers
 [sdk/resolution-of-the-translucent-layers.md](sdk/resolution-of-the-translucent-layers.md)
+
+## Per-object translucent shadows
+[sdk/translucent-object-shadows.md](sdk/translucent-object-shadows.md)
 
 ## Sampled lighting: debug views
 [sdk/sampled-lighting-debug-views.md](sdk/sampled-lighting-debug-views.md)

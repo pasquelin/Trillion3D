@@ -133,6 +133,7 @@ const DIRECT_TRACE: CloudMode = { ...mode3 }
 /** The index of the nearest-with-depth-test upsampling in `CLOUD_UPSAMPLINGS`. */
 const NEAREST_DEPTH = CLOUD_UPSAMPLINGS.indexOf('nearestDepth')
 const JITTER_CLOSEST = CLOUD_UPSAMPLINGS.indexOf('bilinearJitterClosest')
+const BILINEAR = CLOUD_UPSAMPLINGS.indexOf('bilinear')
 
 /** What an image is made with. */
 export interface CloudSetup {
@@ -212,6 +213,14 @@ export function cloudSetupOf(
       settings.cloudFogLate && settings.cloudFogLateOnTranslucent && mode.lateFog,
   }
 }
+
+/** The setup of a debug view of the tracing (`cloudDebugView`): the image is enlarged bilinearly
+ *  whatever the settings ask, and the translucent surfaces read no fogged image. */
+export const cloudDebugSetup = (setup: CloudSetup): CloudSetup => ({
+  ...setup,
+  upsampling: BILINEAR,
+  lateFogOnTranslucent: false,
+})
 
 const DEFAULT_QUALITY = /* @__PURE__ */ resolveSettings(SKY_QUALITY_RULES, {})
 

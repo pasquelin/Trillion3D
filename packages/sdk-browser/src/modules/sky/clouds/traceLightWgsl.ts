@@ -1,4 +1,4 @@
-import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { wgslBlock, wgslVariants } from '../../../../../math/src/wgsl/decl.ts'
 import { ATMOSPHERE_SLOT } from '../../../../../sdk-core/src/scene/core/atmospherePack.ts'
 import { CLOUD_MATERIAL_WGSL } from './materialWgsl.ts'
 
@@ -254,18 +254,26 @@ fn cloudSampleStep(rel:vec3f,t:f32,norm:f32,spot:CloudSample,lights:CloudLights,
 }
 `
 
-/** The light's text for a trace that marches the cloud's shadow or reads the clouds' shadow maps. */
-const lightWgsl = (fromMap: boolean) =>
-  wgslBlock(
-    'CLOUD_LIGHT_WGSL',
-    [CLOUD_POINT_WGSL],
-    fromMap
-      ? LIGHT.replace(SHADOW_MARCH, '').replace(SHADOW_OF_LIGHT, SHADOW_OF_LIGHT_FROM_MAP)
-      : LIGHT,
-  )
+/** What a debug view of the tracing (\`CLOUD_DEBUG_VIEW\`) lights the cloud with, as the reference's debug march
+ *  does: the first light of the air alone, its illuminance outside the air with the tint of the air
+ *  taken at no sample. Each is the plain text and its replacement. */
+const DEBUG_LIGHT: readonly (readonly [string, string])[] = [
+  ['l.count=suns.count;', 'l.count=min(suns.count,1u);'],
+  ['outer,cloudTrace.sizes.y==1u);', 'outer,true);'],
+  ['if(cloudTrace.sizes.y!=1u){return air;}', 'return air;'],
+]
 
-const MARCHED = lightWgsl(false)
-const FROM_MAP = lightWgsl(true)
+/** The light's text for a trace that marches the cloud's shadow or reads the clouds' shadow maps,
+ *  and for a debug view of the tracing or not. */
+const lightWgsl = (fromMap: boolean, debug: boolean) => {
+  let text = fromMap
+    ? LIGHT.replace(SHADOW_MARCH, '').replace(SHADOW_OF_LIGHT, SHADOW_OF_LIGHT_FROM_MAP)
+    : LIGHT
+  if (debug) for (const [plain, debugged] of DEBUG_LIGHT) text = text.replace(plain, debugged)
+  return wgslBlock('CLOUD_LIGHT_WGSL', [CLOUD_POINT_WGSL], text)
+}
+
+const LIGHTS = wgslVariants((fromMap) => wgslVariants((debug) => lightWgsl(fromMap, debug)))
 
 /**
  * THE LIGHT OF ONE SAMPLE of the view tracing: what the lights of the air and the sky give the
@@ -296,5 +304,6 @@ const FROM_MAP = lightWgsl(true)
  *   `rayMarchVolumeShadow` is off, nothing is marched: the shade is read from the clouds' shadow map
  *   of the light (`cloudMapShadow`, `traceExtraWgsl.ts`); the program is made for the one or the
  *   other (`fromMap`).
+ * - A debug view of the tracing (`debug`) is lit by the first light alone, with no air's tint.
  */
-export const cloudLightWgsl = (fromMap: boolean) => (fromMap ? FROM_MAP : MARCHED)
+export const cloudLightWgsl = (fromMap: boolean, debug = false) => LIGHTS(fromMap)(debug)

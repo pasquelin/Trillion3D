@@ -12,13 +12,8 @@ import { oncePerDevice } from '../../gpu/core/oncePerDevice.ts'
 import { COLOUR_ONLY } from '../../materials/surface/materialBlending.ts'
 import { HDR_FORMAT } from '../../scene/targetFormats.ts'
 import { chainReady } from '../deferred/fullscreen.ts'
-import {
-  askSpheresPipeline,
-  beginSpheresPass,
-  createStagedBlock,
-  writeStagedBlock,
-  type StagedBlock,
-} from '../debugSpheres.ts'
+import { askSpheresPipeline, beginSpheresPass } from '../debugSpheres.ts'
+import { uniformBlock, type UniformBlock } from '../../gpu/core/uniformBlock.ts'
 import { DEBUG_CUBE_VERTICES, TV_DEBUG_VISUALIZE_WGSL } from './debugWgsl.ts'
 import type { PublishedVolume } from './gpu.ts'
 import { TRANSLUCENCY_CASCADES } from './layout.ts'
@@ -43,10 +38,9 @@ const spheresPipeline = oncePerDevice((device: GPUDevice) =>
 
 /** What the spheres hold of a runtime: one buffer holding every cascade's viewer block, each at an aligned offset, what it holds, and a cached bind group a cascade. */
 interface SpheresState {
-  readonly viewers: StagedBlock
+  readonly viewers: UniformBlock
   /** The words between two cascades' blocks. */
   readonly stride: number
-  readonly stagedWords: Uint32Array
   /** The bind group of each cascade, kept for the volume's frame and texture it names: two volumes take turns (`published.view` alternates), each holds its group. */
   readonly groups: ReturnType<typeof createCachedGroup>[]
   layout?: GPUBindGroupLayout
@@ -62,15 +56,14 @@ export function disposeTranslucencyVolumeSpheres(rt: WebgpuPagesRuntime) {
 
 function newState(device: GPUDevice): SpheresState {
   const stride = device.limits.minUniformBufferOffsetAlignment / 4
-  const viewers = createStagedBlock(
+  const viewers = uniformBlock(
     device,
     `${TRANSLUCENCY_VOLUME_SPHERES_PASS} viewers`,
-    stride * TRANSLUCENCY_CASCADES,
+    stride * TRANSLUCENCY_CASCADES * 4,
   )
   return {
     viewers,
     stride,
-    stagedWords: new Uint32Array(viewers.staged.buffer),
     groups: Array.from({ length: TRANSLUCENCY_CASCADES }, () => createCachedGroup(2)),
   }
 }
@@ -122,16 +115,16 @@ function draw(
   // The matrix the opaque surfaces were drawn with (jittered while the image accumulates), at the eye: the depth written here lands on theirs.
   matrixAtRenderOrigin(RENDER_MATRIX, taaRenderMatrix(rt, cam), cam.eye)
   // One write of every cascade's block, where the view changed: a still camera writes nothing.
-  const { staged } = state.viewers
+  const { f: staged, u: stagedWords } = state.viewers.words
   staged.fill(0)
   for (let cascade = 0; cascade < TRANSLUCENCY_CASCADES; cascade++) {
     const at = cascade * state.stride
     staged.set(RENDER_MATRIX, at)
     staged[at + 16] = radiusScale * (cascade + 1)
-    state.stagedWords[at + 17] = cascade
-    state.stagedWords[at + 18] = dim
+    stagedWords[at + 17] = cascade
+    stagedWords[at + 18] = dim
   }
-  writeStagedBlock(device, state.viewers)
+  state.viewers.send()
   state.layout ??= pipeline.getBindGroupLayout(0)
   // One pass, a draw a cascade asked for.
   const pass = beginSpheresPass(

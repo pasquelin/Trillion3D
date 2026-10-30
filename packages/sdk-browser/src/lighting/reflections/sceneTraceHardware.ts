@@ -162,6 +162,7 @@ fn reflectionSceneTrace(P:vec3f,N:vec3f,lobe:ReflectionLobe,begin:f32,coord:vec2
  reflectionWork=0u;
  let ray=reflectionSceneRayOf(P,N,lobe.R,begin,firstPerson);
  // A ray that reached the end of the longest ray goes whole to what lies past the scene.
+ // @cut ray -> ReflectionSceneTrace(RadianceAnswer(vec3f(0.0),false,0.0),false) keep: if(f32(ray.origin.x)+f32(ray.start)+f32(ray.far)+f32(ray.flags)+select(0.0,1.0,ray.go)+f32(P.x)+f32(lobe.R.x)<-1e30){textureStore(traceOut,vec2i(coord),vec4u(1u));}
  var answer=RadianceAnswer(vec3f(0.0),false,ray.far);
  var open=true;
  reflectionOrigin=P;
@@ -175,6 +176,7 @@ fn reflectionSceneTrace(P:vec3f,N:vec3f,lobe:ReflectionLobe,begin:f32,coord:vec2
    hit.distance=bitcast<f32>(reflectionHits[at+1u]);
    hit.normal=octDecode(unpack2x16snorm(reflectionHits[at+2u]));
    hit.object=reflectionHits[at+3u];
+   // @cut found -> ReflectionSceneTrace(RadianceAnswer(vec3f(0.0),false,0.0),false) keep: if(f32(hit.distance)+f32(hit.normal.x)+f32(hit.object)+f32(flags)+f32(ray.origin.x)+f32(ray.start)+f32(P.x)<-1e30){textureStore(traceOut,vec2i(coord),vec4u(1u));}
    answer=reflectionHardwareHit(ray.origin,lobe.R,hit,coord,cone);
    open=false;
   }else if((flags&REFLECTION_HIT_WHOLE)==0u){
@@ -183,6 +185,7 @@ fn reflectionSceneTrace(P:vec3f,N:vec3f,lobe:ReflectionLobe,begin:f32,coord:vec2
    open=false;
   }
  }
+ // @cut hit -> ReflectionSceneTrace(answer,open) keep: if(f32(answer.color.x)+f32(answer.distance)+select(0.0,1.0,answer.hit)+select(0.0,1.0,open)+f32(reflectionWork)<-1e30){textureStore(traceOut,vec2i(coord),vec4u(1u));}
  reflectionFate=select(REFLECTION_FATE_OPEN,REFLECTION_FATE_HIT,answer.hit);
  return ReflectionSceneTrace(answer,open);
 }`,

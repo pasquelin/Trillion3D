@@ -1,4 +1,4 @@
-import { composedImage, writeComposeView } from './compose.ts'
+import { composedImage, writeComposeView, type ComposeKind } from './compose.ts'
 import { COMPOSE_BINDING as C, COMPOSE_VIEW } from './composeWgsl.ts'
 import { commitCloudView, writeReconstructView, type CloudFramePlan } from './reconstruct.ts'
 import {
@@ -8,7 +8,6 @@ import {
   reconstructKind,
 } from './reconstructWgsl.ts'
 import { composeAirGroup, type CloudViewFrame } from './viewGroups.ts'
-import type { HeldClouds } from './composeWgsl.ts'
 import { drawFullscreenTriangle } from '../../../gpu/shader/fullscreenTriangle.ts'
 import { oncePerDevice } from '../../../gpu/core/oncePerDevice.ts'
 import { standInTexture } from '../../../gpu/core/standIns.ts'
@@ -117,13 +116,15 @@ function encodeReconstruct(
 }
 
 /** The composition's uniform (`COMPOSE_VIEW`) for this image. */
-function composeBlock(f: CloudViewFrame) {
-  const block = f.gpu.block('compose', COMPOSE_VIEW.words)
+function composeBlock(f: CloudViewFrame, waterFactor = 0) {
+  const block = f.gpu.block(waterFactor ? 'composeBehindWater' : 'compose', COMPOSE_VIEW.words)
   const input = {
     image: composedImage(f.plan),
-    setup: f.setup,
+    // A debug view of the tracing is laid with no fog.
+    setup: f.key.debugView === 0 ? f.setup : { ...f.setup, lateFog: false },
     frameIndex: f.image.frameIndex,
     preExposure: f.image.preExposure,
+    waterFactor,
   }
   writeComposeView(composeWords, input, f.part)
   f.device.queue.writeBuffer(block, 0, composeWords)
@@ -137,25 +138,32 @@ function imagesGroup(
   block: GPUBuffer,
   shown: CloudImages,
   water: GPUTextureView,
+  slot = 'compose cloud',
+  sceneDepth = f.sceneDepth,
 ) {
   const names = [
     block,
     shown.views.colour,
     shown.views.secondary,
     shown.views.depth,
-    f.sceneDepth,
+    sceneDepth,
     water,
   ]
-  return f.gpu.group('compose cloud', layout, names, () => [
+  return f.gpu.group(slot, layout, names, () => [
     { binding: C.view, resource: { buffer: block } },
     { binding: C.colour, resource: shown.views.colour },
     ...(f.setup.minMaxDepth ? [{ binding: C.secondary, resource: shown.views.secondary! }] : []),
     { binding: C.depth, resource: shown.views.depth },
-    { binding: C.sceneDepth, resource: f.sceneDepth },
+    { binding: C.sceneDepth, resource: sceneDepth },
     { binding: C.sampler, resource: f.programs.sampler },
     { binding: C.water, resource: water },
   ])
 }
+
+/** A debug view of a direct trace shows in place of the lit image (no blend: the reference does not blend its colour), the others are
+ *  laid over it. */
+const composeKindOf = (setup: CloudViewFrame['setup'], key: CloudViewFrame['key']): ComposeKind =>
+  setup.direct && key.debugView !== 0 ? 'replace' : 'over'
 
 /** The image `shown` laid over the lit image: its luminance added to the lit image multiplied by
  *  its transmittance. */
@@ -165,7 +173,7 @@ function encodeCompose(
   shown: CloudImages,
   water: GPUTextureView,
 ) {
-  const pass = f.programs.compose(f.setup)
+  const pass = f.programs.compose(f.setup, composeKindOf(f.setup, f.key))
   const group = imagesGroup(f, pass.layout, block, shown, water)
   const air = composeAirGroup(f, pass.air, 'compose air')
   drawFullscreenTriangle(
@@ -176,42 +184,73 @@ function encodeCompose(
     f.view.width,
     f.view.height,
   )
-  // The alpha holdout: what the clouds, the haze and the fog in front of them hold out, added to the alpha
-  // the first draw multiplied by the clouds' transmittance.
-  if (!f.held) return
-  const held = f.programs.compose(f.setup, f.held)
+  // The alpha holdout: what the clouds, the haze and the fog in front of them hold out, as the trace wrote it,
+  // added to the alpha the first draw multiplied by the clouds' transmittance. The image it is enlarged from
+  // takes the place of the cloud colour.
+  if (!f.key.holdout) return
+  const held = f.programs.compose(f.setup, 'holdout')
+  const coverage = f.gpu.holdout(composedImage(f.plan).texture)
+  const heldImage = { ...shown, views: { ...shown.views, colour: coverage.views.colour } }
   drawFullscreenTriangle(
     f.encoder,
     cloudPass('Trillion3D cloud holdout', [f.hdr], true),
     held.pipeline.get(),
     [
       composeAirGroup(f, held.air, 'compose air held'),
-      imagesGroup(f, held.layout, block, shown, water),
+      imagesGroup(f, held.layout, block, heldImage, water, 'compose holdout'),
     ],
     f.view.width,
     f.view.height,
   )
 }
 
+/** The image `shown` laid over the scene copy behind the water, `target` of `width` by `height` texels, `depth` its linear depth, `factor` times fewer pixels a side
+ *  than the image (`VolumetricComposeOverScene` under the water): the clouds the water refracts. Nothing while its program compiles. */
+function encodeComposeBehindWater(
+  f: CloudViewFrame,
+  shown: CloudImages,
+  target: GPUTextureView,
+  depth: GPUTextureView,
+  width: number,
+  height: number,
+  factor: number,
+) {
+  const pass = f.programs.compose(f.setup, 'behindWater')
+  const block = composeBlock(f, factor)
+  drawFullscreenTriangle(
+    f.encoder,
+    cloudPass('Trillion3D cloud composition behind water', [target], true),
+    pass.pipeline.get(),
+    [
+      composeAirGroup(f, pass.air, 'compose air behind water'),
+      imagesGroup(f, pass.layout, block, shown, noWater(f.device), 'compose behind water', depth),
+    ],
+    width,
+    height,
+  )
+}
+
 /** Whether every program an image of `setup` needs is compiled, asked of the device where it is not;
- *  `hazed` says that the haze is laid by a pass of its own, `corners` that the empty-space table
- *  (the key's) reads the corners of its cells, `held` what the clouds hold out of the alpha. */
+ *  `hazed` says that the haze is laid by a pass of its own, and `corners` that the empty-space table
+ *  (the key's) reads the corners of its cells. With `water` (the image is shaded over by single-layer water), the composition behind the
+ *  water is asked ahead too, without being waited for: an image never waits on it, it is only compiled by the time a camera needs it. */
 export function cloudProgramsReady(
   programs: CloudViewFrame['programs'],
   setup: CloudViewFrame['setup'],
   key: CloudViewFrame['key'],
   hazed: boolean,
   corners: boolean,
-  held?: HeldClouds,
+  water = false,
 ) {
   const ask = (pass: { pipeline: { ask(): { ready: boolean } } }) => pass.pipeline.ask().ready
-  const ready = [ask(programs.trace(key)), ask(programs.compose(setup))]
-  if (held) ready.push(ask(programs.compose(setup, held)))
+  const ready = [ask(programs.trace(key)), ask(programs.compose(setup, composeKindOf(setup, key)))]
+  if (key.holdout) ready.push(ask(programs.compose(setup, 'holdout')))
   if (key.emptySpace) ready.push(ask(programs.emptySpace(corners)))
   if (setup.depth === 'range')
     ready.push(ask(programs.depthRange('depth')), ask(programs.depthRange('range')))
   if (setup.depth === 'checkerboard') ready.push(ask(programs.depthRange('checkerboard')))
   if (hazed) ready.push(ask(programs.haze))
+  if (water) ask(programs.compose(setup, 'behindWater'))
   if (setup.mode.reconstructs)
     ready.push(ask(programs.reconstruct(setup, false)!), ask(programs.reconstruct(setup, true)!))
   return ready.every(Boolean)
@@ -224,7 +263,8 @@ export function cloudProgramsReady(
  * the single-layer water is shaded over), the composition is not encoded: it is returned, to be called
  * once the water is shaded, with the texture whose alpha says where the water lies (none where it was
  * not drawn), so that the clouds in front of the water lie over it and the pixels it covers take the
- * clouds that are before its surface.
+ * clouds that are before its surface; with it comes the composition into the scene copy behind the water
+ * (`behindWater`, for a camera that may intersect the water), called once that copy is made.
  */
 export function encodeCloudView(f: CloudViewFrame, deferred = false) {
   const range = encodeDepthRange(f)
@@ -236,11 +276,24 @@ export function encodeCloudView(f: CloudViewFrame, deferred = false) {
   const block = composeBlock(f)
   // The translucent surfaces read the image that was rebuilt or traced: with the fog laid on it
   // where the setup asks. A direct trace has no image to read.
-  f.gpu.shown = f.setup.direct ? undefined : cloudShownOf(f, shown, fogged ?? shown.views.colour)
+  // A debug view replaces the clouds, so the translucent surfaces read none.
+  f.gpu.shown =
+    f.setup.direct || f.key.debugView !== 0
+      ? undefined
+      : cloudShownOf(f, shown, fogged ?? shown.views.colour)
   commitCloudView(f.gpu.state, f.camera.viewProjection)
   if (!deferred) {
     encodeCompose(f, block, shown, noWater(f.device))
     return undefined
   }
-  return (water?: GPUTextureView) => encodeCompose(f, block, shown, water ?? noWater(f.device))
+  return {
+    compose: (water?: GPUTextureView) => encodeCompose(f, block, shown, water ?? noWater(f.device)),
+    behindWater: (
+      target: GPUTextureView,
+      depth: GPUTextureView,
+      width: number,
+      height: number,
+      factor: number,
+    ) => encodeComposeBehindWater(f, shown, target, depth, width, height, factor),
+  }
 }

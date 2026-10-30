@@ -57,15 +57,23 @@ export const SAMPLED_LIGHTS_SHADERS: Record<string, string> = {
   SAMPLED_CASTERS: castersWgsl(),
   SAMPLED_CASTERS_HAIR: castersHairWgsl(),
   SAMPLED_SCREEN_TRACE: screenTraceWgsl(),
+  // The traces of a view whose pixels hold several closures.
+  SAMPLED_SCREEN_TRACE_CLOSURES: screenTraceWgsl(true),
   SAMPLED_SOFTWARE_TRACE: softwareTraceWgsl(false),
   // The same with the field's coarse mip read through the hardware's filter (`float32-filterable`).
   SAMPLED_SOFTWARE_TRACE_FILTERED_MIP: softwareTraceWgsl(true),
   SAMPLED_MAP_TRACE: vsmTraceSamplesWgsl(),
   SAMPLED_MAP_TRACE_CLASSIC: vsmTraceSamplesWgsl(true),
+  SAMPLED_MAP_TRACE_CLOSURES: vsmTraceSamplesWgsl(false, true),
+  SAMPLED_MAP_TRACE_CLASSIC_CLOSURES: vsmTraceSamplesWgsl(true, true),
   SAMPLED_MAP_MARKING: vsmSampleMarkingWgsl(SUNS_LAYOUT),
   SAMPLED_MAP_MARKING_THROTTLED: vsmSampleMarkingWgsl(SUNS_LAYOUT, true),
   SAMPLED_TEMPORAL: temporalWgsl(),
   SAMPLED_SPATIAL: spatialWgsl(),
+  // The same for a view whose pixels hold several closures.
+  SAMPLED_SPATIAL_CLOSURES: spatialWgsl(false, true),
+  SAMPLED_SPATIAL_DEBUG: spatialWgsl(true),
+  SAMPLED_SPATIAL_DEBUG_CLOSURES: spatialWgsl(true, true),
   SAMPLED_POWER_DELTA: powerDeltaWgsl(),
   SAMPLED_COMPLEXITY_REPLAY: wgslModule(replayWgsl(FULL_CONTRACT, false, true)),
   SAMPLED_COMPLEXITY_REPLAY_FRONT: wgslModule(replayWgsl(FULL_CONTRACT, true, false)),
@@ -106,5 +114,18 @@ export const SAMPLED_LIGHTS_SHADERS: Record<string, string> = {
         wgslModule(shadingWgsl(FULL_CONTRACT, tileClass, rect)),
       ]),
     ),
+  ),
+  // The sampling and the shading of a view whose pixels hold several closures (`ContractKey.closures`).
+  ...Object.fromEntries(
+    TILE_CLASSES.flatMap((tileClass) => [
+      [
+        `SAMPLED_SAMPLING_${tileClass}_CLOSURES`,
+        wgslModule(samplingWgsl({ ...FULL_CONTRACT, closures: true }, tileClass, false)),
+      ],
+      [
+        `SAMPLED_SHADING_${tileClass}_CLOSURES`,
+        wgslModule(shadingWgsl({ ...FULL_CONTRACT, closures: true }, tileClass, false)),
+      ],
+    ]),
   ),
 }

@@ -12,7 +12,7 @@ import { skyLightReadWgsl } from '../../modules/sky/skyLight/read.ts'
  * are read there, from the one uniform every pass of the image reads).
  *  - `viewProj`, the view-projection the depth was drawn with, and `radianceViewProj`, the one the
  *    lit image was drawn with;
- *  - `radiance`, the lit image's drawn size (`xy`; `z` unused), and the reciprocal of the
+ *  - `radiance`, the lit image's drawn size (`xy`), the exposure the CPU knows for this image (`z`, which the hit lighting's lights are strengthened under), and the reciprocal of the
  *    pre-exposure its light was written multiplied by (`w`);
  *  - `slab`, the geometry of a surface's thickness (`screenBack`): the world size of a pixel at
  *    a unit clip `w` (`x`), the depth at an infinite distance under a perspective, the eye's plane
@@ -64,7 +64,8 @@ import { skyLightReadWgsl } from '../../modules/sky/skyLight/read.ts'
  *  - `cache`, for the rough reflections that read the radiance cache (`cacheLimits`, `cacheReads`, `radianceCache/wgsl.ts`): the roughness it is read from (`x`) and
  *    the one the rays are shortest at (`y`), the width of the noise added to a roughness (`z`), the scale of the sphere a probe is read through (`w`);
  *    `cacheTrace`: the metres a ray goes at the first roughness (`x`) and at the second (`y`), and whether the probes are drawn stochastically (`z`);
- *  - `translucent`, the hit lighting's switches (`z`, `hitLightFlags`) and its mode (`w`, `hitLighting/constants.ts`); `x` and `y` are not used;
+ *  - `translucent`, what the forward programs reflect of the scene (`translucentWgsl.ts`): the quality of the march of the last lit image (`x`, 0: none) and whether they
+ *    read the radiance cache (`y`, one or zero), the hit lighting's switches (`z`) and its mode (`w`, `hitLighting/constants.ts`);
  *  - `jitter`, the device offset the temporal anti-aliasing shifts `viewProj` by (`xy`) and the one it shifted
  *    `radianceViewProj` by (`zw`): what the surfaces' vectors, drawn without it, are compared after.
  */

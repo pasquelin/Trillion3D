@@ -2,6 +2,7 @@ import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import type { EngineCamera } from '../camera/engineCamera.ts'
 import { composeGroup, heldGroup } from '../gpu/bind/bindIdentity.ts'
 import { retire } from '../gpu/core/frameRetire.ts'
+import { writeChanged } from '../gpu/core/writeChanged.ts'
 import { createTextOverlay, TEXT_LINE } from '../diagnostic/textOverlay.ts'
 import { DEBUG_COLORS } from '../hair/debugLines.ts'
 import type { WebgpuPagesRuntime } from '../frame/backend/runtime.ts'
@@ -61,11 +62,10 @@ export interface OverlayContext {
   ): GPUBindingResource
 }
 
-/** A buffer a view reads: its binding, handed out again while the buffer is, and what it holds. */
+/** A buffer a view reads: its binding, handed out again while the buffer is. */
 interface HeldBuffer {
   readonly buffer: GPUBuffer
   readonly binding: { readonly buffer: GPUBuffer }
-  last: Uint32Array
 }
 
 /** What the view keeps of a runtime: the text, the texture the atlas is drawn into with its view and the bindings that lay it over the image, the buffers it
@@ -78,9 +78,6 @@ interface OverlayState {
   group?: GPUBindGroup
   readonly compute: ReturnType<typeof heldGroup>
 }
-
-const sameWords = (a: Uint32Array, b: Uint32Array) =>
-  a.length === b.length && a.every((w, at) => w === b[at])
 
 /**
  * The shared body of the atlas debug views: the figures as text, then the atlas drawn (a compute pass, `program`, entry `mainCs`, writing a texture
@@ -157,13 +154,10 @@ export function createDebugOverlay(options: {
           if (!held || held.buffer.size < size) {
             if (held) retire(device, held.buffer)
             const buffer = device.createBuffer({ size, usage: usage | GPUBufferUsage.COPY_DST })
-            held = { buffer, binding: { buffer }, last: new Uint32Array(0) }
+            held = { buffer, binding: { buffer } }
             state.buffers.set(key, held)
           }
-          if (!sameWords(held.last, data)) {
-            device.queue.writeBuffer(held.buffer, 0, data)
-            held.last = data.slice()
-          }
+          writeChanged(device, held.buffer, data, 0, data.length)
           return held.binding
         },
       })

@@ -67,4 +67,14 @@ export const VOLUMETRIC_FOG_MEANINGS: Readonly<Record<VolumetricFogField, string
     'Whether an orthographic view measures the fog from the height its position gives, not from its eye: the eye of such a view lies where the box begins, which is not where the air is.',
   fogReadsSkyLight:
     "The project switch of the sky light lighting the height fog, off by default: with it on, a fog whose skyLightScattering has a strength above 0 takes the sky light's cube as the colour of its in-scattering, in the views that have sky lighting. Off, the fog's skyLightScattering is not read.",
+  fogSeparateComposition:
+    "Whether the fog is drawn into textures of its own and laid over the image by a last pass: auto, the default, when the scene's fog asks for the screen-space scattering (heightFog.screenSpaceScattering) and fogScreenSpaceScattering is on; off never; on always, the fog then drawn without the blur. The alpha holdout of the fog does not apply to it.",
+  fogScreenSpaceScattering:
+    'Whether the screen-space scattering of the fog is allowed, on by default: the fog is blurred in the plane of the screen, with the part of the lit image its scene-colour amount names, to stand for its multiple scattering. Off, a fog that asks for it is drawn plainly.',
+  fogScreenSpaceScatteringMaxLuminance:
+    "The most luminance a texel holds when the screen-space scattering blurs it, 10 by default, held to 0.1 or more: it keeps the blur from saturating on the sun's disc or other very bright pixels.",
+  fogScreenSpaceScatteringTemporal:
+    "Whether the second level of the screen-space scattering's blur chain is filtered in time, on by default: it is then the first level run through a temporal filter with a history of its own (the camera's motion read from the depth, the history held to the colours around the pixel), instead of a box average of it, which removes the flicker of the blurred fog. Off, the box.",
+  fogScreenSpaceScatteringTemporalWeight:
+    'The weight of the new image in the temporal filter of the screen-space scattering, 0.04 by default, from 0 to 1: low values blur and ghost, high values leave the jitter showing.',
 }

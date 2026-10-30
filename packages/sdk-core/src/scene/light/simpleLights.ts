@@ -1,6 +1,7 @@
 import { EngineError } from '../../contracts/cache.ts'
 import { isFiniteNumber } from '../../../../math/src/scalar/reals.ts'
 import { grownLength } from '../../../../math/src/sequence/resized.ts'
+import { sameValues } from '../../../../math/src/matrix/matrixElements.ts'
 import { SCENE_LIGHT_FLOATS, type SceneLight } from './contracts.ts'
 import { LIGHT_FIELD, SIMPLE_WORD, writeLightFields, type LightLanes } from './fields.ts'
 
@@ -108,13 +109,10 @@ function check(entry: SimpleLightEntry, index: number) {
     fail('inverseExposureBlend')
 }
 
-const sameTriple = (a: readonly number[], b: readonly number[]) =>
-  a[0] === b[0] && a[1] === b[1] && a[2] === b[2]
-
 /** Whether two entries hold the same values, field by field. */
 const sameEntry = (a: SimpleLightEntry, b: SimpleLightEntry) =>
-  sameTriple(a.position, b.position) &&
-  sameTriple(a.color, b.color) &&
+  sameValues(a.position, b.position) &&
+  sameValues(a.color, b.color) &&
   a.radius === b.radius &&
   a.exponent === b.exponent &&
   a.inverseExposureBlend === b.inverseExposureBlend &&

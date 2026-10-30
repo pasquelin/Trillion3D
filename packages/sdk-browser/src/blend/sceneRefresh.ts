@@ -43,6 +43,9 @@ export function refreshBlendScene(rt: WebgpuPagesRuntime, device: GPUDevice, pos
     blendState.translucencyPasses = 0
     blendState.frontOutputs = 0
     blendState.frontLit = false
+    // And no water body: the camera's test reads none (`waterViewOf`).
+    blendState.waterItems = []
+    blendState.waterRanks = []
     return
   }
   if (posesOnly) writeBlendPoses(blendState, device.queue, buffer)

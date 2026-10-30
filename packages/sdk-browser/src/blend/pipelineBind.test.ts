@@ -57,6 +57,8 @@ function joue(items: ReturnType<typeof item>[]) {
   // many draws the pass encodes. All items are at the same place, so source order breaks them.
   orderBlendPasses(blendState, [0, 0, 0])
   const rt = {
+    // The project switches the groups read (`translucentObjectShadows`): none set.
+    setup: {},
     vis: {
       blendPipelines: {
         // The pipeline of a rank by its cull, whatever its mode and lighting program.

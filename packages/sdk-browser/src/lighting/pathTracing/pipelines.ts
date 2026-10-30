@@ -154,7 +154,12 @@ export function finishLayoutEntries(clouds: boolean) {
 }
 
 /** The trace of the bounces' rays and the finish of each bounce: the layouts of their two groups, the first the paths' and the sky's and lights', the second the scene trace's and the hits'; with `clouds`, the first group also binds the clouds. */
-function traceStages(device: GPUDevice, programs: SceneMaskPrograms, clouds: boolean) {
+function traceStages(
+  device: GPUDevice,
+  programs: SceneMaskPrograms,
+  clouds: boolean,
+  weighted: boolean,
+) {
   const B = PT_TRACE_BINDINGS
   const first = PT_TRACE_SCENE.first
   const paths = pathsEntries(clouds)
@@ -185,7 +190,7 @@ function traceStages(device: GPUDevice, programs: SceneMaskPrograms, clouds: boo
   })
   const finishModule = device.createShaderModule({
     label: `Trillion3D path tracer finish ${sceneMaskKey(programs)}`,
-    code: ptFinishProgram(programs, clouds),
+    code: ptFinishProgram(programs, clouds, weighted),
   })
   const trace = (entry: string) => compute(device, traceModule, [trace0, trace1], entry)
   return {
@@ -426,14 +431,20 @@ function pipelinesOf(
   }
 }
 
+/** The sets of pipelines: with the clouds traced or not, and for a view whose pixels hold several closures (`Closures`) the finish reads the weight of the closure the shade of the hits chose (`ptHitMaterialStride`). */
+export type PathTracingVariant = 'plain' | 'clouds' | 'plainClosures' | 'cloudsClosures'
+
 /**
  * The path tracer's pipelines on `device`, each prepared off the frame: the stages that cast rays are made once for each set of graph masks `programs` the rays
  * cut the surfaces by (the programs `maskHold.use` returns), the others once. With the key `clouds` the pipelines of the path tracer where the clouds are traced: the trace and the finish made over the clouds'
- * bindings and code (`traceStages` with `clouds`), the rest those of `plain`. Made the first time the clouds are traced on a device and a set of graph masks; the cloudless trace and finish are not compiled for it.
+ * bindings and code (`traceStages` with `clouds`), the rest those of `plain`; the keys ending in `Closures` are the same over the materials that carry the closure's weight. Made the first time the clouds are traced on a device and a set of graph masks; the cloudless trace and finish are not compiled for it.
  */
 export const pathTracingPipelinesOver = oncePerDeviceOverPrograms(
-  (device: GPUDevice, key: 'plain' | 'clouds', programs): PathTracingPipelines =>
-    pipelinesOf(device, traceStages(device, programs, key === 'clouds')),
+  (device: GPUDevice, key: PathTracingVariant, programs): PathTracingPipelines =>
+    pipelinesOf(
+      device,
+      traceStages(device, programs, key.startsWith('clouds'), key.endsWith('Closures')),
+    ),
 )
 
 /** The maker of the pipelines for a device and a key, as the mask hold takes it (`maskHold.use`): one function each, not one an image. */

@@ -1,24 +1,7 @@
-import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { wgslBlock, type WgslDecl } from '../../../../math/src/wgsl/decl.ts'
 
-/**
- * The resolve's compute entry (`shadeWgsl.ts`), a lane a pixel of its class's bin
- * (`binnedPixel`, `shadeBinsWgsl.ts`) — a lane with no pixel of its class to write, past the bin's
- * end or a quad's pixel of another class, does nothing (`shadesPixel`) —: the pixel's surfaces
- * shaded at its centre (`shadeSurface`, each marked with its object's page marks, `withPageMarks`), then its storage
- * writes, each texel written once with its final value — its thin transmission, its surfaces (`storeSurface`,
- * `shadeOutputsWgsl.ts`). The private variables are zero at each lane's start: a
- * path that finds none leaves zero, as a cleared texel holds.
- *
- * `SHADE_STAGE`, a diagnostic override (0, the whole kernel, folded to the code above), stops the kernel after a stage to time
- * the stages by difference: 1 after its binned pixel, 2 after its triangle's header and indices, 3 after its vertex fetch and
- * transform, 4 after its interpolation and derivatives (`shadeSurface`, `shadeWgsl.ts`, leaves its values in `shadeProbe`), 5 after
- * its material and surface. A stage writes nothing but `shadeSink`, which stores one word to the pixel's flags only when the
- * values reduced to it equal a constant no value is known to take, so the work the stage ends on is kept.
- */
-export const SHADE_ENTRY_WGSL = wgslBlock(
-  'SHADE_ENTRY_WGSL',
-  [],
-  `override SHADE_STAGE:u32=0u;
+/** The entry's text, `closures` the store of the closures a material of several writes after the surface's (`shadeClosuresWgsl.ts`). */
+const entryText = (closures: string) => `override SHADE_STAGE:u32=0u;
 var<private> thinOut:vec3f;
 var<private> thinOpacity:f32;
 var<private> shadeProbe:u32;
@@ -38,5 +21,25 @@ fn probeBits(a:vec4f)->u32{return bitcast<u32>(a.x+a.y+a.z+a.w);}
  }
  storeSubsurface(at.xy,thinOut,thinOpacity);
  storeSurface(at.xy,surface);
-}`,
-)
+${closures}}`
+
+/**
+ * The resolve's compute entry (`shadeWgsl.ts`), a lane a pixel of its class's bin
+ * (`binnedPixel`, `shadeBinsWgsl.ts`) — a lane with no pixel of its class to write, past the bin's
+ * end or a quad's pixel of another class, does nothing (`shadesPixel`) —: the pixel's surfaces
+ * shaded at its centre (`shadeSurface`, each marked with its object's page marks, `withPageMarks`), then its storage
+ * writes, each texel written once with its final value — its thin transmission, its surfaces (`storeSurface`,
+ * `shadeOutputsWgsl.ts`). The private variables are zero at each lane's start: a
+ * path that finds none leaves zero, as a cleared texel holds.
+ *
+ * `SHADE_STAGE`, a diagnostic override (0, the whole kernel, folded to the code above), stops the kernel after a stage to time
+ * the stages by difference: 1 after its binned pixel, 2 after its triangle's header and indices, 3 after its vertex fetch and
+ * transform, 4 after its interpolation and derivatives (`shadeSurface`, `shadeWgsl.ts`, leaves its values in `shadeProbe`), 5 after
+ * its material and surface. A stage writes nothing but `shadeSink`, which stores one word to the pixel's flags only when the
+ * values reduced to it equal a constant no value is known to take, so the work the stage ends on is kept.
+ */
+export const SHADE_ENTRY_WGSL = wgslBlock('SHADE_ENTRY_WGSL', [], entryText(''))
+
+/** The entry of a material of several closures: it stores them after the surface (`closures`, the declarations of `shadeClosuresWgsl.ts`). */
+export const shadeEntry = (closures: WgslDecl) =>
+  wgslBlock('SHADE_ENTRY_WGSL(closures)', [closures], entryText(' storeClosures(at.xy);\n'))

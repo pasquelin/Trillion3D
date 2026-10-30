@@ -21,6 +21,7 @@
  * scene buffers mounted again over them.
  */
 import type { BlendCopy } from '../geometry/cluster/blendCopyContract.ts'
+import { limitOf } from '../materials/closures/closureLimit.ts'
 import type { PageRec, ClusterRoot } from '../geometry/selection/types.ts'
 import { loadUnpaged } from '../gpu/core/positions.ts'
 import type { WebgpuPagesRuntime } from '../frame/backend/runtime.ts'
@@ -46,9 +47,10 @@ import { composeItems } from '../placement/compose/gpuCompose.ts'
 import { mountBlendResources, prepareBlendKernels } from './resources.ts'
 import { lobedSurface } from './items.ts'
 import { activeResponsive } from '../frame/prepare/responsiveTarget.ts'
-import { keyFor } from '../frame/prepare/contractLight.ts'
+import { keyFor, worldVariant } from '../frame/prepare/contractLight.ts'
 import { wantsContractLighting } from '../frame/prepare/lit.ts'
 import { FULL_CONTRACT } from '../lighting/deferred/contractCuts.ts'
+import { variantKey, type BlendVariant } from './variant.ts'
 
 /** Why the transparent pass cannot take a surface where the session stands, said by name; none
  *  when it can. */
@@ -68,18 +70,95 @@ const itemsOf = (rt: WebgpuPagesRuntime, copies: readonly BlendCopy[]) => [
 /** The blend programs built again over `items`, in the feedback variant in place when they land: one
  *  swapped meanwhile — a texture came or went (`followFeedback`) — builds them again, or their
  *  pipelines would not match the pass. None when the device refuses them. */
-async function buildGranted(
+export async function buildGranted(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
   items: ReturnType<typeof itemsOf>,
+  holdsTransmission?: boolean,
+  world?: BlendVariant,
 ) {
   const { vis } = rt
   let built: Awaited<ReturnType<typeof buildBlendPipelines>>, feedback: boolean
   do {
     feedback = vis.writesFeedback
-    built = await buildBlendPipelines(rt, device, items, vis.blendBindGroupLayout)
+    // Programs built for another verdict of the object shadow switch are made on the layouts of that verdict, not the session's.
+    built = await buildBlendPipelines(
+      rt,
+      device,
+      items,
+      world === undefined ? vis.blendBindGroupLayout : undefined,
+      holdsTransmission,
+      world,
+    )
   } while (built && feedback !== vis.writesFeedback)
   return built
+}
+
+/** The variant the programs in place stand for, as the world is asked: the water's cut is the world's where there are no water programs (those hold none to
+ *  follow); true where there are no programs (`BlendVariant`). */
+const appliedVariant = (rt: WebgpuPagesRuntime): BlendVariant | undefined => {
+  const programs = rt.vis.blendPipelines
+  if (!programs) return undefined
+  const world = worldVariant(rt)
+  return {
+    exclusion: programs.water ? programs.water.exclusion : world.exclusion,
+    objectShadow: programs.world.objectShadow,
+  }
+}
+
+/** Whether the water programs in place are the variant the world asks: with the cut where it holds an exclusion volume, else without
+ *  (`blendContext`, `BlendVariant.exclusion`); true where there are no water programs. */
+const followsExclusion = (rt: WebgpuPagesRuntime) => {
+  const water = rt.vis.blendPipelines?.water
+  return !water || water.exclusion === worldVariant(rt).exclusion
+}
+
+/** Whether the programs in place are the variant the world asks, one key comparison: the water's cut and the object shadow read; true where there are no programs. */
+const followsWorld = (rt: WebgpuPagesRuntime) => {
+  const applied = appliedVariant(rt)
+  return !applied || variantKey(applied) === variantKey(worldVariant(rt))
+}
+
+/** The runtimes whose programs are being built again for the world, and the variant a refused build was made for (not
+ *  made again until the plan or the verdict changes). */
+const following = new WeakSet<WebgpuPagesRuntime>()
+const refusedFor = new WeakMap<WebgpuPagesRuntime, { key: string; plan: object }>()
+
+/**
+ * Keeps the programs in step with the world, at an image's entry: a water exclusion volume that appears or goes while the session runs, or the switch
+ * `translucentObjectShadows` turned on or off, asks the programs built again over the items the session holds (`buildGranted`), off the frame, the
+ * transmissive stages it holds kept. A change of the switch builds the group layouts again with them (the read's bindings are in the layouts of the programs that
+ * read), and the groups are listed again (`voidStaleBlendGroups`). They land only if nothing replaced the programs meanwhile (a feedback variant, a grant,
+ * a drop): else they are asked again at the next image, and the image is drawn again once they are in place.
+ * The feedback variant compiling aside waits for its install, which carries the verdict it was built for (`followFeedback`).
+ */
+export function followBlendWorld(rt: WebgpuPagesRuntime, device: GPUDevice) {
+  const { vis, blendState } = rt,
+    before = vis.blendPipelines
+  if (!before || followsWorld(rt) || following.has(rt) || vis.feedbackAside) return
+  const asks = worldVariant(rt),
+    key = variantKey(asks),
+    plan = blendState.seeds,
+    refused = refusedFor.get(rt)
+  if (refused?.key === key && refused.plan === plan) return
+  following.add(rt)
+  void buildGranted(
+    rt,
+    device,
+    blendState.blendGpu,
+    !!before.transmission,
+    before.world.objectShadow === asks.objectShadow ? undefined : asks,
+  )
+    .then((built) => {
+      if (!built) refusedFor.set(rt, { key, plan })
+      else if (vis.blendPipelines === before && !vis.feedbackAside) {
+        vis.blendPipelines = built.blendPipelines
+        vis.blendBindGroupLayout = built.blendBindGroupLayout
+      }
+      // Installed, or replaced meanwhile and asked again: the image is drawn again.
+      if (built) rt.run.gate.resourcesChanged()
+    })
+    .finally(() => following.delete(rt))
 }
 
 /**
@@ -126,12 +205,13 @@ async function grantGraphs(
     held = new Set(vis.blendPipelines?.graphs)
   const reads = vis.blendPipelines?.reads
   if (
-    graphProgramsOf(items).every((program) => held.has(program.id)) &&
+    graphProgramsOf(items, limitOf(rt.vis)).every((program) => held.has(program.id)) &&
     (!!reads?.clouds || !cloudFogOf(items)) &&
     (!!reads?.fog || !fogVertexOf(items)) &&
     (!!vis.blendPipelines?.scene?.contact || !contactShadowsOf(items)) &&
     (!!vis.blendPipelines?.translucencyVolume || !translucencyVolumeOf(items)) &&
     (!!vis.blendPipelines?.water || !items.some((item) => item.surface.water)) &&
+    followsExclusion(rt) &&
     coversTranslucentShadow(
       vis.blendPipelines?.translucentShadow,
       translucentShadowOf(
@@ -184,7 +264,8 @@ function mountTransparent(rt: WebgpuPagesRuntime, device: GPUDevice) {
 async function layersCompiled(rt: WebgpuPagesRuntime, copies: readonly BlendCopy[]) {
   const { blendPipelines } = rt.vis
   if (!blendPipelines) return
-  const lobed = rt.blendState.lobed || copies.some((copy) => lobedSurface(copy.surface)),
+  const lobed =
+      rt.blendState.lobed || copies.some((copy) => lobedSurface(copy.surface, limitOf(rt.vis))),
     key = wantsContractLighting(rt) ? keyFor('blend', rt) : FULL_CONTRACT
   await blendPipelines.litAwaited(key, lobed)
   const program = blendPipelines.lit(key, lobed)

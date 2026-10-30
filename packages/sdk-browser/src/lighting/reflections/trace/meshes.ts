@@ -134,3 +134,26 @@ export function reflectionMeshesOf(
     )
   return meshStageOf(rt, device, encoder, state, kernel, trace, viewProjection, rays)
 }
+
+/** The groups of the lists of the rays traced (written by the first compaction, read by the trace) over a buffer, kept for the buffer. */
+const listGroups = new WeakMap<GPUBuffer, [GPUBindGroup, GPUBindGroup]>()
+
+/**
+ * The groups of the list of the rays traced for a surface of its own buffer `rays` (a closure past the first, whose grids hold a list of their own), the stage's pipelines and group 2 (`reflectionMeshesOf`) being the
+ * view's: none while the stage's kernels are not made.
+ */
+export function reflectionMeshLists(layouts: TraceLayouts, device: GPUDevice, rays: GPUBuffer) {
+  const kernel = kernels.get(layouts)
+  if (!kernel) return undefined
+  let held = listGroups.get(rays)
+  if (!held) {
+    held = [kernel.compact, kernel.trace].map(({ list }) =>
+      device.createBindGroup({
+        layout: list,
+        entries: [{ binding: 0, resource: { buffer: rays } }],
+      }),
+    ) as [GPUBindGroup, GPUBindGroup]
+    listGroups.set(rays, held)
+  }
+  return held
+}

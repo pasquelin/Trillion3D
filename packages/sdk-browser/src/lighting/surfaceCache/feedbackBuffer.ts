@@ -247,6 +247,7 @@ function createFeedbackBuffer(device: GPUDevice) {
       header.fill(0)
       header[FEEDBACK_AT.elements] = held.words.elements
       header[FEEDBACK_AT.lastUsedHiRes] = held.words.lastUsedHiRes
+      header[FEEDBACK_AT.lastUsed] = held.words.lastUsed
       header[FEEDBACK_AT.size] = elements
       header[FEEDBACK_AT.wrapMask] = tile - 1
       header[FEEDBACK_AT.jitterX] = jitterX

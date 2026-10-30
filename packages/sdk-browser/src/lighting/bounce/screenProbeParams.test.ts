@@ -7,6 +7,7 @@ import { DEG2RAD } from '../../../../math/src/constants.ts'
 import type { SceneRays } from '../surfaceCache/lighting/surfaceLighting.ts'
 import { createScreenProbeParams } from './screen/params.ts'
 import { screenProbeFlags } from './screen/modeFlags.ts'
+import { packDoubles } from '../../../../math/src/float/splitDouble.ts'
 import { IMAGE_READS } from './screen/imageReads.fixture.ts'
 import {
   SCREEN_PROBE_FLAGS,
@@ -157,6 +158,7 @@ test('the screen probes parameters are the words of the settings and the image, 
     skylightLeak: [0.1, 0.2, 0.3] as const,
     roughSpecularFoliage: 0.4,
     posesMoving: false,
+    eye: [1.5, -2.25, 1e9 + 0.125],
     exactLight: false,
   })
   write(geometry, settings, image(11))
@@ -204,6 +206,13 @@ test('the screen probes parameters are the words of the settings and the image, 
     'the inverse of the distance it leaks whole at, ten metres, after the cache’s three numbers',
   )
   assert.deepEqual(floats(at.previous + 4), [0, 2, 0, 0], 'the second column of the last inverse')
+  const eye = new Uint32Array(6)
+  packDoubles(eye, 0, [1.5, -2.25, 1e9 + 0.125])
+  assert.deepEqual(
+    [...words(at.eyeXY), ...words(at.eyeZ, 2)],
+    [...eye],
+    'the eye’s three doubles, x and y then z, the words the scene trace holds',
+  )
   const first = sent
   write(geometry, settings, image(11))
   assert.equal(sent, first, 'an image the same as the last sends nothing')

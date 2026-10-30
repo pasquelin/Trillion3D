@@ -82,7 +82,8 @@ function copyIntoOwned(
         ],
       })
       .end()
-  if (surfaces.hasSubsurface) copyLayer('colours', surfaces.layers >> 8, owned.layers >> 8)
+  if (surfaces.hasSubsurface)
+    copyLayer('colours', (surfaces.layers >> 8) & 255, (owned.layers >> 8) & 255)
   gpuDevice.queue.submit([encoder.finish()])
 }
 

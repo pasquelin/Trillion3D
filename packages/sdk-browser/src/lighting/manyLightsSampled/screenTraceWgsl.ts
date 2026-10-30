@@ -36,6 +36,7 @@ import {
   lightSampleRayUv,
 } from './lightSamplerWgsl.ts'
 import { COMPACT_THREADS, TRACE_TEXEL_WGSL } from './compactWgsl.ts'
+import { CLOSURE_PICK_WGSL } from './closurePickWgsl.ts'
 import { SAMPLED_PARAMS_WGSL } from './paramsWgsl.ts'
 import { JITTER_WGSL } from './samplingWgsl.ts'
 
@@ -66,7 +67,7 @@ fn continueRay(c:vec2i,distance:f32){
 }`,
 )
 
-const SCREEN_PART_1 = `
+const SCREEN_PART_1 = (normalLayer: string) => `
 @group(0) @binding(${B.compactData}) var<storage,read> compactData:array<u32>;
 @group(0) @binding(${B.compactCount}) var<storage,read> compactCount:array<u32>;
 @compute @workgroup_size(${COMPACT_THREADS},1,1)
@@ -83,7 +84,7 @@ fn ${SCREEN_TRACE_ENTRY}(@builtin(global_invocation_id) id:vec3u){
  let pixel=vec2i(screen);
  let z=hizOpaqueDepth(pixel);
  var P=worldAt(vec2f(screen)+vec2f(0.5),z);
- let N=normalize(textureLoad(colours,pixel,${SURFACE_COLOUR_LAYERS.normal},0).xyz);
+ let N=normalize(textureLoad(colours,pixel,${normalLayer},0).xyz);
  let segment=lightSampleTrace(index,P,lightSampleRayUv(ray));
  let dir=segment.xyz;
  // A hair pixel's ray starts along itself; any other off the surface along its normal.
@@ -137,28 +138,33 @@ const SCREEN_PART_2 = `  let H=S0+delta*marched.t;
  }
 }`
 
-export const screenTraceWgsl = () =>
-  wgslProgram(`${SCREEN_PART_1}${SCREEN_PART_2}`, [
-    SAMPLED_PARAMS_WGSL,
-    JITTER_WGSL,
-    SAMPLE_IO_WGSL,
-    TRACE_TEXEL_WGSL,
-    LIGHT_TRACE_WGSL,
-    LIGHTS_BINDING_WGSL,
-    COLOURS_BINDING_WGSL,
-    WORDS_BINDING_WGSL,
-    channelsOfFlags,
-    lightChannelsOf,
-    WORLD_AT_WGSL,
-    REFLECTION_CONSTANTS_WGSL,
-    reflectionBindingsWgsl(REFLECTION_GROUP),
-    reflectionLightViewWgsl(REFLECTION_GROUP),
-    AIR_GEOMETRY_WGSL,
-    SCREEN_MARCH_WGSL(REFLECTION_GROUP, REFLECTION_DEPTH_BINDING),
-    SCREEN_MARCH_END_WGSL,
-    clipToFramebuffer,
-    slabPerspective,
-    lightSampleIndex,
-    lightSampleRayType,
-    lightSampleRayUv,
-  ])
+/** `closures`: the ray leaves the normal of the closure the sample's pixel is lit as (`pickedNormalLayer`), not the first closure's. */
+export const screenTraceWgsl = (closures = false) =>
+  wgslProgram(
+    `${SCREEN_PART_1(closures ? 'pickedNormalLayer(pixel)' : `${SURFACE_COLOUR_LAYERS.normal}`)}${SCREEN_PART_2}`,
+    [
+      ...(closures ? [CLOSURE_PICK_WGSL] : []),
+      SAMPLED_PARAMS_WGSL,
+      JITTER_WGSL,
+      SAMPLE_IO_WGSL,
+      TRACE_TEXEL_WGSL,
+      LIGHT_TRACE_WGSL,
+      LIGHTS_BINDING_WGSL,
+      COLOURS_BINDING_WGSL,
+      WORDS_BINDING_WGSL,
+      channelsOfFlags,
+      lightChannelsOf,
+      WORLD_AT_WGSL,
+      REFLECTION_CONSTANTS_WGSL,
+      reflectionBindingsWgsl(REFLECTION_GROUP),
+      reflectionLightViewWgsl(REFLECTION_GROUP),
+      AIR_GEOMETRY_WGSL,
+      SCREEN_MARCH_WGSL(REFLECTION_GROUP, REFLECTION_DEPTH_BINDING),
+      SCREEN_MARCH_END_WGSL,
+      clipToFramebuffer,
+      slabPerspective,
+      lightSampleIndex,
+      lightSampleRayType,
+      lightSampleRayUv,
+    ],
+  )

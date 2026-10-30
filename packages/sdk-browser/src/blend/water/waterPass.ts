@@ -6,6 +6,7 @@ import { waterDepthMarked } from './waterTargets.ts'
 import {
   encodeColourCopy,
   encodeComposite,
+  encodeCloudsBehindWater,
   encodeFogBehindWater,
   encodeDepthPrepass,
   encodeRefractionMask,
@@ -32,6 +33,7 @@ import {
  *  4. the scene's colour (`WATER_COPY_PASS`): over the target, or the listed tiles alone where the
  *     refraction mask limits what is read, undownsampled;
  *  4b. the height fog on that copy (`encodeFogBehindWater`, `singleLayerWaterUnderwaterFogWhenCameraIsAboveWater`, off by default);
+ *  4c. the clouds on that copy (`encodeCloudsBehindWater`), for a camera that may intersect the water without being under it;
  *  5. the mask of the refraction (`WATER_MASK_PASS`) where a culling asks for it;
  *  6. the water shaded over the scene (`WATER_PASS`, `fsWater`): volume and lights, no blend, its
  *     surface written beside;
@@ -60,6 +62,7 @@ export function encodeWater(
     encodeTileList(frame) +
     encodeColourCopy(frame) +
     encodeFogBehindWater(frame) +
+    encodeCloudsBehindWater(frame) +
     encodeRefractionMask(frame) +
     encodeShading(frame) +
     encodeShadedTiles(frame) +

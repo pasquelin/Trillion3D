@@ -82,6 +82,11 @@ export const FOG_SHADERS = {
   FOG_LOCAL_SKY: LOCAL_SKY_PROGRAM,
   FOG_LOCAL_CULL: LOCAL_CULL_PROGRAM,
   FOG_LOCAL_CULL_PYRAMID: LOCAL_CULL_PYRAMID_PROGRAM,
+  FOG_SEPARATE_COMPOSE: wgslModule(separateComposeWgsl(true)),
+  FOG_SEPARATE_BLUR: SEPARATE_BLUR_CODE,
+  FOG_SEPARATE_UPSAMPLE: separateUpsampleWgsl,
+  FOG_SEPARATE_TEMPORAL: fogTemporalWgsl('rgba16float'),
+  FOG_SEPARATE_TEMPORAL_PACKED: fogTemporalWgsl('rg11b10ufloat'),
 }
 
 /** The programs that lay the fog as a session whose project switch `localFogVolumeSupport` is off makes
@@ -96,6 +101,7 @@ export const NO_LOCAL_FOG_SHADERS = {
     ]),
   ),
   FOG_PASS_NO_LOCAL_FOG: wgslModule(heightFogWgsl(false)),
+  FOG_SEPARATE_COMPOSE_NO_LOCAL_FOG: wgslModule(separateComposeWgsl(false)),
   BLEND_NO_LOCAL_FOG: blendShader({}, { localFog: false }),
   TRANSMIT_NO_LOCAL_FOG: blendShader({}, { stage: transmitWgsl({}, false), localFog: false }),
   ...noLocalAir(),

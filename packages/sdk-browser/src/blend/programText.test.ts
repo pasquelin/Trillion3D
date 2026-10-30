@@ -47,7 +47,7 @@ import { shaderRun } from '../materials/texture/shaderRun.fixture.ts'
 // Retaken for the translucent layers drawn smaller than the image (`translucencyScale.ts`): the view's `reduced` ratio, which the vertex stage's pixel
 // measure (the facing test) multiplies by (the line's width counts image pixels, whatever the size drawn at), and the function the fragment entries scale their pixel back by (`sceneVsOut`): both (declared once, with the interpolants' structure) leave
 // the text's results as they were at the ratio 1 every other pass holds.
-const VERTEX = '9bc6f3a6dc146defb56487ed3f863113a22de3b2c8ec9056205f76da68b5b3ef'
+const VERTEX = '24c5a5c50db6fd2c93f0ba5b3893a845cfe636c9a9de85cfd89205844840f276'
 // Retaken when the blend module took that vertex, the per-material responsiveness it writes for
 // the temporal pass where its material asks one, and the stored tangents' frame in a
 // module of its own (`tangentFrameWgsl.ts`) for the normal map and the lobes both, and then the
@@ -150,12 +150,14 @@ const VERTEX = '9bc6f3a6dc146defb56487ed3f863113a22de3b2c8ec9056205f76da68b5b3ef
 // loops' sine through `sinFromCosUnclamped`. The proofs of the blend on the GPU did not pass before this lot either.
 // Retaken for c9's fourth deduplication sweep (29/10): the held layers' read (`loadHeld`) and the packed tables' reads
 // (`packedTableWgsl`) declared once: the same operations.
-// Retaken for the simple lights' word (30/10): the lights' tile slice declares the simple light word, `sampledTakes` reads it, and its text holds no backtick.
+// Retaken for the translucent surfaces' scene reflection (29/10): the reflection view's `translucent` words, which every blend reads;
+// a device that does not grant the scene reflection keeps the environment read, its text otherwise the same.
 // Retaken for the sky meshes capture (29/10): a sky surface writes an opaque layer (`blendSurface`: its cutout alone reads the base alpha),
 // and the fog beyond a ray is worked out over any reach (`fogBeyondAlong`, `fogBeyondWith` its endless one).
+// Retaken for the simple lights' word (30/10): the lights' tile slice declares the simple light word, `sampledTakes` reads it, and its text holds no backtick.
 // Retaken for the translucent layers drawn smaller than the image (`translucencyScale.ts`): the layers' fragment entries hand their body the interpolants
 // at the image's pixel (`layerEntry`), the view's `reduced` ratio being 1 outside the passes of the smaller layers.
-const BLEND = '4e31cdf16187195b7a0ac09868cfb91fe9f48a3779c6392a0d10689d499a77c3'
+const BLEND = 'f3bd1ace4d11b8e7cc1712406434a73f5ccddf06fb33d141c907ea63811cee14'
 
 const CUTS = ['narrow', 'unshadowed', 'rectless', 'sunless', 'localless', 'lobeless'] as const
 /** Every contract key: bit `k` of the rank sets `CUTS[k]`. */

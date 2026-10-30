@@ -1,54 +1,51 @@
 # Single-layer water
 
-A lit surface whose material graph wires any of the four water outputs (`scatteringCoefficients`,
-`absorptionCoefficients`, `phaseG`, `colorScaleBehindWater`; the first two per centimetre) is a body of
-water seen through one layer. It is drawn over the opaque scene, after the lights and before every
-translucent layer, in the reference's single-layer water passes:
+A lit surface whose graph wires any of four water outputs (`scatteringCoefficients`,
+`absorptionCoefficients`, `phaseG`, `colorScaleBehindWater`; first two per centimetre) is water seen
+through one layer. Drawn over the opaque scene, after lights, before translucent layers, in
+reference single-layer water passes:
 
-1. the scene without the water is copied (its depth as the distance along the view, its colour);
-2. the water's depth is drawn first;
-3. the water is shaded over the copy: its surface lit by the declared lights as a physical surface, the
-   base material's colour under the coverage its `opacity` output gives (1: base material only, 0: pure
-   water), the volume between the surface and the scene behind it integrated analytically;
-4. the surface's reflection is added.
+1. scene without water copied (depth as view distance, colour);
+2. water depth drawn first;
+3. water shaded over the copy: surface lit by declared lights as a physical surface, base colour
+   under `opacity` coverage (1 base material only, 0 pure water), volume to the scene behind
+   integrated analytically;
+4. surface reflection added.
 
-The volume is the sun's in-scattering (a phase function of `phaseG` in the direction the refraction bends
-the view to; the sun is the forward directional light) and the ambient light's, over the share of light
-the volume scatters before it absorbs it, less the surface's Fresnel reflectance. What lies behind is read
-where the surface refracts it (the normal bent by the index of refraction, from the surface's `specular`
-or the `refraction` output when wired), dimmed by the colour absorption over the water's depth and by the
-fall from the scene to the water's height, and multiplied by `colorScaleBehindWater`. The reflection is
-the transparents' front layer's trace (the engine's reflection of the nearest transparent surface, traced
-as the opaque one is), weighed on the surface's reflectance, faded in over the first 50 cm of water above
-the scene, always traced for the water whatever `reflectionFrontLayer` says (at every level that traces
-reflections). The water's depth becomes the scene's: fog, particles and the transparents drawn after are
-hidden behind it.
+Volume = sun in-scattering (`phaseG` phase function along the refracted view; sun = forward
+directional light) plus ambient, over the share scattered before absorption, less surface Fresnel
+reflectance. The scene behind is read where the surface refracts it (index of refraction from
+`specular` or the `refraction` output), dimmed by colour absorption over water depth and by the fall
+from scene to water height, times `colorScaleBehindWater`. Reflection = transparents' front-layer
+trace weighed on surface reflectance, faded in over the first 50 cm of water above the scene, traced
+whatever `reflectionFrontLayer` says. Water depth becomes the scene's: fog, particles and later
+transparents hide behind it.
 
 ## Reflection hit lighting
 
-Options of the reflections (`packages/sdk-core/src/contracts/hitLightingOptions.ts`), each with the
-reference's default. A reflection ray that meets the scene's triangles reads the light the surface cache
-holds at the hit. With `reflectionHardwareRayTracingHitLighting: true`, the hits the cache cannot light (no
-card gave any light) are collected, sorted by material (`reflectionHardwareRayTracingBucketMaterials`, on;
-the key hashes what makes a material's shading differ) and lit where they stand:
+Options (`packages/sdk-core/src/contracts/hitLightingOptions.ts`), reference defaults. A reflection
+ray hitting scene triangles reads surface cache light at the hit. With
+`reflectionHardwareRayTracingHitLighting: true`, hits the cache cannot light are collected, sorted
+by material (`reflectionHardwareRayTracingBucketMaterials`, on) and lit in place:
 
-- the hit's own material under the scene's lights (`hardwareRayTracingHitLightingDirectLighting` on): its
-  whole response toward the eye, diffuse and specular lobe, times a shadow ray each
-  (`hardwareRayTracingHitLightingShadowMode` `'off'`, `'hard'` or `'soft'`);
-- plus the emitted light and the indirect light: the surface cache's, or the sky light's irradiance with
-  `hardwareRayTracingHitLightingSkylight: 'on'`, where `hardwareRayTracingHitLightingReflectionCaptures: true`
-  makes the specular share the material's reflectance on the sky light's filtered cube along the reflected ray;
-- with the direct lighting off and no sky light, the surface cache's own light is read as it stands; off with
-  the sky light, the hit has the sky light's terms alone.
+- hit material under scene lights (`hardwareRayTracingHitLightingDirectLighting` on): diffuse +
+  specular lobe toward the eye, times a shadow ray each (`hardwareRayTracingHitLightingShadowMode`
+  `'off'`, `'hard'` or `'soft'`);
+- plus emitted and indirect light: surface cache's, or sky light irradiance with
+  `hardwareRayTracingHitLightingSkylight: 'on'`, where
+  `hardwareRayTracingHitLightingReflectionCaptures: true` adds specular from the sky light's
+  filtered cube along the reflected ray;
+- direct lighting off, no sky light: surface cache light as is; off with sky light: sky light terms
+  only.
 
-`hardwareRayTracingLightingMode: 'hitLighting'` (or `'hitLightingForReflections'`) lights every hit of the
-reflections this way; `'hitLighting'` alone also lights, this way, the hits of the screen probes' rays
-(`screenProbeHardwareRayTracing`) and of the radiance cache's rays (the other two modes keep the surface
-cache for them). `hardwareRayTracingHitLightingAllowed` (on) is the switch that forbids it all;
-`hardwareRayTracingHitLightingForceOpaque` (off) makes the trace that meets the hit again skip the masks'
-any-hit test; `hardwareRayTracingHitLightingShadowTranslucencyMode` sets what the shadow rays cut:
-`'opaque'` every surface, `'masked'` (the default) the masked ones by their alpha and no translucent one,
-`'fractional'` the masked ones and, through the translucent ones, the share their coverage lets through.
+`hardwareRayTracingLightingMode: 'hitLighting'` (or `'hitLightingForReflections'`) lights every
+reflection hit so; `'hitLighting'` alone also lights hits of screen-probe rays
+(`screenProbeHardwareRayTracing`) and radiance-cache rays (other modes keep surface cache light).
+`hardwareRayTracingHitLightingAllowed` (on) forbids it all;
+`hardwareRayTracingHitLightingForceOpaque` (off) skips masks' any-hit test;
+`hardwareRayTracingHitLightingShadowTranslucencyMode` sets what shadow rays cut: `'opaque'` every
+surface, `'masked'` (default) masked by alpha, no translucent, `'fractional'` masked, and through
+translucent the share their coverage passes.
 
 ```js
 const world = await createWorld({
@@ -60,73 +57,58 @@ const world = await createWorld({
 world.reflections = { hardwareRayTracingLightingMode: 'hitLighting' } // every hit lit where it stands, from the next frame
 ```
 
-The lights a hit is lit by are found through a light grid, as the reference's ray-traced lighting finds
-them. The box holding the reach of the local lights (points, spots, rectangles) is cut in
-`rayTracingLightGridResolution` (256, 1 to 2048) cells a side, seen along each of the three axes; each cell
-keeps the lights whose reach overlaps it (a spot by its cone, a light facing away from the cell not at all)
-up to `rayTracingLightGridMaxCount` (128, 1 to 65536; at most the number of local lights); a hit loops over
-the suns, which every hit sees, and the lights of its cell. `rayTracingLightGridAxis` (-1) picks, cell by
-cell, the axis whose cell keeps the fewest lights; 0, 1 or 2 forces the axis. Lights are kept by type, and
-every light of the scene is in the grid, whatever the view's distance (a light the view's draw range leaves
-out lights the hits all the same). A cell that more lights overlap than it keeps is marked overflowing and a
-hit in it loops over every light, so no light is lost (the reference stops such a cell at its limit and
-loses the lights past it, a declared fix); raise `rayTracingLightGridMaxCount` for a scene where many lights
-overlap, to keep the lists short. The grid is rebuilt only when the lights change; where it does not fit the
-device or the memory budget every light is looped over. A rectangle's barn doors are not in the engine's
-lights, so the grid does not cull by them.
+Hits find lights through a grid. The box holding local lights' reach (points, spots,
+rectangles) is cut into `rayTracingLightGridResolution` (256, 1 to 2048) cells a side per axis; a
+cell keeps lights whose reach overlaps it (spot by cone, facing away not at all) up to
+`rayTracingLightGridMaxCount` (128, 1 to 65536; at most the local light count); a hit loops over the
+suns and its cell's lights. `rayTracingLightGridAxis` (-1) picks per cell the axis keeping fewest
+lights; 0, 1, 2 forces it. A cell overlapped by more lights than it keeps is marked overflowing and
+a hit there loops over every light (reference loses the rest; declared fix); raise
+`rayTracingLightGridMaxCount` for dense overlap. Rebuilt only when lights change; past device or
+memory budget, every light is looped. No culling by rectangle barn doors.
 
 ```js
 world.reflections = { rayTracingLightGridResolution: 128, rayTracingLightGridMaxCount: 256 } // a coarser grid keeping more lights a cell
 ```
 
-With `hardwareRayTracingLightingMode: 'hitLighting'` the rays of the screen probes
-(`screenProbeHardwareRayTracing`, with the scene's triangles traced) light their hits the same way: the
-stage that casts them marks each hit on a triangle with its material's key, the marks are collected and
-sorted by material (`reflectionHardwareRayTracingBucketMaterials`), and the hit is lit where it stands (the
-material, the lights and their shadow rays, the sun's shadow ray running as far as
-`screenProbeMaxTraceDistance`) plus the surface cache's indirect light (or the sky light's,
-`hardwareRayTracingHitLightingSkylight: 'on'`), the sky light that leaks onto the hit and the height fog laid
-over the ray. The probes' rays have one bounce, no refraction and no reflection capture whatever
-`reflectionMaxBounces` and the other path settings say; a hit on the back of a surface that is not two-sided
-ends the ray with no light. The buffers hold 80 bytes per ray of the view (8 for its entry in the list of
-hits, 8 for its sorted copy, 64 for its path's radiance). Where the radiance no longer fits one storage
-binding of the device the mode is refused with a console line; where the device's memory budget leaves no
-room for the buffers the probes keep the surface cache's light for the image, the mode staying as set.
+With `hardwareRayTracingLightingMode: 'hitLighting'` screen-probe rays
+(`screenProbeHardwareRayTracing`, scene triangles traced) light hits the same way: triangle hits
+marked with a material key, sorted by material (`reflectionHardwareRayTracingBucketMaterials`), lit
+where they stand (material, lights, shadow rays; sun shadow ray to `screenProbeMaxTraceDistance`)
+plus surface cache indirect light (or sky light's with `hardwareRayTracingHitLightingSkylight:
+'on'`), sky light leaking onto the hit, and height fog over the ray. Probe rays: one bounce, no
+refraction, no reflection capture, whatever `reflectionMaxBounces` says; a back-face hit on a not
+two-sided surface ends the ray unlit. Buffers hold 80 bytes per view ray (8 hit-list entry, 8 sorted
+copy, 64 path radiance). If radiance exceeds one storage binding the mode is refused with a console
+line; with no memory budget left, probes keep surface cache light for the image, mode unchanged.
 
 ```js
 world.reflections = { hardwareRayTracingLightingMode: 'hitLighting' } // reflections and screen probes alike
 ```
 
-The radiance cache's rays light their hits the same way (`screenProbeRadianceCacheHardwareRayTracing`, with
-the scene's triangles traced; the same `'hitLighting'` mode, the other two keep the surface cache's light):
-the trace marks each hit on a triangle with its material's key; the marks of a slice of the cache's tile list
-are collected, sorted by material (`reflectionHardwareRayTracingBucketMaterials`) and lit where they stand
-(the material, the lights and their shadow rays, the sun's shadow ray running as far as
-`screenProbeMaxTraceDistance`, the surface cache's indirect light or the sky light's); then the sky light
-that leaks onto the hit is added where the cache makes irradiance maps, and the sum is written to the trace
-atlas under the cache's pre-exposure. No face is culled in the cache's trace; a hit on the back of a surface
-that is not two-sided ends the ray with no light, as in the reference. The cache's rays have one bounce, no
-refraction and no reflection capture whatever `reflectionMaxBounces` and the other path settings say. A slice
-is as many tiles as the rays' radiance (64 bytes a ray, the largest of the 80 the lists hold) fits in a
-storage binding of the device, so a very large update takes more slices and never refuses the mode; the
-maps held are traced anew when the mode turns on or off.
+Radiance-cache rays light hits the same way (`screenProbeRadianceCacheHardwareRayTracing`, scene
+triangles traced; same `'hitLighting'` mode, other two keep surface cache light): marks of a slice
+of the cache's tile list are collected, sorted by material
+(`reflectionHardwareRayTracingBucketMaterials`) and lit where they stand (material, lights, shadow
+rays; sun shadow ray to `screenProbeMaxTraceDistance`; surface cache indirect light or sky light's);
+sky light leaking onto the hit is added where the cache makes irradiance maps; the sum is written to
+the trace atlas under the cache pre-exposure. No face culled; a back-face hit on a not two-sided
+surface ends the ray unlit. Cache rays: one bounce, no refraction, no reflection capture, whatever
+`reflectionMaxBounces` says. A slice = as many tiles as fit ray radiance (64 bytes a ray) in a
+storage binding; a large update takes more slices. Held maps are retraced on toggle.
 
 ```js
 world.reflections = { hardwareRayTracingLightingMode: 'hitLighting' } // the screen probes' rays and the radiance cache's, lit where they hit
 world.indirectLight = { screenProbeRadianceCacheHardwareRayTracing: true } // the cache casts through the scene's triangles (its default)
 ```
 
-`reflectionMaxBounces` (1, from 1 to 64) is the most reflection rays a path of the hit lighting has. With 1
-the reflection ray stops at the first lit hit; with more, the path goes on from each lit hit along the
-reflection of its own specular lobe (a visible normal of the lobe drawn by the frame's noise), weighed by the
-top layer's reflectance met (the environment BRDF of the specular colour toward the eye), so a mirror seen in
-a mirror shows the room and not only the surface cache. Each hit of the path is lit as the first (the lights,
-the sky light, the cache's indirect light) and a ray that leaves the scene reads the sky. The path ends where
-the accumulated roughness is past what the reflections trace (`reflectionMaxRoughnessToTrace` and its fade),
-the specular light the next ray does not carry keeping the rough approximation. Each path vertex adds 64
-bytes a ray to the hit lighting's radiance buffer; where the buffer no longer fits one storage binding the hit
-lighting is refused with a console line naming the bounces and the refraction events (and again when they or
-the image change).
+`reflectionMaxBounces` (1, 1 to 64): most reflection rays in a hit-lighting path. 1: the ray stops
+at the first lit hit; more: the path continues from each lit hit along the reflection of its own
+specular lobe (visible normal drawn by frame noise), weighed by top-layer reflectance (environment
+BRDF of specular colour). Each hit is lit as the first; a ray leaving the scene reads the sky. The
+path ends where accumulated roughness passes what reflections trace (`reflectionMaxRoughnessToTrace`,
+fade). Each path vertex adds 64 bytes a ray to the radiance buffer; past one storage binding
+the hit lighting is refused with a console line naming bounces and refraction events.
 
 ```js
 world.reflections = {
@@ -135,15 +117,15 @@ world.reflections = {
 }
 ```
 
-`reflectionMaxRefractionBounces` (0, from 0 to 63) is the refraction events a path of the hit lighting goes
-through after the first. With 0 the translucent surfaces are passed by, as always. With 1 or more the hit
-lighting meets them and lights them like any hit, weighed by their coverage; the path goes on straight
-through the first surface it met (in the direction it began, from just past that surface), weighed by what
-the coverage lets through, for up to that many more stretches while any channel of what is left stays at a
-hundredth or more. Each stretch has its own reflections (up to `reflectionMaxBounces`); a stretch whose first
-ray leaves the scene reads the sky and ends the path. `reflectionRayTracedTranslucentRefractions` (on) is the
-project's switch: off, the refraction events do nothing. A path holds at most
-`reflectionMaxBounces × (1 + reflectionMaxRefractionBounces)` vertices, 64 bytes each in the radiance buffer.
+`reflectionMaxRefractionBounces` (0, 0 to 63): refraction events of a hit-lighting path after the
+first. 0: translucent surfaces are passed by. 1 or more: hit lighting meets and lights them like any
+hit, weighed by coverage; the path goes straight through the first surface met (starting direction,
+from just past it), weighed by the coverage's pass-through, for up to that many more stretches while
+any remaining channel stays at 1/100 or more. Each stretch has its own reflections (up to
+`reflectionMaxBounces`); a stretch whose first ray leaves the scene reads the sky and ends the path.
+`reflectionRayTracedTranslucentRefractions` (on): off, refraction events do nothing. A path holds at
+most `reflectionMaxBounces × (1 + reflectionMaxRefractionBounces)` vertices, 64 bytes each in the
+radiance buffer.
 
 ```js
 world.reflections = {
@@ -154,20 +136,20 @@ world.reflections = {
 
 ## Traced translucency
 
-Options of the reflections (`packages/sdk-core/src/contracts/tracedTranslucencyOptions.ts`), each with the
-reference's default. `translucencyType: 'rayTraced'` (or `rayTracedTranslucency: 'on'`) draws the see-through
-surfaces with rays cast through the scene's triangles: a primary path from the eye through up to
-`translucencyMaxPrimaryHitEvents` (4) surfaces and off each a secondary path of up to
-`translucencyMaxSecondaryHitEvents` (2) more, ended when its throughput falls under
+Options (`packages/sdk-core/src/contracts/tracedTranslucencyOptions.ts`), reference defaults.
+`translucencyType: 'rayTraced'` (or `rayTracedTranslucency: 'on'`) draws see-through surfaces with
+rays through scene triangles: a primary path from the eye through up to
+`translucencyMaxPrimaryHitEvents` (4) surfaces, off each a secondary path of up to
+`translucencyMaxSecondaryHitEvents` (2) more, ended when throughput falls under
 `rayTracedTranslucencyPathThroughputThreshold` (0.001). Further options:
 
-- `translucencyRefraction` bends the rays through surfaces of an index of refraction above one (and keeps the
-  rays one a pixel);
-- `rayTracedTranslucencyForceOpaque` (false): by default a ray passes the holes of a masked material (a
-  surface with an `alphaTest`, cut where its opacity times its base map's alpha is under the threshold, at
-  the map's finest level); set, the holes are filled and the rays skip the test;
-- `rayTracedTranslucencySampleTranslucentReflectionInReflections` (true), `rayTracedTranslucencyDownsampleFactor`
-  (1) and `rayTracedTranslucencyMaxRayIntensity` (1000, in the display's white) complete it.
+- `translucencyRefraction` bends rays through surfaces of index of refraction above 1 (rays one a
+  pixel);
+- `rayTracedTranslucencyForceOpaque` (false): rays pass holes of a masked material (`alphaTest`
+  surface, cut where opacity times base-map alpha is under threshold); set, holes are filled;
+- `rayTracedTranslucencySampleTranslucentReflectionInReflections` (true),
+  `rayTracedTranslucencyDownsampleFactor` (1), `rayTracedTranslucencyMaxRayIntensity` (1000, display
+  white units).
 
 ```js
 const world = await createWorld({
@@ -180,15 +162,14 @@ const world = await createWorld({
 world.reflections = { rayTracedTranslucencyMaxRayIntensity: 200 } // changed from the next frame
 ```
 
-The traced translucency runs where the scene is traced through its triangles and the image has a transparent
-front layer. One ray a pixel the layer covers (a block of `rayTracedTranslucencyDownsampleFactor` pixels a
-side casting one) goes from the eye to just short of the opaque depth; the radiance, the throughput and the
-background it lets show are resolved and accumulated over the images (the reflections' history length and
-clamp), and the lit image is multiplied by the throughput and the radiance laid over it. The raster draws of
-the transparents are then left out (particles are still drawn); until the kernels are compiled, or where the
-image has no front layer, the raster draws them as before. A hit's material is the constants of the surface
-its placement wears; its light is the surface cache's where the placement has cards, plus the sky light's
-irradiance on the diffuse colour of a translucent surface.
+Runs where the scene is traced through triangles and the image has a transparent front layer. One
+ray per layer-covered pixel (one per `rayTracedTranslucencyDownsampleFactor` block a side) goes from
+the eye to just short of opaque depth; radiance, throughput and background are accumulated over
+images (reflections' history length and clamp); the lit image is multiplied by throughput with
+radiance laid over. Raster draws of transparents are left out (particles still drawn); until kernels
+compile, or with no front layer, raster draws them. A hit's material = constants of its placement's
+surface; its light = surface cache's where the placement has cards, plus sky light irradiance on a
+translucent surface's diffuse colour.
 
 ```js
 const g = material.graph('surface')
@@ -202,48 +183,85 @@ g.output('roughness', g.constant(0.05))
 const water = material.meshStandard({ graph: g }) // wired to a water output: drawn as the water
 ```
 
-The settings are the reference's `r.Water.SingleLayer.*`, each also an option of `createWorld`, held over the
-quality preset (which writes none of them), changed later from the next frame
-(`packages/sdk-core/src/contracts/singleLayerWaterOptions.ts`); a value a setting does not take is refused.
-Distances are metres, where the reference's are centimetres:
+Settings are reference `r.Water.SingleLayer.*`, each also a `createWorld` option, held over the
+quality preset, changeable from the next frame
+(`packages/sdk-core/src/contracts/singleLayerWaterOptions.ts`); an unaccepted value is refused.
+Distances in metres (reference: centimetres):
 
 | Field | Meaning | Default |
-| --- | --- | --- |
-| `singleLayerWater` | Whether the water is drawn | `true` |
-| `singleLayerWaterReflection` | The reflection: `'enabled'` (the front layer's trace), `'disabled'`, `'captures'` (the captures and the sky) or `'screenSpace'` (the screen march and the captures, no scene ray) | `'enabled'` |
-| `singleLayerWaterReflectionDownsample` | Times fewer pixels a side (1 or 2) the water's reflections are traced at | `1` |
-| `singleLayerWaterReflectionCheckerboard` | With a downsample of 2, blocks of two pixels across and one down | `false` |
-| `singleLayerWaterReflectionReconstruction` | A pixel rebuilds its reflection from the rays round it | `false` |
-| `singleLayerWaterReflectionDenoising` | The temporal and the bilateral denoising of the water's reflections | `false` |
-| `singleLayerWaterReflectionTemporal` | The temporal denoising of the `'screenSpace'` technique | `true` |
-| `singleLayerWaterUnderwaterFogWhenCameraIsAboveWater` | The height fog is also laid on the scene seen through the water, at the depth of what lies behind it, with the camera above the water | `false` |
-| `singleLayerWaterTiledComposite` | The reflection composite draws the 8 by 8 tiles that hold water, not the whole target | `true` |
-| `singleLayerWaterTiledSceneColorCopy` | The scene's colour is copied for those tiles alone (with the refraction culling on and the copy not downsampled) | `true` |
-| `singleLayerWaterWaveOps` | The tiles are listed with subgroup operations where the device grants them | `true` |
-| `singleLayerWaterDepthPrepass` | The water's depth is drawn first (the tiles and the refraction mask need it) | `true` |
-| `singleLayerWaterOptimizedClear` | The scene's depth is copied over the view alone, not the whole texture | `true` |
-| `singleLayerWaterVelocityOutputPass` | When the water writes its velocity: `'depthPrepass'` (right after its depth), `'basePass'` (with its shading) or `'none'` | `'depthPrepass'` |
-| `singleLayerWaterShadersSupportDistanceFieldShadow` | The programs keep the sun apart from the rest of the water's light, for the sun's distance-field shadow; read when the session opens | `true` |
-| `singleLayerWaterDistanceFieldShadow` | The sun's light on the water is kept apart and shadowed by the sun's classic distance-field cascade (`shadowVirtualEnable` off): traced on the water's depth, upsampled over the tiles that hold water, then multiplied into the separated sun before the composite (needs the setting above and meshes with fields) | `true` |
-| `singleLayerWaterShadersSupportVsmFiltering` | The programs hold the full trace of the sun's shadow for the water; read when the session opens | `false` |
-| `singleLayerWaterVsmFiltering` | The sun's shadow on the water is the full projection the opaque surfaces get, not one sample: the shading reads the sun unshadowed (`shadowSkipSun`), the shadow maps are projected onto the water's surface over the tiles that hold water, and the separated sun is multiplied by that share before the composite (needs the setting above and `singleLayerWaterDepthPrepass`, which lists the tiles) | `false` |
-| `singleLayerWaterCloudShadow` | The clouds shade the sun that lights the water's volume | `false` |
-| `singleLayerWaterRefractionDownsample` | Times fewer pixels a side (1 or 2) the copy of the scene the water refracts is made at | `1` |
-| `singleLayerWaterRefractionCulling` | Skip the refraction where it shows little (the three cullings below) | `false` |
-| `singleLayerWaterRefractionDistanceCulling` | Metres from the camera past which the refraction is skipped; 0 none | `0` |
-| `singleLayerWaterRefractionDistanceCullingFadeRange` | Metres over which it fades out before that distance | `4` |
-| `singleLayerWaterRefractionFresnelCulling` | Fresnel reflectance above which the refraction is skipped; 0 none | `0` |
-| `singleLayerWaterRefractionFresnelCullingFadeRange` | The Fresnel range over which it fades out | `0.2` |
-| `singleLayerWaterRefractionDepthCulling` | Metres of water depth below which the refraction is skipped; 0 none | `0` |
-| `singleLayerWaterRefractionDepthCullingFadeRange` | Metres of depth over which it fades out | `1` |
+| - | - | - |
+| `singleLayerWater` | Water drawn | `true` |
+| `singleLayerWaterReflection` | `'enabled'` (front-layer trace), `'disabled'`, `'captures'` (captures + sky), `'screenSpace'` (screen march + captures, no scene ray) | `'enabled'` |
+| `singleLayerWaterReflectionDownsample` | Reflection trace downsample per side (1 or 2) | `1` |
+| `singleLayerWaterReflectionCheckerboard` | With downsample 2, 2x1-pixel blocks | `false` |
+| `singleLayerWaterReflectionReconstruction` | Pixel rebuilds reflection from neighbouring rays | `false` |
+| `singleLayerWaterReflectionDenoising` | Temporal + bilateral reflection denoising | `false` |
+| `singleLayerWaterReflectionTemporal` | Temporal denoising of `'screenSpace'` | `true` |
+| `singleLayerWaterUnderwaterFogWhenCameraIsAboveWater` | Height fog also on the scene seen through water, camera above water | `false` |
+| `singleLayerWaterUnderwaterTest` | Camera tested against water bodies each image (possibly in the water: clouds also composed into the scene seen through water; under water: sky, fog and clouds composed before the water) | `true` |
+| `singleLayerWaterUnderwaterTraceDistance` | Metres of the sphere swept up from the camera to find nearby bodies | `1` |
+| `singleLayerWaterUnderwaterPreciseTraceDistance` | Metres of the sphere at the camera verifying overlap once under a body's surface | `0.1` |
+| `singleLayerWaterTiledComposite` | Reflection composite draws only the 8x8 tiles holding water | `true` |
+| `singleLayerWaterTiledSceneColorCopy` | Scene colour copied for those tiles only (refraction culling on, copy not downsampled) | `true` |
+| `singleLayerWaterWaveOps` | Tiles listed with subgroup ops where granted | `true` |
+| `singleLayerWaterDepthPrepass` | Water depth drawn first (tiles, refraction mask need it) | `true` |
+| `singleLayerWaterOptimizedClear` | Scene depth copied over the view only | `true` |
+| `singleLayerWaterVelocityOutputPass` | Velocity written: `'depthPrepass'` (after depth), `'basePass'` (with shading), `'none'` | `'depthPrepass'` |
+| `singleLayerWaterShadersSupportDistanceFieldShadow` | Programs keep sun apart; read at session open | `true` |
+| `singleLayerWaterDistanceFieldShadow` | Sun kept apart, shadowed by the classic distance-field cascade (`shadowVirtualEnable` off): traced on water depth, upsampled over water tiles, multiplied into the sun before composite (needs setting above) | `true` |
+| `singleLayerWaterShadersSupportVsmFiltering` | Programs hold the full sun-shadow trace; read at session open | `false` |
+| `singleLayerWaterVsmFiltering` | Sun shadow = full projection opaque surfaces get: shading reads sun unshadowed (`shadowSkipSun`), shadow maps projected onto water over water tiles, separated sun multiplied by that share before composite (needs setting above, `singleLayerWaterDepthPrepass`) | `false` |
+| `singleLayerWaterCloudShadow` | Clouds shade the sun lighting the volume | `false` |
+| `singleLayerWaterRefractionDownsample` | Refracted scene copy downsample per side (1 or 2) | `1` |
+| `singleLayerWaterRefractionCulling` | Skip refraction where it shows little (three cullings below) | `false` |
+| `singleLayerWaterRefractionDistanceCulling` | Skip refraction past this distance (m); 0 none | `0` |
+| `singleLayerWaterRefractionDistanceCullingFadeRange` | Fade-out range before it (m) | `4` |
+| `singleLayerWaterRefractionFresnelCulling` | Skip refraction above this Fresnel reflectance; 0 none | `0` |
+| `singleLayerWaterRefractionFresnelCullingFadeRange` | Fade-out Fresnel range | `0.2` |
+| `singleLayerWaterRefractionDepthCulling` | Skip refraction below this water depth (m); 0 none | `0` |
+| `singleLayerWaterRefractionDepthCullingFadeRange` | Fade-out depth range (m) | `1` |
 
-The water writes its velocity as the reference's water pass does: the vectors of the texels it covers become
-the camera's motion at the water's depth and their visibility identifiers are cleared, so the temporal pass
-and the motion blur read a surface that moves with the camera alone. Not ported: `ForceVelocity` (deprecated,
-ignored by the reference itself), `MobileFallback` and `r.ParallelSingleLayerWaterPass` (a mobile renderer and
-a render-thread parallelism this engine does not have). `screenSpace` is the screen march alone (full
-resolution, no scene ray, no far screen trace, no reconstruction or spatial filter), `captures` the captures
-and the sky, `disabled` no reflection.
+Each image the camera is tested against the water bodies: a mesh with a single-layer water material
+is a body, a volume under its box's footprint, from its bottom (`depth` metres under the surface at
+rest, or the box's bottom when deeper) to its surface at rest plus the crest of its `mesh.waves`.
+Only bodies with an underwater material (`mesh.waterBody.underwaterPostProcess`, true by default)
+count; bodies with waves first, then higher `mesh.waterBody.overlapPriority` (0 by default). A
+camera under the surface at its point (waves included), or within 10 cm across and a crest (10 cm at
+least) of the nearest surface, is under water; one within the crest and the near plane's corner
+distance of the surface at rest may intersect it. A camera that may intersect has clouds also
+composed into the scene copy seen through the water (`VolumetricComposeOverScene`); a camera under
+water has sky, fog, clouds and translucent layers composed before the water, and no fog on the copy
+behind it. No body: nothing changes.
+
+```js
+mesh.waterBody = { underwaterPostProcess: true, overlapPriority: 1, depth: 30 } // a lake 30 m deep
+```
+
+An exclusion volume (`object.waterExclusion()`; reference water body exclusion volume) takes bodies
+out of this test where the camera stands in it: a unit cube centred on the node, scaled and turned
+with it; an excluded body is skipped (no underwater material, no clouds, fog or sky before it).
+`mode` is `'allExceptListed'` by default (every body the volume overlaps but those in `bodies`;
+every one when `bodies` is empty) or `'onlyListed'` (the listed bodies the volume overlaps);
+`bodies` holds the meshes carrying the bodies. A volume is a node: it moves, nests, is copied
+(`object.clone`) and saved (`scene.toJSON`: bodies by rank in the saved tree, a node a model's file carries by the model and its name, a node outside the tree kept in its place as a node in no scene; a mesh's `waterBody` is saved and copied too). No volume: nothing
+changes. The surface is cut too: inside a volume that excludes its body, neither the water's
+colour nor its depth is drawn, in the water pass and in the transparents' front pass (a program variant, compiled only for a world that holds a volume; the
+volumes sit in a small table written when one moves or changes, and the programs are built again, off the frame, when the first volume appears or the last goes). Not carried: the collision, the
+physics holding one global water plane with nothing per body to cut.
+
+```js
+const hold = object.waterExclusion() // a dry hold in the lake: every body it overlaps is excluded
+hold.scale.set(4, 3, 8)
+hold.position.set(0, 9, 0)
+scene.add(hold)
+const only = object.waterExclusion('onlyListed', [lakeMesh]) // excludes the lake alone
+```
+
+Water writes velocity as the reference: covered texels get camera motion at water depth and their
+visibility identifiers are cleared. Not ported: `ForceVelocity`, `MobileFallback`,
+`r.ParallelSingleLayerWaterPass`. `screenSpace` = screen march alone (full resolution, no scene ray,
+no far screen trace, no reconstruction or spatial filter), `captures` = captures + sky, `disabled` =
+no reflection.
 
 ```js
 const world = createWorld('viewer', { singleLayerWaterRefractionDownsample: 2 }) // a coarser copy of the scene
@@ -253,7 +271,9 @@ world.singleLayerWater = {
   singleLayerWaterRefractionDistanceCulling: 200,
 }
 world.singleLayerWater = { singleLayerWaterReflection: null } // given back its default
+world.singleLayerWater = { singleLayerWaterUnderwaterTraceDistance: 3 } // finds the water bodies up to 3 m from the camera
+world.singleLayerWater = { singleLayerWaterUnderwaterTest: false } // the camera is never in the water
 ```
 
-The explorer takes the same by field (`explorer.setSingleLayerWater('singleLayerWaterReflection', 'captures')`), and an agent
-through `trillion3d_set_single_layer_water`.
+Explorer takes the same by field (`explorer.setSingleLayerWater('singleLayerWaterReflection',
+'captures')`); agent: `trillion3d_set_single_layer_water`.

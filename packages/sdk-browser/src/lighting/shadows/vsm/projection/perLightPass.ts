@@ -11,6 +11,8 @@
  * `i % layers`, at the targets' size, the pixels a light reaches (`perLightScissor.ts`) the only ones its
  * steps touch. A frame of at most as many lights as layers keeps its masks: where the projection is held
  * (`vsmProjectionHold.ts`) and the masks stand, no light is traced again (`PerLightFrame.stale`), so a still view keeps its dither.
+ * With the one-pass projection and `clusteredDeferredShading` false the lights are the same list with no mask of their own: the one-pass
+ * projection projects them, and each light's draw reads its lane of the packed mask (`mask` absent, nothing to encode).
  */
 import { vsmPerFrameSet, type VsmResources } from '../resources.ts'
 import { VSM_PROJECTION_GROUP_SIZE } from '../constants.ts'
@@ -62,8 +64,9 @@ export interface PerLightLights {
   readonly strideWords: number
   /** The byte offset of each light's record (`i × stride`), which the dispatch and the draw bind at. */
   readonly offsets: Uint32Array
-  /** The mask the lights write in turn and their draws read: its array view. */
-  readonly mask: GPUTextureView
+  /** The mask the lights write in turn and their draws read: its array view. Absent where the lights are projected in the one pass: their
+   *  draws read their lanes of the packed mask, and there is no projection to encode. */
+  readonly mask: GPUTextureView | undefined
   /** Whether the pipelines of the steps are compiled; the frames wait for them otherwise
    *  (`chainReady`). */
   ready(): boolean
@@ -80,8 +83,8 @@ export interface PerLightInputs {
   res: VsmResources
   frame: VsmProjectionFrame
   source: VsmProjectionSource
-  /** The mask the lights write (`ensureMask`). */
-  mask: VsmPerLightMask
+  /** The mask the lights write (`ensureMask`); none for lights that read the one-pass projection's packed mask. */
+  mask: VsmPerLightMask | undefined
   /** The ranks, in the light buffer, of the frame's lights, indexed as `frame.lights`: those past the suns are read. */
   ranks: ArrayLike<number>
   /** `shadowForcePerLightMaskClear`. */
@@ -106,7 +109,7 @@ class PerLightFrame implements PerLightLights {
   strideWords = 0
   ints = new Int32Array(0)
   offsets = new Uint32Array(0)
-  mask!: GPUTextureView
+  mask: GPUTextureView | undefined
   inputs!: PerLightInputs
   /** Whether the layers do not hold the masks of the lights' last frame: set where the projection ran or is not held, until every
    *  light's mask has been encoded. */
@@ -143,7 +146,7 @@ class PerLightFrame implements PerLightLights {
         continue
       ints[at + PER_LIGHT_RECORD_AT.record] = k
       ints[at + PER_LIGHT_RECORD_AT.rank] = ranks[k]
-      ints[at + PER_LIGHT_RECORD_AT.layer] = count % mask.layers.length
+      ints[at + PER_LIGHT_RECORD_AT.layer] = mask ? count % mask.layers.length : 0
       state.offsets[count] = count * strideWords * 4
       count++
     }
@@ -154,11 +157,12 @@ class PerLightFrame implements PerLightLights {
     this.offsets = state.offsets
     this.strideWords = strideWords
     this.stride = strideWords * 4
-    this.mask = mask.view
+    this.mask = mask?.view
   }
 
   ready() {
-    const { device, res } = this.inputs
+    const { device, res, mask } = this.inputs
+    if (!mask) return true
     return chainReady(
       perLightPipelinesOf(pipelinesFor(device, res.layout), !!this.inputs.hairShadow).projection,
     )
@@ -166,6 +170,7 @@ class PerLightFrame implements PerLightLights {
 
   encodeMask(encoder: GPUCommandEncoder, i: number) {
     const { device, res, frame, source, mask, forceClear, hairShadow } = this.inputs
+    if (!mask) return
     // A frame of no more lights than layers finds each light's mask where the last frame left it.
     if (!this.stale && this.count <= mask.layers.length) return
     const state = vsmProjectionReserve(device, res)

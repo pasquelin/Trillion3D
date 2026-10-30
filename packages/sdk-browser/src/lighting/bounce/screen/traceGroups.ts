@@ -9,8 +9,8 @@ import { FIXUP_BINDINGS, MIP_BINDINGS } from './gatherMipsWgsl.ts'
 import { buffers, groupOf, type GroupParts } from './groupParts.ts'
 import { hitLitBinder } from './hitLitStage.ts'
 import type { CastKernels, ScreenProbeKernels } from './kernels.ts'
-import { INTEGRATE_BINDINGS, TILE_BINDINGS } from './integratePassWgsl.ts'
-import { OCCLUSION_BINDINGS } from './occlusionWgsl.ts'
+import { INTEGRATE_BINDINGS, TILE_OVERFLOW_BINDINGS } from './integratePassWgsl.ts'
+import { OCCLUSION_BINDINGS, OCCLUSION_OVERFLOW_BINDING } from './occlusionWgsl.ts'
 import { PROBE_FILTER_BINDINGS } from './probeFilterWgsl.ts'
 import { SPATIAL_BINDINGS } from './spatialWgsl.ts'
 import { STOCHASTIC_BINDINGS } from './stochasticWgsl.ts'
@@ -247,10 +247,12 @@ export function filterGroups(g: GroupParts, kernels: CastKernels) {
 /** The short-range occlusion pass's group. */
 function occlusionGroup(g: GroupParts, kernels: ScreenProbeKernels) {
   const { device, r, inputs, features, last, common, surface } = g
-  return groupOf(
-    device,
-    kernels.occlusion,
-    namedEntries(OCCLUSION_BINDINGS.at, {
+  // A closure past the first has its occlusion searched over its overflow tiles (`LumenScreenSpaceBentNormal.cpp:455-545`): none where its region of the closure tiles is not there yet.
+  const flowing = g.closure !== undefined
+  const kernel = flowing ? kernels.cast.occlusionOverflow : kernels.occlusion
+  if (!kernel || (flowing && !g.overflow)) return undefined
+  return groupOf(device, kernel, [
+    ...namedEntries(OCCLUSION_BINDINGS.at, {
       ...common,
       ...surface,
       occlusion: r.occlusion,
@@ -261,26 +263,32 @@ function occlusionGroup(g: GroupParts, kernels: ScreenProbeKernels) {
         shortRangeGi: r.shortRangeGi,
       }),
     }),
-  )
+    ...(g.overflow ? [{ binding: OCCLUSION_OVERFLOW_BINDING, resource: g.overflow }] : []),
+  ])
 }
 
 /** The integration of the probes: the classification of the tiles it is dispatched over, the texel each pixel reads where it is downsampled, the integration. */
 function integrationGroups(g: GroupParts, kernels: ScreenProbeKernels) {
   const { device, r, inputs, common, probe, surface } = g
   const { cast } = kernels
-  const integration = cast.integrate ?? cast.integrateEvery
+  // The closures past the first integrate the tiles their pixels are in (the overflow tiles, `closureTilesOf`), not every tile of the view; where their region is not there yet, they integrate none.
+  const flowing = g.closure !== undefined
+  const tiles = flowing ? cast.tileOverflow : cast.tile
+  const integration = (flowing ? cast.integrateOverflow : cast.integrate) ?? cast.integrateEvery
   const integrated = { light: r.light, rough: r.rough, back: r.back }
   return {
     tile:
-      cast.tile &&
+      tiles &&
+      (!flowing || g.overflow) &&
       groupOf(
         device,
-        cast.tile,
-        namedEntries(TILE_BINDINGS.at, {
+        tiles,
+        namedEntries(TILE_OVERFLOW_BINDINGS.at, {
           ...common,
           ...surface,
           ...integrated,
           ...buffers({ tiles: r.tileList, args: r.tileArgs }),
+          ...(flowing && { overflow: g.overflow }),
         }),
       ),
     stochastic:
@@ -319,7 +327,7 @@ function integrationGroups(g: GroupParts, kernels: ScreenProbeKernels) {
             moving: r.moving,
             counts: r.counts,
           }),
-          ...(cast.tile && buffers({ tiles: r.tileList, args: r.tileArgs })),
+          ...(tiles && buffers({ tiles: r.tileList, args: r.tileArgs })),
         }),
       ),
   }

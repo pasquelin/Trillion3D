@@ -95,6 +95,12 @@ export interface ExplorerRuleApi {
   /** Writes the light profiles' atlas setting `field` (`lightProfileOptions.ts`): the texels a side of a
    *  slice and the most profiles it holds; read by the next image. */
   setLightProfile: FamilyWriter<'lightProfile'>
+  /** Writes the light shapes' visualization setting `field` (`lightShapeOptions.ts`): whether the lights' reach is drawn as wireframes, the seconds of the
+   *  fade, the distance and the delay that stagger the fade in, and the opacity; read by the next image. */
+  setLightShape: FamilyWriter<'lightShape'>
+  /** Writes the per-pixel sorted translucency setting `field` (`orderIndependentTranslucencyOptions.ts`): which layers are collected per pixel, how many
+   *  fragments a pixel keeps, the method, the transmittance threshold and the debug figures; read by the next image (the project switch `oitSortedPixels` when the session opens). */
+  setOrderIndependentTranslucency: FamilyWriter<'orderIndependentTranslucency'>
   /** Writes the setting `field` of the resolution of the translucent layers (`separateTranslucencyOptions.ts`): the share of the resolution they are drawn at,
    *  the resolution it is of and how the smaller targets are scaled up; read by the next image. */
   setSeparateTranslucency: FamilyWriter<'separateTranslucency'>
@@ -163,6 +169,8 @@ export interface ExplorerRuleApi {
   setLightingDataFormat: FamilyWriter<'lightingDataFormat'>
   /** Writes the ray tracing switch's setting `field` (`rayTracingOptions.ts`): whether the features that trace the scene's triangles do, or all march the distance fields — one `null` gives it back to its default, one left out stays —; one a setting does not take is refused. */
   setRayTracing: FamilyWriter<'rayTracing'>
+  /** Writes the closures' setting `field` (`closureOptions.ts`): the most closures a material keeps a pixel and whether a view counts them from its materials — one `null` gives it back to its default, one left out stays —; one a setting does not take is refused. */
+  setClosures: FamilyWriter<'closures'>
   /** Writes the meshes' fields trace's setting `field` (`meshDistanceFieldTraceOptions.ts`): whether the rays march the meshes' own distance fields, which of them do, how far and the view grid the
    *  meshes are culled to — one `null` gives it back to it, one left out stays —; one a setting does not take is refused. */
   setMeshDistanceFieldTrace: FamilyWriter<'meshDistanceFieldTrace'>

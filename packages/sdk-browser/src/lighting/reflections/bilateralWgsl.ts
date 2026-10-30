@@ -15,7 +15,7 @@ import { REFLECTION_PROBES_LEFT_WGSL, reflectionEnvironmentLobesWgsl } from './w
 
 /** What the pixel `own` at `coord` of the surface `layer` reflects (`BilateralSeen`, its value `seen`):
  *  over a resolve tile, the ray it traces from its history where it holds one, with the environment through its lobes
- *  and the share of each lobe the ray answers (`bilateralSeen`); over a clear tile, the environment alone (`bilateralField`). */
+ *  and the share of each lobe the ray answers (`bilateralSeen`); over a clear tile, the environment alone for the front surface, nothing for the opaque one (`bilateralField`). */
 const SEEN = {
   resolve: (layer: number) => `let seen=bilateralSeen(coord,own,${layer}u);`,
   clear: (layer: number) => `let seen=bilateralField(own,${layer}u);`,
@@ -24,14 +24,14 @@ const SEEN = {
 /** What a surface writes of what it reflects, before the resolve weighs it: the opaque one into the reflection target the resolve reads —
  *  layer 0 the rays' answer, the radiance of the lobe the ray serves (a bare pixel's base lobe by its share, a coated pixel's coat whole), with the base lobe's share in its alpha, or, flagged
  *  where it left its base lobe to the rough light (`REFLECTION_PROBES_LEFT`: no ray traced for it, or none for the base lobe), the ray's answer for the coat alone;
- *  layer 1 the environment through the base lobe — the rough light the resolve blends, where the screen probes read nothing
- *  (`resolvedIndirect`), the same light for both lobes —, with the share of the coat's lobe the rays leave to it in its alpha, written only where the surface has a coat
- *  (the resolve reads it under `hasCoat`, nothing else reads it); the
- *  front one where the forward fragments read it, each lobe's ray and environment blended by its share (`bilateralBlended`). */
+ *  layer 1 the share of the coat's lobe the rays leave to the rough light, in its alpha, written only where the surface has a coat
+ *  (the resolve reads it under `hasCoat`, nothing else reads it). The rough light itself, the environment through the base lobe, is not stored: the
+ *  resolve samples the sky's cube where it blends it (`resolvedReflectionRough`), for the pixels that leave a share to it alone;
+ *  the front one where the forward fragments read it, each lobe's ray and environment blended by its share (`bilateralBlended`). */
 const WRITE = [
   `let entirely=bilateralProbesLeft||!(seen.share.x>0.0);
   textureStore(reflectionOut,coord,0,vec4f(seen.ray*(seen.share.x+seen.share.y),select(seen.share.x,REFLECTION_PROBES_LEFT,entirely)));
-  textureStore(reflectionOut,coord,1,vec4f(seen.field,select(0.0,1.0-seen.share.y,hasCoat())));`,
+  if(hasCoat()){textureStore(reflectionOut,coord,1,vec4f(0.0,0.0,0.0,1.0-seen.share.y));}`,
   `let blended=bilateralBlended(seen);
   textureStore(frontOut,coord,vec4u(frontPack(blended.base),frontPack(blended.coat),bitcast<u32>(reflectionFrontDepth(coord)),0u));`,
 ] as const
@@ -71,9 +71,25 @@ fn ${name}(@builtin(workgroup_id) tile:vec3u,@builtin(num_workgroups) groups:vec
  ${WRITE[layer]}
 }`
 
+/** The opaque clear: the constants alone, no surface read but the flags. A pixel of a clear tile traces nothing, so it carries no coat (a clear coat always traces) and its
+ *  lobe is left whole to the rough light (`REFLECTION_PROBES_LEFT`, the answer `bilateralField` gives the opaque surface), and a coat, if the pixel were to hold one, whole too (layer 1's alpha, which the resolve
+ *  reads only under `hasCoat`, so no earlier image's share is read): neither its depth, its normal nor its lobes are read. */
+const CLEAR_OPAQUE = `@compute @workgroup_size(${REFLECTION_SIDE},${REFLECTION_SIDE})
+fn clearOpaque(@builtin(workgroup_id) tile:vec3u,@builtin(num_workgroups) groups:vec3u,@builtin(local_invocation_id) local:vec3u){
+ let t=reflectionTileOf(tile,groups);
+ if(t==REFLECTION_NO_TILE){return;}
+ let id=reflectionTileOrigin(t)+local.xy;
+ if(any(id>=reflectionViewport())){return;}
+ let coord=vec2i(id);
+ ${BEFORE.clear}
+ if(!surfaceReflects(surfaceFlagsAt(coord))){return;}
+ textureStore(reflectionOut,coord,0,vec4f(0.0,0.0,0.0,REFLECTION_PROBES_LEFT));
+ textureStore(reflectionOut,coord,1,vec4f(0.0,0.0,0.0,1.0));
+}`
+
 const BILATERAL_ENTRIES = [
   bilateralEntry('bilateralOpaque', 0, 'resolve'),
-  bilateralEntry('clearOpaque', 0, 'clear'),
+  CLEAR_OPAQUE,
   bilateralEntry('bilateralFront', 1, 'resolve'),
   bilateralEntry('clearFront', 1, 'clear'),
 ].join('\n')
@@ -82,11 +98,11 @@ const BILATERAL_ENTRIES = [
  * THE LAST PASS, a thread a pixel, over each of two lists the classification writes (`tiles.ts`): the
  * resolve tiles (`bilateralOpaque`, `bilateralFront`) and the clear ones (`clearOpaque`, `clearFront`),
  * whose kernel first empties the resolved pixel and the history, before any resolve reads them — the
- * environment alone there, apart from the history's heavy kernel. A pixel whose lobe traces nothing reads
+ * constants alone there. A pixel whose lobe traces nothing reflects
  * the environment through its lobes (`bilateralField`), at every pixel: a rough lobe's reflection is
  * so blurred that a smooth one answers it, the same every image — no history, no filter.
- * The opaque surface takes the environment (`reflectionEnvironment`, the sky light's cube) through its base lobe alone here, the one rough light both of its lobes share, and leaves
- * the blend of the rest of each lobe to the opaque resolve, which adds the screen probes' (`resolvedIndirect`, `REFLECTION_PROBES_LEFT`);
+ * The opaque surface leaves the environment (`reflectionEnvironment`, the sky light's cube) through its base lobe alone, the one rough light both of its lobes share, to the opaque resolve, which samples it where it blends
+ * the rest of each lobe with the screen probes' (`resolvedIndirect`, `REFLECTION_PROBES_LEFT`);
  * the front's, which the forward fragments read as it is, the environment through its base lobe for the rest of both lobes.
  *
  * A pixel with a history (`bilateralIn`, this image's accumulation, a texel a pixel) reads its own, and
@@ -194,10 +210,11 @@ fn bilateralTop(coord:vec2i,own:ReflectingPixel,held:vec4u,layer:u32)->vec3f{
 struct BilateralSeen{ray:vec3f,field:vec3f,share:vec2f,}
 /** Whether this pixel's opaque answer left its base lobe's rough light to the opaque resolve. */
 var<private> bilateralProbesLeft:bool=false;
-/** What \`own\`'s lobes reflect of the environment alone: the radiance around the scene through its base lobe, the rough light of both its lobes. */
+/** What the front surface's lobes reflect of the environment alone: the radiance around the scene through its base lobe, the rough light of both its lobes
+ *  (the opaque surface's is sampled by the resolve, which lays it over the screen probes'). */
 fn bilateralEnvironment(own:ReflectingPixel,layer:u32)->vec3f{
  if(layer==1u){return reflectionEnvironmentOf(own.N,own.V,own.rough).base;}
- return reflectionEnvironment(reflect(-own.V,own.N),own.rough);
+ return vec3f(0.0);
 }
 /** The shares of \`own\`'s lobes a ray answers: a bare pixel's base lobe, by its roughness; a pixel that carries a clear coat has the ray answer its coat whole and
  *  its base lobe, under the coat, not at all, the rough light being the base lobe's alone. */
@@ -218,10 +235,10 @@ fn bilateralSeen(coord:vec2i,own:ReflectingPixel,layer:u32)->BilateralSeen{
  let held=textureLoad(bilateralIn,coord,0);
  if(!historyValid(held)){return bilateralField(own,layer);}
  let share=bilateralShares(own);
- // The environment is read only where something reads it: the share of a lobe the ray leaves to it (the opaque resolve reads it for a base lobe left in part
- // and for a coat left in part, the forward fragments for either lobe); a bare pixel a ray answers whole needs none.
+ // The environment is read only where something reads it: the share of a lobe the ray leaves to it, for the forward fragments (the opaque resolve samples its own);
+ // a bare pixel a ray answers whole needs none.
  var field=vec3f(0.0);
- if(share.x<1.0||(share.y<1.0&&(layer==1u||hasCoat()))){field=bilateralEnvironment(own,layer);}
+ if(layer==1u&&(share.x<1.0||share.y<1.0)){field=bilateralEnvironment(own,layer);}
  return BilateralSeen(bilateralTop(coord,own,held,layer),field,share);
 }
 /** What each lobe reflects, the ray's share of it and the environment's through the base lobe for the rest: share · ray + (1 − share) · environment. */

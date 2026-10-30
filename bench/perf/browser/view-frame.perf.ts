@@ -11,7 +11,7 @@ const buildSurfaces = (): SurfaceBuffer => {
     ...{ colours: DUMMY_TEXTURE, words: DUMMY_TEXTURE, layers: 0 },
     ...{ subsurfaceView: {} as GPUTextureView },
     ...{ lobes: DUMMY_TEXTURE, lobesView: {} as GPUTextureView },
-    ...{ hasEmissiveAo: true, hasSubsurface: false },
+    ...{ hasEmissiveAo: true, hasSubsurface: false, closures: 1, closureNormals: [] },
     views: () => views,
     stores: () => [views[0], views[1]] as const,
     dispose: () => {},

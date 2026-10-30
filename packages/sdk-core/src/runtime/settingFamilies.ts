@@ -19,6 +19,7 @@ import { HETEROGENEOUS_VOLUME_RULES } from '../contracts/heterogeneousVolumeOpti
 import { HIZ_RULES } from '../contracts/hizOptions.ts'
 import { LIGHT_FUNCTION_RULES } from '../contracts/lightFunctionOptions.ts'
 import { LIGHT_PROFILE_RULES } from '../contracts/lightProfileOptions.ts'
+import { LIGHT_SHAPE_RULES } from '../contracts/lightShapeOptions.ts'
 import { RECT_LIGHT_ATLAS_RULES } from '../contracts/rectLightAtlasOptions.ts'
 import { SIMPLE_LIGHT_RULES } from '../contracts/simpleLightOptions.ts'
 import { MOTION_BLUR_RULES } from '../contracts/motionBlurOptions.ts'
@@ -26,6 +27,7 @@ import { RASTER_RULES } from '../contracts/rasterOptions.ts'
 import { REFLECTION_RULES } from '../contracts/reflectionOptions.ts'
 import { LIGHTING_DATA_FORMAT_RULES } from '../contracts/lightingDataFormatOptions.ts'
 import { RAY_TRACING_RULES } from '../contracts/rayTracingOptions.ts'
+import { CLOSURE_RULES } from '../contracts/closureOptions.ts'
 import { MESH_DISTANCE_FIELD_TRACE_RULES } from '../contracts/meshDistanceFieldTraceOptions.ts'
 import { SCREEN_SPACE_TRACING_RULES } from '../contracts/screenSpaceTracingOptions.ts'
 import { SINGLE_LAYER_WATER_RULES } from '../contracts/singleLayerWaterOptions.ts'
@@ -41,6 +43,7 @@ import { SURFACE_CACHE_RULES } from '../contracts/surfaceCacheOptions.ts'
 import { TEMPORAL_RULES } from '../contracts/temporalOptions.ts'
 import { TEXTURE_FILTERING_RULES } from '../contracts/textureFilteringOptions.ts'
 import { TESSELLATION_RULES } from '../contracts/tessellationOptions.ts'
+import { ORDER_INDEPENDENT_TRANSLUCENCY_RULES } from '../contracts/orderIndependentTranslucencyOptions.ts'
 import { TRANSLUCENCY_VOLUME_RULES } from '../contracts/translucencyVolumeOptions.ts'
 import { TRANSLUCENCY_GI_RULES } from '../contracts/translucencyGiOptions.ts'
 import { VOLUMETRIC_FOG_RULES } from '../contracts/volumetricFogOptions.ts'
@@ -107,6 +110,7 @@ export const SETTING_FAMILIES = {
   hiz: { rules: HIZ_RULES, group: 'viewDistance', world: 'image' },
   lightFunction: { rules: LIGHT_FUNCTION_RULES, group: 'viewDistance', world: 'image' },
   lightProfile: { rules: LIGHT_PROFILE_RULES, group: 'shadows', world: 'image' },
+  lightShape: { rules: LIGHT_SHAPE_RULES, group: 'shadows', world: 'image' },
   rectLightAtlas: { rules: RECT_LIGHT_ATLAS_RULES, group: 'shadows', world: 'image' },
   simpleLight: { rules: SIMPLE_LIGHT_RULES, group: 'shadows', world: 'image' },
   volumetricLightmap: { rules: VOLUMETRIC_LIGHTMAP_RULES, group: 'viewDistance', world: 'image' },
@@ -128,6 +132,7 @@ export const SETTING_FAMILIES = {
   screenSpaceTracing: { rules: SCREEN_SPACE_TRACING_RULES, group: 'indirectLight', world: 'image' },
   lightingDataFormat: { rules: LIGHTING_DATA_FORMAT_RULES, group: 'indirectLight', world: 'image' },
   rayTracing: { rules: RAY_TRACING_RULES, group: 'indirectLight', world: 'image' },
+  closures: { rules: CLOSURE_RULES, group: 'effects', world: 'image' },
   meshDistanceFieldTrace: {
     rules: MESH_DISTANCE_FIELD_TRACE_RULES,
     group: 'indirectLight',
@@ -137,6 +142,11 @@ export const SETTING_FAMILIES = {
   volumetricFog: { rules: VOLUMETRIC_FOG_RULES, group: 'shadows', world: 'image' },
   subsurfaceScattering: { rules: SUBSURFACE_SCATTERING_RULES, group: 'effects', world: 'image' },
   translucencyVolume: { rules: TRANSLUCENCY_VOLUME_RULES, group: 'effects', world: 'image' },
+  orderIndependentTranslucency: {
+    rules: ORDER_INDEPENDENT_TRANSLUCENCY_RULES,
+    group: 'effects',
+    world: 'image',
+  },
   separateTranslucency: { rules: SEPARATE_TRANSLUCENCY_RULES, group: 'effects', world: 'image' },
   translucencyGi: { rules: TRANSLUCENCY_GI_RULES, group: 'indirectLight', world: 'image' },
   singleLayerWater: { rules: SINGLE_LAYER_WATER_RULES, group: 'effects', world: 'image' },

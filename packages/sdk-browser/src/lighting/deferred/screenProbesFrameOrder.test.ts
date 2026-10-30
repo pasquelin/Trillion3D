@@ -29,7 +29,7 @@ test('the frame stages the reflections, runs the screen probes, the radiance cac
   const surfaces = read('../../frame/render/surfaceLighting.ts')
   assert.ok(
     surfaces.indexOf('encodePreLight(rt, device, encoder, cam, direct, overrides)') <
-      surfaces.indexOf('lightSurfaces(rt, encoder, clear, raw, direct)'),
+      surfaces.indexOf('lightSurfaces(rt, encoder, clear, raw, direct, !traced || traced.wiper)'),
     'the lighting binds after the passes it reads',
   )
 })
@@ -44,7 +44,7 @@ test('the frame builds the translucency lighting volume once the surfaces are li
     frame.indexOf(call, frame.indexOf('export function encodeSurfaceLighting'))
   const order = [
     'encodePreLight(rt, device, encoder, cam, direct, overrides)',
-    'lightSurfaces(rt, encoder, clear, raw, direct)',
+    'lightSurfaces(rt, encoder, clear, raw, direct, !traced || traced.wiper)',
     'encodeVolumeAndScattering(rt, device, encoder, cam)',
     'drawOverLit(',
   ].map(inFrame)

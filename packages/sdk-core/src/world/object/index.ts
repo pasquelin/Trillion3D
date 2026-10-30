@@ -1,8 +1,9 @@
-import { Group } from './object3d.ts'
+import { Group, type Object3D } from './object3d.ts'
 import { Mesh, type Primitive } from './mesh.ts'
 import { Geometry } from '../geometry/geometry.ts'
 import { Material } from '../material/material.ts'
 import { Sprite } from './sprite.ts'
+import { WaterExclusionVolume } from './waterExclusionVolume.ts'
 import { cloneObject } from './clone.ts'
 
 /** A mesh reading its geometry as `primitive`, in the material kind a page gets by default. */
@@ -60,4 +61,20 @@ export const object = {
    * @example const marker = object.sprite(material.sprite({ map })); marker.scale.set(2, 2, 1);
    */
   sprite: (material?: Material) => new Sprite(material),
+  /**
+   * A box inside which the camera is out of the water bodies it excludes: a unit cube centred on the node, stretched by its scale
+   * and turned with it. By default it excludes every water body it overlaps; `mode` and `bodies` pick which.
+   * @param mode - `'allExceptListed'` (default): every body but the listed ones; `'onlyListed'`: the listed ones alone.
+   * @param bodies - The meshes carrying the water bodies `mode` names.
+   * @example const hold = object.waterExclusion(); hold.scale.set(4, 3, 8); hold.position.set(0, 9, 0); scene.add(hold);
+   */
+  waterExclusion: (
+    mode: 'allExceptListed' | 'onlyListed' = 'allExceptListed',
+    bodies: Object3D[] = [],
+  ) => {
+    const volume = new WaterExclusionVolume()
+    volume.mode = mode
+    volume.bodies = bodies.slice()
+    return volume
+  },
 }

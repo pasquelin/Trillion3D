@@ -12,12 +12,14 @@ import { modulatesScene } from '../materials/surface/materialBlending.ts'
 import { noTransmissiveInView } from './expand/expansionFrame.ts'
 import { DISPLAY_MASK_GROUP, type DisplayFilter } from './display/displayFilter.ts'
 import { BLEND_RECT_BINDINGS } from '../gpu/bind/bindLayout.ts'
-import { blendGroupLayouts } from './groupLayouts.ts'
+import { blendGroupLayouts, blendLayoutsFor } from './groupLayouts.ts'
 import type { WebgpuPagesRuntime } from '../frame/backend/runtime.ts'
 import { activeResponsive } from '../frame/prepare/responsiveTarget.ts'
 import { holdoutPassOn } from '../frame/prepare/alphaHoldout.ts'
 import { track } from '../lighting/deferred/compileLedger.ts'
 import { holdoutTargetOf } from './holdout.ts'
+import { encodeOit, prepareOit } from './oit/oitPass.ts'
+import { oitProgramsWanted } from './oit/oitResources.ts'
 import { layersReady, layersTarget, selectReduced, type LayersTarget } from './reducedView.ts'
 import { reducedResponsiveOf, upsampleResponsive } from './translucencyResponsive.ts'
 import { slotMayDraw, viewArgsWord, type DrawViews } from './expand/expansionViews.ts'
@@ -63,7 +65,11 @@ function blendBindGroup(rt: WebgpuPagesRuntime, device: GPUDevice) {
 function filteredBlendGroup(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const entries = (blendGroupsOf(rt).identity.entries[0] ??= blendEntries(rt))
   return device.createBindGroup({
-    layout: blendGroupLayouts(device).filtered,
+    layout: blendLayoutsFor(
+      device,
+      !!rt.vis.blendPipelines?.world.objectShadow,
+      oitProgramsWanted(rt.setup.oitSortedPixels, device),
+    ).filtered,
     entries: entries.filter(notRectPicture),
   })
 }
@@ -240,6 +246,9 @@ export function drawBlendPass(
   TRANSPARENTS.colorAttachments = dual
     ? dualAttachments(rt)
     : fillAllColour(rt, filter, translucencyAttachment(rt))
+  // The layers the pixels sort are left to their own pass, once this one has cleared the target (`encodeOit`).
+  const sorted = prepareOit(rt, device, encoder, pipelines.oit, !!filter)
+  const blended = onTarget(dual ? dual.colour : drawn, 'translucency')
   const pass = encoder.beginRenderPass(TRANSPARENTS)
   pass.setViewport(0, 0, target.size[0], target.size[1], 0, 1)
   overdraw?.begin(pass)
@@ -249,12 +258,15 @@ export function drawBlendPass(
     rt,
     device,
     pass,
-    onTarget(dual ? dual.colour : drawn, 'translucency'),
+    sorted ? sorted.pipelines.apart(blended) : blended,
     allRuns,
   )
   overdraw?.end(pass)
   pass.end()
   overdraw?.after(encoder)
+  encoded += encodeOit(rt, device, encoder, sorted, (sortedPass, ranked) =>
+    drawBlendRuns(rt, device, sortedPass, ranked, { view: views.colour, nearFirst: true }),
+  )
   encoded += drawModulation(rt, device, encoder, dual, drawn, allRuns, holdout, target)
   encoded += drawResponsive(rt, device, encoder, pipelines, views.responsive, target)
   if (target.apart) {

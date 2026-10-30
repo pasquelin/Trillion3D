@@ -53,6 +53,8 @@ fn clusterIdentity(entry:u32)->u32{return clusterSpans[arrayLength(&clusterSpans
  *  the diagnostic views' cluster word (in any other view, the bits of the item's opacity clip), `material` the rank of the item's surface record with the
  *  cull mode a doubtful triangle leaves to the fragment stage above it (`facing.ts`). */
 export const WORDS = { tri: 'words.x', diagId: 'words.y', material: 'words.z' } as const
+/** The fourth word of `words`, present in the programs that sort their layers per pixel (`ordered`): the primitive's place in the paint order. */
+export const ORDER_WORD = 'words.w'
 
 /** Where `tri` carries, above the triangle's rank in its cluster (`VIS_TRIANGLE_BITS`), a lobed
  *  program's UV channels word (`channelsOf`): read from the record by the vertex stage, which reads
@@ -107,7 +109,7 @@ export const BLEND_RESPONSIVE_WGSL = wgslBlock(
 
 /** The members of the stage's output, its UV and ids lanes those of the layout, then the program's
  *  extras (`vertexExtras.ts`), one location each past the thirteen every program has. */
-const vsOutMembers = (uv: string, ids: string, extras: readonly string[]) => [
+const vsOutMembers = (uv: string, ids: string, extras: readonly string[], ordered: boolean) => [
   '@builtin(position) position:vec4f',
   '@location(0) color:vec4f',
   `@location(1) uv:${uv}`,
@@ -116,7 +118,7 @@ const vsOutMembers = (uv: string, ids: string, extras: readonly string[]) => [
   '@location(4) tangent:vec4f',
   '@location(5) bitangent:vec4f',
   '@location(6) bary:vec3f',
-  '@location(7) @interpolate(flat) words:vec3u',
+  `@location(7) @interpolate(flat) words:${ordered ? 'vec4u' : 'vec3u'}`,
   `@location(8) @interpolate(flat) ids:${ids}`,
   '@location(9) @interpolate(flat) maps:vec4u',
   '@location(10) @interpolate(flat) alphaAo:vec4f',
@@ -135,9 +137,10 @@ export const vsOutWgsl = (
   ids: string,
   clipping?: Clipping,
   extras: readonly string[] = [],
+  ordered = false,
 ) =>
   wgslBlock(
-    `vsOutWgsl(${uv}, ${ids}${clipping === 'distance' ? ', distance' : ''}${extras.length ? `, ${extras.join('+')}` : ''})`,
+    `vsOutWgsl(${uv}, ${ids}${clipping === 'distance' ? ', distance' : ''}${extras.length ? `, ${extras.join('+')}` : ''}${ordered ? ', ordered' : ''})`,
     [SCENE_VS_OUT_WGSL],
     `// What the vertex stage reads on the item's surface's record and the fragment stage re-reads
 // as-is: the six maps, their factors and the flags, constant over the call, therefore FLAT.
@@ -145,5 +148,5 @@ export const vsOutWgsl = (
 // the item's surface record, which a transmissive fragment reads its volume from (\`materialAt\`);
 // above that rank, the cull mode a doubtful triangle leaves to the fragment stage (facing.ts).
 // \`alphaAo\` carries, after the alpha test and the occlusion strength, a dashed line's dash and gap.
-struct VSOut{${vsOutMembers(uv, ids, extras).join(',')},}${clipping === 'distance' ? `\n${clippedStructText('VSOut', vsOutMembers(uv, ids, extras))}` : ''}`,
+struct VSOut{${vsOutMembers(uv, ids, extras, ordered).join(',')},}${clipping === 'distance' ? `\n${clippedStructText('VSOut', vsOutMembers(uv, ids, extras, ordered))}` : ''}`,
   )

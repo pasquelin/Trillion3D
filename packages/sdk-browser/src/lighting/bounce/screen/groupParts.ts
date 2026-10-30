@@ -2,6 +2,7 @@ import { gpuAllocator } from '../../../gpu/core/resourceAllocator.ts'
 import type { RayFogRead } from '../../reflections/rayFog.ts'
 import type { GlobalFieldRead } from '../../distanceField/view.ts'
 import type { SurfaceHitResources } from '../../surfaceCache/hitWgsl.ts'
+import type { ClosureTiles } from '../../../visibility/closureTiles/closureTiles.ts'
 import type { KernelFeatures } from './kernels.ts'
 import type { ScreenProbeResources } from './resources.ts'
 
@@ -12,6 +13,10 @@ import type { ScreenProbeResources } from './resources.ts'
 export interface ScreenProbeInputs {
   normals: GPUTextureView
   flags: GPUTextureView
+  /** The normal and roughness of each closure past the first (`SurfaceBuffer.closureNormals`): what the pixels of that closure are read from; none for a view of one closure. */
+  closureNormals: readonly GPUTextureView[]
+  /** The tiles that hold the closures past the first (`closureTilesOf`), where the view holds several: the classified integration of those closures reads them. None while the view holds one closure. */
+  closureTiles?: ClosureTiles
   /** The lobes target of the physical material (`SurfaceBuffer.lobesView`): the anisotropy and the clear coat of a pixel, read where its flag says it has them. */
   lobes: GPUTextureView
   /** The surfaces' base colour and metalness, and their emission and occlusion (`SURFACE_OUTPUTS`): what the integration puts the albedo and the material's occlusion of a pixel from. */
@@ -31,6 +36,7 @@ export interface ScreenProbeInputs {
   cacheFinal: GPUTextureView
   cacheRaw: GPUTextureView
   cacheSky: GPUTextureView
+  /** The sums of the lobes the screen probes want light in, which the world probes' trace tiles follow (`scatterLobes`); a stand-in where the cache is none. */
   cachePdf: GPUBuffer
   /** The poses of the cut's placements and those the last drawn frame drew (`GpuSelection.worlds`, `previous`), which the scene stage tells the speed of a hit by (`stHitVelocity`): the stand-in of none where the image holds no cut. */
   worlds: GPUTextureView
@@ -60,6 +66,10 @@ export interface GroupParts {
   records: Record<string, GPUBindingResource>
   /** The image's normals and flags. */
   surface: { normals: GPUTextureView; flags: GPUTextureView }
+  /** For the groups of a closure past the first: its index (from 1). */
+  closure?: number
+  /** For the groups of a closure past the first: its region of the closure tiles' list (`closureRegionOf`), the tiles its classified integration runs over; none for the first closure's. */
+  overflow?: GPUBufferBinding
 }
 
 /** The uniforms of the passes of the spatial filter, the first word of each its rank, and the call that destroys them together. */

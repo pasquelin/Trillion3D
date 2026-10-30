@@ -79,3 +79,9 @@ test('the stochastic read keeps the one probe the weights name at a half, and gi
     'a point on a probe takes it',
   )
 })
+
+test('the reads kernel copies the screen probes’ parameters to the thread before it reads the cache', () => {
+  assert.match(PROGRAM, /var<uniform> spBase:ScreenProbeParams/)
+  assert.match(PROGRAM, /var<private> sp:ScreenProbeParams/)
+  assert.match(PROGRAM, /fn cacheReadsTexel\(g:vec2u\)\{\n sp=spBase;/)
+})

@@ -5,6 +5,9 @@ import { oncePerDevice } from '../../gpu/core/oncePerDevice.ts'
 import { preparedPipeline, type PreparedPipeline } from '../../lighting/deferred/fullscreen.ts'
 import { reflectedGroups, stageDescriptors } from '../stagePipelines.ts'
 import { cullOf } from '../plan/planCull.ts'
+import { emptyLayout } from '../transmission/distortionGroups.ts'
+import { WATER_EXCLUSION_BINDING } from './waterExclusionTable.ts'
+import { PLAIN_VARIANT, type BlendVariant } from '../variant.ts'
 import { WATER_BINDINGS, WATER_NORMALS_FORMAT, WATER_SPECULAR_FORMAT } from './waterLayout.ts'
 import {
   STAGE,
@@ -14,7 +17,7 @@ import {
 } from './waterSceneStages.ts'
 
 /** The layout of the water's group in the blend module (`WATER_GROUP`, `waterLayout.ts`). One a device. */
-export const waterGroupLayout = oncePerDevice((device) =>
+const groupLayout = (device: GPUDevice, exclusion: boolean) =>
   device.createBindGroupLayout({
     label: 'Trillion3D water',
     entries: [
@@ -60,9 +63,24 @@ export const waterGroupLayout = oncePerDevice((device) =>
         buffer: { type: 'read-only-storage' },
       },
       { binding: WATER_BINDINGS.sun, visibility: STAGE.fragment, texture: { sampleType: 'float' } },
+      ...(exclusion
+        ? [
+            {
+              binding: WATER_EXCLUSION_BINDING,
+              visibility: STAGE.fragment,
+              buffer: { type: 'read-only-storage' as const },
+            },
+          ]
+        : []),
     ],
-  }),
-)
+  })
+
+const plainLayout = oncePerDevice((device) => groupLayout(device, false))
+const excludingLayout = oncePerDevice((device) => groupLayout(device, true))
+
+/** The layout of the water's group: with `exclusion`, the variant for a world that holds an exclusion volume, which adds the volumes' table. */
+export const waterGroupLayout = (device: GPUDevice, exclusion = false) =>
+  (exclusion ? excludingLayout : plainLayout)(device)
 
 /**
  * What a blend program draws its single-layer water with: its three culls each of the water's
@@ -79,6 +97,8 @@ export interface WaterPipelines {
   composite(tiled: boolean): GPURenderPipeline | undefined
   /** Whether the shading writes the separated sun beside. */
   readonly separate: boolean
+  /** Whether the programs are the variant for a world with an exclusion volume: the depth pass binds the water's group too, after an empty group at the reflection's place. */
+  readonly exclusion: boolean
   /** The pipelines of the passes an image draws, every cull each (`chainReady`): the shading, the
    *  depth pass `prepass`, the composite (`composite`: over the tiles or not, none when not drawn). */
   chain(steps: { prepass: boolean; composite: boolean | undefined }): PreparedPipeline<unknown>[]
@@ -129,7 +149,9 @@ export function createWaterPipelines(
   layout: GPUBindGroupLayout,
   feedback: boolean,
   separate: boolean,
+  world: BlendVariant = PLAIN_VARIANT,
 ): WaterPipelines {
+  const { exclusion } = world
   const prepared = (
     entryPoint: string,
     targets: (GPUColorTargetState | null)[],
@@ -144,8 +166,14 @@ export function createWaterPipelines(
       depthWrite,
       groups,
     ).map((descriptor) => preparedPipeline(device, descriptor))
-  const depth = prepared('fsWaterDepth', [], true, [])
-  const groups = [...reflectedGroups(device), waterGroupLayout(device)]
+  const groups = [...reflectedGroups(device), waterGroupLayout(device, exclusion)]
+  // The depth pass runs before the lights: it binds no reflection group, an empty one holds its place before the water's.
+  const depth = prepared(
+    'fsWaterDepth',
+    [],
+    true,
+    exclusion ? [emptyLayout(device), waterGroupLayout(device, true)] : [],
+  )
   const colour = waterShadeTargets(feedback, separate)
   const shade = [
     prepared('fsWater', colour, false, groups),
@@ -154,6 +182,7 @@ export function createWaterPipelines(
   const composite = compositePipelines(device, module, layout, groups)
   return {
     separate,
+    exclusion,
     depth: (rank) => depth[cullOf(rank)].get(),
     shade: (rank, writesDepth) => shade[+writesDepth][cullOf(rank)].get(),
     composite: (tiled) => composite[+tiled].get(),

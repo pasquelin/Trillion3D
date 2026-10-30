@@ -26,6 +26,7 @@ import {
   type WebgpuBindIdentity,
 } from '../../../gpu/bind/bindIdentity.ts'
 import { pendingMade } from '../../../gpu/core/tableGrowth.ts'
+import { grantsStageStorage } from '../../../gpu/core/stageStorage.ts'
 import type { VsmProjectionState } from './projection/projectionStore.ts'
 import type { VsmRenderContext } from './render/renderPipes.ts'
 import type { VsmPageManagementContext } from './pageManagementPass.ts'
@@ -568,7 +569,7 @@ export function vsmBindingsWgsl(
 /** Whether `device` takes a ninth storage buffer a shader stage: the page management's counters
  *  (`vsmCountersOn`) and the software raster's projection data (`vsmViewsLaid`) are bound where it does. */
 export const vsmNinthStorage = (device: Pick<GPUDevice, 'limits'>) =>
-  device.limits.maxStorageBuffersPerShaderStage >= 9
+  grantsStageStorage(device, 'compute', 9)
 
 /** The layout's number a module's text reads: the pool's row shift. */
 const layoutKey = (layout: VsmLayout) => `${layout.poolRowShift}`

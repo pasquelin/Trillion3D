@@ -83,6 +83,8 @@ export interface LightParameters
   /** Whether a directional light may be the sun of the sky module's atmosphere (`scene.sky`):
    *  of the lights that may, the brightest is; `true` by default. */
   atmosphereSun?: boolean
+  /** Whether translucent objects cast a volumetric translucent shadow into the light's classic shadow maps; `true` by default. */
+  castTranslucentShadows?: boolean
   /** Which of the atmosphere's two lights a directional light may be, 0 or 1 (a sun and a moon, or
    *  two suns): the brightest of those that may be is held for each; 0 by default. */
   atmosphereSunIndex?: AtmosphereSunIndex

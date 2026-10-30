@@ -28,7 +28,9 @@ export function litPassShaders(
     colour: wgslModule(SURFACE_COLOUR_WGSL),
     sun: wgslModule(sunPassWgsl(full, tileClass)),
     local: wgslModule(localPassWgsl(full, tileClass)),
-    indirect: wgslModule(indirectPassWgsl({ bounce, skyShadowing, tileClass })),
+    indirect: wgslModule(
+      indirectPassWgsl({ bounce, skyShadowing, tileClass, closures: !!full.closures }),
+    ),
     fog: wgslModule(heightFogWgsl(true)),
   }
 }

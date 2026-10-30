@@ -63,13 +63,14 @@ test('the rays through the scene’s triangles are the reference’s: radiosity 
   assert.equal(settingFits(rule, -1), false)
 })
 
-test('the culling of the placements the rays can meet is the reference’s: mode 3, 300 m, 1 degree, the least draw distance and the box distance on, and no level changes it', () => {
+test('the culling of the placements the rays can meet is the reference’s: mode 3, 300 m, 1 degree, the least draw distance and the box distance on, the sky excluded, and no level changes it', () => {
   const culling = {
     rayTracingCulling: 3,
     rayTracingCullingRadius: 30000,
     rayTracingCullingAngle: 1,
     rayTracingCullingUseMinDrawDistance: true,
     rayTracingCullingUseDistanceToBox: true,
+    rayTracingExcludeSky: true,
   }
   for (const [field, value] of Object.entries(culling)) {
     for (const level of SCREEN_PROBE_LEVELS)

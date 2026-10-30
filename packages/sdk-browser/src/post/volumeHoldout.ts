@@ -2,6 +2,7 @@ import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { sizedImage } from './filters/sizedImage.ts'
 import { holdoutOn } from '../frame/prepare/alphaHoldout.ts'
 import type { WebgpuPagesRuntime } from '../frame/backend/runtime.ts'
+import { viewState } from '../frame/backend/state/viewState.ts'
 
 /**
  * THE VOLUMES' HOLDOUT: the opacity the volumes that hold out lay over the image, a value a render
@@ -31,9 +32,10 @@ export interface VolumeHoldout {
   readonly size: readonly number[]
 }
 
-/** The view's kept image, by the view's gpu state. Its texture is the device's to free when the
- *  holdout ends (`volumeHoldoutOf`) and with the device. */
-const held = new WeakMap<object, ReturnType<typeof sizedImage>>()
+/** The view's kept image, by the view's gpu state, let go with the view (the image retires its
+ *  texture). Its texture is the device's to free when the holdout ends (`volumeHoldoutOf`) and with
+ *  the device. */
+const held = viewState<ReturnType<typeof sizedImage>>((image) => image.release())
 
 /**
  * The target the volumes of this image add their holdout to, or none where the alpha holdout is not

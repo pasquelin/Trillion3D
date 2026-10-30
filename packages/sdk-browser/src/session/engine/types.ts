@@ -21,6 +21,7 @@ import type { SceneLightStore } from '../../../../sdk-core/src/scene/light/store
 import type { SceneFogVolumeStore } from '../../../../sdk-core/src/scene/volume/store.ts'
 import type { SceneLocalFogStore } from '../../../../sdk-core/src/scene/localFog/store.ts'
 import type { SceneReflectionCaptureStore } from '../../../../sdk-core/src/scene/reflectionCapture/store.ts'
+import type { ScenePlanarReflectionStore } from '../../../../sdk-core/src/scene/planarReflection/store.ts'
 import type { SceneHeterogeneousVolumeStore } from '../../../../sdk-core/src/scene/heterogeneousVolume/store.ts'
 import type { SparseVolumesReader } from '../../lighting/heterogeneousVolumes/sparseVolumeLoad.ts'
 import type { StageProfile } from '../../../../sdk-core/src/runtime/stageProfile.ts'
@@ -332,6 +333,7 @@ export interface EngineContext extends SettingOptions {
   sceneVolumes?: SceneFogVolumeStore // the objects voxelised into the fog's volume, shared likewise
   sceneLocalFog?: SceneLocalFogStore // the local fog volumes, shared likewise
   sceneReflectionCapture?: SceneReflectionCaptureStore // the reflection captures, shared likewise
+  scenePlanarReflection?: ScenePlanarReflectionStore // the planar reflections, shared likewise
   sceneHeterogeneousVolumes?: SceneHeterogeneousVolumeStore // the heterogeneous volumes, shared likewise
   importedLightIds?: string[] // imported light ids in cache order, set by `importedLights()`
   /** Bounced light, on by default (`false` turns it off). */

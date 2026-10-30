@@ -7,8 +7,9 @@ import assert from 'node:assert/strict'
 import { resolveSettings } from '../../../../../sdk-core/src/contracts/settingRules.ts'
 import { SKY_QUALITY_RULES } from '../../../../../sdk-core/src/modules/sky/quality.ts'
 import { shaderRun } from '../../../materials/texture/shaderRun.fixture.ts'
-import { cloudSetupOf } from './cloudModes.ts'
+import { cloudDebugSetup, cloudSetupOf } from './cloudModes.ts'
 import { CLOUD_SHADOW_TRACE_PROGRAM } from './shadowWgsl.ts'
+import { composeProgram } from './composeWgsl.ts'
 import { cloudTraceProgram } from './traceWgsl.ts'
 import {
   captureCloudKey,
@@ -28,6 +29,7 @@ const KEY: CloudTraceKey = {
   skyLight: false,
   volumeShadowMap: false,
   closestDepth: false,
+  debugView: 0,
 }
 const FROM_MAP: CloudTraceKey = { ...KEY, volumeShadowMap: true }
 
@@ -231,4 +233,106 @@ test('the trace writes the closest surface’s depth only where the haze is laid
   assert.equal(key(two, { ...SEEN, airless: true }), false, 'no air to scatter the haze')
   assert.equal(key(two, { ...SEEN, skyCapture: true }), false, 'a capture lays its own')
   assert.equal(key(two, SEEN, { ...QUALITY, cloudHighQualityAerial: false }), false)
+})
+
+test('a debug view of the tracing is the main view’s alone, lit by neither the lamps nor the sun’s opaque shadow', () => {
+  const setup = cloudSetupOf(QUALITY)
+  const lit = { ...QUALITY, cloudLocalLights: true, cloudSampleLightShadowMap: true }
+  const frame = { ...SEEN, sunShadowsOnClouds: true }
+  const key = (cloudDebugView: (typeof QUALITY)['cloudDebugView'], seen = frame) =>
+    cloudTraceKey({ ...lit, cloudDebugView }, seen, setup, MARCHED)
+  const view = (k: CloudTraceKey) => [k.debugView, k.localLights, k.opaqueShadow]
+  assert.deepEqual(view(key('none')), [0, true, true])
+  assert.deepEqual(view(key('conservativeDensity')), [1, false, false])
+  assert.deepEqual(view(key('emptySpaceSkipping')), [2, false, false])
+  assert.equal(key('emptySpaceSkipping', { ...frame, reflection: true }).debugView, 0)
+  assert.notEqual(cloudTraceKeyText(key('none')), cloudTraceKeyText(key('conservativeDensity')))
+})
+
+test('a debug view marches every sample and writes its channels in place of the luminance’s; the default program holds none of it', () => {
+  const none = cloudTraceProgram(KEY)
+  const density = cloudTraceProgram({ ...KEY, debugView: 1 })
+  const table = cloudTraceProgram({ ...KEY, emptySpace: true, debugView: 2 })
+  const noTable = cloudTraceProgram({ ...KEY, debugView: 2 })
+  // The default program is the plain march: no debug constant, counter, read of the table's start or branch.
+  assert.doesNotMatch(none, /CLOUD_DEBUG_VIEW|cloudDebug|cloudStartCm/)
+  assert.match(none, /if\(!cloudProbeDense\(probe\)\)\{/)
+  assert.match(none, /if\(all\(m\.seen\.transmittance<vec3f\(cloudTrace\.layer\.w\)\)\)\{break;\}/)
+  assert.match(
+    none,
+    /fn cloudLight\(c:vec4f\)->vec4f\{return vec4f\(preExposed\(c\.rgb\),c\.a\);\}/,
+  )
+  assert.match(density, /const CLOUD_DEBUG_VIEW:u32=1u;/)
+  assert.match(table, /const CLOUD_DEBUG_VIEW:u32=2u;/)
+  // The empty-space output is asked at the froxel's bounding radius only with the table.
+  assert.match(table, /cloudMaterialEmptySpace\(rel,0\.5\*cloudTrace\.empty\.x\*1\.73\)<=0\.0/)
+  assert.doesNotMatch(noTable, /cloudMaterialEmptySpace\(rel,0\.5/)
+  // A debug march keeps the samples the density bound empties, ends at no opacity limit and starts at no table distance.
+  for (const debug of [density, table, noTable]) {
+    const march = functionText(debug, 'cloudMarch')
+    assert.doesNotMatch(march, /if\(!cloudProbeDense\(probe\)\)/)
+    assert.doesNotMatch(march, /\{break;\}\n {2}continuing/)
+    assert.match(debug, /if\(cloudDebugEmpty\(rel,probe\)\)\{cloudDebugZero\+\+;\}/)
+    assert.match(
+      debug,
+      /fn cloudStartSteps\(p:vec2u,t:ptr<function,f32>,stepT:f32\)->u32\{return 0u;\}/,
+    )
+    assert.match(debug, /fn cloudEmptyStep\(\)->u32\{return 0u;\}/)
+  }
+})
+
+test('a debug view’s setup enlarges bilinearly and shows no fogged image to the translucent surfaces', () => {
+  const setup = cloudSetupOf({ ...QUALITY, cloudFogLateOnTranslucent: true })
+  assert.equal(setup.lateFogOnTranslucent, true)
+  const debug = cloudDebugSetup(setup)
+  assert.deepEqual(
+    [debug.upsampling, debug.lateFogOnTranslucent, debug.mode, debug.lateFog],
+    [0, false, setup.mode, setup.lateFog],
+  )
+})
+
+/** The coverage the trace writes for the alpha holdout, of a ray that let `through` of its light by (the three channels), with the
+ *  haze letting `air` and the fog `fog` through, the clouds holding out or not, and the haze and the fog holding out or not. */
+function holdoutRun(
+  through: number,
+  air: number,
+  fog: number,
+  holds: { cloud: boolean; haze: boolean; fog: boolean },
+) {
+  const { cloudHoldout } = shaderRun<{
+    cloudHoldout: (a: object, depth: number, dir: number[], pixel: number[]) => number
+  }>(cloudTraceProgram({ ...KEY, holdout: true }), ['cloudHoldout'], {
+    cloudTrace: { local: [0, holds.cloud ? 1 : 0, 0, 1] },
+    frame: { hidden: [0, holds.haze ? 1 : 0, 0, 0] },
+    cloudOrigin: [0, 0, 0],
+    CLOUD_CM_TO_M: 0.01,
+    cloudAir: () => [0, 0, 0, air],
+    fogOverNoHaze: () => [0, 0, 0, fog],
+    fogHoldout: () => holds.fog,
+  })
+  return cloudHoldout({ transmittance: [through, through, through] }, 1, [1, 0, 0], [0, 0])
+}
+
+test('the trace writes the alpha holdout’s coverage: the clouds’ own let through the haze and the fog, the haze’s and the fog’s behind', () => {
+  const near = (a: number, b: number) => assert.ok(Math.abs(a - b) < 1e-6, `${a} is not ${b}`)
+  const none = { cloud: false, haze: false, fog: false }
+  near(holdoutRun(0.25, 0.5, 0.5, { ...none, cloud: true }), 0.75 * 0.5 * 0.5)
+  near(holdoutRun(0.25, 0.5, 0.5, none), 0)
+  // The haze that holds out: its coverage of the cloud's, then the fog in front of it lets it through.
+  near(holdoutRun(0.25, 0.5, 0.5, { ...none, haze: true }), 0.75 * 0.5 * 0.5)
+  // The fog that holds out: its coverage of the cloud's.
+  near(holdoutRun(0.25, 1, 0.5, { ...none, fog: true }), 0.75 * 0.5)
+  near(holdoutRun(1, 0.5, 0.5, { cloud: true, haze: true, fog: true }), 0)
+})
+
+test('the trace writes the holdout image only for a key that asks for it, and the composition reads it in place of the cloud colour', () => {
+  assert.doesNotMatch(cloudTraceProgram(KEY), /holdoutOut|out\.holdout=cloudHoldout/)
+  assert.match(
+    cloudTraceProgram({ ...KEY, holdout: true }),
+    /textureStore\(holdoutOut,id\.xy,vec4f\(traced\.holdout/,
+  )
+  assert.notEqual(cloudTraceKeyText(KEY), cloudTraceKeyText({ ...KEY, holdout: true }))
+  const held = composeProgram(cloudSetupOf(QUALITY), true, true)
+  assert.match(held, /return vec4f\(0\.0,0\.0,0\.0,cloud\.r\);/)
+  assert.doesNotMatch(held, /holdoutAt/)
 })

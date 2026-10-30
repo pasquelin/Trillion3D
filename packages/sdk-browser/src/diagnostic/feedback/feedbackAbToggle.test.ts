@@ -99,6 +99,7 @@ test('forced full renders run the temporal pass and never replace the held frame
       },
     },
     lights: {},
+    context: {},
   } as unknown as WebgpuPagesRuntime
   const camera = {
     viewProjection: new Float64Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]),

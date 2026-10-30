@@ -67,7 +67,7 @@ const NO_PLACE: SlotPlace = { placed: false, x: 0, y: 0, width: 0, height: 0 }
 export function createRectLightAtlasManager() {
   const slots: AtlasSlot[] = []
   let deleted: AtlasRect[] = []
-  let freeSlots: number[] = []
+  const freeSlots: number[] = []
   const state = { layout: newLayout() }
   let atlas: Point | undefined
   let pendingAdds = false

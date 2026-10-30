@@ -26,9 +26,12 @@ import {
   variantOfBlend,
 } from './plan/planCull.ts'
 import type { DualPasses } from './pipelines.ts'
+import type { ObjectShadowAtlasRead } from '../gpu/core/objectShadowRead.ts'
 import type { VertexReads } from './cloudVertexText.ts'
 import type { TranslucentScene } from './shader.ts'
 import type { WaterPipelines } from './water/waterPipelines.ts'
+import type { BlendVariant } from './variant.ts'
+import type { OitPipelines } from './oit/oitPipelines.ts'
 
 /** Pipelines a transparent pass picks by plan rank (`draw.ts`): the blend pass's modes and
  *  transmissive culls, `filtered` in an image with display layers (`display/displayFilter.ts`); a rank
@@ -215,10 +218,18 @@ export interface BlendModePipelines extends RankedPipelines {
   /** The display mask's, whose target is attachment `slot` (`routedPipelines.ts`). */
   readonly mask: RankedPipelines & { slot: number }
   /** The front stage's of what a front pass writes (`FrontOutputs`), one set each, every program's
-   *  the same (`frontPass.ts`). */
-  front(outputs: FrontOutputs): FrontStagePipelines
+   *  the same (`frontPass.ts`); with `cut`, the variant that cuts the water's surface inside an exclusion volume (the programs of a world that holds one). */
+  front(outputs: FrontOutputs, cut?: boolean): FrontStagePipelines
   /** The radiance mark stage's, every program's the same (`radianceMark.ts`). */
   readonly radianceMark: FrontStagePipelines
+  /** The translucent object shadows' depth stage's, every program's the same (`objectShadow/objectShadowDraw.ts`). */
+  readonly objectShadow: FrontStagePipelines
+  /** Whether that stage is the variant that does not draw the water's surface inside an exclusion volume (its pass binds the volumes' table in the water group). */
+  readonly objectShadowCut: boolean
+  /** The variant the programs were made for (`BlendVariant`), the verdict `followBlendWorld` compares with the world; its object shadow switch asked is whatever the device grants. */
+  readonly world: BlendVariant
+  /** How the programs read their object's shadow where the device grants it: the layouts the pass binds are those of the variant's verdict (`blendLayoutsFor`). */
+  readonly objectShadowRead?: ObjectShadowAtlasRead
   /** What the program draws its transmissive items with, none in a scene that transmits nothing
    *  or under a diagnostic variant (`TransmitPipelines`). */
   readonly transmission?: TransmitPipelines
@@ -270,6 +281,8 @@ export interface BlendModePipelines extends RankedPipelines {
   readonly skyFace: RankedPipelines
   /** The responsiveness pass's, the layers' marks in their own target (`drawResponsive`). */
   readonly responsive: RankedPipelines
+  /** The stage that collects the layers the pixels sort (`./oit/oitPipelines.ts`), none in a program made without it. */
+  readonly oit?: OitPipelines
   /** The alpha holdout's, what each layer leaves of the background visible, in a target of its own
    *  (`drawHoldout`). */
   readonly holdout: RankedPipelines

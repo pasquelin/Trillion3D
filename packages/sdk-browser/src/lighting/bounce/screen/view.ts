@@ -27,6 +27,8 @@ export interface ScreenProbeView {
   /** The size of the targets they were made at: the largest an image of the view is drawn at. */
   size: readonly [number, number]
   resources: ScreenProbeResources
+  /** The closures a pixel holds that the resources were made for (`SurfaceBuffer.closures`): one, or the view's most where the pixels past the first closure have a history of their own. */
+  readonly closures: number
   /** The kernels the groups were made for, and the groups: made again where the kernels changed. */
   kernels?: ScreenProbeKernels
   groups?: ReturnType<typeof createScreenProbeGroups>
@@ -51,8 +53,12 @@ export interface ScreenProbeView {
   image?: ScreenProbeGeometry
   /** What the lighting reads this image: the history the temporal pass wrote; none where the image cast no probe. */
   indirect: GPUTextureView | undefined
+  /** The same words of every closure, one layer each (the first closure's in layer 0), where the view holds several: what the lighting reads of a closure past the first; none for one. */
+  indirectClosures: GPUTextureView | undefined
   /** The short-range global illumination the temporal pass wrote this image, which the lighting adds to the probes' light; none where the level gathers none. */
   shortRangeGi: GPUTextureView | undefined
+  /** The same of every closure, one layer each, where the view holds several and the level gathers short-range illumination. */
+  shortRangeGiClosures: GPUTextureView | undefined
   /** The hit lighting's lists and radiance (`hitLitStage.ts`), made on the first image that lights the rays' hits where they stand and sized for every ray of the view; none before, and none while the option is off or refused. */
   hitLit?: LitListResources
   /** Bytes the resources hold, the hit lighting's included. */
@@ -108,15 +114,17 @@ function makeView(
   size: readonly [number, number],
   settings: ScreenProbeSettings,
   capacity: ScreenProbeGeometry,
+  closures: number,
 ): ScreenProbeView {
   const allocator = gpuAllocator(device, 'Trillion3D screen probes')
-  const resources = createScreenProbeResources(allocator, capacity, settings)
+  const resources = createScreenProbeResources(allocator, capacity, settings, closures)
   device.queue.writeBuffer(resources.listHead, 0, new Uint32Array([0, 0, 1, 0]))
   const base = allocator.bytes()
   const view: ScreenProbeView = {
     key: settingsKeyOf(settings),
     size,
     resources,
+    closures,
     write: createScreenProbeParams(device, resources.params),
     turn: 0,
     frame: 0,
@@ -125,7 +133,9 @@ function makeView(
     begun: false,
     previousInverse: new Float64Array(16),
     indirect: undefined,
+    indirectClosures: undefined,
     shortRangeGi: undefined,
+    shortRangeGiClosures: undefined,
     get bytes() {
       return base + (view.hitLit?.bytes ?? 0)
     },
@@ -143,16 +153,19 @@ function makeView(
  * scale moves without remaking a thing —: the one it holds while it was made for these settings and this size, else made, the old
  * one given back. Made where the device's budget leaves room (`ledgerAdmitted`, the bytes the old one gives back credited), the tile
  * raised until the atlas fits the device's textures; none where it does not even at the largest tile, and the reason: the pixels then take the sky light's irradiance.
+ * `closures` is the closures a pixel holds: past one, the pixels of each closure past the first have a history of their own (`closureTextures`).
  */
 export function ensureScreenProbeView(
   held: ScreenProbeView | undefined,
   device: GPUDevice,
   size: readonly [number, number],
   settings: ScreenProbeSettings,
+  closures = 1,
 ): { view?: ScreenProbeView; why?: string } {
   if (
     held &&
     held.key === settingsKeyOf(settings) &&
+    held.closures === closures &&
     held.size[0] === size[0] &&
     held.size[1] === size[1]
   )
@@ -165,9 +178,9 @@ export function ensureScreenProbeView(
   }
   const { value, why } = ledgerAdmitted(device, {
     held,
-    asked: screenProbeBytes(capacity, settings),
+    asked: screenProbeBytes(capacity, settings, closures),
     what: 'the screen probes',
-    make: () => makeView(device, size, settings, capacity),
+    make: () => makeView(device, size, settings, capacity, closures),
   })
   return { view: value, why }
 }

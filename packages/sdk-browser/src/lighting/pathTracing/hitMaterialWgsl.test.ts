@@ -3,7 +3,13 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 import { shadingEnergyWords } from '../../../../sdk-core/src/lighting/shadingEnergy.ts'
-import { PT_HIT_MATERIAL_WGSL, PT_HIT_SURFACE_WGSL, PT_MATERIAL_FLAG } from './hitMaterialWgsl.ts'
+import {
+  PT_HIT_MATERIAL_BYTES,
+  PT_HIT_MATERIAL_WGSL,
+  PT_HIT_SURFACE_WGSL,
+  PT_MATERIAL_FLAG,
+  ptHitMaterialSlotBytes,
+} from './hitMaterialWgsl.ts'
 
 type V3 = [number, number, number]
 interface Material {
@@ -189,4 +195,9 @@ test('a subsurface colour is the light a two-sided leaf passes, or added to the 
     [0.8, 0.8, 0.8],
   )
   assert.deepEqual(skin.transmit, [0, 0, 0])
+})
+
+test('the slot of a path’s material is the layout in use: three vectors, a fourth only with the weight of the slab', () => {
+  assert.equal(ptHitMaterialSlotBytes(false), PT_HIT_MATERIAL_BYTES)
+  assert.equal(ptHitMaterialSlotBytes(true), PT_HIT_MATERIAL_BYTES + 16)
 })

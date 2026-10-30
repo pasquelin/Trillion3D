@@ -29,9 +29,14 @@ import { HIZ_RULES, type HizField } from '../contracts/hizOptions.ts'
 import { LIGHT_FUNCTION_RULES, type LightFunctionField } from '../contracts/lightFunctionOptions.ts'
 import { LIGHT_PROFILE_RULES, type LightProfileField } from '../contracts/lightProfileOptions.ts'
 import {
+  ORDER_INDEPENDENT_TRANSLUCENCY_RULES,
+  type OrderIndependentTranslucencyField,
+} from '../contracts/orderIndependentTranslucencyOptions.ts'
+import {
   SEPARATE_TRANSLUCENCY_RULES,
   type SeparateTranslucencyField,
 } from '../contracts/separateTranslucencyOptions.ts'
+import { LIGHT_SHAPE_RULES, type LightShapeField } from '../contracts/lightShapeOptions.ts'
 import {
   GLOBAL_DISTANCE_FIELD_RULES,
   type GlobalDistanceFieldField,
@@ -48,6 +53,7 @@ import { SHADOW_RULES } from '../contracts/shadowOptions.ts'
 import { SHADOW_SUN_MEANINGS } from './shadowSunMeanings.ts'
 import { CONTACT_SHADOW_MEANINGS } from './contactShadowMeanings.ts'
 import { CAPSULE_SHADOW_MEANINGS } from './capsuleShadowMeanings.ts'
+import { TRANSLUCENT_OBJECT_SHADOW_MEANINGS } from './translucentObjectShadowMeanings.ts'
 import { RAY_TRACED_SHADOW_MEANINGS } from './rayTracedShadowMeanings.ts'
 import { RAY_TRACED_SKY_LIGHT_MEANINGS } from './rayTracedSkyLightMeanings.ts'
 import { SHADOW_VIEW_MEANINGS } from './shadowViewMeanings.ts'
@@ -100,6 +106,8 @@ import { REFLECTION_MEANINGS } from './reflectionMeanings.ts'
 import { SCREEN_SPACE_TRACING_RULES } from '../contracts/screenSpaceTracingOptions.ts'
 import { LIGHTING_DATA_FORMAT_RULES } from '../contracts/lightingDataFormatOptions.ts'
 import { RAY_TRACING_RULES } from '../contracts/rayTracingOptions.ts'
+import { CLOSURE_RULES } from '../contracts/closureOptions.ts'
+import { CLOSURE_MEANINGS } from './closureMeanings.ts'
 import { RAY_TRACING_MEANINGS } from './rayTracingMeanings.ts'
 import { LIGHTING_DATA_FORMAT_MEANINGS } from './lightingDataFormatMeanings.ts'
 import { MESH_DISTANCE_FIELD_TRACE_RULES } from '../contracts/meshDistanceFieldTraceOptions.ts'
@@ -234,12 +242,18 @@ const SHADING_MEANINGS: Readonly<Record<ShadingField, string>> = /* @__PURE__ */
     "Whether the diffuse light of a lit surface is the energy-preserving rough diffuse (Oren-Nayar-like, its roughness weighed by 0.4): true (the default), a rough surface is brighter against the light and darker at grazing views than Lambert's, as a new project's; false, Lambert's diffuse whatever the roughness. A rectangle light and a light of a size past 20 cm are Lambert's whatever this says, as the indirect light and the surface cache are.",
   shadingAccurate:
     "Whether the specular lobes of a lit surface use the exact joint Smith visibility of the GGX lobe: true (the default), a desktop project's, the visibility is the exact one on every isotropic lobe (a light's, a coat's, the water's); false, the cheaper approximation of it, a mobile project's. The anisotropic lobe keeps its exact lengths either way.",
+  shadingFurnaceTest:
+    "Whether the furnace test of the shading runs: true, once the image is lit, every pixel is replaced by the light its surface returns in a uniform environment of radiance 0.5 (a surface that conserves energy shows 0.5 or less, an unlit pixel and the background 0.5), found by sampling the surface's lobes; needs shadingFurnaceTestEnableForProject. false by default.",
+  shadingFurnaceTestEnableForProject:
+    "Whether the furnace test of the shading is available (its code compiled and run): the project's switch that shadingFurnaceTest needs to take effect. false by default, to be set with the world.",
   toonUnifiedDiffuse:
     "Whether the diffuse ramp of a toon surface is applied once to the sum of every light instead of to each light's term: true, each light adds its diffuse light, unramped, with its weight and the cosine it was lit at, to the pixel's toon data, and a pass after the lights applies the ramp at the cosine those weights average to, to the sum, so overlapping lights give one set of bands, not several; false (the default), each light applies the ramp to its own term. Only the toon surfaces of the material model 'toon' are affected; changing it redraws a still view from the next frame.",
   toonReflectionQuantization:
     "Whether the reflections of a toon surface are quantised by its profile's specular indirect ramp: true, where the profile's specularIndirectRampRepetition is above 0, the logarithm of the specular indirect light has its value repeated that many times and the fraction of it read in the ramp; false (the default), the reflections are smooth, whatever the profile says. The profile's specularIndirectScale applies in both cases. Only the toon surfaces of the material model 'toon' are affected.",
   toonProfileResolution:
     'The resolution, in texels, the ramps and the pattern images of the toon profiles are baked at, 64 by default (also the least) and up to 512, rounded up to a multiple of 8; the higher, the finer a pattern image and a ramp with sharp keys, and the more memory the toon tables take (a pattern is 2 x resolution x resolution words).',
+  shadingFurnaceTestSampleCount:
+    "The samples of each of the three distributions (the specular lobe, the cosine hemisphere, the clear coat's lobe) the furnace test takes at each pixel, from 16 to 2048, 64 by default; the more, the less noise in the test.",
   irisNormal:
     "Whether the eye shading model lights its iris by an iris normal of its own: true, the graph's clearCoatBottomNormal output (the surface's normal where it is not wired) is the iris normal, the caustic normal is the tangent output bent toward the opposite of the normal by the iris mask times its distance, and the eye's specular is held at 0.25; false (the default), the tangent output is the iris direction, in the world's axes, and the clearCoat and clearCoatRoughness outputs are the iris mask and distance.",
 }))()
@@ -474,6 +488,44 @@ const SEPARATE_TRANSLUCENCY_MEANINGS: Readonly<Record<SeparateTranslucencyField,
     'How the smaller translucency targets are scaled up when composed: 0 bilinear; 1, the default, the nearest depth neighbour of the four texels around a pixel, used with a share of 50 only (any other share composes bilinear), except in the depth of field recombine, which always uses it for smaller layers.',
 }
 
+/** What each setting of the per-pixel sorted translucency means (`../contracts/orderIndependentTranslucencyOptions.ts`). */
+const ORDER_INDEPENDENT_TRANSLUCENCY_MEANINGS: Readonly<
+  Record<OrderIndependentTranslucencyField, string>
+> = {
+  oitSortedPixels:
+    'The project switch that lets the translucent layers of blending normal or additive be collected per pixel and composed front to back, so that layers that cross are ordered right at every pixel; read once when the session opens; false by default. A device whose fragment stage binds eight storage buffers or fewer keeps the layers blended in drawing order.',
+  oitSortedPixelsEnable:
+    'The run-time switch, read each image, of the sorting the programs oitSortedPixels made allow; true by default.',
+  oitPassType:
+    'The passes sorted, as bits: 1 the standard translucency, 2 the separate translucency; 3 by default. Every layer of the engine is drawn apart from the lit image, so the bit 2 decides and the bit 1 changes nothing.',
+  oitMaxSampleCount:
+    'The fragments a pixel keeps, from 1 to 16, rounded down to a square (4 by default): 8 keeps 4, 16 keeps 16.',
+  oitMethod:
+    'The name the debug text gives the method, 1 by default the multi-layer alpha blending, 0 the k-buffer. The fragments are kept in depth order and those past the room merged into the last one whichever it is, as the reference does.',
+  oitTransmittanceThreshold:
+    'From 0 to 1, 0.05 by default: a fragment behind the last one stored, whose merged transmittance is under it in every channel, adds nothing.',
+  oitDebug:
+    'The figures of the pixel under oitDebugCursorX and oitDebugCursorY (method, samples, each fragment depth, colour and transmittance) written over the image: 0 off, 1 the standard translucency (the engine has none), 2 the separate translucency; 0 by default.',
+  oitDebugCursorX:
+    'The column of the pixel oitDebug writes the figures of, from the left of the image; -1, the default, none. A value under 1 or on the last column writes none.',
+  oitDebugCursorY:
+    'The row of the pixel oitDebug writes the figures of, from the top of the image; -1, the default, none. A value under 1 or on the last row writes none.',
+}
+
+/** What each setting of the light shapes' visualization means (`../contracts/lightShapeOptions.ts`). */
+const LIGHT_SHAPE_MEANINGS: Readonly<Record<LightShapeField, string>> = {
+  visualizeLightShape:
+    'Whether each point, spot and rectangle light is drawn as a wireframe of its reach over the lit image, in a colour of its own, for debugging: a sphere of its range, the cone of a spot, the rectangle with its bounding sphere. off by default. Switching it fades the shapes in or out.',
+  visualizeLightShapeFadeDuration:
+    'Seconds the shapes take to fade in or out when visualizeLightShape is switched; any number, held to at least 0 where it is read; 0.5 by default.',
+  visualizeLightShapeMaxDelayDistance:
+    "Centimetres within which the fade in of a shape is delayed, the delay growing linearly as the shape's surface comes nearer the eye (the farther shapes appear first); any number, held to at least 100 where it is read; 4000 by default.",
+  visualizeLightShapeMaxDelay:
+    'Seconds of the longest delay of a fade in (a shape at the eye); the fade out is never delayed; any number, held to at least 0 where it is read; 2.5 by default.',
+  visualizeLightShapeMaxOpacity:
+    'Opacity of each wireframe at full, from 0 to 1 where it is read (any number is taken); the wireframe also fades out within a metre of the surface behind it; 0.1 by default.',
+}
+
 /** What each setting of the atlas of the light profiles means (`../contracts/lightProfileOptions.ts`). */
 const LIGHT_PROFILE_MEANINGS: Readonly<Record<LightProfileField, string>> = {
   lightProfileAtlasResolution:
@@ -605,6 +657,8 @@ const SKY_QUALITY_MEANINGS: Readonly<
     'Slices the start of the empty-space table is moved by; -1 moves it one slice toward the eye.',
   cloudEmptySpaceSkippingCorners:
     'Whether the corners of a cell of the empty-space table are read as well as its centre.',
+  cloudDebugView:
+    "Replaces the clouds, drawn after the translucent surfaces, by a view of the tracing: 'none'; 'conservativeDensity', red the share of each ray's samples that find conservative density above zero; 'emptySpaceSkipping', red the same share for the material's empty-space output, green the distance the empty-space table starts the ray at over the table's depth (read with cloudEmptySpaceSkipping on), the light of the clouds in the other channels.",
   cloudRenderTarget:
     'Whether the clouds are traced into a target of their own, at the size cloudTraceSize says, and laid over the scene.',
   cloudUpsampling:
@@ -734,6 +788,8 @@ export const settingRuleProperties = () => ({
   }),
   ...ruleProperties(LIGHT_FUNCTION_RULES, LIGHT_FUNCTION_MEANINGS),
   ...ruleProperties(LIGHT_PROFILE_RULES, LIGHT_PROFILE_MEANINGS),
+  ...ruleProperties(LIGHT_SHAPE_RULES, LIGHT_SHAPE_MEANINGS),
+  ...ruleProperties(ORDER_INDEPENDENT_TRANSLUCENCY_RULES, ORDER_INDEPENDENT_TRANSLUCENCY_MEANINGS),
   ...ruleProperties(SEPARATE_TRANSLUCENCY_RULES, SEPARATE_TRANSLUCENCY_MEANINGS),
   ...ruleProperties(RECT_LIGHT_ATLAS_RULES, RECT_LIGHT_ATLAS_MEANINGS),
   ...ruleProperties(SIMPLE_LIGHT_RULES, SIMPLE_LIGHT_MEANINGS),
@@ -745,6 +801,7 @@ export const settingRuleProperties = () => ({
     ...SHADOW_VIEW_MEANINGS,
     ...CONTACT_SHADOW_MEANINGS,
     ...CAPSULE_SHADOW_MEANINGS,
+    ...TRANSLUCENT_OBJECT_SHADOW_MEANINGS,
     ...RAY_TRACED_SHADOW_MEANINGS,
     ...RAY_TRACED_SKY_LIGHT_MEANINGS,
   }),
@@ -772,6 +829,7 @@ export const settingRuleProperties = () => ({
   ...ruleProperties(SCREEN_SPACE_TRACING_RULES, SCREEN_SPACE_TRACING_MEANINGS),
   ...ruleProperties(LIGHTING_DATA_FORMAT_RULES, LIGHTING_DATA_FORMAT_MEANINGS),
   ...ruleProperties(RAY_TRACING_RULES, RAY_TRACING_MEANINGS),
+  ...ruleProperties(CLOSURE_RULES, CLOSURE_MEANINGS),
   ...ruleProperties(MESH_DISTANCE_FIELD_TRACE_RULES, MESH_DISTANCE_FIELD_TRACE_MEANINGS),
   ...ruleProperties(SURFACE_CACHE_RULES, SURFACE_CACHE_MEANINGS),
   ...ruleProperties(AMBIENT_OCCLUSION_RULES, AMBIENT_OCCLUSION_MEANINGS),

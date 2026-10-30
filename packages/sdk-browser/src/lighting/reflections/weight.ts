@@ -3,11 +3,12 @@ import { DEFERRED_BINDINGS } from '../deferred/bindings.ts'
 import { wgslBlock, wgslStruct, type WgslDecl } from '../../../../math/src/wgsl/decl.ts'
 import { DIELECTRIC_F0, envBrdfF90, slabF90 } from '../../../../math/src/wgsl/lighting.ts'
 import { SURFACE_F0_WGSL } from '../../materials/surface/surfaceSpecular.ts'
-import { BOUNCE_APPLY_WGSL } from '../bounce/applyWgsl.ts'
-import { SCREEN_INDIRECT_WGSL } from '../bounce/screen/indirectWgsl.ts'
-import { REFLECTION_LOBE_WGSL } from './field.ts'
+import { bounceApplyWgsl } from '../bounce/applyWgsl.ts'
+import { screenIndirectWgsl } from '../bounce/screen/indirectWgsl.ts'
+import { REFLECTION_ENVIRONMENT_WGSL, REFLECTION_LOBE_WGSL } from './field.ts'
 import { LOBE_AXIS_WGSL, reflectionLobeWgsl } from '../lobeAxisWgsl.ts'
 import { ENERGY_TERMS_WGSL } from '../direct/energyTermsWgsl.ts'
+import { INDIRECT_DIFFUSE_VIEW_WGSL } from '../direct/indirectDiffuseView.ts'
 import { surfaceReflects } from '../../materials/surface/surfaceModel.ts'
 import { loadOnlyTarget } from '../../gpu/core/loadOnlyTarget.ts'
 import { HDR_FORMAT } from '../../scene/targetFormats.ts'
@@ -151,13 +152,13 @@ export const reflectionEnvironmentLobesWgsl = (lobes: boolean) =>
 }`,
   )
 
-/** The layers of the reflection target: the rays' answer with the base lobe's share, and the environment through the base lobe with the coat's rough share. */
+/** The layers of the reflection target: the rays' answer with the base lobe's share, and, in its alpha alone, the coat's rough share. */
 export const REFLECTION_TARGET_LAYERS = 2
 /** The reflection target, read by load alone by the opaque resolve, before any weight or look. Its layer 0 holds what the rays answer, the
  *  radiance of the lobe the ray serves — a bare pixel's base lobe by its share, a coated pixel's coat whole —, with the base lobe's
- *  share in its alpha; its layer 1 the environment through the base lobe, the rough light both lobes share, with the share of the
- *  coat's lobe the rays leave to it in its alpha, written only where the surface has a coat (the one reader, `resolvedCoatLeft`, reads it under `hasCoat`). The rough light, where the screen probes read nothing, is the environment of layer 1
- *  (`resolvedReflectionRough`); the screen probes' replaces it where they read the pixel, each lobe
+ *  share in its alpha; its layer 1 the share of the
+ *  coat's lobe the rays leave to the rough light in its alpha, written only where the surface has a coat (the one reader, `resolvedCoatLeft`, reads it under `hasCoat`). The rough light, the environment through the base lobe
+ *  both lobes share, is sampled where it is blended (`resolvedReflectionRough`), not stored; the screen probes' replaces it where they read the pixel, each lobe
  *  taking the share of it its own is left (`resolvedIndirect`). The resolve weighs all of it (`resolvedWeighed`). */
 export const REFLECTION_TARGET = loadOnlyTarget(
   DEFERRED_BINDINGS.reflection,
@@ -190,37 +191,50 @@ fn reflectionLeftShare(alpha:f32)->f32{
  * `resolvedLocalLight(sky, N, V, rough)`): the environment the last pass wrote, the sky, which the local light
  * (`NO_LOCAL_LIGHT_WGSL`: none; the reflection captures', `capturedLocalLightWgsl`) lays itself over before the lobes are weighed.
  */
-export const reflectionResolveWgsl = (local: WgslDecl) => {
+export const reflectionResolveWgsl = (
+  local: WgslDecl,
+  closures = false,
+  layered = false,
+  diffuseView = false,
+) => {
   /** The opaque resolve's reflection: what the rays answer of the surface's lobes, as the compute pass accumulated it for its pixel — its texel with its alpha in
    *  `resolvedReflectionTexel`, zero where the surface reflects nothing —, and the rest of each lobe, the one rough light the lobes share (the environment's through
    *  the base lobe, `resolvedReflectionRough`) times the share each lobe is left (`reflectionLeftShare` for the base lobe, `resolvedCoatLeft` for the coat), under
    *  the occlusion `occluded` (`ambientSpecularOcclusion`, `resolvedReflection`). `resolvedLobes` gives each lobe its light — the rays' answer to the lobe they serve:
    *  a bare pixel's base lobe, a coated pixel's coat, the base lobe under a coat having the rough light alone — and `resolvedWeighed` its look
    *  and its weight, on the pixel's own reflectance (`reflectionShare`): the rays' answer and the rough light blended, given a look, then
-   *  weighed. The host lists the lobes' variant of `reflectionWeighWgsl` and of `indirectF0`. */
+   *  weighed. The host lists the lobes' variant of `reflectionWeighWgsl` and of `indirectF0`. With `layered`, a view whose pixels hold several closures: the target holds two layers
+   *  a closure (`closureSides.ts`), and the texel of the closure the pass lights (`reflectionClosure`, which the pass sets from its loop, `closureLoop`) is its own pair of layers. */
   const resolvedReflectionWgsl = wgslBlock(
-    `resolvedReflectionWgsl(${local.name})`,
+    `resolvedReflectionWgsl(${local.name}${layered ? ', layered' : ''})`,
     [
       surfaceReflects,
       REFLECTED_WGSL,
       REFLECTION_LOOK_WGSL,
       REFLECTION_PROBES_LEFT_WGSL,
+      REFLECTION_ENVIRONMENT_WGSL,
       AMBIENT_SPECULAR_OCCLUSION_WGSL,
       SURFACE_F0_WGSL,
       local,
     ],
-    `${REFLECTION_TARGET.wgsl}
+    `${REFLECTION_TARGET.wgsl}${
+      layered
+        ? `
+/** The closure the pass lights, which the reads take their layers of the target from. */
+var<private> reflectionClosure:u32;`
+        : ''
+    }
 fn resolvedReflectionTexel(coord:vec2i)->vec4f{
  if(!surfaceReflects(surfaceModel)){return vec4f(0.0);}
- return textureLoad(reflectionTarget,coord,0);
+ return textureLoad(reflectionTarget,coord,${layered ? `i32(${REFLECTION_TARGET_LAYERS}u*reflectionClosure)` : '0'});
 }
 /** The share of the coat's lobe the rays leave to the rough light: none without a coat. */
 fn resolvedCoatLeft(coord:vec2i)->f32{
  if(!hasCoat()||!surfaceReflects(surfaceModel)){return 0.0;}
- return textureLoad(reflectionTarget,coord,1).a;
+ return textureLoad(reflectionTarget,coord,${layered ? `i32(${REFLECTION_TARGET_LAYERS}u*reflectionClosure+1u)` : '1'}).a;
 }
-/** The environment through the base lobe, the rough light the lobes share. */
-fn resolvedReflectionRough(coord:vec2i,N:vec3f,V:vec3f,rough:f32)->vec3f{return resolvedLocalLight(textureLoad(reflectionTarget,coord,1).rgb,N,V,rough);}
+/** The environment through the base lobe, the rough light the lobes share: the sky's cube along the reflection of the view about the normal, at the surface's roughness. */
+fn resolvedReflectionRough(N:vec3f,V:vec3f,rough:f32)->vec3f{return resolvedLocalLight(reflectionEnvironment(reflect(-V,N),rough),N,V,rough);}
 fn resolvedLobes(ray:vec3f,base:vec3f,coat:vec3f)->Reflected{
  let coated=hasCoat();
  return Reflected(select(ray,vec3f(0.0),coated)+base,select(vec3f(0.0),ray,coated)+coat);
@@ -237,7 +251,7 @@ fn resolvedReflection(coord:vec2i,rgb:vec3f,metal:f32,occluded:f32,N:vec3f,V:vec
  let coatLeft=resolvedCoatLeft(coord);
  let left=reflectionLeftShare(traced.a);
  if(left==0.0&&coatLeft==0.0){return resolvedWeighed(traced.rgb,vec3f(0.0),vec3f(0.0),rgb,metal,rough,N,V);}
- let light=resolvedReflectionRough(coord,N,V,rough)*ambientSpecularOcclusion(occluded,N,V,rough);
+ let light=resolvedReflectionRough(N,V,rough)*ambientSpecularOcclusion(occluded,N,V,rough);
  return resolvedWeighed(traced.rgb,left*light,coatLeft*light,rgb,metal,rough,N,V);
 }`,
   )
@@ -265,7 +279,7 @@ fn resolvedReflection(coord:vec2i,rgb:vec3f,metal:f32,occluded:f32,N:vec3f,V:vec
  let keep=coatLayerKeep();
  let f0=indirectF0(rgb,metal);
  let tint=skyAdd*reflectionWeight(f0,slabF90(f0),rough,N,V)*keep;
- let light=resolvedReflectionRough(coord,N,V,rough)*occlusion;
+ let light=resolvedReflectionRough(N,V,rough)*occlusion;
  let lights=resolvedWeighed(traced.rgb,left*skySpecular*light,coatLeft*coatSpecular*light,rgb,metal,rough,N,V);
  return lights+(left*tint+coatLeft*coatAdd*(1.0-keep))*occlusion;
 }`,
@@ -287,41 +301,53 @@ fn resolvedReflection(coord:vec2i,rgb:vec3f,metal:f32,occluded:f32,N:vec3f,V:vec
    * what the probes give is under their own specular occlusion alone. The host lists the lobes' variant of `reflectionWeighWgsl` and of `coatLayerKeep`.
    */
   const RESOLVED_INDIRECT_WGSL = wgslBlock(
-    `RESOLVED_INDIRECT_WGSL(${local.name})`,
+    `RESOLVED_INDIRECT_WGSL(${local.name}${closures ? ', closures' : ''}${layered ? ', layered' : ''}${diffuseView ? ', diffuse view' : ''})`,
     [
       resolvedReflectionWgsl,
       SKY_READ_WGSL,
       REFLECTION_PROBES_LEFT_WGSL,
       AMBIENT_SPECULAR_OCCLUSION_WGSL,
-      BOUNCE_APPLY_WGSL,
-      SCREEN_INDIRECT_WGSL,
+      bounceApplyWgsl(closures),
+      screenIndirectWgsl(closures),
+      ...(diffuseView ? [INDIRECT_DIFFUSE_VIEW_WGSL] : []),
     ],
     `fn resolvedIndirect(coord:vec2i,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,occluded:f32,foliage:bool)->mat2x3f{
- let traced=resolvedReflectionTexel(coord);
+ ${
+   diffuseView
+     ? ''
+     : `let traced=resolvedReflectionTexel(coord);
  let coatLeft=resolvedCoatLeft(coord);
- // The pixel the screen probes read takes their light; where they left none it has none while they gather light, as in the reference, and the
+ `
+ }// The pixel the screen probes read takes their light; where they left none it has none while they gather light, as in the reference, and the
  // sky light's, under their occlusion alone (screenShortRange), where the level gathers none or they did not run (screenOcclusionOnly).
  let seen=screenIndirectAt(coord);
  let screened=screenLights(seen);
  // A cloth's fuzz joins its diffuse colour (\`clothDiffuse\`); the multi-bounce occlusion reads the base colour \`rgb\`.
- let colour=clothDiffuse(rgb,metal);
+ let colour=${diffuseView ? 'indirectDiffuseColour' : 'clothDiffuse'}(rgb,metal);
  var diffuse=vec3f(0.0);
  // The material's occlusion is the screen probes' integration's (\`spDiffuse\`): it is not taken again here.
  if(screened){diffuse=screenDiffuse(rgb,colour,seen,foliage)+lambertDiffuse(colour.rgb,colour.w,screenShortRangeGiAt(coord),1.0);}
  else if(screenOcclusionOnly()){diffuse=bounceLighting(colour.rgb,colour.w,N,P,ao)*screenShortRange(rgb,seen,foliage);}
- let left=reflectionLeftShare(traced.a);
+ ${
+   diffuseView
+     ? `// The view of the indirect diffuse light alone shows no reflection.
+ return mat2x3f(diffuse,vec3f(0.0));`
+     : `let left=reflectionLeftShare(traced.a);
  // The rays' answer alone: no ray answered no share of the lobes, or a pixel the probes did not read while they gather has no rough light either, as its diffuse.
  if((left==0.0&&coatLeft==0.0)||(!screened&&!screenOcclusionOnly())){
   return mat2x3f(diffuse,resolvedWeighed(traced.rgb,vec3f(0.0),vec3f(0.0),rgb,metal,rough,N,V));
  }
  // No ray answered a share of this pixel's lobes: the rest is their one rough light, the environment the last pass wrote beside the rays' answer,
  // and the screen probes' where they read the pixel, which holds the sky where a sky light shines, so the environment's sky gives way to it.
- var light=resolvedReflectionRough(coord,N,V,rough)*ambientSpecularOcclusion(occluded,N,V,rough);
+ var light=vec3f(0.0);
+ // The environment is sampled where it is the rough light: not under the probes' where a sky light shines.
+ if(!(screened&&skyLit())){light=resolvedReflectionRough(N,V,rough)*ambientSpecularOcclusion(occluded,N,V,rough);}
  if(screened){
   // The probes' rough specular is under their own specular occlusion alone (\`screenSpecularOcclusion\`), never under the material's too.
-  light=select(light,vec3f(0.0),skyLit())+screenRoughAt(coord)*screenSpecularOcclusion(coord,N,V,rough);
+  light+=screenRoughAt(coord)*screenSpecularOcclusion(coord,N,V,rough);
  }
- return mat2x3f(diffuse,resolvedWeighed(traced.rgb,left*light,coatLeft*light,rgb,metal,rough,N,V));
+ return mat2x3f(diffuse,resolvedWeighed(traced.rgb,left*light,coatLeft*light,rgb,metal,rough,N,V));`
+ }
 }`,
   )
   return { resolvedReflectionWgsl, resolvedReflectionOccludedWgsl, RESOLVED_INDIRECT_WGSL }

@@ -20,7 +20,7 @@ import { fakeHizDepth } from '../hizDepth.fixture.ts'
 
 const frame = createTaaFrameState()
 export const cam = createEngineCamera(),
-  rt = { gpu: { temporal: { frame } } } as unknown as WebgpuPagesRuntime,
+  rt = { gpu: { temporal: { frame } }, views: { active: {} } } as unknown as WebgpuPagesRuntime,
   viewInverse = new Float64Array(16),
   /** The old projection: the render matrix through the view's inverse. */
   roundTrip = new Float64Array(16),
