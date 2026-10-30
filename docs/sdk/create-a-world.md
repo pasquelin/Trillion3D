@@ -28,12 +28,12 @@ await world.scene.load('assets/city/manifest.json') // a compiled model, added l
 
 **Progress.** `scene.load(url, { onProgress })` reports with `createJob`'s `JobProgress` shape:
 
-| Phase                                      | When                                                                                                                                                                                                                                                                                                              |
-| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `{ phase: 'bytes', completed, total }`     | from the manifest's read: `total` every file it declares, at once; each chunk read adds to `completed`, whatever the server says of length or compression; the ratio never goes down, and the last event, unneeded files dropped, has `completed === total` (a manifest declaring no file: one event, at the end) |
-| `{ phase: 'manifest' }`                    | once the manifest is read                                                                                                                                                                                                                                                                                         |
-| `{ phase: 'tables' }`                      | once the scene tables are                                                                                                                                                                                                                                                                                         |
-| `{ phase: 'resources', completed, total }` | as each file the scene reads lands                                                                                                                                                                                                                                                                                |
+| Phase | When |
+| --- | --- |
+| `{ phase: 'bytes', completed, total }` | from the manifest's read: `total` every file it declares, at once; each chunk read adds to `completed`, whatever the server says of length or compression; the ratio never goes down, and the last event, unneeded files dropped, has `completed === total` (a manifest declaring no file: one event, at the end) |
+| `{ phase: 'manifest' }` | once the manifest is read |
+| `{ phase: 'tables' }` | once the scene tables are |
+| `{ phase: 'resources', completed, total }` | as each file the scene reads lands |
 
 `await world.awaitPages({ onProgress })` settles once the pages the view reads are resident:
 `{ phase: 'session' }` while the drawing session opens, then `{ phase: 'pages', completed, total }`,

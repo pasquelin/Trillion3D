@@ -1,17 +1,17 @@
 # Lights
 
 Only a light the host declared lights an opaque surface: no fixed ambient, constant sky or authored
-scene lighting; a windowless corridor stays black at noon. Emission is always added.
-`world.exposure` is the camera exposure on linear radiance before tone mapping: `'auto'` (the
-default, also `true`) measures each image on the GPU and brings its mean brightness to middle grey,
-so a view lit by the sun and one in shade land on the same average whatever the lamps' power; a
-number above zero is the manual multiplier, used as it is (`false` is 1). A view lit by no declared
-lamp shows its albedo as it is, with no exposure and no curve. `world.toneMapping` is `'filmic'` by
-default ([ENGINE.md](../engine/exposure-and-the-display-curve.md#exposure-and-the-display-curve)). `meshNormal` and
-`meshDepth` surfaces are output as stored. A map a family never reads (a `meshStandard` `gradientMap`, which no model reads,
-a `meshMatcap` `map`, a `meshMatcap` or `meshNormal` `normalMap`) is refused by name;
-`meshMatcap`, `meshNormal` and `meshDepth` ignore an `aoMap`. Transparent surfaces follow another
-lighting rule: [ENGINE.md](../engine/transparent-surfaces.md#transparent-surfaces).
+lighting; a windowless corridor stays black at noon. Emission is always added.
+`world.exposure` is the camera exposure on linear radiance before tone mapping: `'auto'` (default,
+also `true`) measures each image on the GPU and brings its mean brightness to middle grey, so a sunlit
+view and a shaded one land on the same average whatever the lamps' power; a number above zero is the
+manual multiplier, used as it is (`false` is 1). A view lit by no declared lamp shows its albedo
+as it is, with no exposure and no curve. `world.toneMapping` is `'filmic'` by default
+([ENGINE.md](../engine/exposure-and-the-display-curve.md#exposure-and-the-display-curve)). `meshNormal`
+and `meshDepth` surfaces are output as stored. A map a family never reads is refused by name: a
+`meshStandard` `gradientMap` (no model reads it), a `meshMatcap` `map`, a `meshMatcap` or `meshNormal`
+`normalMap`; `meshMatcap`, `meshNormal` and `meshDepth` ignore an `aoMap`. Transparent surfaces follow
+another lighting rule: [ENGINE.md](../engine/transparent-surfaces.md#transparent-surfaces).
 
 `scene.background` is the colour behind every object (`null` by default); set or written through
 its methods (`set`, `setRGB`, `setHex`, `setHSL`), it shows next frame; a direct `.r`, `.g` or `.b`

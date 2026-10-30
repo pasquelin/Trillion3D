@@ -8,13 +8,13 @@ files. Paths are under `packages/sdk-browser/src/`. The budgets a host sets are
 
 ## One cut rule per cluster
 
-| Mechanism                                       | Where                                                      |
-| ----------------------------------------------- | ---------------------------------------------------------- |
-| The predicate that draws or withholds a cluster | `geometry/cut/rule.ts:drawsCluster`                            |
-| Its residency, by group and closed upward       | `geometry/cut/readiness.ts`                                    |
-| The GPU kernel's copy and its CPU model         | `geometry/dag/readiness.ts`, `geometry/dag/oracle/oracle.fixture.ts` |
-| Whole groups asked of the cache                 | `geometry/cut/groupClosure.ts`                                 |
-| The CPU cut, the kernel's oracle in the tests   | `geometry/cut/take.fixture.ts`, `geometry/cut/held.fixture.ts`     |
+| Mechanism | Where |
+| --- | --- |
+| The predicate that draws or withholds a cluster | `geometry/cut/rule.ts:drawsCluster` |
+| Its residency, by group and closed upward | `geometry/cut/readiness.ts` |
+| The GPU kernel's copy and its CPU model | `geometry/dag/readiness.ts`, `geometry/dag/oracle/oracle.fixture.ts` |
+| Whole groups asked of the cache | `geometry/cut/groupClosure.ts` |
+| The CPU cut, the kernel's oracle in the tests | `geometry/cut/take.fixture.ts`, `geometry/cut/held.fixture.ts` |
 
 - One predicate on one readiness, the threshold always the host's. The GPU cut is the engine's one
   cut, every view's (`geometry/dag/aside.ts`): the CPU cut is the kernel's reference in the tests alone.
@@ -31,14 +31,14 @@ files. Paths are under `packages/sdk-browser/src/`. The budgets a host sets are
 
 ## The geometry pool
 
-| Mechanism                                               | Where                                                             |
-| ------------------------------------------------------- | ----------------------------------------------------------------- |
-| The fixed split of the world's GPU and CPU totals       | `memory/memoryBudget.ts`, `memory/pools.ts`                 |
-| The root cover, held beside the streamed pages          | `frame/prepare/rootCover.ts`, `geometry/residency/coverHolders.ts` |
-| WebGPU slots, a streaming page each, and a resize       | `src/frame/io/memory.ts`, `pages/pool/resize.ts`, `src/frame/render/visibleTables.ts` |
-| The world HLOD's table, DAG and held bundles            | `hlod/worldRoots.ts`, `hlod/worldBundles.ts`                    |
-| The world HLOD actors the cut draws                     | `hlod/worldHlod.ts`, `dag/worlds/worldFollow.ts`                    |
-| Eviction by least recent use, never a page depended on  | `geometry/residency/streamedPages.ts`, `geometry/residency/queue.ts` |
+| Mechanism | Where |
+| --- | --- |
+| The fixed split of the world's GPU and CPU totals | `memory/memoryBudget.ts`, `memory/pools.ts` |
+| The root cover, held beside the streamed pages | `frame/prepare/rootCover.ts`, `geometry/residency/coverHolders.ts` |
+| WebGPU slots, a streaming page each, and a resize | `src/frame/io/memory.ts`, `pages/pool/resize.ts`, `src/frame/render/visibleTables.ts` |
+| The world HLOD's table, DAG and held bundles | `hlod/worldRoots.ts`, `hlod/worldBundles.ts` |
+| The world HLOD actors the cut draws | `hlod/worldHlod.ts`, `dag/worlds/worldFollow.ts` |
+| Eviction by least recent use, never a page depended on | `geometry/residency/streamedPages.ts`, `geometry/residency/queue.ts` |
 
 - The pool's unit is the STREAMING PAGE: a compiled page of 128 KiB resident and 256 clusters at
   most ([FORMAT.md](format/clustersjson.md#cluster-dag)), a run-time cut's page alone where the cache gives none
@@ -81,19 +81,19 @@ files. Paths are under `packages/sdk-browser/src/`. The budgets a host sets are
 
 ### WebGPU: streaming and eviction
 
-| Mechanism                                                 | Where                                                                       |
-| --------------------------------------------------------- | --------------------------------------------------------------------------- |
-| The pages each view asks for, a request a leaf, at the GPU's priorities | `dag/request/request.ts`, `gpu/core/selection.ts`                |
-| The readout's size, followed between two frames           | `dag/lists/requestSize.ts`, `dag/queueGrowth.ts`                            |
+| Mechanism | Where |
+| --- | --- |
+| The pages each view asks for, a request a leaf, at the GPU's priorities | `dag/request/request.ts`, `gpu/core/selection.ts` |
+| The readout's size, followed between two frames | `dag/lists/requestSize.ts`, `dag/queueGrowth.ts` |
 | The requests and what they depend on, one higher a streaming page | `geometry/residency/pageRequests.ts`, `geometry/cut/groupClosure.ts` |
-| The update: new pages, victims, installs                  | `geometry/residency/queue.ts`                                               |
-| The use order of the streamed pages and their dependents  | `geometry/residency/streamedPages.ts`                                       |
-| The quality under the pool's pressure                     | `geometry/residency/poolPressure.ts`, `frame/render/gpuCut.ts`              |
-| The streaming's nine settings                             | `packages/sdk-core/src/contracts/streamingOptions.ts`                       |
-| The engine's frames, which pace the installs              | `geometry/integration/frameBudget.ts` (`createFrameGate`)                   |
+| The update: new pages, victims, installs | `geometry/residency/queue.ts` |
+| The use order of the streamed pages and their dependents | `geometry/residency/streamedPages.ts` |
+| The quality under the pool's pressure | `geometry/residency/poolPressure.ts`, `frame/render/gpuCut.ts` |
+| The streaming's nine settings | `packages/sdk-core/src/contracts/streamingOptions.ts` |
+| The engine's frames, which pace the installs | `geometry/integration/frameBudget.ts` (`createFrameGate`) |
 | The clusters' records, written when their pages are in the pool | `geometry/clusters/clusterResidency.ts`, `geometry/clusters/infoWrite.ts` |
 | The list of visible clusters, grown by the readback's peak | `geometry/dag/visible/visibleGrowth.ts`, `geometry/dag/visible/layout.ts` |
-| The cache's one hold: the root cover's pins               | `geometry/residency/pinUpdater.ts`, `pages/pool/eviction.ts`                |
+| The cache's one hold: the root cover's pins | `geometry/residency/pinUpdater.ts`, `pages/pool/eviction.ts` |
 
 - Every count below counts streaming pages: requests, pending, installs, the use order, its
   victims and the pool's pressure (`geometry/residency/queue.ts`, `queueStarts.ts`,
@@ -194,14 +194,14 @@ files. Paths are under `packages/sdk-browser/src/`. The budgets a host sets are
 A partitioned scene ([FORMAT.md](format/prepared-scene-tables.md#world-partition)) is read as the camera reaches it,
 never whole (`partition/`, `scene/drive/partitionFrame.ts`).
 
-| Mechanism                               | Where                                                             |
-| --------------------------------------- | ----------------------------------------------------------------- |
-| The reach and its margin (`KEEP`)       | `partition/reach.ts:placedReach`, `partition/reach.ts:keepRadius` |
-| The cell index walk and the cell decode | `partition/cellIndex.ts`, `partition/cellDecode.ts`               |
-| Rows sized for the view, grown in place | `partition/sizing.ts`, `growth/growth.ts`                         |
-| The world bundles the HLOD cells hold   | `partition/cellHolds.ts`                                          |
-| Each HLOD cell wished, held and told    | `hlod/hlodCells.ts`, `dag/worlds/worldFollow.ts`                  |
-| The placements an instanced HLOD actor makes | `hlod/hlodRows.ts`, `partition/placements.ts:placeActor`     |
+| Mechanism | Where |
+| --- | --- |
+| The reach and its margin (`KEEP`) | `partition/reach.ts:placedReach`, `partition/reach.ts:keepRadius` |
+| The cell index walk and the cell decode | `partition/cellIndex.ts`, `partition/cellDecode.ts` |
+| Rows sized for the view, grown in place | `partition/sizing.ts`, `growth/growth.ts` |
+| The world bundles the HLOD cells hold | `partition/cellHolds.ts` |
+| Each HLOD cell wished, held and told | `hlod/hlodCells.ts`, `dag/worlds/worldFollow.ts` |
+| The placements an instanced HLOD actor makes | `hlod/hlodRows.ts`, `partition/placements.ts:placeActor` |
 
 - The error target never shortens the reach: a cell left unread would be missing, not coarser.
 - The first frame reads the view's bytes, not the world's (`primePartitions`); cells, arrivals
@@ -234,11 +234,11 @@ One rule for every pool (`memory/outOfMemory.ts:halvedPool`): a refused pool is 
 half its bytes, down to its floor; the pool in place is never replaced by one the device refused,
 and no refusal loses the device.
 
-| Where it is refused  | How it is answered                                                             |
-| -------------------- | ------------------------------------------------------------------------------ |
-| WebGPU pools         | `geometry/residency/poolGrants.ts`: a floor refused at prepare fails the session |
+| Where it is refused | How it is answered |
+| --- | --- |
+| WebGPU pools | `geometry/residency/poolGrants.ts`: a floor refused at prepare fails the session |
 | WebGPU frame targets | `src/frame/prepare/targetGrant.ts`: Hi-Z leaves first, then the frames hold |
-| WebGPU texture pool growth | `src/frame/io/memory.ts`: pool kept, asked again after a wait         |
+| WebGPU texture pool growth | `src/frame/io/memory.ts`: pool kept, asked again after a wait |
 
 A lost device takes the loss path ([SDK.md](sdk/memory-budgets.md#out-of-memory-is-absorbed)).
 
@@ -252,17 +252,17 @@ The fields are documented on the contract (`packages/sdk-core/src/contracts/metr
 
 ## Virtual textures
 
-| Mechanism                                        | Where                                              |
-| ------------------------------------------------ | -------------------------------------------------- |
-| Tile geometry, layer size, the pinned tail       | `texture/tiles.ts`                                 |
-| Image feedback, one pixel in 256                 | `materials/virtual/feedback.ts`, `materials/virtual/reduce.ts` |
-| Priority and prefetch of the requests            | `materials/virtual/requests.ts`                      |
-| Victim queue, exact least recent use             | `materials/virtual/evictSortWgsl.ts`                 |
-| Residency bias of an oversubscribed pool         | `materials/virtual/residencyBias.ts`                 |
-| The WebGPU streamer and its two per-frame bounds | `virtual/streamer/streamer.ts`                          |
-| Lanes and pools per atlas                        | `geometry/residency/memoryBudgets.ts`                |
-| A pool grown where a lane runs out of places     | `frame/io/memory.ts` (`followTexturePressure`)       |
-| A pose settled by `flush()`                      | `materials/virtual/converge.ts`                          |
+| Mechanism | Where |
+| --- | --- |
+| Tile geometry, layer size, the pinned tail | `texture/tiles.ts` |
+| Image feedback, one pixel in 256 | `materials/virtual/feedback.ts`, `materials/virtual/reduce.ts` |
+| Priority and prefetch of the requests | `materials/virtual/requests.ts` |
+| Victim queue, exact least recent use | `materials/virtual/evictSortWgsl.ts` |
+| Residency bias of an oversubscribed pool | `materials/virtual/residencyBias.ts` |
+| The WebGPU streamer and its two per-frame bounds | `virtual/streamer/streamer.ts` |
+| Lanes and pools per atlas | `geometry/residency/memoryBudgets.ts` |
+| A pool grown where a lane runs out of places | `frame/io/memory.ts` (`followTexturePressure`) |
+| A pose settled by `flush()` | `materials/virtual/converge.ts` |
 
 - Memory is independent of the scene: tiles and layers are fixed, only the layer count follows the
   budget. Every texture's tail is resident from `prepare()`, so a missing tile is served by its

@@ -32,17 +32,17 @@ frame, so a spline can move: this one is fixed when the scene is compiled.
 This lays mesh 3, whose length runs along x, on a curve from the origin heading along x to the point (4, 0, 4) heading along z, rolling by
 0.35 radians and widening to one and a half times across by the end, the scale and the roll easing in and out.
 
-| Field                        | Meaning                                                                                                                                                                             | Default                  |
-| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------ |
-| `startPos`, `endPos`         | The curve's two ends, in the node's own space, in metres                                                                                                                            | `[0, 0, 0]`, `[1, 0, 0]` |
-| `startTangent`, `endTangent` | The curve's tangent at each end                                                                                                                                                     | `[1, 0, 0]`, `[1, 0, 0]` |
-| `startScale`, `endScale`     | The scale across the curve at each end, on the mesh's second and third axes after the forward one (y and z for x, z and x for y, x and y for z); a negative scale mirrors that axis | `[1, 1]`, `[1, 1]`       |
-| `startRoll`, `endRoll`       | The roll about the curve at each end, in radians                                                                                                                                    | `0`, `0`                 |
-| `startOffset`, `endOffset`   | The offset of the mesh from the curve across it, in the same two axes                                                                                                               | `[0, 0]`, `[0, 0]`       |
-| `splineUpDir`                | The direction the curve's frame leans on, each component held within [-1, 1]                                                                                                        | `[0, 0, 1]`              |
-| `smoothInterpRollScale`      | Whether scale, roll and offset ease in and out along the curve instead of changing at a constant pace                                                                               | `false`                  |
-| `forwardAxis`                | The mesh's axis laid along the curve: `x`, `y` or `z`                                                                                                                               | `x`                      |
-| `boundaryMin`, `boundaryMax` | The range on the forward axis that maps to the curve; when they are equal, the mesh's own extent is the range                                                                       | `0`, `0`                 |
+| Field | Meaning | Default |
+| --- | --- | --- |
+| `startPos`, `endPos` | The curve's two ends, in the node's own space, in metres | `[0, 0, 0]`, `[1, 0, 0]` |
+| `startTangent`, `endTangent` | The curve's tangent at each end | `[1, 0, 0]`, `[1, 0, 0]` |
+| `startScale`, `endScale` | The scale across the curve at each end, on the mesh's second and third axes after the forward one (y and z for x, z and x for y, x and y for z); a negative scale mirrors that axis | `[1, 1]`, `[1, 1]` |
+| `startRoll`, `endRoll` | The roll about the curve at each end, in radians | `0`, `0` |
+| `startOffset`, `endOffset` | The offset of the mesh from the curve across it, in the same two axes | `[0, 0]`, `[0, 0]` |
+| `splineUpDir` | The direction the curve's frame leans on, each component held within [-1, 1] | `[0, 0, 1]` |
+| `smoothInterpRollScale` | Whether scale, roll and offset ease in and out along the curve instead of changing at a constant pace | `false` |
+| `forwardAxis` | The mesh's axis laid along the curve: `x`, `y` or `z` | `x` |
+| `boundaryMin`, `boundaryMax` | The range on the forward axis that maps to the curve; when they are equal, the mesh's own extent is the range | `0`, `0` |
 
 The defaults are the reference's, its lengths in metres (its default curve is a hundred centimetres long). The curve's frame is the one
 the reference builds: the up direction crossed with the curve's direction gives the first axis across it, the direction crossed with that

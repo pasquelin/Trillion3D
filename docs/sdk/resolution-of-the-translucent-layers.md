@@ -1,5 +1,30 @@
 # Resolution of the translucent layers
-`world.separateTranslucency` holds the settings of the resolution the translucent layers are drawn at, each an option of `createWorld` too. The layers (blends, transmissive layers, particles) are drawn apart from the lit image, into targets of their own, and composed onto it. By default they are drawn at the image's size, over the scene's own depth. `translucencyScreenPercentage` (`100`, from `0` to `100`) draws them into targets of that share of the image's size (a side is the image's times the share, cut to a whole number, one at the least) over the scene's depth taken at their size (the first texel of each square of the scene's depth, no filter), and the composition scales them up. `translucencyScreenPercentageBasis` (`0`) names the resolution the share is of: `0` the render size, which follows the render scale; `1` the display size, the share then divided by the render scale so the layers keep the display's resolution while the render scale drops. `translucencyUpsampleMode` (`1`) picks how the smaller targets are scaled up when the share is `50` and the image's sides are even: `1`, the default, takes among the four texels around a pixel the one whose depth is nearest the scene's there (when the four are within a tenth of it the pixel is read bilinear), `0` reads bilinear; any other share composes bilinear. The share applies to every pass of the layers: the colour, the modulation, the responsiveness (laid over the image's by the texel under each pixel), the sorted layers and the particles. The texture requests the smaller layers write are not kept, the temporal pass does not read their coverage, the depth of field and the motion blur compose them after their own draw rather than in it, and the layers drawn after the motion blur compose bilinear. An image with display layers (`blending: 'multiply'` or `'subtractive'` surfaces) or carrying an alpha channel (`propagateAlpha`) draws the layers at the image's size whatever the share. The dynamic resolution of the layers (the reference's `r.Translucency.DynamicRes.*`, off by default) is not ported.
+
+`world.separateTranslucency` holds the settings of the resolution the translucent layers are drawn at,
+each an option of `createWorld` too. The layers (blends, transmissive layers, particles) are drawn apart
+from the lit image, into targets of their own, and composed onto it. By default they are drawn at the
+image's size, over the scene's own depth.
+
+- `translucencyScreenPercentage` (`100`, from `0` to `100`) draws them into targets of that share of the
+  image's size (a side is the image's times the share, cut to a whole number, one at the least) over the
+  scene's depth taken at their size (the first texel of each square, no filter); the composition scales
+  them up.
+- `translucencyScreenPercentageBasis` (`0`) names what the share is of: `0` the render size, which
+  follows the render scale; `1` the display size, the share divided by the render scale so the layers
+  keep the display's resolution while the render scale drops.
+- `translucencyUpsampleMode` (`1`) picks how smaller targets are scaled up when the share is `50` and the
+  image's sides are even: `1`, the default, takes among the four texels around a pixel the one whose
+  depth is nearest the scene's there (bilinear when the four are within a tenth of it); `0` reads
+  bilinear. Any other share composes bilinear.
+
+The share applies to every pass of the layers: colour, modulation, responsiveness (laid over the
+image's by the texel under each pixel), sorted layers and particles. The texture requests the smaller
+layers write are not kept, the temporal pass does not read their coverage, the depth of field and the
+motion blur compose them after their own draw rather than in it, and the layers drawn after the motion
+blur compose bilinear. An image with display layers (`blending: 'multiply'` or `'subtractive'`
+surfaces) or carrying an alpha channel (`propagateAlpha`) draws the layers at the image's size whatever
+the share. The layers' dynamic resolution (the reference's `r.Translucency.DynamicRes.*`, off by
+default) is not ported.
 
 ```js
 const world = createWorld('viewer', { translucencyScreenPercentage: 50 }) // layers at half the image's size, nearest-depth upsample

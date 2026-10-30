@@ -32,13 +32,13 @@ neither — the default — is the flat surface its triangles describe, its tabl
 }
 ```
 
-| Field          | Takes                                                                                                                                                | Default |
-| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
-| `texture`      | A glTF `textureInfo` (`index`, `texCoord`): the height map, its red channel, from 0 to 1                                                             | none    |
-| `tessellation` | `true` to displace the material: nothing is displaced without it                                                                                     | `false` |
-| `magnitude`    | A finite number of at least 0: the distance, in the object's units, between height 0 and height 1                                                    | `4`     |
-| `center`       | A number from 0 to 1: the height that leaves the surface where it is                                                                                 | `0.5`   |
-| `fade`         | `false` (never fades), `true` (the range 4 to 1), or `{ "start", "end" }`, each a number of at least 0.0001 pixels, a missing end taking its default | `false` |
+| Field | Takes | Default |
+| --- | --- | --- |
+| `texture` | A glTF `textureInfo` (`index`, `texCoord`): the height map, its red channel, from 0 to 1 | none |
+| `tessellation` | `true` to displace the material: nothing is displaced without it | `false` |
+| `magnitude` | A finite number of at least 0: the distance, in the object's units, between height 0 and height 1 | `4` |
+| `center` | A number from 0 to 1: the height that leaves the surface where it is | `0.5` |
+| `fade` | `false` (never fades), `true` (the range 4 to 1), or `{ "start", "end" }`, each a number of at least 0.0001 pixels, a missing end taking its default | `false` |
 
 A point is moved along its surface normal by `(height − center) × magnitude`. `fade` shrinks that
 distance as the object recedes: it is whole while the largest displacement the material makes covers

@@ -9,7 +9,7 @@ stdout for one job (abridged):
   "scope": "full",
   "url": "80004251…dbd7/clusters.json",
   "pointer": "/abs/cache/native/full/manifest.json",
-  "formatVersion": 9,
+  "formatVersion": 11,
   "selectedTriangles": 1132930,
   "primitives": 412,
   "metrics": { "importMs": 1571.7, "clusterHierarchyPagesMs": 1822.8, "wallMs": 3411.2 },

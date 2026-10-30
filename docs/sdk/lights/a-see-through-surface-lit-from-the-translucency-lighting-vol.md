@@ -69,25 +69,25 @@ unshadowed and no local light. The cells are then blended with the image before 
 reference's, each an option of `createWorld` too, held over the quality preset, changed later from the next frame
 (`packages/sdk-core/src/contracts/translucencyVolumeOptions.ts`); a value a setting does not take is refused:
 
-| Field                                    | Meaning                                                                                                                        | Default |
-| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ------- |
-| `translucencyVolume`                     | Whether the volume is made; off, a surface that reads it reads black                                                           | `true`  |
-| `translucencyVolumeDim`                  | Cells a side of each cascade, 4 to 2048 (held to what the device's 3D textures hold)                                           | `64`    |
-| `translucencyVolumeInnerDistance`        | Metres from the camera the inner cascade ends at                                                                               | `15`    |
-| `translucencyVolumeOuterDistance`        | Metres from the camera the outer cascade ends at                                                                               | `50`    |
-| `translucencyVolumeBlur`                 | The spatial filter: each cell is the mean of eight trilinear reads round it; it runs after the temporal blend where that is on | `true`  |
-| `translucencyVolumeTemporal`             | Each cell is blended with the same point of the volume of the image before, ahead of the blur                                  | `false` |
-| `translucencyVolumeHistoryWeight`        | The share of that history kept, 0 to 1                                                                                         | `0.9`   |
-| `translucencyVolumePositionOffsetRadius` | Cells: the radius of a noise, different for each pixel and image, that moves the point a surface reads the volume at; 0 none   | `0`     |
-| `translucencyVolumeAdaptToPerspective`   | The cascades are sized by the camera's own field of view and aspect, not a field of 45 degrees and a square view               | `false` |
-| `translucencyVolumeMinFov`               | Degrees: the least field of view the cascades follow while the setting above is on                                             | `45`    |
-| `translucencyVolumeFovSnap`              | Degrees: the field is rounded up to a multiple of it, which makes the volume jump in steps as the field animates               | `10`    |
-| `translucencyVolumeMarkVoxels`           | Only the cells the surfaces read (8 per fetch, dilated by a cell) are marked, lit and filtered                                 | `false` |
-| `translucencyVolumeVisualize`            | A sphere is drawn over the image at the centre of every cell, lit by the volume's light, tested against the scene depth        | `false` |
-| `translucencyVolumeVisualizeRadiusScale` | Centimetres: the spheres' radius is this times one more than their cascade's number                                            | `2`     |
-| `translucencyVolumeVisualizeCascadeIndex`| The one cascade (`0` inner, `1` outer) whose spheres are drawn; `-1` both                                                      | `-1`    |
-| `translucencyVolumeDebug`                | The cascades' boxes (inner green, outer yellow), the marked cells' boxes, and a table of sizes and counts of cells in view and marked written over the image | `false` |
-| `translucencyVolumeDebugFreezePosition`  | The cascades stay where the image before left them, whatever the camera does                                                   | `false` |
+| Field | Meaning | Default |
+| --- | --- | --- |
+| `translucencyVolume` | Whether the volume is made; off, a surface that reads it reads black | `true` |
+| `translucencyVolumeDim` | Cells a side of each cascade, 4 to 2048 (held to what the device's 3D textures hold) | `64` |
+| `translucencyVolumeInnerDistance` | Metres from the camera the inner cascade ends at | `15` |
+| `translucencyVolumeOuterDistance` | Metres from the camera the outer cascade ends at | `50` |
+| `translucencyVolumeBlur` | The spatial filter: each cell is the mean of eight trilinear reads round it; it runs after the temporal blend where that is on | `true` |
+| `translucencyVolumeTemporal` | Each cell is blended with the same point of the volume of the image before, ahead of the blur | `false` |
+| `translucencyVolumeHistoryWeight` | The share of that history kept, 0 to 1 | `0.9` |
+| `translucencyVolumePositionOffsetRadius` | Cells: the radius of a noise, different for each pixel and image, that moves the point a surface reads the volume at; 0 none | `0` |
+| `translucencyVolumeAdaptToPerspective` | The cascades are sized by the camera's own field of view and aspect, not a field of 45 degrees and a square view | `false` |
+| `translucencyVolumeMinFov` | Degrees: the least field of view the cascades follow while the setting above is on | `45` |
+| `translucencyVolumeFovSnap` | Degrees: the field is rounded up to a multiple of it, which makes the volume jump in steps as the field animates | `10` |
+| `translucencyVolumeMarkVoxels` | Only the cells the surfaces read (8 per fetch, dilated by a cell) are marked, lit and filtered | `false` |
+| `translucencyVolumeVisualize` | A sphere is drawn over the image at the centre of every cell, lit by the volume's light, tested against the scene depth | `false` |
+| `translucencyVolumeVisualizeRadiusScale` | Centimetres: the spheres' radius is this times one more than their cascade's number | `2` |
+| `translucencyVolumeVisualizeCascadeIndex`| The one cascade (`0` inner, `1` outer) whose spheres are drawn; `-1` both | `-1` |
+| `translucencyVolumeDebug` | The cascades' boxes (inner green, outer yellow), the marked cells' boxes, and a table of sizes and counts of cells in view and marked written over the image | `false` |
+| `translucencyVolumeDebugFreezePosition` | The cascades stay where the image before left them, whatever the camera does | `false` |
 
 The quality presets write the cells' count and the blur: `smooth` 24 cells and no blur, `balanced` 32 and no blur, `fine`
 and `cinematic` nothing. A volume of the default size holds 16 MiB of textures (two half-float textures of the light as

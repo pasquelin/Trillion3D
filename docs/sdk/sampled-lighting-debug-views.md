@@ -1,5 +1,7 @@
 # Sampled lighting: debug views
-The sampled lighting (`sampledLights`) and the subsurface scattering have views that draw over the image, as the other diagnostic views do. They are chosen by `world.diagnostic.mode` or by a setting, and need the effect they show to be on.
+The sampled lighting (`sampledLights`) and the subsurface scattering have views that draw over the
+image, as the other diagnostic views do. They are chosen by `world.diagnostic.mode` or by a setting,
+and need the effect they show to be on.
 
 | Mode | What it shows |
 | --- | --- |
@@ -61,7 +63,9 @@ const world = createWorld('viewer', {
 world.diagnostic.mode = 'subsurface-profiles'
 ```
 
-The light complexity view lists the lights of the cell under the debug cursor and paints the cost of sampling every pixel. The list is read back a few frames after the pixel is asked, and the lights are named by their ids.
+The light complexity view lists the lights of the cell under the debug cursor and paints the cost of
+sampling every pixel. The list is read back a few frames after the pixel is asked, and the lights
+are named by their ids.
 
 ```js
 // The lights of the pixel at (960, 540), the heaviest eight, and the heat map red from a cost of 16.

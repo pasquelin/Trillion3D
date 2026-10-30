@@ -14,16 +14,16 @@ axes (three `f32` each: unit vectors, the third facing out of the mesh) and the 
 (`u32`).
 
 | Direction | Faces out along | Direction | Faces out along |
-| --------- | --------------- | --------- | --------------- |
-| 0         | `-x`            | 3         | `+y`            |
-| 1         | `+x`            | 4         | `-z`            |
-| 2         | `-y`            | 5         | `+z`            |
+| --- | --- | --- | --- |
+| 0 | `-x` | 3 | `+y` |
+| 1 | `+x` | 4 | `-z` |
+| 2 | `-y` | 5 | `+z` |
 
 The record's third word holds flags:
 
-| Bit     | Name                        | Meaning                                                                                                                                                                                                              |
-| ------- | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0 (`1`) | `MESH_CARDS_FLAG_TWO_SIDED` | a quarter of the triangles or more are two-sided (or the build asked for all): the mesh was covered as foliage is, by its outer cards alone                                                                          |
+| Bit | Name | Meaning |
+| --- | --- | --- |
+| 0 (`1`) | `MESH_CARDS_FLAG_TWO_SIDED` | a quarter of the triangles or more are two-sided (or the build asked for all): the mesh was covered as foliage is, by its outer cards alone |
 | 1 (`2`) | `MESH_CARDS_FLAG_HLOD_CELL` | the cards are an HLOD cell's: the first word names a cell of the world's chain of HLOD cells ([World HLOD](prepared-scene-tables.md#world-hlod)), not a compiled mesh, and the lengths are in the world's space, not the mesh's object space |
 
 A mesh whose build keeps no card (`maxMeshCards` 0) has no record; a mesh the cards found none for has a

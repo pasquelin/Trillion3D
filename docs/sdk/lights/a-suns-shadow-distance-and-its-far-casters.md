@@ -16,15 +16,15 @@ The edge lies a little past the distance: the far end of the last of the sun's n
 with the overlap that level has into the next when another level follows. The levels are the sun's
 own settings, each with the default of a directional light:
 
-| Light option                  | Default  | Meaning                                                                                                                                                                                                                                         |
-| ----------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `shadowCascades`              | `4`      | the near levels the distance is cut into (at most the view's `shadowNearLevels`)                                                                                                                                                                |
-| `shadowCascadeExponent`       | `3`      | how many times the span of the level before each takes                                                                                                                                                                                          |
-| `shadowCascadeTransition`     | `0.1`    | the share of its span a level overlaps into the next                                                                                                                                                                                            |
-| `farShadowCascades`           | `0`      | far levels between the distance and `farShadowDistance`, while that is more than a metre farther: counted, never drawn (the shadow maps take every cluster caster at any distance); a light that has some ends its near levels with the overlap |
-| `farShadowDistance`           | `3000` m | where those levels end                                                                                                                                                                                                                          |
-| `distanceFieldShadows`        | `true`   | whether the distance-field cascade follows the near levels                                                                                                                                                                                      |
-| `distanceFieldShadowDistance` | `512` m  | where that cascade ends (`true` the default, `false` none)                                                                                                                                                                                      |
+| Light option | Default | Meaning |
+| --- | --- | --- |
+| `shadowCascades` | `4` | the near levels the distance is cut into (at most the view's `shadowNearLevels`) |
+| `shadowCascadeExponent` | `3` | how many times the span of the level before each takes |
+| `shadowCascadeTransition` | `0.1` | the share of its span a level overlaps into the next |
+| `farShadowCascades` | `0` | far levels between the distance and `farShadowDistance`, while that is more than a metre farther: counted, never drawn (the shadow maps take every cluster caster at any distance); a light that has some ends its near levels with the overlap |
+| `farShadowDistance` | `3000` m | where those levels end |
+| `distanceFieldShadows` | `true` | whether the distance-field cascade follows the near levels |
+| `distanceFieldShadowDistance` | `512` m | where that cascade ends (`true` the default, `false` none) |
 | `distanceFieldShadowTraceDistance` | `100` m | how far a ray of that cascade goes toward the light |
 | `distanceFieldShadowRayStartOffsetDepthScale` | `0.003` | the share of a pixel's depth its ray starts off the surface by, over a fixed 2 cm |
 
@@ -42,16 +42,16 @@ sun.distanceFieldShadowRayStartOffsetDepthScale = 0.005 // raise it where far su
 The view's settings sit beside them, each an option of `createWorld` too, resolved over the quality
 preset like the raster's:
 
-| View option                  | Default               | Meaning                                                                                                       |
-| ---------------------------- | --------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `shadowDistanceScale`        | `1` (0 to 2)          | the factor on every sun's distance, so `0.5` halves it; `0` leaves the test nothing to cull                   |
-| `farShadowCulling`           | `true`                | whether a sun has a near edge and the distance-field cascade that follows it                                  |
-| `shadowNearLevels`           | `10` (0 to 10)        | the most near levels; `0` leaves no edge: nothing is culled                                                   |
-| `shadowOverlapScale`         | `1` (0 to 2)          | the factor on the overlap                                                                                     |
-| `shadowFarField`             | `true`                | whether the distance-field cascade follows the near levels, where the scene has distance fields               |
-| `shadowMaxFarCascades`       | `10`                  | the most far levels a light may count (`farShadowCascades`)                                                   |
-| `shadowFarDistanceOverride`  | `0`                   | metres, where far levels end for every light when above 0; no far level is drawn, so it has no visible effect |
-| `distanceFieldDistanceScale` | `1` (0.0001 to 10000) | the factor on every light's distance-field distance                                                           |
+| View option | Default | Meaning |
+| --- | --- | --- |
+| `shadowDistanceScale` | `1` (0 to 2) | the factor on every sun's distance, so `0.5` halves it; `0` leaves the test nothing to cull |
+| `farShadowCulling` | `true` | whether a sun has a near edge and the distance-field cascade that follows it |
+| `shadowNearLevels` | `10` (0 to 10) | the most near levels; `0` leaves no edge: nothing is culled |
+| `shadowOverlapScale` | `1` (0 to 2) | the factor on the overlap |
+| `shadowFarField` | `true` | whether the distance-field cascade follows the near levels, where the scene has distance fields |
+| `shadowMaxFarCascades` | `10` | the most far levels a light may count (`farShadowCascades`) |
+| `shadowFarDistanceOverride` | `0` | metres, where far levels end for every light when above 0; no far level is drawn, so it has no visible effect |
+| `distanceFieldDistanceScale` | `1` (0.0001 to 10000) | the factor on every light's distance-field distance |
 
 A distance-field cascade needs two things besides its row: the sun's `distanceFieldShadows`, and a scene
 whose meshes have distance fields (the mesh build's `distanceField`, on by default). Without fields the

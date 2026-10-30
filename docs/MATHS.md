@@ -37,28 +37,27 @@ and the shader programs are not primitives and live in `sdk-core` and `sdk-brows
 
 ### Lengths
 
-One rule computes every length (`packages/math/src/vector/vector.ts`). `length3(x, y, z)` sums
-the squares left to right — the order of WGSL's `length()` — and returns `Math.sqrt` of that sum
-while it lies in the normal band, from 2^-969 up to the largest finite double: there, every square
-that underflowed is below half an ulp of the sum, and the plain root holds the length the squares
-define. Outside the band — a zero vector, components below about 1e-146 or past about 1e154 —
-it returns `hypot3`, which scales first and neither overflows nor underflows; a NaN component
-gives NaN. `length2(x, y)` is the same rule in the plane with `hypot2`, `lengthQuaternion` on
-four terms with `hypot4`. A distance is that length of `a − b`, component by component
-(`distanceVector3`; `distanceSqVector3` without the root); a matrix column's length is the length
-of its three terms (`decomposeMatrix4`). A normalise multiplies each component by
-`1 / (length || 1)`, so a zero vector stays zero; a vector shorter than 2^-1024, whose inverse
-would overflow, is first scaled by 2^1000, exactly (`normalizeVector3`, `normalizeVector2`). So a
-host axis, a wave direction or a light direction of 1e200 or 1e-170 normalises to a unit vector
-(`vector/lengthRange.test.ts`). The rule and `Math.hypot` differ in the last bit on many inputs
-of the band: a site moved from one to the other carries the proof that no 8-bit pixel moves. A
-site moved from the plain root keeps its bits inside the band and, declared, gains the true
-length outside it where the plain root gave 0 or Infinity: under `packages/sdk-browser/src/`, the
-bounding-sphere radius of `scene/host/prepared/geometry.ts`, the lateral distance of
-`geometry/selection/projection.fixture.ts`, a light's far distance in `session/world/lights.ts`, and the
-light's horizontal axis in `vsmWorldToLightRotation` (`lighting/shadows/vsm/clipmap.ts`), which for a direction
-within about 1e-146 of vertical follows the direction where the 0 snapped it to world Y
-(`lightRotation.test.ts`).
+One rule computes every length (`packages/math/src/vector/vector.ts`). `length3(x, y, z)` sums the
+squares left to right (the order of WGSL's `length()`) and returns `Math.sqrt` of the sum while it
+lies in the normal band, from 2^-969 up to the largest finite double: there every underflowed square
+is below half an ulp of the sum, so the plain root holds the length the squares define. Outside the
+band (a zero vector, components below about 1e-146 or past about 1e154) it returns `hypot3`, which
+scales first and neither overflows nor underflows; a NaN component gives NaN. `length2(x, y)` is the
+same rule in the plane with `hypot2`, `lengthQuaternion` on four terms with `hypot4`.
+- A distance is that length of `a − b` per component (`distanceVector3`; `distanceSqVector3` without
+  the root); a matrix column's length is the length of its three terms (`decomposeMatrix4`).
+- A normalise multiplies each component by `1 / (length || 1)`, so a zero vector stays zero; a vector
+  shorter than 2^-1024, whose inverse would overflow, is first scaled by 2^1000, exactly
+  (`normalizeVector3`, `normalizeVector2`). So a host axis, wave direction or light direction of 1e200
+  or 1e-170 normalises to a unit vector (`vector/lengthRange.test.ts`).
+- The rule and `Math.hypot` differ in the last bit on many inputs of the band: a site moved from one
+  to the other carries the proof that no 8-bit pixel moves. A site moved from the plain root keeps its
+  bits inside the band and, declared, gains the true length outside it where the plain root gave 0 or
+  Infinity. Under `packages/sdk-browser/src/`: the bounding-sphere radius of
+  `scene/host/prepared/geometry.ts`, the lateral distance of `geometry/selection/projection.fixture.ts`,
+  a light's far distance in `session/world/lights.ts`, and the light's horizontal axis in
+  `vsmWorldToLightRotation` (`lighting/shadows/vsm/clipmap.ts`), which for a direction within about
+  1e-146 of vertical follows the direction where the 0 snapped it to world Y (`lightRotation.test.ts`).
 
 The declared exceptions, each held to bits the rule would change:
 
@@ -342,22 +341,22 @@ and a camera whose world matrix has no inverse (a scale of zero) is drawn from t
 
 #### Sides — `packages/sdk-browser/src/materials/surface/materialSide.ts`
 
-| Function                                    | Computes                                                                                               | Proof                  |
-| ------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ---------------------- |
+| Function | Computes | Proof |
+| --- | --- | --- |
 | `type Side = 'front' \| 'back' \| 'double'` | which faces of a surface are drawn; every raster, pipeline and blend-plan decision compares against it | `materialSide.test.ts` |
-| `sideOf(material)`                          | the `Side` a mesh's surface record declares, the first of an array deciding, an empty array front      | `materialSide.test.ts` |
+| `sideOf(material)` | the `Side` a mesh's surface record declares, the first of an array deciding, an empty array front | `materialSide.test.ts` |
 
 ### Batch functions
 
 `packages/math/src/batch/`: `batch.ts`, with `culling.ts` and `points.ts` beside it,
 and `composeMatrix4Batch` in `packages/math/src/matrix/matrix4Compose.ts`.
 
-| Function                                                      | Computes                                                        |
-| ------------------------------------------------------------- | --------------------------------------------------------------- |
-| `frustumKeepsBoxBatch(kept, planes, boxes, n)`                | `kept[i]` 1 where `!frustumExcludesBox`, returns the count kept |
-| `sphereFromBoundsBatch(out, boxes, n)`                        | four values per box, `sphereFromBounds`                         |
-| `boxUnionBatch(into, boxes, n)`                               | `into ∪ boxes[0] ∪ … ∪ boxes[n − 1]`, `boxUnion`                |
-| `composeMatrix4Batch(out, positions, quaternions, scales, n)` | `T · R · S` per element, all flat or all sub-views              |
-| `transformPointsBatch(out, m, points, n)`                     | `n` points by one affine matrix, `transformAffinePoint`         |
-| `transformPointsByMatricesBatch(out, mats[], points, n)`      | `n` points, one matrix each                                     |
-| `transformDirectionsBatch(out, m, dirs, n)`                   | upper 3×3 then normalize, `transformDirectionVector3`           |
+| Function | Computes |
+| --- | --- |
+| `frustumKeepsBoxBatch(kept, planes, boxes, n)` | `kept[i]` 1 where `!frustumExcludesBox`, returns the count kept |
+| `sphereFromBoundsBatch(out, boxes, n)` | four values per box, `sphereFromBounds` |
+| `boxUnionBatch(into, boxes, n)` | `into ∪ boxes[0] ∪ … ∪ boxes[n − 1]`, `boxUnion` |
+| `composeMatrix4Batch(out, positions, quaternions, scales, n)` | `T · R · S` per element, all flat or all sub-views |
+| `transformPointsBatch(out, m, points, n)` | `n` points by one affine matrix, `transformAffinePoint` |
+| `transformPointsByMatricesBatch(out, mats[], points, n)` | `n` points, one matrix each |
+| `transformDirectionsBatch(out, m, dirs, n)` | upper 3×3 then normalize, `transformDirectionVector3` |

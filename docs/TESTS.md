@@ -23,57 +23,57 @@ A test-only module is named `*.fixture.ts` and stays out of the build. The track
 Benchmarks measure speed, never correctness, under `bench/`, outside every published package:
 `bench/core/` (measure, report, diff, baseline), `bench/perf/<package>/` (`*.perf.ts`),
 `bench/oracles/` (reference implementations), `bench/runner/` (the measurement harness,
-[README](../bench/runner/README.md)), `bench/witnesses/` (the measurement entry the harness pages import, never
-published).
+[README](../bench/runner/README.md)), `bench/witnesses/` (the measurement entry the harness pages
+import, never published).
 
 ## 2. The Commands
 
-| Command                  | What it runs                                                                       |
-| ------------------------ | ---------------------------------------------------------------------------------- |
-| `pnpm test`              | every `*.test.ts` under `packages/`, `tests/`, `bench/` and `scripts/`             |
+| Command | What it runs |
+| --- | --- |
+| `pnpm test` | every `*.test.ts` under `packages/`, `tests/`, `bench/` and `scripts/` |
 | `pnpm run check:changed` | the local gate: the gates of `validate` and the unit tests the changed files reach |
-| `pnpm run validate`      | every gate, as the CI runs it                                                      |
-| `pnpm run test:gpu`      | the GPU proofs on Dawn                                                             |
-| `pnpm run test:chrome`   | the Chrome proofs                                                                  |
-| `pnpm run test:mutation` | the mutation measurement of `packages/sdk-core/src`                                |
-| `pnpm run perf:all`      | every benchmark of `bench/perf/`, then the aggregated report                       |
+| `pnpm run validate` | every gate, as the CI runs it |
+| `pnpm run test:gpu` | the GPU proofs on Dawn |
+| `pnpm run test:chrome` | the Chrome proofs |
+| `pnpm run test:mutation` | the mutation measurement of `packages/sdk-core/src` |
+| `pnpm run perf:all` | every benchmark of `bench/perf/`, then the aggregated report |
 
 `check:changed` (`scripts/check/check-changed.ts`) compares with `develop` (`TRILLION3D_BASE_REF`
-overriding) and runs the unit tests a change can affect (`scripts/check/affected-tests.ts`); a change of
-documentation alone (Markdown, images outside the code trees) runs the gates only. It type-checks (`tsc --noEmit`) every tracked
-`tsconfig*.json` project owning a changed TypeScript file, by listing it or by import
-(`scripts/check/ts-projects.ts`); a changed file no project reaches fails, unless a type-check-only
-(`noEmit`) project's `include` covers it and its `exclude` takes it back. A project reading
-`trillion3d` from `dist/` (the tools) is checked after `pnpm run build`.
+overriding) and runs the unit tests a change can affect (`scripts/check/affected-tests.ts`); a
+change of documentation alone (Markdown, images outside the code trees) runs the gates only. It
+type-checks (`tsc --noEmit`) every tracked `tsconfig*.json` project owning a changed TypeScript
+file, by listing it or by import (`scripts/check/ts-projects.ts`); a changed file no project reaches
+fails, unless a type-check-only (`noEmit`) project's `include` covers it and its `exclude` takes it
+back. A project reading `trillion3d` from `dist/` (the tools) is checked after `pnpm run build`.
 
 CI ([`quality.yml`](../.github/workflows/quality.yml)) runs `validate` as parallel jobs, one per
 group of `scripts/check/validate-steps.ts`, the `unit` group split into shards of one file list
-(`TRILLION3D_TEST_SHARD=i/n`, passed to `node --test --test-shard`). No test is skipped by path.
-The single required check, `validate`, needs every job; it runs on every pull request, on `develop`
-and on every push of a branch named `<issue>-<name>`. Push and pull request runs never share a
+(`TRILLION3D_TEST_SHARD=i/n`, passed to `node --test --test-shard`). No test is skipped by path. The
+single required check, `validate`, needs every job; it runs on every pull request, on `develop` and
+on every push of a branch named `<issue>-<name>`. Push and pull request runs never share a
 concurrency group, so a push never cancels the run proving the merge with `develop`.
 
 ### Unit and Integration Tests
 
-Algorithms, package boundaries and public contracts; no graphics device, run anywhere. A test
-checks a result — a value, a buffer, an image, an output read cell by cell — never the literal
-text of a generated shader or report: such a test breaks on a rewrite that keeps the same image
-and proves nothing about the image. What a shader computes is proved on a device (`tests/gpu/`).
+Algorithms, package boundaries and public contracts; no graphics device, run anywhere. A test checks
+a result — a value, a buffer, an image, an output read cell by cell — never the literal text of a
+generated shader or report: such a test breaks on a rewrite that keeps the same image and proves
+nothing about the image. What a shader computes is proved on a device (`tests/gpu/`).
 
 ### Mutation Measurement
 
-`pnpm run test:mutation [--out <dir>] [--mutate <glob>…]` (`scripts/check/mutation.ts`) runs
-Stryker on `packages/sdk-core/src`: each mutant (a `<` turned into `<=`, a branch emptied) runs
-against the package's unit test files that reach it, and the report credits each test file with
-the mutants it kills. It is a measurement, never a gate, and the CI does not run it: an hour or
-more at the lowest priority on a quarter of the cores (`TRILLION3D_MUTATION_CONCURRENCY`
-overriding). `--out` (default `.mesure/out/mutation/`) receives `summary.md`, `kills.tsv`,
-`survivors.md` and Stryker's `mutation.html` and `mutation.json`.
+`pnpm run test:mutation [--out <dir>] [--mutate <glob>…]` (`scripts/check/mutation.ts`) runs Stryker
+on `packages/sdk-core/src`: each mutant (a `<` turned into `<=`, a branch emptied) runs against the
+package's unit test files that reach it, and the report credits each test file with the mutants it
+kills. It is a measurement, never a gate, and the CI does not run it: an hour or more at the lowest
+priority on a quarter of the cores (`TRILLION3D_MUTATION_CONCURRENCY` overriding). `--out` (default
+`.mesure/out/mutation/`) receives `summary.md`, `kills.tsv`, `survivors.md` and Stryker's
+`mutation.html` and `mutation.json`.
 
 A test file that kills no mutant catches no bug of the package's sources: it is strengthened until
-it kills one, or deleted. A surviving mutant is a change no test notices: a test is added that
-fails on it, or the mutant is equivalent (the change keeps every result) and the reason is written
-beside the code.
+it kills one, or deleted. A surviving mutant is a change no test notices: a test is added that fails
+on it, or the mutant is equivalent (the change keeps every result) and the reason is written beside
+the code.
 
 ### GPU Proofs on Dawn
 
@@ -105,17 +105,17 @@ printed before the run:
 
 Some proofs read compiled public scenes under `.mesure/assets/`, off git:
 `node bench/runner/assets/assets.ts` fetches and compiles them
-([Assets](../bench/runner/README.md#assets)), the default scene being `DEFAULT_SCENE`
-(`'sponza'`, `bench/runner/assets/scene.ts`). A sibling worktree has none: point
-`TRILLION3D_ASSETS` at the shared folder, else such a proof stops by name on the missing cache.
-What a proof needs beyond that is in its file's header.
+([Assets](../bench/runner/README.md#assets)), the default scene being `DEFAULT_SCENE` (`'sponza'`,
+`bench/runner/assets/scene.ts`). A sibling worktree has none: point `TRILLION3D_ASSETS` at the
+shared folder, else such a proof stops by name on the missing cache. What a proof needs beyond that
+is in its file's header.
 
 ### Chrome Proofs
 
 What Dawn does not have is proved in the system Chrome: the absence of WebGPU (`world/no-webgpu`)
 and the per-material fixtures on screen (`webgpu/material-pixels`). Each is a
-`tests/gpu/<area>/<name>.chrome.ts`, found by the same rule and declared in the same `EXCLUDED`;
-its page module is served from the sources and called in a fresh headless Chrome
+`tests/gpu/<area>/<name>.chrome.ts`, found by the same rule and declared in the same `EXCLUDED`; its
+page module is served from the sources and called in a fresh headless Chrome
 (`tests/kit/device/onChrome.ts`), under the bench lock. Their scenes are built by the proofs.
 
 ```bash
@@ -126,14 +126,14 @@ node bench/dawn/proofs.ts --chrome tests/gpu/webgpu/material-pixels.chrome.ts  #
 ### Performance Benchmarks
 
 A benchmark measures a package computation on named cases and compares it to an oracle: the
-pre-optimisation implementation, kept unchanged under `bench/oracles/`. Each line gives median,
-p95, nanoseconds per element, operations per second, baseline difference, witness difference and
-the oracle verdict. `mesure()` refuses to run if the file a benchmark reports as measured does not
+pre-optimisation implementation, kept unchanged under `bench/oracles/`. Each line gives median, p95,
+nanoseconds per element, operations per second, baseline difference, witness difference and the
+oracle verdict. `mesure()` refuses to run if the file a benchmark reports as measured does not
 exist.
 
-A witness (`temoin` in `mesure()`) is a second calculation of the same thing — a
-rejected candidate — timed on the same input and settings; "vs witness" reads the median relative
-to it as "vs baseline" does to the baseline. A witness is a comparison, never a regression gate.
+A witness (`temoin` in `mesure()`) is a second calculation of the same thing — a rejected candidate
+— timed on the same input and settings; "vs witness" reads the median relative to it as "vs
+baseline" does to the baseline. A witness is a comparison, never a regression gate.
 
 Two verdict types, never silence:
 
@@ -143,13 +143,13 @@ Two verdict types, never silence:
 
 ## 3. Baselines and Report
 
-`pnpm run perf:all` writes one fragment per domain into `.mesure/perf/`;
-`bench/perf/aggregate.ts` joins them into `.mesure/out/perf/perf-<date>.md` and `.json`.
-`pnpm run perf:baseline` turns fragments into baselines under `.mesure/baselines/`, one per domain,
-keyed by measurement and case — off git and machine-specific. Without one, "vs baseline" shows `—`
-and the report says no baseline exists on this machine. Fragments and baselines carry `version: 3`;
-an older file is ignored and `pnpm run perf:baseline` records it again. The report flags machine
-load above 4: timings are then inconclusive.
+`pnpm run perf:all` writes one fragment per domain into `.mesure/perf/`; `bench/perf/aggregate.ts`
+joins them into `.mesure/out/perf/perf-<date>.md` and `.json`. `pnpm run perf:baseline` turns
+fragments into baselines under `.mesure/baselines/`, one per domain, keyed by measurement and case —
+off git and machine-specific. Without one, "vs baseline" shows `—` and the report says no baseline
+exists on this machine. Fragments and baselines carry `version: 3`; an older file is ignored and
+`pnpm run perf:baseline` records it again. The report flags machine load above 4: timings are then
+inconclusive.
 
 These timers run in the process that just ran the oracle: enough to track regressions on one
 machine, not a campaign, which uses the [harness](../bench/runner/README.md) under the rules of
@@ -157,10 +157,10 @@ machine, not a campaign, which uses the [harness](../bench/runner/README.md) und
 
 ## 4. Quality Gates
 
-The gates and their order are `VALIDATE_GROUPS` in `scripts/check/validate-steps.ts`; each gate's rule is
-in its script's header, and `pnpm run check:changed` runs them on what a branch changed. Two rules
-that shape every file: a maintained JS, TS or Rust file holds at most 300 lines (`check:lines`),
-except the runtime modules of `sdk-core`, `sdk-browser`, and `sdk-node`, which answer
-to `check:cohesion` instead (functions of at most 60 lines and a complexity of at most 20, on the
-modules a branch touches). The engine is WebGPU only: `check:webgpu-only`
-fails on any trace of the GL family of APIs in a tracked file or file name, with no allowlist.
+The gates and their order are `VALIDATE_GROUPS` in `scripts/check/validate-steps.ts`; each gate's
+rule is in its script's header, and `pnpm run check:changed` runs them on what a branch changed. Two
+rules that shape every file: a maintained JS, TS or Rust file holds at most 300 lines
+(`check:lines`), except the runtime modules of `sdk-core`, `sdk-browser`, and `sdk-node`, which
+answer to `check:cohesion` instead (functions of at most 60 lines and a complexity of at most 20, on
+the modules a branch touches). The engine is WebGPU only: `check:webgpu-only` fails on any trace of
+the GL family of APIs in a tracked file or file name, with no allowlist.

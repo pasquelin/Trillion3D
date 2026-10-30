@@ -1,7 +1,7 @@
 # Terms
 
-- **World** — what `createWorld` returns. It owns the scene, the camera, the renderer and the
-  loop; nothing else is constructed.
+- **World** — what `createWorld` returns. It owns the scene, the camera, the renderer and the loop;
+  nothing else is constructed.
 - **Scene** — `world.scene`, the root objects are added to; a **model**, a compiled manifest, is
   loaded into it with `scene.load(manifestUrl)` like any other addition.
 - **Renderer** — the WebGPU drawing path of a world. A host never imports, names or holds one.

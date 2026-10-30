@@ -24,7 +24,7 @@ Each section lives in its own file under [`compiler/`](compiler); read only the 
 [compiler/the-partitions-grids.md](compiler/the-partitions-grids.md): Several streaming grids (`partitionGrids`) · Object settings · Animation banks
 
 ## HLOD
-[compiler/hlod.md](compiler/hlod.md): Simplified layers · Translucent sources
+[compiler/hlod.md](compiler/hlod.md): Assignment and marks · The two forms · Layer settings · Distance fields and chart examples · Refusals and the merge atlas · GPU baking · Simplified layers · Translucent sources
 
 ## How a mesh coarsens
 [compiler/how-a-mesh-coarsens.md](compiler/how-a-mesh-coarsens.md): Mesh build settings

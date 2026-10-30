@@ -1,5 +1,9 @@
 # Heterogeneous volumes: preshading and level of detail
-`heterogeneousVolumesPreshading` (`false`) bakes a volume's material into three 3D textures (extinction, albedo, emission) before the march, which then reads the textures instead of evaluating the material at each step. `heterogeneousVolumesCLOD` (`true`) makes a volume far from the view coarser: its lighting cache, occlusion and baked grid have fewer voxels and its march steps are longer.
+`heterogeneousVolumesPreshading` (`false`) bakes a volume's material into three 3D textures
+(extinction, albedo, emission) before the march, which then reads the textures instead of evaluating
+the material at each step. `heterogeneousVolumesCLOD` (`true`) makes a volume far from the view
+coarser: its lighting cache, occlusion and baked grid have fewer voxels and its march steps are
+longer.
 
 | Setting | Default | Meaning |
 | --- | --- | --- |

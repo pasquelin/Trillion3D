@@ -57,14 +57,14 @@ world.shading = { shadeBinningMode: null } // back to the preset's, here the def
 world.shading = { clearCoatNormal: true } // a clear coat keeps a bottom normal
 ```
 
-| Field                     | Meaning                                                                                                                            | Default  |
-| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | -------- |
-| `shadeBinningMode`        | `'auto'` as each class asks, `'pixel'` every pixel alone, `'quad'` by 2 × 2 quad                                                   | `'auto'` |
-| `irisNormal`              | `false`: the eye's iris by the direction of its `tangent`; `true`: by an iris normal of its own                                    | `false`  |
-| `clearCoatNormal`         | `false`: a clear coat shares its base's normal; `true`: it keeps a bottom normal                                                   | `false`  |
-| `normalCurvatureScale`    | scale of the roughness a `normalCurvatureToRoughness` material takes from its vertex normal, any number, held to [0, 2] where read | `1`      |
-| `normalCurvatureBias`     | bias added to that roughness, any number, held to [-1, 1] where read                                                               | `0`      |
-| `normalCurvatureExponent` | exponent on the normal's change across a pixel, any number, held to [0.05, 20] where read                                          | `0.333`  |
+| Field | Meaning | Default |
+| --- | --- | --- |
+| `shadeBinningMode` | `'auto'` as each class asks, `'pixel'` every pixel alone, `'quad'` by 2 × 2 quad | `'auto'` |
+| `irisNormal` | `false`: the eye's iris by the direction of its `tangent`; `true`: by an iris normal of its own | `false` |
+| `clearCoatNormal` | `false`: a clear coat shares its base's normal; `true`: it keeps a bottom normal | `false` |
+| `normalCurvatureScale` | scale of the roughness a `normalCurvatureToRoughness` material takes from its vertex normal, any number, held to [0, 2] where read | `1` |
+| `normalCurvatureBias` | bias added to that roughness, any number, held to [-1, 1] where read | `0` |
+| `normalCurvatureExponent` | exponent on the normal's change across a pixel, any number, held to [0.05, 20] where read | `0.333` |
 
 **The normal curvature** (`normalCurvatureRoughness`, `normalCurvatureApply`, `lighting/ormWgsl.ts`). A material with `normalCurvatureToRoughness` has its roughness raised to `saturate(max(dNdx·dNdx, dNdy·dNdy)^exponent · scale + bias)`, `dNdx` and `dNdy` the change of the interpolated vertex normal across one pixel, taken before the normal map, a graph's normal or a hair's tangent bends the normal. The option is bit 11 of the record's model word (`NORMAL_CURVATURE_MODEL_BIT`); the blend vertex stage carries it to bit 31 of the item's flags (`normalCurvatureFlag`, `NORMAL_CURVATURE_FLAG_MASK`). The opaque resolve builds the neighbouring weights only for a pixel whose material asks for it; a blended fragment reads the derivatives of its interpolated normal. The curve is three words of the resolve's and the blend view's uniforms (`normalCurvature`). A voxel pixel has no curvature (its shading normal is drawn, not interpolated); the clear coat takes the same curvature for its own roughness. The earlier widening of the roughness by the neighbours' bent normals is gone.
 

@@ -74,25 +74,25 @@ const toon = material.meshToon({
 })
 ```
 
-| Setting                                    | Meaning                                                                                                                   | Default |
-| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- | ------- |
-| `subsurfaceScattering`                     | The master switch; off, such a surface is lit as a plain one                                                              | `true`  |
-| `subsurfaceScale`                          | A scale on every profile's radius; 0 is off, below 1 narrower, above 1 wider                                              | `1`     |
-| `subsurfaceHalfResolution`                 | Scatter at half the image's size: faster, of lower quality                                                                | `false` |
-| `subsurfaceHalfResolutionSeparable`        | In half resolution, scatter every profile with the separable passes                                                       | `true`  |
-| `subsurfaceRecombineQuality`               | How the lit image is rebuilt and recombined: 0 low, 1 high, -1 automatic (high); an accumulated image is always high      | `1`     |
-| `subsurfaceFilter`                         | The scattered image is read with the bilinear filter (off: the nearest texel)                                             | `true`  |
-| `subsurfaceSampleSet`                      | The separable passes' samples a side: 0 is 6, 1 is 9, 2 is 13                                                             | `2`     |
-| `subsurfaceCheckerboard`                   | 0: the lit image's alpha holds the diffuse light's luminance; 1: a checkerboard of diffuse and specular; 2: automatic (0) | `2`     |
-| `subsurfaceCheckerboardNeighborValidation` | With the checkerboard, a neighbour that is not a profile pixel adds nothing to the reconstruction                         | `false` |
-| `subsurfaceBurleyQuality`                  | 0 scatters every profile with the separable passes; 1 the sampled scattering, the separable ones in half resolution       | `1`     |
-| `subsurfaceBurleySamples`                  | A fixed count of samples a pixel for the sampled scattering; 0 lets the pixel's variance choose it                        | `0`     |
-| `subsurfaceBurleyProfileIdCache`           | Each pixel's profile kept in a texture the passes read in place of the surfaces (a byte a pixel)                          | `true`  |
-| `subsurfaceBurleyBilateralKernel`          | A sample weighs by depth alone (0) or depth and normal (1)                                                                | `1`     |
-| `subsurfaceBurleyMipsMinTileCount`         | The count of tiles of sampled scattering from which the diffuse light's mip chain is made; 0 always                       | `4000`  |
-| `subsurfaceSubpixelThreshold`              | The share of the scattering inside the pixel's own footprint above which a tile is not scattered                          | `1`     |
-| `subsurfaceSamplingChannel`                | The channel that steers the sampled scattering: 0 the largest diffuse mean free path, 1 the largest mean free path        | `1`     |
-| `subsurfaceColorTransmittanceDistance`     | The distance (0.05 to 1) at which a `subsurface` material's colour is read as the light's transmittance (its hue shift)   | `0.15`  |
+| Setting | Meaning | Default |
+| --- | --- | --- |
+| `subsurfaceScattering` | The master switch; off, such a surface is lit as a plain one | `true` |
+| `subsurfaceScale` | A scale on every profile's radius; 0 is off, below 1 narrower, above 1 wider | `1` |
+| `subsurfaceHalfResolution` | Scatter at half the image's size: faster, of lower quality | `false` |
+| `subsurfaceHalfResolutionSeparable` | In half resolution, scatter every profile with the separable passes | `true` |
+| `subsurfaceRecombineQuality` | How the lit image is rebuilt and recombined: 0 low, 1 high, -1 automatic (high); an accumulated image is always high | `1` |
+| `subsurfaceFilter` | The scattered image is read with the bilinear filter (off: the nearest texel) | `true` |
+| `subsurfaceSampleSet` | The separable passes' samples a side: 0 is 6, 1 is 9, 2 is 13 | `2` |
+| `subsurfaceCheckerboard` | 0: the lit image's alpha holds the diffuse light's luminance; 1: a checkerboard of diffuse and specular; 2: automatic (0) | `2` |
+| `subsurfaceCheckerboardNeighborValidation` | With the checkerboard, a neighbour that is not a profile pixel adds nothing to the reconstruction | `false` |
+| `subsurfaceBurleyQuality` | 0 scatters every profile with the separable passes; 1 the sampled scattering, the separable ones in half resolution | `1` |
+| `subsurfaceBurleySamples` | A fixed count of samples a pixel for the sampled scattering; 0 lets the pixel's variance choose it | `0` |
+| `subsurfaceBurleyProfileIdCache` | Each pixel's profile kept in a texture the passes read in place of the surfaces (a byte a pixel) | `true` |
+| `subsurfaceBurleyBilateralKernel` | A sample weighs by depth alone (0) or depth and normal (1) | `1` |
+| `subsurfaceBurleyMipsMinTileCount` | The count of tiles of sampled scattering from which the diffuse light's mip chain is made; 0 always | `4000` |
+| `subsurfaceSubpixelThreshold` | The share of the scattering inside the pixel's own footprint above which a tile is not scattered | `1` |
+| `subsurfaceSamplingChannel` | The channel that steers the sampled scattering: 0 the largest diffuse mean free path, 1 the largest mean free path | `1` |
+| `subsurfaceColorTransmittanceDistance` | The distance (0.05 to 1) at which a `subsurface` material's colour is read as the light's transmittance (its hue shift) | `0.15` |
 
 The quality presets write the scale, the separable samples, the recombine's quality and the half resolution: `smooth` a scale
 of 0, `balanced` 0.75, both with the lowest sample set, the low recombine and the half resolution; `fine` the scale 1, the

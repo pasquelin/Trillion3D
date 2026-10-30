@@ -1,5 +1,8 @@
 # Path tracer and its denoiser
-`pathTracing` (`false`) draws the view with the path tracer, a render mode of its own that traces the scene's triangles bounce after bounce and adds the samples of each image to those of the one before while the view stands still. The other settings are read only when it is on; each default is the reference's.
+`pathTracing` (`false`) draws the view with the path tracer, a render mode of its own that traces
+the scene's triangles bounce after bounce and adds the samples of each image to those of the one
+before while the view stands still. The other settings are read only when it is on; each default is
+the reference's.
 
 | Setting | Default | Meaning |
 | --- | --- | --- |
@@ -69,7 +72,11 @@
 | `pathTracingCloudMultipleScatterMode` | `1` | `0` none: the material's approximation of multiple scattering is ignored and the roughness cutoff applies; `1` the material's approximation, the cutoff applying; `2` by the paths alone, the cutoff lifted |
 | `pathTracingCloudRoughnessCutoff` | `0.05` | roughness of a path beyond which the clouds are not marched (`0` to `1`) |
 
-Current limits: a hit's material is read back from the lit image where the surface shows, else from the surface cache's cards; there are no glass, subsurface, cloth or hair lobes, no capsule lights, light profiles, light functions or rectangle light textures; the spatial stage is the engine's own edge-aware filter (the reference's is an external neural plug-in, not shipped); the atmosphere and the clouds are not traced.
+Current limits: a hit's material is read back from the lit image where the surface shows, else from
+the surface cache's cards; there are no glass, subsurface, cloth or hair lobes, no capsule lights,
+light profiles, light functions or rectangle light textures; the spatial stage is the engine's own
+edge-aware filter (the reference's is an external neural plug-in, not shipped); the atmosphere and
+the clouds are not traced.
 
 ```js
 // A path-traced view of 256 samples, 8 bounces, adaptive sampling on.
