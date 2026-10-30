@@ -28,4 +28,14 @@ export const TRANSLUCENCY_VOLUME_MEANINGS: Readonly<Record<TranslucencyVolumeFie
     'Degrees, above 0; 10 by default. While translucencyVolumeAdaptToPerspective is on, the field of view is rounded up to a multiple of this, which makes the volume jump in steps as the field animates, not crawl.',
   translucencyVolumeMarkVoxels:
     'Whether the cells of the translucency lighting volume that the see-through surfaces read are marked first, and only those are lit and filtered; false by default. Each image, before the volume is made, the surfaces that read it are drawn once more, each fragment marking the eight cells round its point in either cascade; every marked cell then marks the eight cells at the corners of the cube round it, the cells marked are listed, and the injection runs over that list alone while the filters write nothing in a cell that is not marked, and take no history from a cell that was not. A scene whose surfaces cover a small part of the cascades lights far fewer cells; the light a surface reads is the same.',
+  translucencyVolumeVisualize:
+    "Whether a sphere is drawn over the image at the centre of every cell of the translucency lighting volume, in the light a surface facing outward from it would read there (the cell's two bands of harmonics times the sphere's normal); false by default. The spheres are tested against the scene depth.",
+  translucencyVolumeVisualizeRadiusScale:
+    'Centimetres, from 0; 2 by default. The radius of the spheres translucencyVolumeVisualize draws is this times one more than the number of their cascade, so the outer cascade, whose cells are coarser, has larger ones.',
+  translucencyVolumeVisualizeCascadeIndex:
+    'The one cascade whose cells translucencyVolumeVisualize draws, 0 (inner) or 1 (outer); -1, the default, draws both.',
+  translucencyVolumeDebug:
+    "Whether the translucency lighting volume is described over the image: the box of each cascade (inner green, outer yellow), the box of every cell the surfaces marked (translucencyVolumeMarkVoxels) in the same colours, and a table of each cascade's size, the cells of it that the camera sees and the cells marked, as counts and shares of the cells (read back a few images late); false by default.",
+  translucencyVolumeDebugFreezePosition:
+    "Whether the two cascades stay where the image before left them, whatever the camera does, so the volume can be looked at from outside; false by default. The cells' size follows translucencyVolumeDim.",
 }

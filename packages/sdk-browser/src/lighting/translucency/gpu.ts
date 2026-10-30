@@ -15,7 +15,14 @@ import {
   keptProgramGroup,
 } from '../../gpu/bind/programGroups.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
-import { newCascade, placeCascade, cullLights, type Cascade, type CascadeView } from './bounds.ts'
+import {
+  newCascade,
+  placeCascade,
+  holdCascade,
+  cullLights,
+  type Cascade,
+  type CascadeView,
+} from './bounds.ts'
 import { FILTER_BINDING } from './filterWgsl.ts'
 import { INJECT_BINDING } from './injectWgsl.ts'
 import { FOG_BINDING } from '../fog/bindings.ts'
@@ -86,12 +93,17 @@ export interface TranslucencyInputs {
 /** What the surfaces read of this image's volume: the texture, the cascades' boxes as `BlendView` holds them (`corner`, `scale`: two
  *  `vec4f` each), the cells a side and the radius, in cells, of the noise moving the point they read it at
  *  (`translucencyVolumePositionOffsetRadius`). One object, rewritten each image. */
-interface PublishedVolume {
+export interface PublishedVolume {
   view: GPUTextureView | undefined
   dim: number
   offsetRadius: number
   readonly corner: Float32Array
   readonly scale: Float32Array
+  /** What the debug views draw from (`debug.ts`): the frame's uniform, and the dilated marks of this image (the one-cell stand-in where the cells are not marked). */
+  readonly frame: GPUBuffer
+  marks: GPUTextureView
+  /** Whether `marks` are this image's dilated marks, not the stand-in: the views that read them as marks ask this, not the setting. */
+  marked: boolean
 }
 
 /** What the volume remembers of the image before: the cascades' boxes, the cells a side and the textures it wrote
@@ -134,9 +146,10 @@ interface MarksBound {
 
 /** The state of a new view's volume work: nothing placed, no history, no volume published. */
 function newVolumeState(device: GPUDevice, failed: (error: unknown) => void): VolumeState {
+  const resources = createTranslucencyResources(device, failed)
   return {
     device,
-    resources: createTranslucencyResources(device, failed),
+    resources,
     groups: createTranslucencyGroups(),
     prepared: undefined,
     cascades: Array.from({ length: TRANSLUCENCY_CASCADES }, newCascade),
@@ -158,6 +171,9 @@ function newVolumeState(device: GPUDevice, failed: (error: unknown) => void): Vo
       offsetRadius: 0,
       corner: new Float32Array(TRANSLUCENCY_CASCADES * 4),
       scale: new Float32Array(TRANSLUCENCY_CASCADES * 4),
+      frame: resources.frame.buffer,
+      marks: resources.markStandIn,
+      marked: false,
     },
     frames: 0,
     horizon: 0,
@@ -216,7 +232,9 @@ export function createTranslucencyVolumeGpu(device: GPUDevice, failed: (error: u
     prepare(steps: ComputeRun, input: TranslucencyInputs) {
       return prepareMarks(v, steps, input)
     },
-    /** The scene's surfaces no longer read the volume, or the world closed: the history is dropped and the textures retired. */
+    /** The image cannot be made yet (the lights, the pipelines): the history is dropped and the textures retired. The cascades stay where they are
+     *  placed: a frozen one (`translucencyVolumeDebugFreezePosition`) survives this and a camera cut alike, as the view's does, and is placed
+     *  anew only with the volume (`dispose`, at a world switch). */
     reset() {
       history.known = false
       history.marked = false
@@ -736,7 +754,8 @@ function prepareImage(v: VolumeState, input: TranslucencyInputs, wantMarks: bool
   const marked = wantMarks && marking(v, s, dim)
   if (wantMarks && !marked) return undefined
   for (let c = 0; c < TRANSLUCENCY_CASCADES; c++) {
-    placeCascade(cascades[c], c, input.camera, s, dim)
+    if (!(s.translucencyVolumeDebugFreezePosition && holdCascade(cascades[c], dim)))
+      placeCascade(cascades[c], c, input.camera, s, dim)
     if (!(cascades[c].size > 0)) return undefined
   }
   const temporal = s.translucencyVolumeTemporal
@@ -790,6 +809,8 @@ function encodeVolume(v: VolumeState, steps: ComputeRun, input: TranslucencyInpu
   const { resources, history, published } = v
   const s = input.settings
   published.view = undefined
+  published.marks = resources.markStandIn
+  published.marked = false
   const prepared = v.prepared
   v.prepared = undefined
   // The passes are compiled together (asked at the frame's entry, `askTranslucencyVolume`): the
@@ -807,6 +828,9 @@ function encodeVolume(v: VolumeState, steps: ComputeRun, input: TranslucencyInpu
   encodePasses(v, steps, input, textures, ranks, now, past, textures.blurred)
   // What the surfaces read: the blur's volume, or the temporal filter's where the blur is off (`madeByBlur`).
   published.view = madeByBlur(temporal, blur) ? textures.blurred : now
+  const dilated = marked ? textures.marks?.dilated[history.markPing] : undefined
+  published.marks = dilated || resources.markStandIn
+  published.marked = !!dilated
   published.dim = dim
   published.offsetRadius = s.translucencyVolumePositionOffsetRadius
   history.corner.set(published.corner)

@@ -2,6 +2,11 @@
 import { material } from '../../../../sdk-core/src/world/material/index.ts'
 import { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
 import { LIGHT_GRID_DEBUG_WGSL } from '../../lighting/tiles/debug/gridDebugWgsl.ts'
+import {
+  TV_DEBUG_BOXES_WGSL,
+  TV_DEBUG_CULL_WGSL,
+  TV_DEBUG_VISUALIZE_WGSL,
+} from '../../lighting/translucency/debugWgsl.ts'
 import { sssDebugPixelWgsl } from '../../lighting/subsurface/debugPixel.ts'
 import { SSS_VISUALIZE_WGSL } from '../../lighting/subsurface/visualizeWgsl.ts'
 import { imageProgram } from '../../lighting/bounce/reservoirGather/imageWgsl.ts'
@@ -19,6 +24,7 @@ import {
   CAPTURE_COPY_CODE,
   CAPTURE_DIFFUSE_CODE,
 } from '../../lighting/reflectionCapture/captureWgsl.ts'
+import { VLM_VISUALIZE_WGSL } from '../../lighting/volumetricLightmap/visualizeWgsl.ts'
 import { VOLUMETRIC_LIGHT_WGSL } from '../../lighting/deferred/volumetricLightWgsl.ts'
 import { lightFunctionRenderWgsl } from '../../lighting/lightFunction/renderWgsl.ts'
 import { graphSlotWgsl, graphSlotOf } from '../../lighting/lightFunction/graphSlot.ts'
@@ -231,4 +237,9 @@ export const LIGHTING_SHADERS: Record<string, string> = {
   // The primed depth pyramid's kernel (`../../visibility/hiz/gpu/pipelines.ts`).
   HIZ_PRIMED_SHADER,
   LIGHT_GRID_DEBUG_WGSL,
+  TV_DEBUG_CULL_WGSL,
+  TV_DEBUG_BOXES_WGSL,
+  TV_DEBUG_VISUALIZE_WGSL,
+  // The volumetric lightmap's samples as spheres (`../../lighting/volumetricLightmap/visualize.ts`).
+  VLM_VISUALIZE_WGSL,
 }

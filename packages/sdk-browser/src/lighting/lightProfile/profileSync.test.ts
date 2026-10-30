@@ -202,3 +202,15 @@ test('an atlas whose texture was handed back is made again by the next profile, 
   assert.ok(r.atlas.slots.sliceOf('q') >= 0, 'it has a slice')
   assert.equal(r.gpu.textures.length, 2)
 })
+
+test('a forced sync writes the atlas again when the store and the registry have not moved', () => {
+  const r = rig()
+  r.registry.register('p', data())
+  r.set('a', 'p')
+  r.sync.sync(r.store, ...SETTINGS)
+  const written = r.gpu.textureWrites.length
+  r.sync.sync(r.store, ...SETTINGS)
+  assert.equal(r.gpu.textureWrites.length, written, 'nothing moved: nothing written')
+  r.sync.sync(r.store, ...SETTINGS, true)
+  assert.equal(r.gpu.textureWrites.length, written + 1)
+})

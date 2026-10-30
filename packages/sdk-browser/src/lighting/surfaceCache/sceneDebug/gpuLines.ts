@@ -7,11 +7,11 @@ import type { DebugAppendedLines } from '../../../hair/debugLinesPass.ts'
 /**
  * THE LINES THE GPU APPENDS, one mechanism for every view that draws what a kernel finds: the kernel appends lines (`gpuLineSink`) to a buffer of its own with one atomic count, a
  * last kernel turns the count into the arguments of an indirect draw, and the debug lines pass draws that many (`../../../hair/debugLinesPass.ts`). The host's list holds 16384 lines;
- * this one `GPU_LINE_CAPACITY`, and no line is written, nor read back, while no view that draws is shown.
+ * this one `GPU_LINE_CAPACITY` unless the view asks for more, and no line is written, nor read back, while no view that draws is shown.
  */
 
-/** The lines the buffer holds: those past it are dropped, the count going on. */
-export const GPU_LINE_CAPACITY = 1 << 18
+/** The lines a buffer holds unless the view asks for more (`createGpuLines`): those past it are dropped, the count going on. */
+const GPU_LINE_CAPACITY = 1 << 18
 const LINE_BYTES = 32
 const LABEL = 'Trillion3D debug lines appended'
 
@@ -34,7 +34,7 @@ export const gpuLineSink = (lines: number, count: number) =>
 @group(0) @binding(${count}) var<storage,read_write> sinkCount:atomic<u32>;
 fn gpuLineAdd(line:DebugLine){
  let at=atomicAdd(&sinkCount,1u);
- if(at<${GPU_LINE_CAPACITY}u){sinkLines[at]=line;}
+ if(at<arrayLength(&sinkLines)){sinkLines[at]=line;}
 }
 fn gpuLineWorld(a:vec3f,b:vec3f,color:u32){gpuLineAdd(DebugLine(a,color,b,${DEBUG_LINE_SPACE.world}.0));}
 fn gpuLineWorldDepthTested(a:vec3f,b:vec3f,color:u32){gpuLineAdd(DebugLine(a,color,b,${DEBUG_LINE_SPACE.worldDepthTested}.0));}
@@ -58,11 +58,13 @@ fn gpuLineCross(p:vec3f,size:f32,color:u32){
 
 /** The kernel that turns the count into the arguments of the draw: six vertices, a quad, for each line held. */
 const FINISH_WGSL = wgslProgram(
-  `@group(0) @binding(0) var<storage,read_write> sinkCount:atomic<u32>;
+  `${DEBUG_LINE_STRUCT}
+@group(0) @binding(0) var<storage,read_write> sinkCount:atomic<u32>;
 @group(0) @binding(1) var<storage,read_write> drawArgs:array<u32>;
+@group(0) @binding(2) var<storage,read_write> sinkLines:array<DebugLine>;
 @compute @workgroup_size(1) fn gpuLinesFinish(){
  drawArgs[0]=6u;
- drawArgs[1]=min(atomicLoad(&sinkCount),${GPU_LINE_CAPACITY}u);
+ drawArgs[1]=min(atomicLoad(&sinkCount),arrayLength(&sinkLines));
  drawArgs[2]=0u;
  drawArgs[3]=0u;
 }`,
@@ -97,11 +99,11 @@ export function runLineKernel(
   pass.end()
 }
 
-/** The buffers of lines appended to an image of a view: the lines, their count and the arguments of the draw; the count emptied at each image. */
-export function createGpuLines(device: GPUDevice) {
+/** The buffers of lines appended to an image of a view: the lines (`capacity` of them), their count and the arguments of the draw; the count emptied at each image. */
+export function createGpuLines(device: GPUDevice, capacity = GPU_LINE_CAPACITY) {
   const make = (label: string, size: number, usage: GPUBufferUsageFlags) =>
     device.createBuffer({ label: `${LABEL} ${label}`, size, usage: usage | GPUBufferUsage.STORAGE })
-  const lines = make('lines', GPU_LINE_CAPACITY * LINE_BYTES, 0)
+  const lines = make('lines', capacity * LINE_BYTES, 0)
   const count = make('count', 16, GPUBufferUsage.COPY_DST)
   const args = make('arguments', 16, GPUBufferUsage.INDIRECT)
   const run = (
@@ -116,6 +118,7 @@ export function createGpuLines(device: GPUDevice) {
   return {
     lines,
     count,
+    capacity,
     run,
     /** The uniform of the kernel `name`, written with `data` (a kernel has a buffer of its own: the commands of an image read it as the last write left it). */
     uniform(name: string, data: ArrayBuffer) {
@@ -137,7 +140,7 @@ export function createGpuLines(device: GPUDevice) {
     begin: (encoder: GPUCommandEncoder) => encoder.clearBuffer(count),
     /** Writes the arguments of the draw once every kernel has appended its lines. */
     end(encoder: GPUCommandEncoder) {
-      run(encoder, finish(device), [{ buffer: count }, { buffer: args }], 1)
+      run(encoder, finish(device), [{ buffer: count }, { buffer: args }, { buffer: lines }], 1)
     },
     dispose() {
       lines.destroy()

@@ -45,9 +45,13 @@ import { encodeWebgpuGuides, guidesShown } from './encodeGuides.ts'
 import { encodeHairDebug } from '../../hair/debugView.ts'
 import { encodeSubsurfaceDebug } from '../../lighting/subsurface/visualize.ts'
 import { encodeRectLightAtlasDebug } from '../../lighting/rectLightAtlas/debug.ts'
+import { encodeLightProfileDebug } from '../../lighting/lightProfile/debug.ts'
 import { encodeShadowCasterBounds } from '../../lighting/shadows/vsm/debug/casterBounds.ts'
 import { encodeClipmapStats } from '../../lighting/shadows/vsm/debug/clipmapStats.ts'
 import { encodeLightGridDebug } from '../../lighting/tiles/debug/gridDebug.ts'
+import { encodeTranslucencyVolumeDebug } from '../../lighting/translucency/debug.ts'
+import { encodeTranslucencyVolumeSpheres } from '../../lighting/translucency/debugSpheres.ts'
+import { encodeVolumetricLightmapVisualize } from '../../lighting/volumetricLightmap/visualize.ts'
 import { encodeCloudShadowDebug } from './encodeCloudShadowDebug.ts'
 import { encodeClusterStats } from '../../lighting/shadows/vsm/debug/clusterStats.ts'
 import { encodeClipmapVirtualSpace } from '../../lighting/shadows/vsm/debug/clipmapVirtual.ts'
@@ -337,10 +341,14 @@ function composeImage(
   encodeCloudShadowDebug(rt, device, encoder, cam)
   // The light grid's cells, over the image when asked.
   encodeLightGridDebug(rt, device, encoder)
+  // The translucency lighting volume's boxes and table, over the image when asked.
+  encodeTranslucencyVolumeDebug(rt, device, encoder, cam)
   // The global distance field's page statistics, over the image when asked.
   encodeGlobalFieldStats(rt, device, encoder, cam)
   // The rectangle lights' atlas, drawn over the image when asked.
   encodeRectLightAtlasDebug(rt, device, encoder, cam)
+  // The light profiles' atlas, drawn over the image when asked.
+  encodeLightProfileDebug(rt, device, encoder, cam)
   // The surface cache's tables and boxes, over the image too.
   encodeSceneDebug(rt, device, encoder, cam)
   // The transparents read this frame's maps: the frame's buffers swap only now.
@@ -395,6 +403,8 @@ export function encodeSurfaceLighting(
   // The camera of the image before, kept once for the histories that reproject by it (`beginCamera`).
   beginCamera(rt, cam)
   const overrides = encodeViewOverrides(rt, device, encoder, gpu.surfaces)
+  // The lightmap's samples as unlit surfaces, before the motion, the classification and the lighting see the surfaces (`volumetricLightmapVisualize`).
+  encodeVolumetricLightmapVisualize(rt, device, encoder, cam)
   // The motion of every texel, once, before any pass reads it: the indirect light, the temporal pass
   // and the motion blur (`../../post/taa/velocityFrame.ts`).
   encodeVelocity(rt, device, encoder, cam)
@@ -451,6 +461,8 @@ export function encodeSurfaceLighting(
   )
   // The heterogeneous volumes, over the lit image once the sky, the fog and the transparents are on it (the default composition: after the translucency).
   if (!volumesFirst) encodeHeterogeneousVolumes(rt, device, encoder, cam)
+  // The translucency volume's spheres, over the lit image once the transparents, the volumes and the clouds are on it, just before the resolve (`translucencyVolumeVisualize`).
+  encodeTranslucencyVolumeSpheres(rt, device, encoder, cam)
   if (!overrides.post) return finishUncomposed(rt, encoder, overrides, filter)
   // Composition reads the temporal result, or the lit image without accumulation.
   const asIs = readsAsIs(rt)

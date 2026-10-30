@@ -27,6 +27,9 @@ export const RECT_ATLAS_FILTER_PASS = 'Trillion3D rect light atlas filter'
 export const RECT_ATLAS_CLEAR_PASS = 'Trillion3D rect light atlas clear'
 export const RECT_ATLAS_DEBUG_PASS = 'Trillion3D rect light atlas debug'
 export const RECT_ATLAS_BLIT_PASS = 'Trillion3D rect light atlas blit'
+/** The light profiles' atlas debug view (`../../lighting/lightProfile/debug.ts`): the atlas drawn, and laid over the image. */
+export const LIGHT_PROFILE_DEBUG_PASS = 'Trillion3D light profile atlas debug'
+export const LIGHT_PROFILE_BLIT_PASS = 'Trillion3D light profile atlas blit'
 /** The DAG selection's compute pass (`../../geometry/dag/`), and the pass that measures the longest
  *  edge of the clusters whose records were written since the last cut
  *  (`../../geometry/dag/info/measure.ts`). */
@@ -146,12 +149,16 @@ export const HEIGHT_FOG_PASS = 'Trillion3D height fog'
 /** The volumetric lightmap's light on the pixels, gathered before the indirect pass reads it
  *  (`../../lighting/deferred/volumetricLightPass.ts`). */
 export const VOLUMETRIC_LIGHT_PASS = 'Trillion3D volumetric lightmap light'
+/** The debug view that draws a sphere for each sample of the volumetric lightmap, into the lit image (`../../lighting/volumetricLightmap/visualize.ts`). */
+export const VOLUMETRIC_LIGHTMAP_VISUALIZE_PASS = 'Trillion3D volumetric lightmap visualize'
 /** The fog's volume, built before the lighting reads it: the furthest depth of its cells, the light
  *  each scatters, the sum along each column (`../../lighting/fog/passes.ts`). */
 export const FOG_VOLUME_PASS = 'Trillion3D fog volume'
 /** The translucency lighting volume: the light of every light injected into the two cascades of cells around the camera, filtered
  *  and packed, which the see-through surfaces lit from it read (`../../lighting/translucency/gpu.ts`). */
 export const TRANSLUCENCY_VOLUME_PASS = 'Trillion3D translucency volume'
+/** The debug view that draws a sphere for each cell of the volume, into the lit image (`../../lighting/translucency/debugSpheres.ts`). */
+export const TRANSLUCENCY_VOLUME_SPHERES_PASS = 'Trillion3D translucency volume spheres'
 /** The translucency global illumination volume: the cones of every cell of the view-fitted grid traced, filtered and integrated into the
  *  harmonics the see-through surfaces read their indirect light from (`../../lighting/translucencyGi/gpu.ts`). */
 export const TRANSLUCENCY_GI_PASS = 'Trillion3D translucency global illumination'
@@ -299,6 +306,8 @@ export const OTHER_PASS_FAMILIES = [
     'Trillion3D light shafts',
     'Trillion3D fog local volumes',
     'Trillion3D surface rewrite',
+    // The kernels of the debug views that append lines (the volume's cell counts and boxes, the scene tables'), and their last kernel.
+    'Trillion3D debug lines appended',
   ),
   // The surface cache's card captures, feedback, clears and debug views (its update and lighting
   // keep their own rows below).
@@ -388,9 +397,13 @@ export const ENGINE_PASSES = [
   definePass({ label: RECT_ATLAS_CLEAR_PASS, stage: 'lighting', block: 'other' }),
   definePass({ label: RECT_ATLAS_DEBUG_PASS, stage: 'lighting', block: 'other' }),
   definePass({ label: RECT_ATLAS_BLIT_PASS, stage: 'lighting', block: 'other' }),
+  definePass({ label: LIGHT_PROFILE_DEBUG_PASS, stage: 'lighting', block: 'other' }),
+  definePass({ label: LIGHT_PROFILE_BLIT_PASS, stage: 'lighting', block: 'other' }),
   definePass({ label: VOLUMETRIC_LIGHT_PASS, stage: 'lighting', block: 'other' }),
+  definePass({ label: VOLUMETRIC_LIGHTMAP_VISUALIZE_PASS, stage: 'lighting', block: 'other' }),
   definePass({ label: FOG_VOLUME_PASS, stage: 'lighting', block: 'other' }),
   definePass({ label: TRANSLUCENCY_VOLUME_PASS, stage: 'lighting', block: 'other' }),
+  definePass({ label: TRANSLUCENCY_VOLUME_SPHERES_PASS, stage: 'lighting', block: 'other' }),
   definePass({ label: TRANSLUCENCY_GI_PASS, stage: 'lighting', block: 'other' }),
   definePass({ label: TRACED_TRANSLUCENCY_TRACE_PASS, stage: 'transparents', block: 'other' }),
   definePass({ label: TRACED_TRANSLUCENCY_DENOISE_PASS, stage: 'transparents', block: 'other' }),

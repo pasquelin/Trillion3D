@@ -86,6 +86,7 @@ const LIT_VIEWS = {
   'virtual-shadow-map-merged-page': { light: 0, chain: true },
   'virtual-shadow-map-overdraw': { light: 0, chain: true },
   'rect-light-atlas': { light: 0, chain: true },
+  'light-profile-atlas': { light: 0, chain: true },
   'surface-cache-direct-stats': { light: 0, chain: true },
   'surface-cache-indirect-stats': { light: 0, chain: true },
   'surface-cache-direct-lighting-stats': { light: 0, chain: true },

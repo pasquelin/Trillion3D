@@ -7,9 +7,11 @@ import { DEFORMATION_PASS } from '../../deformation/pass.ts'
 import { releaseLightProfiles } from '../../lighting/lightProfile/frame.ts'
 import { releaseRectLightAtlas } from '../../lighting/rectLightAtlas/frame.ts'
 import { disposeRectLightAtlasDebug } from '../../lighting/rectLightAtlas/debug.ts'
+import { disposeLightProfileDebug } from '../../lighting/lightProfile/debug.ts'
 import { disposeShadowCasterBounds } from '../../lighting/shadows/vsm/debug/casterBounds.ts'
 import { disposeClipmapStats } from '../../lighting/shadows/vsm/debug/clipmapStats.ts'
 import { disposeLightGridDebug } from '../../lighting/tiles/debug/gridDebug.ts'
+import { disposeTranslucencyVolumeDebug } from '../../lighting/translucency/debug.ts'
 import { disposeCloudShadowDebug } from '../render/encodeCloudShadowDebug.ts'
 import { disposeClusterStats } from '../../lighting/shadows/vsm/debug/clusterStats.ts'
 import { disposeClipmapVirtualSpace } from '../../lighting/shadows/vsm/debug/clipmapVirtual.ts'
@@ -44,6 +46,7 @@ import { disposeDistanceFields } from '../../lighting/distanceField/frame.ts'
 import { disposeHairStrands } from '../../hair/frame.ts'
 import { disposeSurfaceCache, surfaceCacheMetrics } from '../../lighting/surfaceCache/frame.ts'
 import { disposeVolumetricLightmap } from '../../lighting/volumetricLightmap/frame.ts'
+import { disposeVolumetricLightmapVisualize } from '../../lighting/volumetricLightmap/visualize.ts'
 import { disposeSkyModule } from '../render/encodeCloudsSky.ts'
 import { releaseUnlitLights } from '../render/captureLights.ts'
 import { disposeSampledDebug } from '../../lighting/manyLightsSampled/debug/frame.ts'
@@ -191,6 +194,7 @@ function disposeCut(rt: WebgpuPagesRuntime) {
   disposeDistanceFields(rt)
   disposeHairStrands(rt)
   disposeSurfaceCache(rt)
+  disposeVolumetricLightmapVisualize(rt)
   disposeVolumetricLightmap(rt)
   timing.gpuTiming?.dispose()
   rt.vis.pooledDeformation?.table.destroy()
@@ -249,6 +253,7 @@ function disposeLighting(rt: WebgpuPagesRuntime) {
   releaseLightProfiles(rt)
   releaseRectLightAtlas(rt)
   disposeRectLightAtlasDebug(rt)
+  disposeLightProfileDebug(rt)
   disposeShadowCasterBounds(rt)
   disposeClipmapVirtualSpace(rt)
   disposeVsmVisualizeView(rt)
@@ -256,6 +261,7 @@ function disposeLighting(rt: WebgpuPagesRuntime) {
   disposeClusterStats(rt)
   disposeCloudShadowDebug(rt)
   disposeLightGridDebug(rt)
+  disposeTranslucencyVolumeDebug(rt)
   releaseAmbientCubemap(rt)
   releaseToonTables(rt.run)
   rt.lights.buffer?.destroy()

@@ -88,6 +88,7 @@ export type DiagnosticMode =
   | 'virtual-shadow-map-merged-page'
   | 'virtual-shadow-map-overdraw'
   | 'rect-light-atlas'
+  | 'light-profile-atlas'
   | 'surface-cache-direct-stats'
   | 'surface-cache-indirect-stats'
   | 'surface-cache-direct-lighting-stats'
@@ -168,6 +169,7 @@ export interface DiagnosticCapability {
  *  @property virtual-shadow-map-merged-page - The page each pixel reads: red where the static layer was drawn and merged into the dynamic one, green elsewhere.
  *  @property virtual-shadow-map-overdraw - How many times the shadow raster drew a texel of the page each pixel reads, from dark to bright.
  *  @property rect-light-atlas - The atlas of the pictures mapped on the rectangle lights, its slots and its figures, over the image.
+ *  @property light-profile-atlas - The atlas of the light profiles, its slices and its figures, over the image.
  *  @property surface-cache-direct-stats - The table of the direct light update of the surface cache over the image: its priority histogram, its budget and the pages and tiles it lights.
  *  @property surface-cache-indirect-stats - The table of the indirect light update of the surface cache over the image.
  *  @property surface-cache-direct-lighting-stats - The lights the direct light update gathers, the atlas and update sizes, the trace method and count, and the cards and tiles it lights, over the image.
@@ -277,6 +279,7 @@ export type DiagnosticCapabilities = Record<DiagnosticMode, DiagnosticCapability
  * @property virtual-shadow-map-merged-page - Over the image in grey, the virtual page each pixel reads, red where its static layer was drawn this image and merged into the dynamic one, green elsewhere; needs shadows and virtual shadow maps.
  * @property virtual-shadow-map-overdraw - Over the image in grey, how many times the shadow raster (the hardware one and the software one) drew the texel each pixel reads this image, in an inferno colour map scaled by `shadowVisualizeOverdrawScale`; needs shadows and virtual shadow maps. Choosing it makes the pool again with one more slice for the counts, so the cached pages are drawn again.
  * @property rect-light-atlas - Over the image, the atlas of the pictures the rectangle lights name, drawn small at the chosen mip level (`rectLightAtlasDebugMipLevel`) with a green border round each slot in use, a red one round the horizon lines of the packing and a yellow one round the free rectangles, and its figures as text (resolution, mip levels, occupancy, pictures, source mip bias, format, the switches); the same as `rectLightAtlasDebug` shows.
+ * @property light-profile-atlas - Over the image, the atlas of the light profiles drawn small as a grid of slices, a green border round each slice a profile is in and a grey one round each free slice, the profile's values in red, and its figures as text (resolution, slices used, occupancy, profiles held, the force-update switch, format); the same as `lightProfileAtlasDebug` shows.
  * @property surface-cache-direct-stats - Over the image, the table of the surface cache’s direct light update as `surfaceCacheLightingStats` 1 writes it: the tiles of each of the 16 priority buckets, the bucket the budget ends in and its tiles, the pages and the tiles the image lights; read back from the GPU a few images late.
  * @property surface-cache-indirect-stats - Over the image, the same table for the surface cache’s indirect light update (`surfaceCacheLightingStats` 2).
  * @property surface-cache-direct-lighting-stats - Over the image, the table of the surface cache’s direct light update as `surfaceCacheLightingStats` 3 writes it: the views and lights (batched with their type, standalone, whether rectangles, light functions and IES profiles are among them), the atlas and update sizes, the update factor, the trace method and count, and the cards and tiles lit; read back from the GPU a few images late.
@@ -609,6 +612,11 @@ export const DIAGNOSTICS: DiagnosticCapabilities = {
     available: true,
     reason:
       'The atlas of the rectangle lights’ pictures over the image, with its slots, horizon lines, free rectangles and figures; needs a rectangle that names a sourceTexture',
+  },
+  'light-profile-atlas': {
+    available: true,
+    reason:
+      'The atlas of the light profiles over the image, with its slices and figures; needs a light that names an iesProfile',
   },
   'surface-cache-direct-stats': {
     available: true,

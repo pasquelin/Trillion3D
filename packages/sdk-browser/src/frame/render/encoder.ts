@@ -1,5 +1,6 @@
 import { cpuNow, msSince } from '../../diagnostic/stopwatch.ts'
 import { sampledDebugSubmitted } from '../../lighting/manyLightsSampled/debug/frame.ts'
+import { translucencyVolumeDebugSubmitted } from '../../lighting/translucency/debug.ts'
 import { sceneDebugSubmitted } from '../../lighting/surfaceCache/sceneDebug/frame.ts'
 import { subsurfaceDebugSubmitted } from '../../lighting/subsurface/frame.ts'
 import { vsmSubmitted } from '../../lighting/shadows/vsm/frame/vsmFrameEnd.ts'
@@ -162,6 +163,7 @@ function submittedReadbacks(rt: WebgpuPagesCore, published: boolean) {
   rt.gpu.reflection?.census.submitted()
   rt.gpu.exposure?.submitted()
   sampledDebugSubmitted(rt)
+  translucencyVolumeDebugSubmitted(rt)
   subsurfaceDebugSubmitted(rt)
   sceneDebugSubmitted(rt)
   hzbOcclusionSubmitted(rt)

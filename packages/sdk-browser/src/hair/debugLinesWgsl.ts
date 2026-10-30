@@ -19,7 +19,7 @@ export const DEBUG_VIEW_FLOATS = 20
 
 /** The space of a line: the world relative to the eye, the display's pixels, or the world with the opaque depth test (the line is drawn only where no surface is nearer the eye). */
 export const DEBUG_LINE_SPACE = { world: 0, pixels: 1, worldDepthTested: 2 } as const
-/** The lines a pass draws, by the view's `kind` word: the opaque ones, the translucent ones (a colour of less than full alpha, which the pass lays over the others), the depth tested ones. */
+/** The lines a pass draws, by the view's `kind` word: the opaque ones, the translucent ones (a colour of less than full alpha, which the pass lays first, under the opaque ones), the depth tested ones. */
 export const DEBUG_LINE_KIND = { opaque: 0, translucent: 1, depthTested: 2 } as const
 
 /** A line: its first end, its colour (the bytes of a word), its second end and its space (`DEBUG_LINE_SPACE`). A line of the display's pixels may
@@ -45,7 +45,7 @@ const NEAR_W=0.0001;
  var out:Out;
  out.position=vec4f(2.0,2.0,2.0,1.0);
  out.color=unpack4x8unorm(line.color);
- // A pass draws one kind of line (the view's): the translucent after the opaque, so a mark is never tinted by a fill laid over it.
+ // A pass draws one kind of line (the view's): the translucent before the opaque, so a mark is never tinted by a fill laid over it.
  let kind=select(select(${DEBUG_LINE_KIND.opaque}.0,${DEBUG_LINE_KIND.translucent}.0,out.color.a<1.0),${DEBUG_LINE_KIND.depthTested}.0,line.space>1.5);
  if(kind!=view.kind){return out;}
  var pa=line.a.xy;

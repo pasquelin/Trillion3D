@@ -9,6 +9,9 @@ import {
   type SettingValues,
 } from './settingRules.ts'
 
+/** The number of the outer cascade: the volume holds two (`../../../sdk-browser/src/lighting/translucency/layout.ts`). */
+const TRANSLUCENCY_CASCADE_LAST = 1
+
 /**
  * The run-time settings of the translucency lighting volume (`packages/sdk-browser/src/lighting/translucency/`):
  * a field of the direct light around the camera, in two nested cascades of cells, that the
@@ -47,7 +50,12 @@ import {
  *  `translucencyVolumeMinFov`, 45 — degrees, the least field of view they follow;
  *  `translucencyVolumeFovSnap`, 10 — degrees, the field is rounded up to a multiple of it;
  *  `translucencyVolumeMarkVoxels`, off — the cells the see-through surfaces read are marked in a pass of their own before the volume
- *  is made, and only those (and the corners round them) are lit and filtered; the others hold nothing. */
+ *  is made, and only those (and the corners round them) are lit and filtered; the others hold nothing;
+ *  `translucencyVolumeVisualize`, off — a sphere is drawn over the image at the centre of every cell, lit by the volume's light as a surface facing it would read it;
+ *  `translucencyVolumeVisualizeRadiusScale`, 2 — centimetres, the radius of those spheres, times one more than the cascade's number;
+ *  `translucencyVolumeVisualizeCascadeIndex`, -1 — the one cascade (0 or 1) the spheres are drawn for, -1 both;
+ *  `translucencyVolumeDebug`, off — the boxes of the two cascades, those of the marked cells, and a table of their sizes and of the cells in view and marked written over the image;
+ *  `translucencyVolumeDebugFreezePosition`, off — the cascades stay where the image before left them, whatever the camera does. */
 export const TRANSLUCENCY_VOLUME_RULES = /* @__PURE__ */ (() =>
   rulesOf([
     flag('translucencyVolume', true),
@@ -62,6 +70,11 @@ export const TRANSLUCENCY_VOLUME_RULES = /* @__PURE__ */ (() =>
     number('translucencyVolumeMinFov', 45, atLeast(0)),
     number('translucencyVolumeFovSnap', 10, atLeast(0.001)),
     flag('translucencyVolumeMarkVoxels', false),
+    flag('translucencyVolumeVisualize', false),
+    nonNegative('translucencyVolumeVisualizeRadiusScale', 2),
+    integer('translucencyVolumeVisualizeCascadeIndex', -1, [-1, TRANSLUCENCY_CASCADE_LAST]),
+    flag('translucencyVolumeDebug', false),
+    flag('translucencyVolumeDebugFreezePosition', false),
   ] as const))()
 /** The field of one setting of the volume. */
 export type TranslucencyVolumeField = keyof typeof TRANSLUCENCY_VOLUME_RULES

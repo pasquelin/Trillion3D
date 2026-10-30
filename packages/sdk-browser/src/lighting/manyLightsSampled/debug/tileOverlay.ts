@@ -52,7 +52,7 @@ export const tileClassificationOf = (value: number) => ({
   downsampled: value % 2 === 0,
 })
 
-const TILE_COLORS_WGSL = Array.from({ length: SAMPLED_TILE_MODES }, (_, mode) => {
+const tileColourList = Array.from({ length: SAMPLED_TILE_MODES }, (_, mode) => {
   const [r, g, b] = tileColor(mode)
   return `vec3f(${r},${g},${b})`
 }).join(',')
@@ -64,7 +64,7 @@ export const TILE_OVERLAY_WGSL = `struct Tiles{scale:vec2f,tilePixels:f32,stride
 @group(0) @binding(3) var<uniform> display:vec4f;
 struct Out{@builtin(position) position:vec4f,@location(0) local:vec2f,@location(1) @interpolate(flat) colour:vec3f}
 const CORNERS=array<vec2f,6>(vec2f(0.0,0.0),vec2f(1.0,0.0),vec2f(0.0,1.0),vec2f(0.0,1.0),vec2f(1.0,0.0),vec2f(1.0,1.0));
-const COLOURS=array<vec3f,${SAMPLED_TILE_MODES}>(${TILE_COLORS_WGSL});
+const COLOURS=array<vec3f,${SAMPLED_TILE_MODES}>(${tileColourList});
 @vertex fn tileVs(@builtin(vertex_index) vertex:u32,@builtin(instance_index) instance:u32)->Out{
  var o:Out;
  let mode=instance/tiles.stride;

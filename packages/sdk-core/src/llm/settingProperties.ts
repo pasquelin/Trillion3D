@@ -343,6 +343,12 @@ const VOLUMETRIC_LIGHTMAP_MEANINGS: Readonly<Record<VolumetricLightmapField, str
     "The distance, in metres, around the view within which the cells of the lightmap's finest bricks are loaded and kept; the others are let go (64 by default). It does nothing where the scene's lightmap holds no cells.",
   volumetricLightmapBrickMemory:
     "The memory, in megabytes, the loaded finest bricks of the lightmap may take (30 by default); the cells nearest the view win it, and a cell that does not fit is not loaded. It does nothing where the scene's lightmap holds no cells.",
+  volumetricLightmapVisualize:
+    "Whether a sphere is drawn over the image at every sample of the scene's volumetric lightmap (the samples of its finest bricks; a coarser brick's samples are as large as the brick), in the light the sample's harmonics give a surface facing outward from it, on a grey of 0.18; false by default. The spheres are tested against the scene depth. It does nothing where the scene has no lightmap or the lightmap is off.",
+  volumetricLightmapVisualizeRadiusScale:
+    'From 0; 0.01 by default. The radius of the spheres volumetricLightmapVisualize draws, as a fraction of the world size of the brick their sample belongs to (a coarse brick has larger ones).',
+  volumetricLightmapVisualizeMinScreenFraction:
+    "From 0; 0.001 by default. The least size of a sphere of volumetricLightmapVisualize on the screen, as a fraction of the screen, measured with the projection's horizontal scale (the width) (times the square root of the bricks' span), so that a far sphere does not shrink out of sight; the spheres too small to be told apart fade to their sample's ambient light.",
 }
 
 const GDF = GLOBAL_DISTANCE_FIELD_RULES
@@ -472,6 +478,10 @@ const LIGHT_PROFILE_MEANINGS: Readonly<Record<LightProfileField, string>> = {
     'The texels a side of a slice of the atlas of the light profiles, from 16 to 4096; 256 by default. A profile of another side is resampled to it when it is written.',
   lightProfileAtlasMaxProfiles:
     'The most profiles the atlas of the light profiles holds, from 1 to 32; 32 by default. The atlas is made with the profiles the lights ask, up to this, and made again when more are asked; a light whose profile has no slice shines as a lamp with none.',
+  lightProfileAtlasForceUpdate:
+    'Whether every profile is written into the atlas of the light profiles again at every image; false by default.',
+  lightProfileAtlasDebug:
+    'Whether the atlas of the light profiles is drawn over the image, each slice in a grid with a green border when a profile is in it and a grey one when it is free, with its figures as text (resolution, slices used, occupancy, profiles held, format); false by default.',
 }
 
 /** What each quality setting of the sky means (`../modules/sky/quality.ts`). The atmosphere's and

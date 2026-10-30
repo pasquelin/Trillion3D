@@ -100,7 +100,8 @@ export interface WorldImageSettings {
   /** The light profiles' atlas settings, each by its field (`WorldOptions`), resolved over the page and
    *  the quality preset: `lightProfileAtlasResolution` (256) — the texels a side of a slice; a profile of another
    *  side is resampled to it — and `lightProfileAtlasMaxProfiles` (32, from 1 to 32) — the most profiles the atlas
-   *  holds; it is made with the profiles the lights ask, up to this, and made again when more are asked.
+   *  holds; it is made with the profiles the lights ask, up to this, and made again when more are asked —, and the
+   *  switches `lightProfileAtlasForceUpdate` (false, every profile written again at every image) and `lightProfileAtlasDebug` (false, the atlas drawn over the image).
    *  Written, the settings named apply from the next frame over the preset — one `null` gives it
    *  back to it, one left out stays —; one a setting does not take is refused. */
   get lightProfile(): FamilyValues<'lightProfile'>

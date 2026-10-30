@@ -17,7 +17,7 @@ function makeAtlasTexture(device: GPUDevice, side: number, slices: number) {
     label: 'light profile atlas',
     size: [side, side, Math.max(1, slices)],
     format: PROFILE_ATLAS_FORMAT,
-    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
+    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.COPY_SRC,
   })
   return { texture, view: texture.createView({ dimension: '2d-array' }) }
 }
@@ -76,6 +76,8 @@ export function createLightProfileAtlas(device: GPUDevice) {
   let side = 0,
     asked = 0,
     allowed = 0
+  /** The count of the times the texels of the texture changed (made, or a profile written): what a copy of it compares. */
+  let writes = 0
 
   const laid = createLaidProfiles()
 
@@ -98,9 +100,10 @@ export function createLightProfileAtlas(device: GPUDevice) {
     /**
      * Makes the atlas for the profiles held, `resolution` texels a side and at most `maxProfiles` slices, where it is not
      * made, a setting moved or more profiles are held than it was made with, and writes the profiles added since the last
-     * sync into their slices. Returns whether the texture was made by it (a bind group of an earlier view is stale).
+     * sync into their slices; with `forceUpdate`, every profile held is written again into a slice. Returns whether the texture was
+     * made by it (a bind group of an earlier view is stale).
      */
-    sync(resolution: number, maxProfiles: number) {
+    sync(resolution: number, maxProfiles: number, forceUpdate = false) {
       // Nothing held and nothing made: nothing to make.
       if (!texture && slots.size === 0) return false
       const requested = Math.min(maxProfiles, slots.size)
@@ -115,9 +118,25 @@ export function createLightProfileAtlas(device: GPUDevice) {
         asked = requested
         made()
         slots.relayout(requested)
-      }
-      writeProfiles(device, texture!, side, slots.plan(), laid)
+      } else if (forceUpdate) slots.relayout(asked)
+      const plan = slots.plan()
+      writeProfiles(device, texture!, side, plan, laid)
+      if (remade || plan.length) writes++
       return remade
+    },
+    /** What the debug view draws: the texture, its side and slices, which slices hold a profile and the count of the times its texels changed (`writes`); none while the atlas is not made. */
+    debugFigures() {
+      if (!texture) return undefined
+      const slices = texture.depthOrArrayLayers
+      return {
+        texture,
+        view: view!,
+        side,
+        slices,
+        used: slots.usedSlices(slices),
+        held: slots.size,
+        writes,
+      }
     },
     /** Hands the texture to the frame's retire list: an encoder of this image may still name it. */
     destroy() {
@@ -130,3 +149,6 @@ export function createLightProfileAtlas(device: GPUDevice) {
 
 /** The light profiles on the GPU. */
 export type LightProfileAtlas = ReturnType<typeof createLightProfileAtlas>
+
+/** What the debug view draws of the atlas. */
+export type LightProfileDebugFigures = NonNullable<ReturnType<LightProfileAtlas['debugFigures']>>

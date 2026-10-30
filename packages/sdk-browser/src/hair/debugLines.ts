@@ -10,8 +10,11 @@ export const DEBUG_CPU_LINES = 16384
 const SPACE = { world: 0, pixel: 1 } as const
 
 /** A colour of linear components in [0, 1] as the bytes r, g, b, a of a word. */
-export const debugColor = (r: number, g: number, b: number) =>
-  (Math.round(r * 255) | (Math.round(g * 255) << 8) | (Math.round(b * 255) << 16) | (255 << 24)) >>>
+export const debugColor = (r: number, g: number, b: number, a = 1) =>
+  (Math.round(r * 255) |
+    (Math.round(g * 255) << 8) |
+    (Math.round(b * 255) << 16) |
+    (Math.round(a * 255) << 24)) >>>
   0
 
 /** The colours of the views: the console's palette the reference prints and draws with. */
@@ -113,6 +116,11 @@ export class DebugLines {
     this.pixel(x1, y0, x1, y1, color)
     this.pixel(x1, y1, x0, y1, color)
     this.pixel(x0, y1, x0, y0, color)
+  }
+
+  /** The quad of the pixels (`x0`, `y0`) to (`x1`, `y1`) filled: one line along its middle as wide as the quad (a colour of less than full alpha is laid over what is drawn). */
+  filled(x0: number, y0: number, x1: number, y1: number, color: number) {
+    this.put([x0, (y0 + y1) / 2, Math.abs(y1 - y0)], [x1, (y0 + y1) / 2, 0], color, SPACE.pixel)
   }
 
   /** `text` from the pixel (`x`, `y`), cells of `cell` pixels. */

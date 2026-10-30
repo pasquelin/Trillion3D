@@ -63,6 +63,7 @@ export function encodeLightProfiles(rt: Rt, device: GPUDevice) {
     store,
     readLightProfileSetting(rt, 'lightProfileAtlasResolution'),
     readLightProfileSetting(rt, 'lightProfileAtlasMaxProfiles'),
+    readLightProfileSetting(rt, 'lightProfileAtlasForceUpdate'),
   )
   // No light names a profile any more: the texture goes, and is made again with the next profile a light names.
   if (store.profiled === 0) frame.atlas.destroy()

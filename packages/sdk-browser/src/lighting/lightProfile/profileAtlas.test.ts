@@ -109,3 +109,23 @@ test('a texture handed back is made again by the next sync, the profiles written
   assert.equal(gpu.textures.length, 2)
   assert.equal(gpu.textureWrites.length, 2)
 })
+
+test('a forced update writes every profile again without making the texture again, and the debug figures name the slices in use', () => {
+  const gpu = fakeDevice(BACKEND)
+  const atlas = createLightProfileAtlas(gpu.device)
+  assert.equal(atlas.debugFigures(), undefined, 'nothing made, nothing to draw')
+  atlas.slots.add('a', profile(0x3c00))
+  atlas.slots.add('b', profile(0x3800))
+  atlas.sync(256, 32)
+  const figures = atlas.debugFigures()!
+  assert.deepEqual([figures.side, figures.slices, figures.held], [256, 2, 2])
+  assert.deepEqual([...figures.used], [1, 1])
+  atlas.slots.remove('a')
+  assert.deepEqual([...atlas.debugFigures()!.used], [0, 1], 'a freed slice is free')
+  const made = gpu.textures.length
+  const written = gpu.textureWrites.length
+  assert.equal(atlas.sync(256, 32, true), false, 'the texture stays')
+  assert.equal(gpu.textures.length, made)
+  assert.equal(gpu.textureWrites.length, written + 1, 'the profile held is written again')
+  assert.deepEqual([...atlas.debugFigures()!.used], [1, 0], 'from the first slice')
+})

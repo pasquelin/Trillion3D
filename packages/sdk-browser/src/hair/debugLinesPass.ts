@@ -1,6 +1,7 @@
 import { DISPLAY_FORMAT } from '../scene/targetFormats.ts'
 import { preparedPipeline } from '../lighting/deferred/fullscreen.ts'
 import { autoKernel } from '../gpu/core/computeStages.ts'
+import { composeGroup, heldGroup } from '../gpu/bind/bindIdentity.ts'
 import { sequentialEntries } from '../gpu/core/computeBindings.ts'
 import { HAIR_STRANDS_PASS_PREFIX } from '../diagnostic/stage/passLabels.ts'
 import { DEBUG_LINE_FLOATS, type DebugLines } from './debugLines.ts'
@@ -129,6 +130,14 @@ export function createDebugLinesGpu(device: GPUDevice) {
   const depthPipeline = pipelineOf('debugLineDepthFs')
   const buffers = createLineBuffers(device)
   const viewWords = new Float32Array(DEBUG_VIEW_FLOATS)
+  // A group for each range drawn: the host's and the kernel's, each under the translucent and the opaque uniform, then the depth tested ones. Made again only where what they name moved.
+  const held = Array.from({ length: 5 }, heldGroup)
+  const groupOf = (at: number, pipeline: GPURenderPipeline, ...resources: GPUBindingResource[]) => {
+    const group = held[at]!
+    group.identity.entries[0] = sequentialEntries(resources)
+    composeGroup(device, group, pipeline)
+    return group.group!
+  }
   return {
     /**
      * Draws over `target` (`size` display pixels) the lines of `drawn` and the boxes of `boxes`, seen through `viewProjection`
@@ -147,12 +156,12 @@ export function createDebugLinesGpu(device: GPUDevice) {
       if (!draw) return
       viewWords.set(viewProjection)
       viewWords.set([size[0], size[1], LINE_WIDTH], 16)
+      viewWords[19] = DEBUG_LINE_KIND.opaque
       device.queue.writeBuffer(buffers.view, 0, viewWords)
       viewWords[19] = DEBUG_LINE_KIND.translucent
       device.queue.writeBuffer(buffers.viewTranslucent, 0, viewWords)
       viewWords[19] = DEBUG_LINE_KIND.depthTested
       device.queue.writeBuffer(buffers.viewDepthTested, 0, viewWords)
-      viewWords[19] = DEBUG_LINE_KIND.opaque
       device.queue.writeBuffer(buffers.lines, 0, drawn.data, 0, drawn.count * DEBUG_LINE_FLOATS)
       encodeGpuBoxes(device, encoder, buffers, boxes)
       const pass = encoder.beginRenderPass({
@@ -160,41 +169,34 @@ export function createDebugLinesGpu(device: GPUDevice) {
         colorAttachments: [{ view: target, loadOp: 'load', storeOp: 'store' }],
       })
       pass.setPipeline(draw)
-      pass.setBindGroup(
-        0,
-        device.createBindGroup({
-          layout: draw.getBindGroupLayout(0),
-          entries: sequentialEntries([{ buffer: buffers.view }, { buffer: buffers.lines }]),
-        }),
-      )
-      if (drawn.count) pass.draw(6, drawn.count, 0, 0)
-      pass.draw(6, DEBUG_GPU_LINES.end - DEBUG_GPU_LINES.frusta, 0, DEBUG_GPU_LINES.frusta)
-      if (appended) {
-        // The opaque lines first, then the translucent ones from the same lines, each in an indirect draw of its own.
-        for (const uniform of [buffers.view, buffers.viewTranslucent]) {
+      // One rule for the three ranges (the host's lines, the boxes the GPU writes, those a kernel appended): the translucent lines first (a backdrop),
+      // then the opaque ones (text, marks), so no mark is tinted by a fill laid over it.
+      for (const [at, uniform] of [buffers.viewTranslucent, buffers.view].entries()) {
+        pass.setBindGroup(0, groupOf(at, draw, { buffer: uniform }, { buffer: buffers.lines }))
+        if (drawn.count) pass.draw(6, drawn.count, 0, 0)
+        pass.draw(6, DEBUG_GPU_LINES.end - DEBUG_GPU_LINES.frusta, 0, DEBUG_GPU_LINES.frusta)
+        if (appended) {
           pass.setBindGroup(
             0,
-            device.createBindGroup({
-              layout: draw.getBindGroupLayout(0),
-              entries: sequentialEntries([{ buffer: uniform }, { buffer: appended.lines }]),
-            }),
+            groupOf(2 + at, draw, { buffer: uniform }, { buffer: appended.lines }),
           )
           pass.drawIndirect(appended.args, 0)
         }
+      }
+      if (appended) {
         // Then those against the depth: the lines the opaque depth hides are dropped by the pixel.
         const againstDepth = depthPipeline.get()
         if (againstDepth && appended.depth) {
           pass.setPipeline(againstDepth)
           pass.setBindGroup(
             0,
-            device.createBindGroup({
-              layout: againstDepth.getBindGroupLayout(0),
-              entries: sequentialEntries([
-                { buffer: buffers.viewDepthTested },
-                { buffer: appended.lines },
-                appended.depth,
-              ]),
-            }),
+            groupOf(
+              4,
+              againstDepth,
+              { buffer: buffers.viewDepthTested },
+              { buffer: appended.lines },
+              appended.depth,
+            ),
           )
           pass.drawIndirect(appended.args, 0)
         }

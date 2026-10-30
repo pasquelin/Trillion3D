@@ -30,7 +30,7 @@ import { PIXEL_TILE_CLASS_WGSL, TILE_CLASS, type TileClass } from './tileClass.t
 import { VIEW_WGSL, WORLD_AT_WGSL } from './worldAtWgsl.ts'
 
 /** The diffuse colour the lighting view shows every surface with, as WGSL text: the reference's default brightness of a lighting-only view, 0.3. */
-const LIGHTING_ONLY_BRIGHTNESS = '0.3'
+export const LIGHTING_ONLY_BRIGHTNESS = '0.3'
 
 /** The surface's colour layers (the base and metalness, the normal and roughness), by load. */
 export const COLOURS_BINDING_WGSL = wgslBlock(

@@ -163,6 +163,14 @@ export function placeCascade(
   return out
 }
 
+/** Holds cascade `out` where the image before left it (`translucencyVolumeDebugFreezePosition`), its cells' side following `dim`: false for a cascade
+ *  that holds nothing yet, which is placed as any other. */
+export function holdCascade(out: Cascade, dim: number) {
+  if (!(out.size > 0)) return false
+  out.voxel = out.size / dim
+  return true
+}
+
 /** The whole count of cells a range of lights' extent covers along an axis, as the cells are counted from the
  *  cascade's corner: from the cell the extent's start falls in to one past the cell its end falls in, held to the
  *  cascade. A range wholly outside holds none (`max <= min`). */

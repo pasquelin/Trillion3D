@@ -76,3 +76,13 @@ test('an id that is no profile names no slice and no light', () => {
   assert.equal(slots.refsOf('x'), 0)
   slots.remove('x')
 })
+
+test('the slices in use are the ones a profile has, however many the atlas was made with', () => {
+  const slots = createProfileSlots(4)
+  slots.add('a', data())
+  slots.add('b', data())
+  slots.plan()
+  slots.remove('a')
+  assert.deepEqual([...slots.usedSlices(4)], [0, 1, 0, 0])
+  assert.deepEqual([...slots.usedSlices(1)], [0], 'slices past the count are left out')
+})

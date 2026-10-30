@@ -1,5 +1,6 @@
 import {
   contextReader,
+  flagSetting as flag,
   integerSetting as integer,
   rulesOf,
   type SettingOptions,
@@ -16,12 +17,17 @@ import { LIGHT_PROFILE_SLICES } from '../scene/light/contracts.ts'
  * - `lightProfileAtlasResolution` (256, from 16 to 4096): the texels a side of a slice; a profile of another side is resampled
  *   to it (bilinear, clamped) when it is written;
  * - `lightProfileAtlasMaxProfiles` (32, from 1 to `LIGHT_PROFILE_SLICES`): the most profiles the atlas holds; the slices it
- *   is made with are the profiles asked, up to this; a light whose profile has no slice shines as a lamp with none.
+ *   is made with are the profiles asked, up to this; a light whose profile has no slice shines as a lamp with none;
+ * - `lightProfileAtlasForceUpdate` (off): writes every profile into the atlas again at every image;
+ * - `lightProfileAtlasDebug` (off): draws the atlas, its slices and their use over the image (the diagnostic view
+ *   `light-profile-atlas`), and its figures as text.
  */
 export const LIGHT_PROFILE_RULES = /* @__PURE__ */ (() =>
   rulesOf([
     integer('lightProfileAtlasResolution', 256, [16, 4096]),
     integer('lightProfileAtlasMaxProfiles', 32, [1, LIGHT_PROFILE_SLICES]),
+    flag('lightProfileAtlasForceUpdate', false),
+    flag('lightProfileAtlasDebug', false),
   ] as const))()
 
 /** The field of one setting of the light profiles' atlas. */

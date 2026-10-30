@@ -60,6 +60,12 @@ export function createProfileSlots(sliceCount = 0) {
       free = Array.from({ length: count }, (_, slice) => slice)
       pending = true
     },
+    /** One entry for each of the atlas's `count` slices: 1 where a profile's texels are in it, 0 where it is free. */
+    usedSlices(count: number) {
+      const used = new Uint32Array(count)
+      for (const { slice } of slots.values()) if (slice >= 0 && slice < count) used[slice] = 1
+      return used
+    },
     /** The number of lights that name profile `id`. */
     refsOf: (id: string) => slots.get(id)?.refs ?? 0,
     /** The slices to write now: each profile held without one is given a free slice. Nothing when

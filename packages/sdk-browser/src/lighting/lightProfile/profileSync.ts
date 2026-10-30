@@ -82,34 +82,41 @@ export function createLightProfileSync(atlas: LightProfileAtlas, registry: Light
     registry.version === version &&
     resolution === seenResolution &&
     maxProfiles === seenMaxProfiles
+  /** Takes the holds for the lights that name a loaded profile and frees those of the lights that went or changed. */
+  function followHolds(store: ProfileStore) {
+    pass++
+    for (let slot = 0; slot < store.count; slot++) {
+      const id = store.ids[slot]
+      const profile = store.light(id)?.iesProfile
+      const data = profile === undefined ? undefined : registry.get(profile)
+      if (profile === undefined || !data) continue
+      const had = held.get(id)
+      if (had?.profile === profile) {
+        had.pass = pass
+        continue
+      }
+      if (had) atlas.slots.remove(had.profile)
+      atlas.slots.add(profile, data)
+      held.set(id, { profile, pass })
+    }
+    for (const [id, entry] of held)
+      if (entry.pass !== pass) {
+        atlas.slots.remove(entry.profile)
+        held.delete(id)
+      }
+  }
   return {
     /** Whether the last sync saw the store's profile epoch, the registry's version and the atlas's settings (the texels a side of a slice, the most profiles) as they are: the lights
      *  hold the slices of the profiles registered so far, in an atlas made as the settings say. */
     upToDate,
-    /** Returns whether the atlas's texture was made by it (a bind group of its view is stale). */
-    sync(store: ProfileStore, resolution: number, maxProfiles: number) {
-      if (upToDate(store, resolution, maxProfiles)) return false
-      pass++
-      for (let slot = 0; slot < store.count; slot++) {
-        const id = store.ids[slot]
-        const profile = store.light(id)?.iesProfile
-        const data = profile === undefined ? undefined : registry.get(profile)
-        if (profile === undefined || !data) continue
-        const had = held.get(id)
-        if (had?.profile === profile) {
-          had.pass = pass
-          continue
-        }
-        if (had) atlas.slots.remove(had.profile)
-        atlas.slots.add(profile, data)
-        held.set(id, { profile, pass })
-      }
-      for (const [id, entry] of held)
-        if (entry.pass !== pass) {
-          atlas.slots.remove(entry.profile)
-          held.delete(id)
-        }
-      const remade = atlas.sync(resolution, maxProfiles)
+    /** Returns whether the atlas's texture was made by it (a bind group of its view is stale). With `forceUpdate` only the atlas is
+     *  written again (every profile held, into slices given out anew), whatever the store and the registry say: the holds of the
+     *  lights are followed only when those moved. */
+    sync(store: ProfileStore, resolution: number, maxProfiles: number, forceUpdate = false) {
+      const moved = !upToDate(store, resolution, maxProfiles)
+      if (!moved && !forceUpdate) return false
+      if (moved) followHolds(store)
+      const remade = atlas.sync(resolution, maxProfiles, forceUpdate)
       for (let slot = 0; slot < store.count; slot++) {
         const mine = held.get(store.ids[slot])
         store.assignLightProfile(slot, mine ? atlas.slots.sliceOf(mine.profile) : -1)
