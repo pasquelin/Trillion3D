@@ -7,6 +7,10 @@ import {
   vsmVisualizeSunsWgsl,
 } from '../../lighting/shadows/vsm/projection/visualizeWgsl.ts'
 import { vsmDenoiseWgsl } from '../../lighting/shadows/vsm/denoise/denoiseWgsl.ts'
+import {
+  vsmDenoiseMarkWgsl,
+  vsmDenoiseTilesWgsl,
+} from '../../lighting/shadows/vsm/denoise/denoiseTilesWgsl.ts'
 import { maskGraphSets } from './engineShaders.mask.fixture.ts'
 import {
   CAST_ARGS_WGSL,
@@ -191,6 +195,9 @@ export function vsmVariants() {
   variants.VSM_CLIPMAP_VIRTUAL_SPACE = clipmapVirtualSpaceWgsl(layout)
   for (const kind of ['sun', 'light', 'r32uint', 'rg32uint', 'rgba32uint'] as const)
     variants[`VSM_DENOISE_${kind.toUpperCase()}`] = vsmDenoiseWgsl(kind)
+  for (const kind of ['sun', 'light', 'r32uint', 'rg32uint', 'rgba32uint'] as const)
+    variants[`VSM_DENOISE_TILES_${kind.toUpperCase()}`] = vsmDenoiseTilesWgsl(kind)
+  variants.VSM_DENOISE_MARK = vsmDenoiseMarkWgsl()
   variants.VSM_VISUALIZE_SUNS = vsmVisualizeSunsWgsl(layout)
   variants.VSM_VISUALIZE_LOCALS = vsmVisualizeLocalsWgsl(layout)
   variants.VSM_VISUALIZE_PER_LIGHT = vsmVisualizePerLightWgsl(layout)

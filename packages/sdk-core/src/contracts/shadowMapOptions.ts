@@ -116,7 +116,7 @@ const FILTERING_AND_LOD_RULES = /* @__PURE__ */ (() =>
     number('shadowResolutionLodBiasLocal', -1, [-16, 16]),
     number('shadowResolutionLodBiasLocalMoving', 1, [-16, 16]),
     count('shadowLightActiveFrameCount', 10, 1),
-    flag('shadowDenoise', false),
+    flag('shadowDenoise', true),
     integer('shadowDenoiseIterations', 2, [0, 4]),
   ] as const)()
 
@@ -274,7 +274,7 @@ const RAY_AND_RESOLUTION_RULES = /* @__PURE__ */ (() =>
  * | `shadowSmrtTexelDitherScaleDirectional` | 2 | |
  * | `shadowSmrtMaxSlopeBiasLocal` | 50 | |
  * | `shadowSmrtRayLengthScaleDirectional` | 1.5 | |
- * | `shadowDenoise` | false | |
+ * | `shadowDenoise` | true | |
  * | `shadowDenoiseIterations` | 2 | |
  * | `shadowResolutionLodBiasDirectional` | -1.5 | 0 0 0 -1.5 |
  * | `shadowResolutionLodBiasDirectionalMoving` | -1.5 | 0 0 0 -1.5 |
@@ -483,7 +483,7 @@ const RAY_AND_RESOLUTION_RULES = /* @__PURE__ */ (() =>
  * normal and by the shadow value itself, which keeps the hard edges; its step grows with the penumbra the local
  * variance of the mask shows, and a pixel whose 3x3 neighbourhood is wholly lit or wholly shadowed is left as it is.
  * It gives cleaner shadows without temporal flicker, at a measured cost of about 2 ms a pass on a 4112x2294 display (the
- * grain removed): it is off by default, until a penumbra tile list cuts it under 0.4 ms. Off, the masks and the image are
+ * grain removed): it is on by default because the grain and the adaptive-stop blocks are visible defects (measured on orbit-around-a-clockwork at max: 2 iterations about 3.9 ms, +4.4 ms on the frame; 1 iteration 2.0 ms); a penumbra tile list will bring the cost down. Off, the masks and the image are
  * exactly those of the reference's method.
  *
  * `shadowRasterIndirectionMultiplier` is the factor, never read under 1, of the cut's cap of visible clusters

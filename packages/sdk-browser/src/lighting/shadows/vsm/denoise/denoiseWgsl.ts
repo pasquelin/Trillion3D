@@ -17,8 +17,12 @@
  * Three masks, one filter each: the suns' (`r32float`, a layer a sun), the per-light path's (`rgba8unorm`,
  * a layer a light: the square root of the share in every channel, the blue one read), and the one-pass
  * projection's packed lanes (4 bits a light, one to four words), each lane filtered alone and requantized
- * to 4 bits. The pass reads one texture and writes another (the mask and a scratch of its own, in turn: no
- * texture is read and written by one dispatch), the copy of the first pass (`dn.phase.y`) making the count even.
+ * to 4 bits. The filter runs only over the tiles of 8 x 8 pixels a tile pass (`denoiseTilesWgsl.ts`) listed: those
+ * with a penumbra within the reach of every pass (the others are wholly 0 or wholly 1 there, which the probe skips
+ * anyway). A pass reads one texture and writes another (two scratches of its own, in turn: no texture is read and
+ * written by one dispatch); the first reads the mask, the others the scratch, but for a neighbour in an unlisted
+ * tile (never written), which they read from the mask (`dnOrig`, `dn.phase.z`); a last copy (`dn.phase.y`) of the
+ * listed tiles writes the mask, so every other pixel is the mask as the projection wrote it.
  */
 import { wgslBlock } from '../../../../../../math/src/wgsl/decl.ts'
 import { wgslProgram } from '../../../../../../math/src/wgsl/assemble.ts'
@@ -43,11 +47,37 @@ export const DENOISE_FORMAT: Record<DenoiseKind, GPUTextureFormat> = {
   rgba32uint: 'rgba32uint',
 }
 
-/** The words of the filter's uniform (`DenoiseParams`): seven vectors of four. */
-export const DENOISE_PARAM_WORDS = 28
+/** The words of the filter's uniform (`DenoiseParams`): eight vectors of four. */
+export const DENOISE_PARAM_WORDS = 32
 
-/** The bindings of the filter, in group 0. */
-export const DENOISE_BINDING = { params: 0, depth: 1, normals: 2, source: 3, result: 4 } as const
+/** The side of a tile of the penumbra tile list, in pixels (the filter's groups are one tile each). */
+export const DENOISE_TILE = DENOISE_GROUP
+
+/** The tiles of a row of the dispatch the marked tiles are dispatched in (the indirect arguments split a long list into rows). */
+export const DENOISE_LIST_ROW = 1024
+
+/** The bindings of the filter, in group 0: `orig` the mask as the projection wrote it (read where a neighbour lies in an unmarked tile), `flags` a word a tile (1 when marked), `list` the count of marked tiles and then the tiles. */
+export const DENOISE_BINDING = {
+  params: 0,
+  depth: 1,
+  normals: 2,
+  source: 3,
+  result: 4,
+  orig: 5,
+  flags: 6,
+  list: 7,
+} as const
+
+/** The bindings of the tile pass (`denoiseTilesWgsl.ts`), in group 0 (the source is the filter's). */
+export const TILE_BINDING = {
+  params: 0,
+  source: 3,
+  stats: 5,
+  flags: 6,
+  list: 7,
+  args: 8,
+  counter: 9,
+} as const
 
 /**
  * What every kind of the filter shares: its uniform, the depth and the normals, and the geometry
@@ -56,8 +86,8 @@ export const DENOISE_BINDING = { params: 0, depth: 1, normals: 2, source: 3, res
  * projection's x and y scales and the target's two pixel sizes in clip units, `row0..2` the rotation of
  * world to view, `phase` the pass's step in pixels and whether it only copies.
  */
-export const DENOISE_GEOMETRY_WGSL = wgslBlock(
-  'DENOISE_GEOMETRY_WGSL',
+export const DENOISE_PARAMS_WGSL = wgslBlock(
+  'DENOISE_PARAMS_WGSL',
   [],
   /* wgsl */ `
 struct DenoiseParams{
@@ -68,15 +98,33 @@ struct DenoiseParams{
  row1:vec4f,
  row2:vec4f,
  phase:vec4f,
+ extra:vec4i,
 };
 @group(0) @binding(${DENOISE_BINDING.params}) var<uniform> dn:DenoiseParams;
+const DN_TILE:i32=${DENOISE_TILE};
+const DN_LIST_ROW:u32=${DENOISE_LIST_ROW}u;
+fn dnClampTo(p:vec2i)->vec2i{return clamp(p,dn.rect.xy,dn.rect.zw-vec2i(1));}
+fn dnInRect(p:vec2i)->bool{return all(p<dn.rect.zw);}
+/** The tiles of a row of the rect's grid. */
+fn dnTilesX()->i32{return (dn.rect.z-dn.rect.x+DN_TILE-1)/DN_TILE;}
+/** The word of the tile holding the pixel p (inside the rect) in the tile buffers. */
+fn dnTileIndex(p:vec2i)->u32{
+ let t=(p-dn.rect.xy)/DN_TILE;
+ return u32(t.y*dnTilesX()+t.x);
+}
+`,
+)
+
+export const DENOISE_GEOMETRY_WGSL = wgslBlock(
+  'DENOISE_GEOMETRY_WGSL',
+  [DENOISE_PARAMS_WGSL],
+  /* wgsl */ `
 @group(0) @binding(${DENOISE_BINDING.depth}) var dnDepth:texture_depth_2d;
 @group(0) @binding(${DENOISE_BINDING.normals}) var dnNormals:texture_2d<f32>;
 const DN_DEPTH_SHARPNESS:f32=150.0;
 const DN_NORMAL_POWER:f32=16.0;
 const DN_VALUE_SHARPNESS:f32=2.0;
 const DN_PENUMBRA_GAIN:f32=4.0;
-fn dnClampTo(p:vec2i)->vec2i{return clamp(p,dn.rect.xy,dn.rect.zw-vec2i(1));}
 fn dnNdc(p:vec2i)->vec2f{return vec2f((f32(p.x)+0.5)*dn.scale.z-1.0,1.0-(f32(p.y)+0.5)*dn.scale.w);}
 fn dnViewZ(d:f32)->f32{return (dn.depthMap.w*d-dn.depthMap.y)/(dn.depthMap.x-dn.depthMap.z*d);}
 fn dnNormalView(p:vec2i)->vec3f{
@@ -123,17 +171,40 @@ fn dnGeometryWeight(d:f32,z:f32,n:vec3f,q:vec2i)->f32{
 }
 /** The value's weight of a tap whose value differs by dv from the pixel's. */
 fn dnValueWeight(dv:f32)->f32{return exp(-DN_VALUE_SHARPNESS*dv*dv);}
-/** The pixels this thread filters, and whether it lies in the rect. */
-fn dnPixel(gid:vec3u)->vec2i{return dn.rect.xy+vec2i(gid.xy);}
-fn dnInRect(p:vec2i)->bool{return all(p<dn.rect.zw);}
+`,
+)
+
+/** What the filters share of the tile list: the flag of each tile (marked or not), the list of the marked ones, and the pixel a thread of the indirect dispatch filters (outside the rect where its group is past the list). */
+export const DENOISE_LIST_WGSL = wgslBlock(
+  'DENOISE_LIST_WGSL',
+  [DENOISE_PARAMS_WGSL],
+  /* wgsl */ `
+@group(0) @binding(${DENOISE_BINDING.flags}) var<storage,read> dnFlags:array<u32>;
+@group(0) @binding(${DENOISE_BINDING.list}) var<storage,read> dnList:array<u32>;
+/** Whether the tile of the pixel p is in the list: the others are as the projection wrote them. */
+fn dnTileMarked(p:vec2i)->bool{return dnFlags[dnTileIndex(p)]!=0u;}
+fn dnListPixel(wid:vec3u,lid:vec3u)->vec2i{
+ let i=wid.y*DN_LIST_ROW+wid.x;
+ if(i>=dnList[0]){return dn.rect.zw;}
+ let t=dnList[1u+i];
+ let w=u32(dnTilesX());
+ return dn.rect.xy+vec2i(i32(t%w),i32(t/w))*DN_TILE+vec2i(lid.xy);
+}
 `,
 )
 
 /** A scalar mask's kernel: the suns' array or a per-light layer. The value is `valueOf`, the channel the lighting reads. */
 const scalarKernel = (array: boolean, format: GPUTextureFormat, valueOf: string) => /* wgsl */ `
 @group(0) @binding(${DENOISE_BINDING.source}) var dnSrc:${array ? 'texture_2d_array<f32>' : 'texture_2d<f32>'};
+@group(0) @binding(${DENOISE_BINDING.orig}) var dnOrig:${array ? 'texture_2d_array<f32>' : 'texture_2d<f32>'};
 @group(0) @binding(${DENOISE_BINDING.result}) var dnDst:${array ? 'texture_storage_2d_array' : 'texture_storage_2d'}<${format},write>;
-fn dnLoad(p:vec2i,layer:i32)->vec4f{return ${array ? 'textureLoad(dnSrc,p,layer,0)' : 'textureLoad(dnSrc,p,0)'};}
+/** The texel p: of the pass's source, or, past the first pass, where p lies in a tile not in the list (never written), of the mask itself. */
+fn dnLoad(p:vec2i,layer:i32)->vec4f{
+ if(dn.phase.z>0.5){
+  if(!dnTileMarked(p)){return ${array ? 'textureLoad(dnOrig,p,layer,0)' : 'textureLoad(dnOrig,p,0)'};}
+ }
+ return ${array ? 'textureLoad(dnSrc,p,layer,0)' : 'textureLoad(dnSrc,p,0)'};
+}
 fn dnStore(p:vec2i,layer:i32,v:vec4f){${array ? 'textureStore(dnDst,p,layer,v);' : 'textureStore(dnDst,p,v);'}}
 fn dnValue(v:vec4f)->f32{return v.${valueOf};}
 /** The pixel p of the layer, filtered: itself where its probe (dnProbed) finds 0 everywhere or 1 everywhere. */
@@ -174,10 +245,10 @@ fn dnSmooth(p:vec2i,layer:i32)->vec4f{
  return acc/total;
 }
 @compute @workgroup_size(${DENOISE_GROUP},${DENOISE_GROUP},1)
-fn vsmDenoise(@builtin(global_invocation_id) gid:vec3u){
- let p=dnPixel(gid);
+fn vsmDenoise(@builtin(workgroup_id) wid:vec3u,@builtin(local_invocation_id) lid:vec3u){
+ let p=dnListPixel(wid,lid);
  if(!dnInRect(p)){return;}
- let layer=i32(gid.z);
+ let layer=i32(wid.z);
  dnStore(p,layer,dnSmooth(p,layer));
 }
 `
@@ -190,8 +261,15 @@ const packedKernel = (format: GPUTextureFormat, words: number) => /* wgsl */ `
 const DN_WORDS:u32=${words}u;
 const DN_LANES:u32=${words * 8}u;
 @group(0) @binding(${DENOISE_BINDING.source}) var dnSrc:texture_2d<u32>;
+@group(0) @binding(${DENOISE_BINDING.orig}) var dnOrig:texture_2d<u32>;
 @group(0) @binding(${DENOISE_BINDING.result}) var dnDst:texture_storage_2d<${format},write>;
-fn dnWords(p:vec2i)->vec4u{return textureLoad(dnSrc,p,0);}
+/** The texel p: of the pass's source, or, past the first pass, where p lies in a tile not in the list (never written), of the mask itself. */
+fn dnWords(p:vec2i)->vec4u{
+ if(dn.phase.z>0.5){
+  if(!dnTileMarked(p)){return textureLoad(dnOrig,p,0);}
+ }
+ return textureLoad(dnSrc,p,0);
+}
 fn dnShare(word:u32,lane:u32)->f32{return f32((word>>(lane*ONE_PASS_MASK_BITS))&ONE_PASS_MASK_MAX)/f32(ONE_PASS_MASK_MAX);}
 fn dnQuantize(v:f32)->u32{return u32(round(clamp(v,0.0,1.0)*f32(ONE_PASS_MASK_MAX)));}
 /** Whether a lane of the word is neither 0 in all nine texels (orWord) nor 15 in all (andWord). */
@@ -279,8 +357,8 @@ fn dnSmoothPacked(p:vec2i)->vec4u{
  return r;
 }
 @compute @workgroup_size(${DENOISE_GROUP},${DENOISE_GROUP},1)
-fn vsmDenoise(@builtin(global_invocation_id) gid:vec3u){
- let p=dnPixel(gid);
+fn vsmDenoise(@builtin(workgroup_id) wid:vec3u,@builtin(local_invocation_id) lid:vec3u){
+ let p=dnListPixel(wid,lid);
  if(!dnInRect(p)){return;}
  textureStore(dnDst,p,dnSmoothPacked(p));
 }
@@ -296,6 +374,7 @@ export function vsmDenoiseWgsl(kind: DenoiseKind) {
         : packedKernel(DENOISE_FORMAT[kind], PACKED_WORDS[kind])
   return wgslProgram(own, [
     DENOISE_GEOMETRY_WGSL,
+    DENOISE_LIST_WGSL,
     ...(kind === 'sun' || kind === 'light' ? [] : [ONE_PASS_MASK_WGSL]),
   ])
 }

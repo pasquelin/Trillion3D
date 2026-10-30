@@ -4,6 +4,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../../../materials/texture/shaderRun.fixture.ts'
 import { VSM_DENOISE_PASS } from '../../../../diagnostic/stage/passLabels.ts'
+import { denoiseTileReach, vsmDenoiseMarkWgsl, vsmDenoiseTilesWgsl } from './denoiseTilesWgsl.ts'
 import { denoisePasses, denoiseProjected, writeDenoiseParams } from './denoisePass.ts'
 import { vsmDenoiseWgsl, DENOISE_PARAM_WORDS, type DenoiseKind } from './denoiseWgsl.ts'
 import { SHADOW_MAP_DEFAULTS_FOR_TEST } from './denoise.fixture.ts'
@@ -23,8 +24,8 @@ test('every mask has a program with its entry, reading the geometry and the 3x3 
   }
 })
 
-test('the denoise has passes where on and none where off; an odd count begins with a copy', () => {
-  assert.deepEqual([0, 1, 2, 3, 4].map(denoisePasses), [0, 2, 2, 4, 4])
+test('the denoise has dispatches where on and none where off; the last copies the listed tiles back', () => {
+  assert.deepEqual([0, 1, 2, 3, 4].map(denoisePasses), [0, 2, 3, 4, 5])
 })
 
 test('with the denoise off nothing is opened or encoded', () => {
@@ -45,13 +46,20 @@ test('the pass parameters carry the projection, the rect, the step and the copy 
   const view = SHADOW_MAP_DEFAULTS_FOR_TEST.view
   writeDenoiseParams(into, view, [1, 2, 3, 4], 3, 0)
   assert.deepEqual([...new Int32Array(into.buffer, 0, 4)], [1, 2, 3, 4])
-  assert.deepEqual([into[24], into[25]], [0, 1], 'an odd count begins with a copy')
-  writeDenoiseParams(into, view, [0, 0, 8, 8], 3, 1)
-  assert.deepEqual([into[24], into[25]], [1, 0])
+  assert.deepEqual([into[24], into[25], into[26]], [1, 0, 0], 'the first pass reads the mask')
+  assert.equal(into[27], 2, 'the reach of 3 passes is 14 pixels: 2 tiles')
+  assert.equal(new Int32Array(into.buffer, 112, 1)[0], 1, 'the layers')
+  writeDenoiseParams(into, view, [0, 0, 8, 8], 3, 1, 4)
+  assert.deepEqual([into[24], into[25], into[26]], [2, 0, 1], 'past the first it reads the scratch')
+  assert.equal(new Int32Array(into.buffer, 112, 1)[0], 4)
   writeDenoiseParams(into, view, [0, 0, 8, 8], 3, 3)
-  assert.deepEqual([into[24], into[25]], [4, 0])
+  assert.deepEqual([into[24], into[25], into[26]], [0, 1, 0], 'the last copies')
   writeDenoiseParams(into, view, [0, 0, 8, 8], 2, 1)
-  assert.deepEqual([into[24], into[25]], [2, 0])
+  assert.deepEqual([into[24], into[25], into[26], into[27]], [2, 0, 1, 1])
+})
+
+test('the tiles a filter reaches: the sum of its probes in whole tiles', () => {
+  assert.deepEqual([0, 1, 2, 3, 4].map(denoiseTileReach), [0, 1, 1, 2, 4])
 })
 
 // A flat wall facing a perspective camera 10 units away, 12 × 12 pixels, reverse-Z with the near plane 0.1.
@@ -133,7 +141,11 @@ test('a hard edge between two surfaces stays: the other side does not bleed into
 })
 
 test('a copy pass writes the pixel as it reads it', () => {
-  const copy = filterOf((x, y) => ((x + y) & 1 ? 1 : 0), () => 10, [1, 1, 0, 0])
+  const copy = filterOf(
+    (x, y) => ((x + y) & 1 ? 1 : 0),
+    () => 10,
+    [1, 1, 0, 0],
+  )
   assert.equal(copy.dnSmooth([5, 5], 0)[0], 0)
   assert.equal(copy.dnSmooth([5, 6], 0)[0], 1)
 })
@@ -170,4 +182,85 @@ test('the interior of a block the adaptive stop left is filtered, a region two s
   assert.ok(block.dnSmooth([5, 5], 0)[0] > 0, 'a block texel two rows from its edge is filtered')
   const lit = filterOf((x) => (x === 11 ? 0 : 1))
   assert.equal(lit.dnSmooth([4, 6], 0)[0], 1, 'far from the change it stays')
+})
+
+// The tile list: a 40 x 24 mask (5 x 3 tiles of 8 x 8), its tiles' stats reduced as the tile pass does (every pixel's
+// bits ORed), then each tile's mark read through the window of `reach` tiles.
+const markedTiles = (
+  value: (x: number, y: number, layer: number) => number,
+  layers = 1,
+  reach = 1,
+) => {
+  const [W, H] = [40, 24]
+  const dn = {
+    rect: [0, 0, W, H],
+    phase: [1, 0, 0, reach],
+    extra: [layers, 0, 0, 0],
+  }
+  const bits = shaderRun<{ dnBits: (p: number[]) => number[] }>(
+    vsmDenoiseTilesWgsl('sun'),
+    ['dnBits'],
+    {
+      dn,
+      dnSrc: { load: ([x, y]: number[], layer: number) => [value(x, y, layer), 0, 0, 1] },
+    },
+  )
+  const stats: number[][] = []
+  for (let ty = 0; ty < H / 8; ty++)
+    for (let tx = 0; tx < W / 8; tx++) {
+      let nz = 0
+      let nl = 0
+      for (let y = ty * 8; y < ty * 8 + 8; y++)
+        for (let x = tx * 8; x < tx * 8 + 8; x++) {
+          const b = bits.dnBits([x, y])
+          nz |= b[0]
+          nl |= b[1]
+        }
+      stats.push([nz, nl])
+    }
+  const mark = shaderRun<{ dnWindowMarked: (t: number[], d: number) => boolean }>(
+    vsmDenoiseMarkWgsl(),
+    ['dnWindowMarked'],
+    { dn, dnStats: stats },
+  )
+  const out: string[] = []
+  for (let ty = 0; ty < 3; ty++)
+    for (let tx = 0; tx < 5; tx++) if (mark.dnWindowMarked([tx, ty], reach)) out.push(`${tx},${ty}`)
+  return out
+}
+
+test('a mask wholly 0 or wholly 1 marks no tile', () => {
+  assert.deepEqual(
+    markedTiles(() => 0),
+    [],
+  )
+  assert.deepEqual(
+    markedTiles(() => 1),
+    [],
+  )
+  assert.deepEqual(
+    markedTiles((_x, _y, l) => l, 2),
+    [],
+    'one layer lit, one shadowed, each uniform',
+  )
+})
+
+test('a penumbra pixel marks its tile and the tiles within the reach', () => {
+  // One pixel at 0.5 in the tile (2, 1): that tile and its eight neighbours, with a reach of one tile.
+  const near = markedTiles((x, y) => (x === 20 && y === 12 ? 0.5 : 1))
+  assert.deepEqual(near.sort(), ['1,0', '1,1', '1,2', '2,0', '2,1', '2,2', '3,0', '3,1', '3,2'])
+  // The reach 0 marks the tile alone; a hard edge between 0 and 1 is marked too, as the filter blurs it a little.
+  assert.deepEqual(
+    markedTiles((x, y) => (x === 20 && y === 12 ? 0.5 : 1), 1, 0),
+    ['2,1'],
+  )
+  assert.deepEqual(
+    markedTiles((x) => (x < 20 ? 0 : 1), 1, 0),
+    ['2,0', '2,1', '2,2'],
+  )
+  // A penumbra in the second layer marks too.
+  assert.deepEqual(
+    markedTiles((x, y, l) => (l === 1 && x === 3 && y === 3 ? 0.5 : 1), 2, 0),
+    ['0,0'],
+  )
 })

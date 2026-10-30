@@ -128,7 +128,7 @@ const SHADOW_MAP_DEFAULTS = {
   ...{ shadowSmrtExtrapolateMaxSlopeDirectional: 5, shadowSmrtTexelDitherScaleLocal: 2 },
   ...{ shadowSmrtTexelDitherScaleDirectional: 2, shadowSmrtMaxSlopeBiasLocal: 50 },
   shadowSmrtRayLengthScaleDirectional: 1.5,
-  shadowDenoise: false,
+  shadowDenoise: true,
   shadowDenoiseIterations: 2,
   translucentRectLights: false,
   ...{ lightMinScreenRadius: 0.03, lightMaxDrawDistanceScale: 1 },

@@ -9,6 +9,8 @@ import { definePass, definePassFamily, type PassFiling } from './passDeclaration
 export const VSM_PASS_PREFIX = 'vsm.'
 /** The virtual shadow maps' shadow mask denoise (`../../lighting/shadows/vsm/denoise/`): every pass of its filter, the suns', the local lights' and each per-light layer's, carries this label, so the bench times them as one. */
 export const VSM_DENOISE_PASS = `${VSM_PASS_PREFIX}denoise`
+/** The denoise's penumbra tile pass (`../../lighting/shadows/vsm/denoise/`): the tiles the filter has to run over are found and listed, timed apart from the filter under the same family. */
+export const VSM_DENOISE_TILES_PASS = `${VSM_DENOISE_PASS}.tiles`
 /** The placement's compute passes: the roots' world matrices (`../../placement/compose/gpuCompose.ts`); their
  *  world boxes and stretches (`../../placement/roots/rootBoxes.ts`), then the rows'; the leaf boxes of the
  *  placement tree (`../../placement/tree/treeLeaves.ts`) and its refit (`../../geometry/dag/tree/treeRefit.ts`). */
